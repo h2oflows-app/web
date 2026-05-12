@@ -1,0 +1,32 @@
+# Node / Nuxt
+node_modules/
+.nuxt/
+.output/
+dist/
+.cache/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Claude memory — all memory files stay local
+.claude/memory/
+
+# CodeSight generated analysis — regenerate with `codesight scan`
+.codesight/
+
+# Project decisions log — local only
+DECISIONS.md
+.mcp.json
