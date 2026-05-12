@@ -56,7 +56,7 @@ Requires API on `:8080`. Set `NUXT_PUBLIC_API_URL=http://localhost:8080` in `.en
 
 ## Conventions
 
-- API base URL injected via `NUXT_PUBLIC_API_URL` (Netlify env var in prod, `.env.local` locally)
+- API base URL injected via `NUXT_PUBLIC_API_BASE` (Netlify env var in prod, `.env.local` locally)
 - Reach slugs are the canonical reach identifier — match the API
 - Flow difficulty stored as floats (`3.5`), rendered as Roman numerals (`III+`)
 - Flow band labels: Too Low / Low / Running / High / Very High — colors in `utils/flowBand.ts`
