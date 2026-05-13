@@ -1,5 +1,5 @@
 [build]
-  command = "npx nuxt generate"
+  command = "npm run generate"
   publish = ".output/public"
 
 [build.environment]
