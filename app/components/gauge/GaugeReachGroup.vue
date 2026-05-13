@@ -225,7 +225,10 @@ const liveCfs = ref<number | null>(null)
 const { prefetch, bandForCfs, statusForBand } = useReachFlowBand()
 
 function displayFlowBandLabel(reach: WatchedGauge): string | null {
-  return bandForCfs(reach.contextReachSlug, reach.currentCfs) ?? reach.flowBandLabel ?? null
+  // All reaches in a group share one gauge — use live CFS from the gauge sparkline.
+  // Falls back to stored currentCfs before the sparkline fires, then to server flowBandLabel.
+  const cfs = liveCfs.value ?? reach.currentCfs
+  return bandForCfs(reach.contextReachSlug, cfs) ?? reach.flowBandLabel ?? null
 }
 
 function displayFlowStatus(reach: WatchedGauge): string {
