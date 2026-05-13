@@ -200,7 +200,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed } from 'vue'
 import type { WatchedGauge } from '~/stores/watchlist'
 import { flowBandLabel } from '~/utils/flowBand'
 
@@ -222,24 +222,13 @@ const { removeAndSync } = useWatchlistSync()
 
 const liveCfs = ref<number | null>(null)
 
-const { prefetch, bandForCfs, statusForBand } = useReachFlowBand()
-
 function displayFlowBandLabel(reach: WatchedGauge): string | null {
-  return bandForCfs(reach.contextReachSlug, reach.currentCfs) ?? reach.flowBandLabel ?? null
+  return reach.flowBandLabel ?? null
 }
 
 function displayFlowStatus(reach: WatchedGauge): string {
-  return statusForBand(displayFlowBandLabel(reach)) ?? reach.flowStatus ?? 'unknown'
+  return reach.flowStatus ?? 'unknown'
 }
-
-function prefetchAll() {
-  for (const r of props.reachItems) {
-    if (r.contextReachSlug) prefetch(r.contextReachSlug)
-  }
-}
-
-onMounted(prefetchAll)
-watch(() => props.reachItems, prefetchAll)
 
 const currentCfs = computed(() => liveCfs.value ?? props.leadGauge.currentCfs)
 
