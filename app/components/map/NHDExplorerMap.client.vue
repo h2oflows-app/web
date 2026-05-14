@@ -121,6 +121,12 @@ let initialFitDone = false
 
 const BASEMAP_LAYER_IDS = { street: 'street-tiles', topo: 'topo-tiles', satellite: 'esri-tiles' } as const
 
+// Flowline layers used for ComID selection — wide transparent hit-target
+// layers plus the visible 2.5px line. Order matters for queryRenderedFeatures:
+// the visible line wins over the hit area when both are under the cursor, so
+// click feedback aligns with what the user sees.
+const FLOWLINE_LAYER_IDS: string[] = ['nhd-upstream-line', 'nhd-upstream-hit', 'nhd-downstream-line', 'nhd-downstream-hit']
+
 function setBasemap(val: 'street' | 'topo' | 'satellite') {
   if (!map) return
   basemap.value = val
@@ -414,30 +420,17 @@ function addLayers() {
     },
   })
 
-  // ── ComID selection: click on any flowline segment ────────────────────
-  // Hit-target layers are transparent + 14px wide so small flowlines stay
-  // clickable. Visible layers stay clickable too as a fallback.
-  // Multiple layers share the same handler — dedup on originalEvent so a
-  // single physical click only emits once even if several layers overlap.
-  let lastClickedEvent: MouseEvent | null = null
-  const flowlineClick = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
-    if (!props.comidSelectMode) return
-    if (e.originalEvent === lastClickedEvent) return
-    lastClickedEvent = e.originalEvent
-    const comid = e.features?.[0]?.properties?.nhdplus_comid as string | undefined
-    if (comid) {
-      e.preventDefault()
-      emit('comid-select', comid, e.lngLat.lat, e.lngLat.lng)
-    }
-  }
+  // ── Hover cursor for flowline layers ─────────────────────────────────
+  // Click handling for flowlines is consolidated into the general click
+  // handler below — that avoids the per-layer dedup hack and is robust
+  // against maplibre's per-layer dispatch ordering.
   const flowlineHover = () => {
     if (map && props.comidSelectMode) map.getCanvas().style.cursor = 'pointer'
   }
   const flowlineLeave = () => {
     if (map) map.getCanvas().style.cursor = props.pickMode ? 'crosshair' : ''
   }
-  for (const id of ['nhd-upstream-hit', 'nhd-upstream-line', 'nhd-downstream-hit', 'nhd-downstream-line']) {
-    map.on('click', id, flowlineClick)
+  for (const id of FLOWLINE_LAYER_IDS) {
     map.on('mouseenter', id, flowlineHover)
     map.on('mouseleave', id, flowlineLeave)
   }
@@ -501,8 +494,21 @@ function initMap() {
     }
   })
 
+  // Single general click handler covers both anchor pick and ComID select.
+  // Using queryRenderedFeatures avoids the per-layer dispatch + dedup hack,
+  // which broke silently after a maplibre-gl 5.x bump.
   map.on('click', (e) => {
-    if (props.pickMode && !props.comidSelectMode) emit('pick', e.lngLat.lat, e.lngLat.lng)
+    if (!map) return
+    if (props.gaugeSelectMode) return  // gauge layer handler owns this path
+    if (props.comidSelectMode) {
+      const feats = map.queryRenderedFeatures(e.point, { layers: FLOWLINE_LAYER_IDS })
+      const comid = feats[0]?.properties?.nhdplus_comid as string | undefined
+      if (comid) {
+        emit('comid-select', comid, e.lngLat.lat, e.lngLat.lng)
+      }
+      return
+    }
+    if (props.pickMode) emit('pick', e.lngLat.lat, e.lngLat.lng)
   })
 
   map.on('error', (e) => console.warn('[NHDExplorerMap]', e.error?.message ?? e))

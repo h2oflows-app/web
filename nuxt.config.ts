@@ -58,6 +58,17 @@ export default defineNuxtConfig({
   // but the dashboard itself is client-side only
   ssr: true,
 
+  // Phase 2c.0 — SEO blocking until 1.0 launch. Pilot is private validation,
+  // not a public launch — don't let half-finished pages get cached in Google.
+  // Pulled at 1.0 launch (remove this app.head block + flip robots.txt).
+  app: {
+    head: {
+      meta: [
+        { name: 'robots', content: 'noindex, nofollow' },
+      ],
+    },
+  },
+
   // Color mode — Nuxt UI handles dark/light switching via the class strategy
   colorMode: {
     classSuffix: '',
