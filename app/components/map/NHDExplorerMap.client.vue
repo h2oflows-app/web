@@ -495,13 +495,23 @@ function initMap() {
   })
 
   // Single general click handler covers both anchor pick and ComID select.
-  // Using queryRenderedFeatures avoids the per-layer dispatch + dedup hack,
-  // which broke silently after a maplibre-gl 5.x bump.
+  // Using queryRenderedFeatures avoids the per-layer dispatch + dedup hack
+  // that broke silently after a maplibre-gl 5.x bump.
+  // bbox query with 8px buffer matches the 14px-wide transparent hit layer —
+  // queryRenderedFeatures(point) only has a 3px built-in tolerance.
   map.on('click', (e) => {
     if (!map) return
     if (props.gaugeSelectMode) return  // gauge layer handler owns this path
     if (props.comidSelectMode) {
-      const feats = map.queryRenderedFeatures(e.point, { layers: FLOWLINE_LAYER_IDS })
+      const r = 8
+      const bbox: [maplibregl.PointLike, maplibregl.PointLike] = [
+        [e.point.x - r, e.point.y - r],
+        [e.point.x + r, e.point.y + r],
+      ]
+      const existingLayers = FLOWLINE_LAYER_IDS.filter(id => map!.getLayer(id))
+      const feats = existingLayers.length
+        ? map.queryRenderedFeatures(bbox, { layers: existingLayers })
+        : []
       const comid = feats[0]?.properties?.nhdplus_comid as string | undefined
       if (comid) {
         emit('comid-select', comid, e.lngLat.lat, e.lngLat.lng)
