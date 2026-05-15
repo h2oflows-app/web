@@ -1,5 +1,5 @@
 <template>
-  <UModal v-model:open="open" :ui="{ width: 'max-w-xl' }">
+  <UModal v-model:open="open" :ui="{ content: 'sm:max-w-xl max-sm:!inset-0 max-sm:!w-auto max-sm:!max-w-none max-sm:!rounded-none max-sm:!ring-0' }">
     <template #header>
       <div class="flex items-start justify-between gap-3 w-full">
         <div class="min-w-0 flex-1">

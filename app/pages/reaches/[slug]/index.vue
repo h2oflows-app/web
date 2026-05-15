@@ -86,19 +86,20 @@
           </div>
 
           <!-- Action row: dashboard add/remove + edit + share -->
-          <div class="shrink-0 flex items-center gap-2 flex-wrap">
+          <div class="shrink-0 flex items-center gap-2">
             <ClientOnly>
               <template v-if="allGauges.length > 0">
                 <div v-if="!onDashboard(allGauges[0].id)" class="relative" data-add-dashboard-wrap>
                   <div class="flex items-stretch rounded-xl border-2 border-neutral-200 dark:border-neutral-700 hover:border-primary-400 dark:hover:border-primary-500 transition-colors overflow-hidden">
                     <button
-                      class="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                      class="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                      :title="`Add to ${dashboardsAdd.activeDashboard.value?.name ?? 'dashboard'}`"
                       @click="addToDashboard(allGauges[0], dashboardsAdd.activeDashboard.value?.id ?? null)"
                     >
-                      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                       </svg>
-                      Add to {{ dashboardsAdd.activeDashboard.value?.name ?? 'dashboard' }}
+                      <span class="hidden sm:inline">Add to {{ dashboardsAdd.activeDashboard.value?.name ?? 'dashboard' }}</span>
                     </button>
                     <button
                       v-if="dashboardsAdd.dashboards.value.length > 1"
@@ -126,11 +127,11 @@
                   v-else
                   class="flex items-stretch rounded-xl border-2 border-primary-400 dark:border-primary-600 bg-primary-50 dark:bg-primary-950/50 overflow-hidden"
                 >
-                  <span class="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-primary-600 dark:text-primary-400">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <span class="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-semibold text-primary-600 dark:text-primary-400">
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                       <polyline points="20 6 9 17 4 12"/>
                     </svg>
-                    On dashboard
+                    <span class="hidden sm:inline">On dashboard</span>
                   </span>
                   <button
                     class="flex items-center justify-center px-3 border-l-2 border-primary-400 dark:border-primary-600 text-primary-600 dark:text-primary-400 hover:bg-red-100 dark:hover:bg-red-950 hover:text-red-600 dark:hover:text-red-400 transition-colors"
@@ -149,22 +150,24 @@
             <NuxtLink
               v-if="isDataAdmin"
               :to="`/reaches/${route.params.slug}/edit`"
-              class="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-neutral-200 dark:border-neutral-700 text-sm font-semibold text-neutral-600 dark:text-neutral-300 hover:border-neutral-400 dark:hover:border-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
+              class="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl border-2 border-neutral-200 dark:border-neutral-700 text-sm font-semibold text-neutral-600 dark:text-neutral-300 hover:border-neutral-400 dark:hover:border-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
+              title="Edit reach"
             >
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
               </svg>
-              Edit
+              <span class="hidden sm:inline">Edit</span>
             </NuxtLink>
 
             <button
-              class="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-primary-600 bg-primary-600 hover:bg-primary-700 hover:border-primary-700 text-white text-sm font-semibold transition-colors"
+              class="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl border-2 border-primary-600 bg-primary-600 hover:bg-primary-700 hover:border-primary-700 text-white text-sm font-semibold transition-colors"
+              title="Share"
               @click="openShareForm"
             >
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
               </svg>
-              Share
+              <span class="hidden sm:inline">Share</span>
             </button>
           </div>
         </div>
