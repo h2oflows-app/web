@@ -11,15 +11,35 @@
             Calculated · {{ gaugeName }}
           </p>
         </div>
-        <button
-          class="shrink-0 p-1 rounded-md text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
-          aria-label="Close"
-          @click="open = false"
-        >
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 6 6 18M6 6l12 12"/>
-          </svg>
-        </button>
+        <div class="flex items-center gap-1 shrink-0">
+          <NuxtLink
+            v-if="reachSlug"
+            :to="`/my/reaches/${reachSlug}`"
+            class="p-1.5 rounded-md text-neutral-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
+            title="Edit reach"
+            @click="open = false"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
+          </NuxtLink>
+          <NuxtLink
+            v-else
+            :to="`/my/gauges/${gaugeSlug}`"
+            class="p-1.5 rounded-md text-neutral-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
+            title="Edit gauge"
+            @click="open = false"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
+          </NuxtLink>
+          <button
+            class="p-1 rounded-md text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+            aria-label="Close"
+            @click="open = false"
+          >
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6 6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </template>
 
@@ -51,7 +71,7 @@
         </div>
 
         <!-- Main custom gauge chart -->
-        <div class="relative w-full" style="height:240px">
+        <div class="relative w-full overflow-hidden" style="height:240px">
           <div ref="container" class="w-full h-full" />
           <div
             v-if="loading"
@@ -91,31 +111,6 @@
       </div>
     </template>
 
-    <!-- Link pinned to bottom -->
-    <template #footer>
-      <NuxtLink
-        v-if="reachSlug"
-        :to="`/my/reaches/${reachSlug}`"
-        class="w-full flex items-center justify-center gap-1.5 py-2 text-sm text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 font-medium transition-colors"
-        @click="open = false"
-      >
-        Edit reach
-        <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M5 10h10M11 6l4 4-4 4"/>
-        </svg>
-      </NuxtLink>
-      <NuxtLink
-        v-else
-        :to="`/my/gauges/${gaugeSlug}`"
-        class="w-full flex items-center justify-center gap-1.5 py-2 text-sm text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 font-medium transition-colors"
-        @click="open = false"
-      >
-        Edit gauge
-        <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M5 10h10M11 6l4 4-4 4"/>
-        </svg>
-      </NuxtLink>
-    </template>
   </UModal>
 </template>
 
@@ -200,9 +195,10 @@ function buildChart() {
   const xs = new Float64Array(sorted.map(r => new Date(r.timestamp).getTime() / 1000))
   const ys = new Float64Array(sorted.map(r => r.cfs))
 
+  const chartWidth = container.value.clientWidth || 400
   chart = new uPlot(
     {
-      width:   container.value.clientWidth || 400,
+      width:   chartWidth,
       height:  240,
       padding: [8, 0, 0, 0],
       cursor:  { show: true },
@@ -223,6 +219,12 @@ function buildChart() {
     [xs, ys],
     container.value,
   )
+
+  requestAnimationFrame(() => {
+    if (chart && container.value) {
+      chart.setSize({ width: container.value.clientWidth, height: 240 })
+    }
+  })
 }
 
 // immediate: true catches the case where the component mounts with open already

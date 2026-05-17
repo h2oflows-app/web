@@ -30,16 +30,29 @@
             </p>
           </template>
         </div>
-        <!-- Close button only in header -->
-        <button
-          class="shrink-0 p-1 rounded-md text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
-          aria-label="Close"
-          @click="open = false"
-        >
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 6 6 18M6 6l12 12"/>
-          </svg>
-        </button>
+        <!-- View reach + close buttons -->
+        <div class="flex items-center gap-1 shrink-0">
+          <NuxtLink
+            v-if="mode === 'reach' && reachSlugForLink"
+            :to="`/reaches/${reachSlugForLink}`"
+            class="p-1.5 rounded-md text-neutral-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
+            :title="`View ${reachTitle ?? 'reach'} details`"
+            @click="open = false"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 10h10M11 6l4 4-4 4"/>
+            </svg>
+          </NuxtLink>
+          <button
+            class="p-1 rounded-md text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+            aria-label="Close"
+            @click="open = false"
+          >
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6 6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </template>
 
@@ -107,19 +120,6 @@
       </div>
     </template>
 
-    <!-- View reach link pinned to bottom -->
-    <template v-if="mode === 'reach' && reachSlugForLink" #footer>
-      <NuxtLink
-        :to="`/reaches/${reachSlugForLink}`"
-        class="w-full flex items-center justify-center gap-1.5 py-2 text-sm text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 font-medium transition-colors"
-        @click="open = false"
-      >
-        View {{ reachTitle ?? 'reach' }} details
-        <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M5 10h10M11 6l4 4-4 4"/>
-        </svg>
-      </NuxtLink>
-    </template>
   </UModal>
 </template>
 

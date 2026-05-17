@@ -15,7 +15,7 @@
 
     <!-- Chart container — always mounted so the ref is never torn down mid-update.
          Overlay states sit on top without removing the canvas from the DOM. -->
-    <div class="relative w-full" :style="{ height: `${props.height ?? 200}px` }">
+    <div class="relative w-full overflow-hidden" :style="{ height: `${props.height ?? 200}px` }">
       <div ref="container" class="w-full h-full" />
       <!-- Hover tooltip -->
       <div
@@ -239,6 +239,14 @@ function buildChart() {
   }
 
   chart = new uPlot(opts, [xs, ys], container.value!)
+
+  // Re-measure once the browser has finished painting — catches mobile modals
+  // where clientWidth is stale at the time buildChart first runs.
+  requestAnimationFrame(() => {
+    if (chart && container.value) {
+      chart.setSize({ width: container.value.clientWidth, height: props.height ?? 200 })
+    }
+  })
 }
 
 // ---- Canvas drawing helpers -------------------------------------------------
