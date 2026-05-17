@@ -68,70 +68,6 @@
 
           <!-- Icon toolbar -->
           <div class="shrink-0 flex items-center gap-1 mt-0.5">
-            <ClientOnly>
-              <!-- Add / On-dashboard toggle -->
-              <template v-if="allGauges.length > 0">
-                <!-- Not on dashboard: + button with optional dashboard picker -->
-                <div v-if="!onDashboard(allGauges[0].id)" class="relative" data-add-dashboard-wrap>
-                  <div class="flex items-stretch rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-                    <button
-                      class="flex items-center justify-center p-1.5 text-neutral-600 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-colors"
-                      :title="`Add to ${dashboardsAdd.activeDashboard.value?.name ?? 'dashboard'}`"
-                      @click="addToDashboard(allGauges[0], dashboardsAdd.activeDashboard.value?.id ?? null)"
-                    >
-                      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                      </svg>
-                    </button>
-                    <button
-                      v-if="dashboardsAdd.dashboards.value.length > 1"
-                      class="flex items-center justify-center px-1 border-l border-neutral-200 dark:border-neutral-700 text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-colors"
-                      title="Pick a different dashboard"
-                      @click="dashboardPickerOpen = !dashboardPickerOpen"
-                    >
-                      <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
-                  </div>
-                  <!-- Dropdown opens left-aligned to stay on-screen on mobile -->
-                  <div
-                    v-if="dashboardPickerOpen"
-                    class="absolute left-0 top-full mt-1 z-30 w-48 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg overflow-hidden"
-                  >
-                    <button
-                      v-for="d in dashboardsAdd.dashboards.value"
-                      :key="d.id"
-                      class="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-colors"
-                      :class="d.id === dashboardsAdd.activeDashboardId.value ? 'font-medium text-primary-600 dark:text-primary-400' : 'text-neutral-600 dark:text-neutral-300'"
-                      @click="addToDashboard(allGauges[0], d.id); dashboardPickerOpen = false"
-                    >{{ d.name }}</button>
-                  </div>
-                </div>
-                <!-- On dashboard: check + remove -->
-                <div
-                  v-else
-                  class="flex items-stretch rounded-lg border border-primary-400 dark:border-primary-600 bg-primary-50 dark:bg-primary-950/50 overflow-hidden"
-                >
-                  <span
-                    class="flex items-center justify-center p-1.5 text-primary-600 dark:text-primary-400"
-                    title="On dashboard"
-                  >
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                  </span>
-                  <button
-                    class="flex items-center justify-center p-1.5 border-l border-primary-400 dark:border-primary-600 text-primary-500 dark:text-primary-400 hover:bg-red-100 dark:hover:bg-red-950 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                    aria-label="Remove from dashboard"
-                    title="Remove from dashboard"
-                    @click="confirmRemoveDashboard(allGauges[0].id)"
-                  >
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 012-2h2a2 2 0 012 2v2"/>
-                    </svg>
-                  </button>
-                </div>
-              </template>
-            </ClientOnly>
 
             <!-- Create Report -->
             <NuxtLink
@@ -199,22 +135,21 @@
               <div class="text-[10px] text-neutral-400 uppercase tracking-wide mb-1">Gradient</div>
               <div class="text-lg sm:text-xl font-bold text-neutral-800 dark:text-neutral-100">{{ reach.gradient_fpm != null ? `${reach.gradient_fpm} ft/mi` : '—' }}</div>
             </div>
+            <!-- Flow: stacks vertically at all widths to avoid badge/link overlap -->
             <div v-if="allGauges.length > 0" class="col-span-3 sm:col-span-1 border-t sm:border-t-0 sm:border-l border-neutral-200 dark:border-neutral-700 pt-2 sm:pt-0 sm:pl-4">
-              <div class="flex items-center gap-3">
-                <div class="min-w-0">
-                  <div class="text-[10px] text-neutral-400 uppercase tracking-wide mb-1">Flow</div>
-                  <div class="flex items-center gap-2">
-                    <span class="text-lg sm:text-xl font-bold tabular-nums" :style="{ color: bandSolid(allGauges[0].flow_band_label, allGauges[0].flow_status) }">
-                      {{ allGauges[0].current_cfs != null ? allGauges[0].current_cfs.toLocaleString() : '—' }}
-                    </span>
-                    <span class="text-xs text-neutral-500">cfs</span>
-                    <span :class="['inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium', flowBadgeClass(allGauges[0].flow_status, allGauges[0].flow_band_label)]">
-                      {{ flowBandLabel(allGauges[0].flow_status, allGauges[0].flow_band_label) }}
-                    </span>
-                  </div>
+              <div class="flex flex-col gap-1">
+                <div class="text-[10px] text-neutral-400 uppercase tracking-wide">Flow</div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-lg sm:text-xl font-bold tabular-nums" :style="{ color: bandSolid(allGauges[0].flow_band_label, allGauges[0].flow_status) }">
+                    {{ allGauges[0].current_cfs != null ? allGauges[0].current_cfs.toLocaleString() : '—' }}
+                  </span>
+                  <span class="text-xs text-neutral-500">cfs</span>
+                  <span :class="['inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium', flowBadgeClass(allGauges[0].flow_status, allGauges[0].flow_band_label)]">
+                    {{ flowBandLabel(allGauges[0].flow_status, allGauges[0].flow_band_label) }}
+                  </span>
                 </div>
                 <button
-                  class="shrink-0 text-xs text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 font-medium transition-colors ml-auto"
+                  class="text-xs text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 font-medium transition-colors text-left"
                   @click="openGaugeModal(allGauges[0])"
                 >
                   View flow →
@@ -222,6 +157,67 @@
               </div>
             </div>
           </div>
+
+          <!-- Dashboard control — full-width bottom row -->
+          <ClientOnly>
+            <div
+              v-if="allGauges.length > 0 && isAuthenticated"
+              class="relative mt-3 pt-2 border-t border-neutral-200 dark:border-neutral-700"
+              data-add-dashboard-wrap
+            >
+              <!-- Not on dashboard -->
+              <button
+                v-if="!onDashboard(allGauges[0].id)"
+                class="flex items-center gap-1.5 text-sm text-neutral-600 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                @click="dashboardsAdd.dashboards.value.length > 1 ? dashboardPickerOpen = !dashboardPickerOpen : addToDashboard(allGauges[0], dashboardsAdd.activeDashboard.value?.id ?? null)"
+              >
+                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Add to {{ dashboardsAdd.activeDashboard.value?.name ?? 'dashboard' }}
+                <svg v-if="dashboardsAdd.dashboards.value.length > 1" class="w-3 h-3 shrink-0 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <!-- On dashboard -->
+              <div v-else class="flex items-center gap-2">
+                <button
+                  class="flex items-center gap-1.5 text-sm text-primary-600 dark:text-primary-400 transition-colors"
+                  :class="dashboardsAdd.dashboards.value.length > 1 ? 'hover:text-primary-700 dark:hover:text-primary-300 cursor-pointer' : 'cursor-default'"
+                  @click="dashboardsAdd.dashboards.value.length > 1 ? dashboardPickerOpen = !dashboardPickerOpen : undefined"
+                >
+                  <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                  On dashboard
+                  <svg v-if="dashboardsAdd.dashboards.value.length > 1" class="w-3 h-3 shrink-0 text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <button
+                  class="ml-1 p-1 rounded text-neutral-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                  title="Remove from dashboard"
+                  @click="confirmRemoveDashboard(allGauges[0].id)"
+                >
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                  </svg>
+                </button>
+              </div>
+              <!-- Picker dropdown (add or move) -->
+              <div
+                v-if="dashboardPickerOpen"
+                class="absolute left-0 top-full mt-1 z-30 w-52 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg overflow-hidden"
+              >
+                <p class="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wide text-neutral-400 font-medium">
+                  {{ onDashboard(allGauges[0].id) ? 'Move to dashboard' : 'Add to dashboard' }}
+                </p>
+                <button
+                  v-for="d in dashboardsAdd.dashboards.value"
+                  :key="d.id"
+                  class="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-colors"
+                  :class="d.id === dashboardsAdd.activeDashboardId.value ? 'font-medium text-primary-600 dark:text-primary-400' : 'text-neutral-600 dark:text-neutral-300'"
+                  @click="onDashboard(allGauges[0].id) ? moveToDashboard(allGauges[0].id, d.id) : addToDashboard(allGauges[0], d.id); dashboardPickerOpen = false"
+                >{{ d.name }}</button>
+              </div>
+            </div>
+          </ClientOnly>
         </div>
       </section>
 
@@ -1202,6 +1198,12 @@ function addToDashboard(g: any, dashboardId: string | null = null) {
 function removeFromDashboard(gaugeId: string) {
   const reachSlug = (reach.value as any)?.slug ?? null
   removeAndSync(gaugeId, reachSlug)
+}
+
+function moveToDashboard(gaugeId: string, newDashboardId: string) {
+  removeFromDashboard(gaugeId)
+  const g = allGauges.value.find((x: any) => x.id === gaugeId)
+  if (g) addToDashboard(g, newDashboardId)
 }
 
 // ---- Gauge flow modal -------------------------------------------------------
