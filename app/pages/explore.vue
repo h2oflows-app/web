@@ -22,24 +22,6 @@
           ? 'absolute sm:relative inset-0 sm:inset-auto z-30 sm:z-auto w-full sm:w-80'
           : 'hidden sm:flex sm:w-80'"
       >
-        <!-- Mode toggle (authenticated only) -->
-        <div v-if="isAuthenticated" class="px-3 pt-2 pb-1 shrink-0 flex gap-1">
-          <button
-            class="flex-1 text-xs font-medium py-1 rounded-md transition-colors"
-            :class="mode === 'curated'
-              ? 'bg-primary-500 text-white'
-              : 'text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'"
-            @click="mode = 'curated'"
-          >H2OFlows</button>
-          <button
-            class="flex-1 text-xs font-medium py-1 rounded-md transition-colors"
-            :class="mode === 'user'
-              ? 'bg-primary-500 text-white'
-              : 'text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'"
-            @click="mode = 'user'"
-          >My Reaches</button>
-        </div>
-
         <!-- Search + mobile map toggle -->
         <div class="px-3 py-2.5 sm:border-b border-neutral-100 dark:border-neutral-800 shrink-0 flex items-center gap-2">
           <input
@@ -48,17 +30,6 @@
             placeholder="Search reaches, rivers, basins…"
             class="flex-1 text-sm bg-neutral-100 dark:bg-neutral-900 rounded-md px-3 py-1.5 text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
-          <!-- New reach button (admin only) -->
-          <button
-            v-if="isDataAdmin"
-            class="shrink-0 flex items-center gap-1 p-1.5 rounded-md text-neutral-400 hover:text-primary-500 dark:hover:text-primary-400 hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors"
-            title="New reach"
-            @click="authorModalOpen = true"
-          >
-            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="14"/><line x1="6" y1="10" x2="14" y2="10"/>
-            </svg>
-          </button>
           <!-- Back to map (mobile only, shown when list is visible) -->
           <button
             class="sm:hidden shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-950/50 transition-colors"
@@ -70,6 +41,50 @@
             </svg>
             Map
           </button>
+        </div>
+
+        <!-- New reach button + picker (authenticated only) -->
+        <div v-if="isAuthenticated" class="reach-picker-anchor px-3 pb-2 shrink-0 relative">
+          <button
+            class="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white transition-colors shadow-sm"
+            @click="reachPickerOpen = !reachPickerOpen"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="10" y1="3" x2="10" y2="17"/><line x1="3" y1="10" x2="17" y2="10"/>
+            </svg>
+            New Reach
+          </button>
+          <!-- Picker popover -->
+          <div
+            v-if="reachPickerOpen"
+            class="absolute left-3 right-3 top-full mt-1 z-40 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden"
+          >
+            <button
+              class="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+              @click="reachPickerOpen = false; isDataAdmin ? (authorModalOpen = true) : navigateTo('/my/reaches/new')"
+            >
+              <svg class="w-4 h-4 text-primary-500 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/>
+              </svg>
+              <div>
+                <p class="font-medium text-neutral-800 dark:text-neutral-100">Create new</p>
+                <p class="text-xs text-neutral-400">{{ isDataAdmin ? 'Open reach author form' : 'Build your own reach' }}</p>
+              </div>
+            </button>
+            <div class="border-t border-neutral-100 dark:border-neutral-800" />
+            <button
+              class="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+              @click="reachPickerOpen = false; importModalOpen = true"
+            >
+              <svg class="w-4 h-4 text-neutral-500 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 16v1a1 1 0 001 1h10a1 1 0 001-1v-1M7 10l3 3 3-3M10 3v10"/>
+              </svg>
+              <div>
+                <p class="font-medium text-neutral-800 dark:text-neutral-100">Import shared…</p>
+                <p class="text-xs text-neutral-400">Paste a share code from another user</p>
+              </div>
+            </button>
+          </div>
         </div>
 
         <!-- ── Curated reaches states ──────────────────────────────────────── -->
@@ -280,6 +295,24 @@
 
       <!-- ── Right panel: map ──────────────────────────────────────────────── -->
       <div class="flex-1 min-w-0 relative">
+
+        <!-- Floating mode toggle pill (authenticated, map visible) -->
+        <div
+          v-if="isAuthenticated && !listVisible"
+          class="absolute top-2 right-2 z-20 flex rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-700 shadow-md bg-white/95 dark:bg-neutral-900/95 backdrop-blur-sm text-xs font-medium"
+        >
+          <button
+            class="px-3 py-1.5 transition-colors"
+            :class="mode === 'curated' ? 'bg-primary-500 text-white' : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'"
+            @click="mode = 'curated'"
+          >H2OFlows</button>
+          <button
+            class="px-3 py-1.5 transition-colors"
+            :class="mode === 'user' ? 'bg-primary-500 text-white' : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'"
+            @click="mode = 'user'"
+          >My Reaches</button>
+        </div>
+
         <ClientOnly>
           <ReachesMap
             ref="mapRef"
@@ -315,6 +348,9 @@
     :gauge="detailGauge"
     mode="reach"
   />
+
+  <!-- Import reach modal -->
+  <ReachImportModal v-model:open="importModalOpen" @imported="onReachImported" />
 
   <!-- New reach modal (admin only) -->
   <Teleport to="body">
@@ -352,7 +388,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import type { ReachListItem as MapReachItem } from '~/components/map/ReachesMap.vue'
 import type { ReachListItem } from '~/components/reach/ReachBrowseRow.vue'
 import type { WatchedGauge } from '~/stores/watchlist'
@@ -378,19 +414,35 @@ const mapSourceHeaders = computed((): Record<string, string> =>
   mapToken.value ? { Authorization: `Bearer ${mapToken.value}` } : {}
 )
 
-// ── New reach modal (admin only) ──────────────────────────────────────────────
-const authorModalOpen = ref(false)
+// ── New reach / import modals ─────────────────────────────────────────────────
+const authorModalOpen  = ref(false)
+const reachPickerOpen  = ref(false)
+const importModalOpen  = ref(false)
 
 function onAuthorCreated(slug: string) {
   authorModalOpen.value = false
   router.push(`/reaches/${slug}/edit`)
 }
 
+function onReachImported() {
+  if (mode.value === 'user') loadUserReaches()
+}
+
 // ── Demo banner ───────────────────────────────────────────────────────────────
 const showDemoBanner = ref(false)
+
+function onDocClick(e: MouseEvent) {
+  if (reachPickerOpen.value) {
+    const target = e.target as HTMLElement
+    if (!target.closest('.reach-picker-anchor')) reachPickerOpen.value = false
+  }
+}
+
 onMounted(() => {
   showDemoBanner.value = localStorage.getItem('demo-banner-dismissed') !== 'true'
+  document.addEventListener('click', onDocClick)
 })
+onUnmounted(() => document.removeEventListener('click', onDocClick))
 function dismissBanner() {
   showDemoBanner.value = false
   localStorage.setItem('demo-banner-dismissed', 'true')
