@@ -89,13 +89,15 @@
             <p class="text-xs font-semibold text-neutral-400 uppercase tracking-wide mb-3">Input Gauges</p>
             <div class="space-y-4">
               <div v-for="inp in inputs" :key="inp.gauge_id">
-                <div class="flex items-center gap-1.5 mb-1">
+                <div class="flex items-start gap-1.5 mb-1">
                   <span
-                    class="text-xs font-bold px-1.5 rounded"
+                    class="text-xs font-bold px-1.5 rounded mt-0.5 shrink-0"
                     :class="inp.sign >= 0 ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400'"
                   >{{ inp.sign >= 0 ? '+' : '−' }}</span>
-                  <span class="text-xs font-medium text-neutral-600 dark:text-neutral-300 truncate">{{ inp.gauge_name }}</span>
-                  <span class="text-xs text-neutral-400">{{ inp.source.toUpperCase() }} {{ inp.external_id }}</span>
+                  <div class="min-w-0">
+                    <p class="text-xs font-medium text-neutral-600 dark:text-neutral-300 truncate">{{ inp.gauge_name }}</p>
+                    <p class="text-xs text-neutral-400">{{ inp.source.toUpperCase() }} {{ inp.external_id }}</p>
+                  </div>
                 </div>
                 <GaugeGraph
                   :gauge-id="inp.gauge_id"
