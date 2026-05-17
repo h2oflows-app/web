@@ -33,15 +33,21 @@
           </div>
           <div
             v-if="dashboardPickerOpen"
-            class="absolute left-0 top-full mt-1 z-30 w-44 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg overflow-hidden"
+            class="absolute left-0 top-full mt-1 z-30 w-52 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg overflow-hidden max-h-64 overflow-y-auto"
           >
             <button
               v-for="d in dashboardsAdd.dashboards.value"
               :key="d.id"
-              class="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-colors"
-              :class="d.id === dashboardsAdd.activeDashboardId.value ? 'font-medium text-primary-600 dark:text-primary-400' : 'text-neutral-600 dark:text-neutral-300'"
-              @click="addUserReachToDashboard(d.id); dashboardPickerOpen = false"
-            >{{ d.name }}</button>
+              class="w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-neutral-600 dark:text-neutral-300"
+              @click="addUserReachToDashboard(d.id)"
+            >
+              <svg
+                class="w-3.5 h-3.5 shrink-0"
+                :class="reachDashboardIds.has(d.id) ? 'text-primary-500' : 'text-transparent'"
+                viewBox="0 0 20 20" fill="currentColor"
+              ><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              {{ d.name }}
+            </button>
           </div>
         </div>
       </div>
@@ -469,17 +475,41 @@ const slug = computed(() => route.params.slug as string)
 // ── Dashboard picker (for "Add to dashboard" button) ──────────────────────────
 const dashboardsAdd = useDashboards()
 const dashboardPickerOpen = ref(false)
+const reachDashboardIds   = ref<Set<string>>(new Set())
 const { addUserReachToWatchlist, addCustomGaugeToWatchlist } = useWatchlistSync()
+
+async function loadReachDashboards() {
+  const token = await getToken()
+  if (!token) return
+  const res = await fetch(`${apiBase}/api/v1/watchlist`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).catch(() => null)
+  if (!res?.ok) return
+  const data = await res.json()
+  const ids = new Set<string>()
+  for (const item of data.items ?? []) {
+    if (item.reach_slug === slug.value && item.dashboard_id) ids.add(item.dashboard_id)
+  }
+  reachDashboardIds.value = ids
+}
+
+const toast = useToast()
+
 async function addUserReachToDashboard(dashboardId: string | null) {
   if (!reach.value) return
+  if (!reach.value.gauge_id && !reach.value.custom_gauge_id) {
+    toast.add({ title: 'Link a gauge first', description: 'Dashboard tracking requires a linked gauge.', color: 'warning' })
+    dashboardPickerOpen.value = false
+    return
+  }
   if (reach.value.gauge_id) {
     await addUserReachToWatchlist(reach.value.gauge_id, slug.value, dashboardId)
   } else if (reach.value.custom_gauge_id) {
     await addCustomGaugeToWatchlist(reach.value.custom_gauge_id, dashboardId, slug.value)
-  } else {
-    return
   }
+  if (dashboardId) reachDashboardIds.value = new Set([...reachDashboardIds.value, dashboardId])
   dashboardPickerOpen.value = false
+  toast.add({ title: 'Added to dashboard', color: 'success' })
 }
 onMounted(() => {
   if (!dashboardsAdd.loaded.value) dashboardsAdd.load()
@@ -591,7 +621,8 @@ const repinPendingGauge    = ref<PendingGauge | null>(null)
 const repinGaugeSaving     = ref(false)
 const repinGaugeError      = ref('')
 
-const riverNameLooking     = ref(false)
+const riverNameLooking = ref(false)
+const nldiGnisId       = ref<string | null>(null)
 
 const customGauges           = ref<CustomGaugeSummary[]>([])
 const customGaugePickerOpen  = ref(false)
@@ -609,8 +640,6 @@ const correctionValue      = ref('')
 const correctionNote       = ref('')
 const correctionError      = ref('')
 const correctionSubmitting = ref(false)
-
-const toast = useToast()
 
 const riverConfirmBannerVisible = computed(() =>
   !!(reach.value?.river_name && reach.value?.river_slug && !riverConfirmed.value))
@@ -760,6 +789,7 @@ async function lookupRiverName(): Promise<void> {
     if (res.ok) {
       const data = await res.json()
       if (data.river_name) form.value.riverName = data.river_name
+      if (data.gnis_id)    nldiGnisId.value = data.gnis_id
     }
   } catch { /* non-fatal */ }
   finally { riverNameLooking.value = false }
@@ -990,6 +1020,7 @@ function populateForm(r: UserReachDetail) {
     running: { min: running?.min_value ?? null,  max: running?.max_value ?? null },
     high:    { min: high?.min_value    ?? null,  max: null               },
   }
+  nldiGnisId.value = null
 }
 
 async function load() {
@@ -1026,7 +1057,7 @@ async function load() {
   }
 }
 
-onMounted(() => { load(); loadCustomGauges() })
+onMounted(() => { load(); loadCustomGauges(); loadReachDashboards() })
 
 // ── Save metadata + flow bands ────────────────────────────────────────────────
 
@@ -1043,6 +1074,7 @@ async function save() {
         name:       form.value.name.trim(),
         river_name: form.value.riverName.trim() || null,
         note:       form.value.note.trim()      || null,
+        gnis_id:    nldiGnisId.value ?? undefined,
       }),
     })
     if (!patchRes.ok) throw new Error(`Save failed: ${patchRes.status}`)
