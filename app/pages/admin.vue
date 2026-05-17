@@ -32,7 +32,7 @@
             :class="activeTab === tab.key
               ? 'border-primary-500 text-primary-600 dark:text-primary-400'
               : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
-            @click="activeTab = tab.key"
+            @click="activeTab = tab.key; if (tab.key === 'corrections') loadCorrections()"
           >{{ tab.label }}</button>
         </div>
 
@@ -53,28 +53,6 @@
 
           <div v-if="riversLoading" class="space-y-2">
             <div v-for="i in 5" :key="i" class="h-12 rounded-lg bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
-          </div>
-
-          <!-- Needs review -->
-          <div v-if="needsReviewRivers.length" class="mb-3 rounded-lg border border-amber-200 dark:border-amber-800 overflow-hidden">
-            <div
-              class="flex items-center gap-3 px-4 py-2.5 bg-amber-50 dark:bg-amber-950/40 cursor-pointer"
-              @click="needsReviewExpanded = !needsReviewExpanded"
-            >
-              <span class="text-xs font-semibold text-amber-700 dark:text-amber-300 flex-1">Needs review ({{ needsReviewRivers.length }})</span>
-              <span class="text-xs text-amber-500">Rivers created without GNIS confirmation</span>
-              <svg class="w-4 h-4 text-amber-400 shrink-0 transition-transform" :class="needsReviewExpanded ? 'rotate-90' : ''" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/>
-              </svg>
-            </div>
-            <div v-if="needsReviewExpanded" class="divide-y divide-amber-100 dark:divide-amber-900/40">
-              <div v-for="rv in needsReviewRivers" :key="rv.id" class="flex items-center gap-3 px-4 py-2 bg-white dark:bg-neutral-900/60 text-sm">
-                <span class="flex-1 truncate font-medium">{{ rv.name }}</span>
-                <span v-if="rv.state_abbr" class="text-xs font-mono text-neutral-400">{{ rv.state_abbr }}</span>
-                <span v-if="rv.basin" class="text-xs text-neutral-400">{{ rv.basin }}</span>
-                <UButton size="xs" variant="ghost" color="neutral" @click="openEditRiverBySlug(rv.slug)">Edit</UButton>
-              </div>
-            </div>
           </div>
 
           <div v-if="!riversLoading" class="divide-y divide-neutral-100 dark:divide-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
@@ -247,6 +225,37 @@
           </div>
         </div>
 
+        <!-- Corrections tab -->
+        <div v-if="activeTab === 'corrections'">
+          <div v-if="correctionsLoading" class="space-y-2">
+            <div v-for="i in 3" :key="i" class="h-16 rounded-lg bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+          </div>
+          <div v-else-if="corrections.length === 0" class="px-4 py-10 text-center text-sm text-neutral-400">
+            No pending corrections
+          </div>
+          <div v-else class="divide-y divide-neutral-100 dark:divide-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+            <div
+              v-for="c in corrections" :key="c.id"
+              class="flex items-start gap-3 px-4 py-3 bg-white dark:bg-neutral-900"
+            >
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100">{{ c.river_name }}</p>
+                <p class="text-xs text-neutral-400 mt-0.5">
+                  <span class="font-mono text-primary-500">{{ c.field }}</span> →
+                  <span class="font-semibold text-neutral-700 dark:text-neutral-200">{{ c.proposed_value }}</span>
+                  <span class="ml-1 text-neutral-300 dark:text-neutral-600">current: {{ c.field === 'basin' ? (c.river_basin ?? '—') : (c.river_state ?? '—') }}</span>
+                </p>
+                <p v-if="c.note" class="text-xs text-neutral-400 mt-0.5 italic">"{{ c.note }}"</p>
+                <p class="text-xs text-neutral-300 dark:text-neutral-600 mt-0.5">by {{ c.proposed_by.slice(0, 8) }}… · {{ relativeDate(c.created_at) }}</p>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <UButton size="xs" color="primary" :loading="reviewingId === c.id" @click="reviewCorrection(c.id, 'accept')">Accept</UButton>
+                <UButton size="xs" variant="ghost" color="neutral" :loading="reviewingId === c.id" @click="reviewCorrection(c.id, 'reject')">Reject</UButton>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Users tab (site admin only) -->
         <div v-if="activeTab === 'users'">
           <div class="flex items-center justify-between mb-4">
@@ -281,74 +290,58 @@
       </template>
     </main>
 
-    <!-- Create river modal -->
+    <!-- Create river modal — GNIS ID only -->
     <UModal v-model:open="createRiverOpen" title="New river">
       <template #body>
         <div class="space-y-3">
-          <UFormField label="Name">
-            <UInput v-model="newRiver.name" placeholder="Arkansas River" @input="autoSlug" />
-          </UFormField>
-          <UFormField label="Slug">
-            <UInput v-model="newRiver.slug" placeholder="arkansas-river" />
-          </UFormField>
-          <UFormField label="Basin (optional)">
-            <UInput v-model="newRiver.basin" placeholder="Arkansas River Basin" />
-          </UFormField>
-          <UFormField label="State (optional)">
-            <UInput v-model="newRiver.state_abbr" placeholder="CO" class="max-w-20" />
-          </UFormField>
-          <UFormField label="GNIS ID (optional)">
+          <p class="text-xs text-neutral-400">Rivers are defined by their GNIS ID. Name, state, and basin are fetched from NHD.</p>
+          <UFormField label="GNIS ID">
             <div class="flex items-center gap-2">
-              <UInput v-model="newRiver.gnis_id" placeholder="00179365" class="max-w-40" @blur="lookupGNIS(newRiver.gnis_id, newRiver)" />
-              <span v-if="gnisLookupLoading" class="text-xs text-neutral-400 animate-pulse">Looking up…</span>
-              <span v-else-if="gnisLookupMsg" class="text-xs text-neutral-500">{{ gnisLookupMsg }}</span>
+              <UInput v-model="newRiverGnisId" placeholder="00183164" class="max-w-48" @blur="previewGNIS" />
+              <span v-if="gnisPreviewLoading" class="text-xs text-neutral-400 animate-pulse">Looking up…</span>
             </div>
           </UFormField>
+          <!-- Preview card -->
+          <div v-if="gnisPreview" class="rounded-lg border border-neutral-200 dark:border-neutral-700 p-3 bg-neutral-50 dark:bg-neutral-900 space-y-1 text-sm">
+            <p class="font-semibold text-neutral-900 dark:text-white">{{ gnisPreview.name }}</p>
+            <p class="text-xs text-neutral-400">
+              <span v-if="gnisPreview.state_abbr">{{ gnisPreview.state_abbr }}</span>
+              <span v-if="gnisPreview.basin"> · {{ gnisPreview.basin }}</span>
+              <span v-if="gnisPreview.huc8"> · HUC8 {{ gnisPreview.huc8 }}</span>
+            </p>
+          </div>
+          <p v-if="gnisPreviewError" class="text-xs text-red-500">{{ gnisPreviewError }}</p>
         </div>
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
           <UButton variant="ghost" color="neutral" @click="createRiverOpen = false">Cancel</UButton>
-          <UButton :loading="createLoading" @click="createRiver">Create</UButton>
+          <UButton :loading="createLoading" :disabled="!gnisPreview" @click="createRiver">Add river</UButton>
         </div>
       </template>
     </UModal>
 
-    <!-- Edit river modal -->
+    <!-- Edit river modal — basin only editable -->
     <UModal v-model:open="editRiverOpen" title="Edit river">
       <template #body>
         <div v-if="editingRiver" class="space-y-3">
-          <UFormField label="Name">
-            <UInput v-model="editingRiver.name" />
-          </UFormField>
-          <UFormField label="Basin">
-            <div class="flex items-center gap-2">
-              <UInput v-model="editingRiver.basin" placeholder="South Platte" class="flex-1" :disabled="editingRiver.basin_locked" />
-              <span v-if="editingRiver.basin_locked" class="text-xs text-neutral-400 shrink-0">locked</span>
-            </div>
-          </UFormField>
-          <UFormField label="State *">
-            <UInput v-model="editingRiver.state_abbr" placeholder="CO" class="max-w-20" />
-          </UFormField>
-          <UButton
-            size="xs" variant="outline" color="neutral"
-            :loading="autoFillLoading"
-            @click="autoFillRiverMeta"
-          >Auto-lookup basin &amp; state from NLDI</UButton>
-          <p v-if="autoFillError" class="text-xs text-red-500">{{ autoFillError }}</p>
-          <UFormField label="GNIS ID (optional)">
-            <div class="flex items-center gap-2">
-              <UInput v-model="editingRiver.gnis_id" placeholder="00179365" class="max-w-40" @blur="lookupGNIS(editingRiver!.gnis_id, editingRiver!)" />
-              <span v-if="gnisLookupLoading" class="text-xs text-neutral-400 animate-pulse">Looking up…</span>
-              <span v-else-if="gnisLookupMsg" class="text-xs text-neutral-500">{{ gnisLookupMsg }}</span>
-            </div>
+          <div class="rounded-lg border border-neutral-100 dark:border-neutral-800 p-3 bg-neutral-50 dark:bg-neutral-900 space-y-1 text-sm">
+            <p class="font-semibold text-neutral-900 dark:text-white">{{ editingRiver.name }}</p>
+            <p class="text-xs text-neutral-400 font-mono">
+              GNIS {{ editingRiver.gnis_id || '—' }}
+              <span v-if="editingRiver.state_abbr"> · {{ editingRiver.state_abbr }}</span>
+              <span v-if="editingRiver.huc8"> · HUC8 {{ editingRiver.huc8 }}</span>
+            </p>
+          </div>
+          <UFormField label="Basin" hint="Only editable field — all other values are GNIS-canonical">
+            <UInput v-model="editingRiver.basin" placeholder="South Platte" class="flex-1" />
           </UFormField>
         </div>
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
           <UButton variant="ghost" color="neutral" @click="editRiverOpen = false">Cancel</UButton>
-          <UButton :loading="editRiverLoading" :disabled="!editingRiver?.state_abbr" @click="saveEditRiver">Save</UButton>
+          <UButton :loading="editRiverLoading" @click="saveEditRiver">Save</UButton>
         </div>
       </template>
     </UModal>
@@ -440,9 +433,21 @@ onMounted(async () => {
   authReady.value = true
   if (isDataAdmin.value) {
     loadRivers()
+    loadPendingCount()
     if (isAdmin.value) loadUserRoles()
   }
 })
+
+async function loadPendingCount() {
+  const token = await getToken()
+  const res = await fetch(`${apiBase}/api/v1/admin/river-corrections?status=pending`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (res.ok) {
+    const data = await res.json()
+    pendingCorrectionsCount.value = Array.isArray(data) ? data.length : 0
+  }
+}
 
 // Hard-refresh race: Supabase restores the session asynchronously, so
 // user.value may be null when onMounted runs. Once isDataAdmin flips to
@@ -450,6 +455,7 @@ onMounted(async () => {
 watch(isDataAdmin, (val) => {
   if (val && authReady.value && !riversLoading.value && rivers.value.length === 0) {
     loadRivers()
+    loadPendingCount()
     if (isAdmin.value) loadUserRoles()
   }
 })
@@ -457,13 +463,14 @@ watch(isDataAdmin, (val) => {
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 const activeTab = ref('rivers')
 const visibleTabs = computed(() => {
-  const tabs = [{ key: 'rivers', label: 'Rivers' }]
+  const tabs: { key: string; label: string }[] = [{ key: 'rivers', label: 'Rivers' }]
+  tabs.push({ key: 'corrections', label: pendingCorrectionsCount.value > 0 ? `Needs Review (${pendingCorrectionsCount.value})` : 'Needs Review' })
   if (isAdmin.value) tabs.push({ key: 'users', label: 'Users' })
   return tabs
 })
 
 // ── Rivers ────────────────────────────────────────────────────────────────────
-interface River { id: string; slug: string; name: string; gnis_id: string | null; basin: string | null; basin_locked: boolean; state_abbr: string | null; huc8: string | null; verified: boolean; reach_count: number; gauges_degraded: number; gauges_stale: number; gauges_unreachable: number }
+interface River { id: string; slug: string; name: string; gnis_id: string | null; basin: string | null; state_abbr: string | null; huc8: string | null; reach_count: number; gauges_degraded: number; gauges_stale: number; gauges_unreachable: number }
 interface RiverDetail extends River {
   reaches: { id: string; slug: string; name: string; common_name: string | null; has_centerline: boolean; state_abbr: string | null; river_order: number | null }[]
 }
@@ -498,10 +505,6 @@ function toggleRiverGroup(state: string, riverId: string) {
   else next.add(key)
   expandedRiverKeys.value = next
 }
-
-// Rivers needing review (verified = false) — populated once 000069 migration runs
-const needsReviewRivers = computed(() => rivers.value.filter(r => !r.verified))
-const needsReviewExpanded = ref(false)
 
 // Filter + basin grouping
 const filteredGroupedReaches = computed(() => {
@@ -660,126 +663,77 @@ async function deleteRiver(riverSlug: string, riverName: string) {
   loadRivers()
 }
 
-// Create river
+// Create river — GNIS ID only
 const createRiverOpen = ref(false)
 const createLoading = ref(false)
-const newRiver = ref({ name: '', slug: '', basin: '', state_abbr: '', gnis_id: '', huc8: '' })
-const gnisLookupLoading = ref(false)
-const gnisLookupMsg = ref('')
+const newRiverGnisId = ref('')
+const gnisPreviewLoading = ref(false)
+const gnisPreviewError = ref('')
+const gnisPreview = ref<{ name: string; state_abbr: string; basin: string; huc8: string } | null>(null)
 
-function autoSlug() {
-  newRiver.value.slug = newRiver.value.name
-    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-/, '')
-}
+watch(createRiverOpen, v => {
+  if (!v) { newRiverGnisId.value = ''; gnisPreview.value = null; gnisPreviewError.value = '' }
+})
 
-async function lookupGNIS(gnisId: string, target: { state_abbr: string; basin: string; huc8: string }) {
-  if (!gnisId.trim()) return
-  gnisLookupLoading.value = true
-  gnisLookupMsg.value = ''
+async function previewGNIS() {
+  const id = newRiverGnisId.value.trim()
+  if (!id) { gnisPreview.value = null; return }
+  gnisPreviewLoading.value = true
+  gnisPreviewError.value = ''
+  gnisPreview.value = null
   try {
     const token = await getToken()
-    const res = await fetch(`${apiBase}/api/v1/admin/rivers/gnis-lookup?gnis_id=${encodeURIComponent(gnisId.trim())}`, {
+    const res = await fetch(`${apiBase}/api/v1/admin/rivers/gnis-lookup?gnis_id=${encodeURIComponent(id)}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     const data = await res.json()
-    if (!res.ok) { gnisLookupMsg.value = data.error ?? `Error ${res.status}`; return }
-    if (data.state_abbr && !target.state_abbr) target.state_abbr = data.state_abbr
-    if (data.basin && !target.basin) target.basin = data.basin
-    if (data.huc8) target.huc8 = data.huc8
-    gnisLookupMsg.value = `Found: ${data.states ?? data.state_abbr}${data.huc8 ? ' · HUC8 ' + data.huc8 : ''}`
-  } catch (err: any) {
-    gnisLookupMsg.value = err?.message ?? 'Lookup failed'
+    if (!res.ok) { gnisPreviewError.value = data.error ?? `Error ${res.status}`; return }
+    if (!data.name) { gnisPreviewError.value = 'NHD returned no name for this GNIS ID'; return }
+    gnisPreview.value = { name: data.name, state_abbr: data.state_abbr ?? '', basin: data.basin ?? '', huc8: data.huc8 ?? '' }
+  } catch {
+    gnisPreviewError.value = 'Lookup failed'
   } finally {
-    gnisLookupLoading.value = false
+    gnisPreviewLoading.value = false
   }
 }
 
 async function createRiver() {
+  if (!gnisPreview.value) return
   createLoading.value = true
   const token = await getToken()
   try {
-    const slug = newRiver.value.slug.replace(/-+$/, '')
     const res = await fetch(`${apiBase}/api/v1/admin/rivers`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        slug,
-        name: newRiver.value.name,
-        basin: newRiver.value.basin || null,
-        state_abbr: newRiver.value.state_abbr || null,
-        gnis_id: newRiver.value.gnis_id || null,
-        huc8: newRiver.value.huc8 || null,
-      }),
+      body: JSON.stringify({ gnis_id: newRiverGnisId.value.trim() }),
     })
     if (res.ok) {
       createRiverOpen.value = false
-      newRiver.value = { name: '', slug: '', basin: '', state_abbr: '', gnis_id: '', huc8: '' }
       loadRivers()
-      // Background auto-fill: resolve state/basin from NHD or GNIS
-      fetch(`${apiBase}/api/v1/admin/rivers/${slug}/auto-fill`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }).then(r => r.ok ? r.json() : null).then(data => {
-        if (!data) return
-        const patch: Record<string, string> = {}
-        if (data.state_abbr) patch.state_abbr = data.state_abbr
-        if (data.basin) patch.basin = data.basin
-        if (data.huc8) patch.huc8 = data.huc8
-        if (Object.keys(patch).length === 0) return
-        fetch(`${apiBase}/api/v1/admin/rivers/${slug}`, {
-          method: 'PUT',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(patch),
-        }).then(() => loadRivers())
-      }).catch(() => {})
+    } else {
+      const err = await res.json().catch(() => ({}))
+      gnisPreviewError.value = err.error ?? `Error ${res.status}`
     }
   } finally {
     createLoading.value = false
   }
 }
 
-// Edit river
+// Edit river — basin only
 const editRiverOpen = ref(false)
 const editRiverLoading = ref(false)
-const autoFillLoading = ref(false)
-const autoFillError = ref('')
-const editingRiver = ref<{ slug: string; name: string; basin: string; basin_locked: boolean; state_abbr: string; gnis_id: string; huc8: string } | null>(null)
+const editingRiver = ref<{ slug: string; name: string; basin: string; state_abbr: string; gnis_id: string; huc8: string } | null>(null)
 
 function openEditRiver(river: RiverDetail) {
   editingRiver.value = {
     slug: river.slug,
     name: river.name,
     basin: river.basin ?? '',
-    basin_locked: river.basin_locked,
     state_abbr: river.state_abbr ?? '',
     gnis_id: river.gnis_id ?? '',
-    huc8: (river as any).huc8 ?? '',
+    huc8: river.huc8 ?? '',
   }
-  autoFillError.value = ''
   editRiverOpen.value = true
-}
-
-async function autoFillRiverMeta() {
-  if (!editingRiver.value) return
-  autoFillLoading.value = true
-  autoFillError.value = ''
-  try {
-    const token = await getToken()
-    const res = await fetch(`${apiBase}/api/v1/admin/rivers/${editingRiver.value.slug}/auto-fill`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}))
-      autoFillError.value = body.error ?? `Error ${res.status}`
-      return
-    }
-    const data = await res.json()
-    if (data.state_abbr) editingRiver.value.state_abbr = data.state_abbr
-    if (data.basin && !editingRiver.value.basin_locked) editingRiver.value.basin = data.basin
-  } catch (err: any) {
-    autoFillError.value = err?.message ?? 'Lookup failed'
-  } finally {
-    autoFillLoading.value = false
-  }
 }
 
 async function saveEditRiver() {
@@ -790,21 +744,63 @@ async function saveEditRiver() {
     const res = await fetch(`${apiBase}/api/v1/admin/rivers/${editingRiver.value.slug}`, {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: editingRiver.value.name || null,
-        basin: editingRiver.value.basin || null,
-        state_abbr: editingRiver.value.state_abbr || null,
-        gnis_id: editingRiver.value.gnis_id || null,
-        huc8: editingRiver.value.huc8 || null,
-      }),
+      body: JSON.stringify({ basin: editingRiver.value.basin || null }),
     })
-    if (res.ok) {
-      editRiverOpen.value = false
-      loadRivers()
-    }
+    if (res.ok) { editRiverOpen.value = false; loadRivers() }
   } finally {
     editRiverLoading.value = false
   }
+}
+
+// ── River corrections ─────────────────────────────────────────────────────────
+interface RiverCorrection {
+  id: string; river_slug: string; river_name: string; river_state: string | null; river_basin: string | null
+  proposed_by: string; field: string; proposed_value: string; note: string | null; created_at: string
+}
+
+const corrections = ref<RiverCorrection[]>([])
+const correctionsLoading = ref(false)
+const pendingCorrectionsCount = ref(0)
+const reviewingId = ref<string | null>(null)
+
+async function loadCorrections() {
+  correctionsLoading.value = true
+  try {
+    const token = await getToken()
+    const res = await fetch(`${apiBase}/api/v1/admin/river-corrections?status=pending`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) { corrections.value = await res.json() }
+  } finally {
+    correctionsLoading.value = false
+  }
+}
+
+async function reviewCorrection(id: string, action: 'accept' | 'reject') {
+  reviewingId.value = id
+  try {
+    const token = await getToken()
+    await fetch(`${apiBase}/api/v1/admin/river-corrections/${id}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    })
+    corrections.value = corrections.value.filter(c => c.id !== id)
+    pendingCorrectionsCount.value = Math.max(0, pendingCorrectionsCount.value - 1)
+    if (action === 'accept') loadRivers()
+  } finally {
+    reviewingId.value = null
+  }
+}
+
+function relativeDate(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime()
+  const m = Math.floor(ms / 60_000)
+  if (m < 1) return 'just now'
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  return `${Math.floor(h / 24)}d ago`
 }
 
 // ── User Roles ────────────────────────────────────────────────────────────────

@@ -112,21 +112,14 @@
     <div v-if="upComID && downComID" class="mt-4 space-y-3 rounded-xl border border-neutral-200 dark:border-neutral-700 p-4 bg-white dark:bg-neutral-900">
       <h3 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Reach details</h3>
 
-      <!-- River name -->
-      <div>
+      <!-- River name (read-only, GNIS-canonical) -->
+      <div v-if="form.riverName">
         <label class="block text-xs text-neutral-500 mb-1">River name <span class="text-neutral-300">(from NHD)</span></label>
-        <div class="flex items-center gap-2">
-          <input
-            v-model="form.riverName"
-            :readonly="!riverNameOverride"
-            class="flex-1 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm"
-            :class="riverNameOverride ? '' : 'text-neutral-400 dark:text-neutral-500 cursor-default'"
-            placeholder="Auto-filled from NHD"
-          />
-          <button class="text-xs text-primary-500 hover:text-primary-400 shrink-0" @click="riverNameOverride = !riverNameOverride">
-            {{ riverNameOverride ? 'Lock' : 'Override' }}
-          </button>
-        </div>
+        <input
+          :value="form.riverName"
+          readonly
+          class="w-full rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 px-2 py-1.5 text-sm text-neutral-500 dark:text-neutral-400 cursor-default"
+        />
       </div>
 
       <!-- Reach name -->
@@ -209,7 +202,6 @@ const startLat            = ref<number | null>(null)
 const startLng            = ref<number | null>(null)
 const endLat              = ref<number | null>(null)
 const endLng              = ref<number | null>(null)
-const riverNameOverride   = ref(false)
 const riverNameFetching   = ref(false)
 const gnisId              = ref('')
 const snapError           = ref('')
@@ -278,7 +270,6 @@ function reset() {
   resetToPickMode()
   anchorSnapping.value = false
   downstreamLoading.value = false
-  riverNameOverride.value = false
   riverNameFetching.value = false
   gnisId.value      = ''
   snapError.value   = ''
@@ -342,7 +333,7 @@ async function onAnchorPick(lat: number, lng: number) {
     const data = await res.json()
     anchorSnap.value  = { comid: data.snap.comid, name: data.snap.name ?? '' }
     tributaries.value = data.tributaries
-    if (!riverNameOverride.value && data.snap.name) {
+    if (data.snap.name) {
       form.value.riverName = data.snap.name
     }
     // Fetch nearby gauges immediately so they're ready on the map.
@@ -384,7 +375,7 @@ async function fetchRiverName() {
     })
     if (!res.ok) return
     const data = await res.json()
-    if (data.river_name && !riverNameOverride.value) form.value.riverName = data.river_name
+    if (data.river_name) form.value.riverName = data.river_name
     if (data.gnis_id) gnisId.value = data.gnis_id
   } catch { /* non-fatal */ }
   finally { riverNameFetching.value = false }
