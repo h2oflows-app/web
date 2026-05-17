@@ -127,10 +127,10 @@
                 Appearance
               </span>
               <span class="flex items-center gap-1.5">
-                <!-- Active palette swatch preview -->
-                <span v-if="activePalette" class="w-4 h-4 rounded-full overflow-hidden border border-neutral-200 dark:border-neutral-700 inline-flex">
-                  <span class="w-1/2 h-full" :style="{ background: activePalette.neutralSwatch }" />
-                  <span class="w-1/2 h-full" :style="{ background: activePalette.primarySwatch }" />
+                <!-- Active theme swatch preview -->
+                <span v-if="activeTheme" class="w-4 h-4 rounded-full overflow-hidden border border-neutral-200 dark:border-neutral-700 inline-flex">
+                  <span class="w-1/2 h-full" :style="{ background: activeTheme.neutralSwatch }" />
+                  <span class="w-1/2 h-full" :style="{ background: activeTheme.primarySwatch }" />
                 </span>
                 <svg
                   class="w-3 h-3 text-neutral-400 transition-transform"
@@ -139,32 +139,28 @@
                 ><polyline points="6 9 12 15 18 9"/></svg>
               </span>
             </button>
-            <div v-if="appearanceOpen" class="px-3 pb-2 space-y-1.5">
-              <!-- 9×2 palette grid: row = neutral (slate/stone), cols wrap -->
-              <div class="space-y-1">
-                <div v-for="neutralLabel in ['Slate', 'Stone']" :key="neutralLabel" class="flex items-start gap-1">
-                  <span class="text-[9px] text-neutral-400 w-8 shrink-0 pt-1">{{ neutralLabel }}</span>
-                  <div class="flex flex-wrap items-center gap-1">
-                    <button
-                      v-for="p in PALETTES.filter(p => p.neutral === neutralLabel.toLowerCase())"
-                      :key="p.id"
-                      :title="p.label"
-                      class="w-5 h-5 rounded-full overflow-hidden border-2 transition-all shrink-0"
-                      :class="themeStore.paletteId === p.id
-                        ? 'border-neutral-900 dark:border-white scale-110'
-                        : 'border-transparent hover:scale-105'"
-                      @click="applyPalette(p.id)"
-                    >
-                      <div class="flex h-full w-full">
-                        <div class="w-1/2 h-full" :style="{ background: p.neutralSwatch }" />
-                        <div class="w-1/2 h-full" :style="{ background: p.primarySwatch }" />
-                      </div>
-                    </button>
-                  </div>
-                </div>
+            <div v-if="appearanceOpen" class="pb-1">
+              <!-- 11 named themes list -->
+              <div class="max-h-66 overflow-y-auto">
+                <button
+                  v-for="t in THEMES"
+                  :key="t.id"
+                  class="w-full flex items-center gap-2.5 px-3 py-1.5 text-sm transition-colors"
+                  :class="themeStore.themeId === t.id
+                    ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-700 dark:text-primary-300'
+                    : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800'"
+                  @click="applyTheme(t.id)"
+                >
+                  <span class="w-4 h-4 rounded-full overflow-hidden border border-neutral-200 dark:border-neutral-700 shrink-0 inline-flex">
+                    <span class="w-1/2 h-full" :style="{ background: t.neutralSwatch }" />
+                    <span class="w-1/2 h-full" :style="{ background: t.primarySwatch }" />
+                  </span>
+                  <span class="flex-1 text-left">{{ t.label }}</span>
+                  <svg v-if="themeStore.themeId === t.id" class="w-3.5 h-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                </button>
               </div>
               <!-- Light / Dark / System -->
-              <div class="flex items-center gap-1 pt-1">
+              <div class="flex items-center gap-1 px-3 py-1.5 border-t border-neutral-100 dark:border-neutral-800 mt-0.5">
                 <span class="text-[9px] text-neutral-400 w-8 shrink-0">Mode</span>
                 <div class="flex items-center gap-1">
                   <button
@@ -403,8 +399,8 @@
 <script setup lang="ts">
 import { ref, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import MarkdownIt from 'markdown-it'
-import { PALETTES } from '../../app.config'
-import type { PaletteId } from '../../app.config'
+import { THEMES } from '../../app.config'
+import type { ThemeId } from '../../app.config'
 import { useThemeStore } from '~/stores/theme'
 
 const { user, isAuthenticated, isDataAdmin, signOut } = useAuth()
@@ -423,14 +419,14 @@ const colorModes = [
   { value: 'system', label: 'System' },
 ]
 
-const activePalette = computed(() => PALETTES.find(p => p.id === themeStore.paletteId) ?? null)
+const activeTheme = computed(() => THEMES.find(t => t.id === themeStore.themeId) ?? null)
 
-function applyPalette(id: PaletteId) {
-  const palette = PALETTES.find(p => p.id === id)
-  if (!palette) return
-  themeStore.paletteId = id
-  appConfig.ui.colors.primary = palette.primary
-  appConfig.ui.colors.neutral = palette.neutral
+function applyTheme(id: ThemeId) {
+  const theme = THEMES.find(t => t.id === id)
+  if (!theme) return
+  themeStore.themeId = id
+  appConfig.ui.colors.primary = theme.primary
+  appConfig.ui.colors.neutral = theme.neutral
 }
 
 const { apiBase } = useRuntimeConfig().public

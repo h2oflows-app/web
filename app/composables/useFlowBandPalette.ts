@@ -1,6 +1,6 @@
 import { computed, watchEffect } from 'vue'
 import { useThemeStore } from '~/stores/theme'
-import { PALETTES } from '../../app.config'
+import { THEMES } from '../../app.config'
 import { PALETTE_FLOW_SOLID, PALETTE_BADGE_CLASS } from '~/utils/flowBand'
 
 /**
@@ -13,8 +13,8 @@ export function useFlowBandPalette() {
   const themeStore = useThemeStore()
 
   const primary = computed(() => {
-    const p = PALETTES.find(p => p.id === themeStore.paletteId)
-    return p?.primary ?? 'blue'
+    const t = THEMES.find(t => t.id === themeStore.themeId)
+    return t?.primary ?? 'blue'
   })
 
   const flowSolid = computed(() =>
