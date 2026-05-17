@@ -59,17 +59,20 @@
     <template #body>
       <div class="space-y-3">
         <!-- CFS + trend arrow — left-aligned, prominent -->
-        <div class="flex items-baseline gap-2 flex-wrap">
-          <span class="text-3xl font-bold tabular-nums leading-none text-neutral-900 dark:text-white">
-            {{ displayCfs != null ? displayCfs.toLocaleString() : '—' }}
-          </span>
-          <span class="text-sm text-neutral-500">cfs</span>
-          <TrendArrow v-if="displayCfs != null" :gauge-id="gauge.id" class="text-lg" />
-          <!-- Flow band badge — reach mode only -->
-          <span
-            v-if="mode === 'reach' && (gauge.flowStatus !== 'unknown' || gauge.flowBandLabel)"
-            :class="['inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium', bandBadgeClass(gauge.flowBandLabel, gauge.flowStatus)]"
-          >{{ flowBandLabel(gauge.flowBandLabel, gauge.flowStatus) }}</span>
+        <div>
+          <div class="flex items-baseline gap-2 flex-wrap">
+            <span class="text-3xl font-bold tabular-nums leading-none text-neutral-900 dark:text-white">
+              {{ displayCfs != null ? displayCfs.toLocaleString() : '—' }}
+            </span>
+            <span class="text-sm text-neutral-500">cfs</span>
+            <TrendArrow v-if="displayCfs != null" :gauge-id="gauge.id" class="text-lg" />
+            <!-- Flow band badge — reach mode only -->
+            <span
+              v-if="mode === 'reach' && (gauge.flowStatus !== 'unknown' || gauge.flowBandLabel)"
+              :class="['inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium', bandBadgeClass(gauge.flowBandLabel, gauge.flowStatus)]"
+            >{{ flowBandLabel(gauge.flowBandLabel, gauge.flowStatus) }}</span>
+          </div>
+          <p v-if="gauge.lastReadingAt" class="text-xs text-neutral-400 mt-0.5">Last reading {{ lastReadingRelative }}</p>
         </div>
 
         <!-- Add / remove from dashboard -->
@@ -113,10 +116,6 @@
           @latest-cfs="liveCfs = $event"
         />
 
-        <!-- Last updated -->
-        <p v-if="gauge.lastReadingAt" class="text-xs text-neutral-500">
-          Last reading {{ lastReadingRelative }}
-        </p>
       </div>
     </template>
 
