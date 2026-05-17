@@ -1,5 +1,5 @@
 <template>
-  <UModal v-model:open="open" :ui="{ width: 'max-w-xl' }">
+  <UModal v-model:open="open" :ui="{ content: 'sm:max-w-xl max-sm:!inset-0 max-sm:!w-auto max-sm:!max-w-none max-sm:!rounded-none max-sm:!ring-0 max-sm:!translate-x-0 max-sm:!translate-y-0' }">
     <template #header>
       <div class="flex items-start justify-between gap-3 w-full">
         <div class="min-w-0 flex-1">
@@ -37,7 +37,7 @@
           >{{ flowBandLabel(flowBand, flowStatus) }}</span>
         </div>
 
-        <!-- Time window toggle -->
+        <!-- Time window toggle — drives all charts -->
         <div class="flex justify-end">
           <div class="flex text-xs rounded overflow-hidden border border-neutral-200 dark:border-neutral-700">
             <button
@@ -50,8 +50,8 @@
           </div>
         </div>
 
-        <!-- Chart -->
-        <div class="relative w-full" style="height:200px">
+        <!-- Main custom gauge chart -->
+        <div class="relative w-full" style="height:240px">
           <div ref="container" class="w-full h-full" />
           <div
             v-if="loading"
@@ -63,32 +63,58 @@
           >No readings in this window</div>
         </div>
 
-        <!-- Link to reach detail page (user reach) or gauge page (standalone) -->
-        <div class="pt-1 border-t border-neutral-100 dark:border-neutral-800">
-          <NuxtLink
-            v-if="reachSlug"
-            :to="`/my/reaches/${reachSlug}`"
-            class="inline-flex items-center gap-1 text-sm text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 font-medium transition-colors"
-            @click="open = false"
-          >
-            Edit reach
-            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M5 10h10M11 6l4 4-4 4"/>
-            </svg>
-          </NuxtLink>
-          <NuxtLink
-            v-else
-            :to="`/my/gauges/${gaugeSlug}`"
-            class="inline-flex items-center gap-1 text-sm text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 font-medium transition-colors"
-            @click="open = false"
-          >
-            Edit gauge
-            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M5 10h10M11 6l4 4-4 4"/>
-            </svg>
-          </NuxtLink>
-        </div>
+        <!-- Input gauges — shown when custom gauge detail is loaded -->
+        <template v-if="inputs.length > 0">
+          <div class="border-t border-neutral-100 dark:border-neutral-800 pt-3">
+            <p class="text-xs font-semibold text-neutral-400 uppercase tracking-wide mb-3">Input Gauges</p>
+            <div class="space-y-4">
+              <div v-for="inp in inputs" :key="inp.gauge_id">
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span
+                    class="text-xs font-bold px-1.5 rounded"
+                    :class="inp.sign >= 0 ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400'"
+                  >{{ inp.sign >= 0 ? '+' : '−' }}</span>
+                  <span class="text-xs font-medium text-neutral-600 dark:text-neutral-300 truncate">{{ inp.gauge_name }}</span>
+                  <span class="text-xs text-neutral-400">{{ inp.source.toUpperCase() }} {{ inp.external_id }}</span>
+                </div>
+                <GaugeGraph
+                  :gauge-id="inp.gauge_id"
+                  no-ranges
+                  :color="inp.sign >= 0 ? '#10b981' : '#f87171'"
+                  :height="130"
+                  :controlled-hours="hours"
+                />
+              </div>
+            </div>
+          </div>
+        </template>
       </div>
+    </template>
+
+    <!-- Link pinned to bottom -->
+    <template #footer>
+      <NuxtLink
+        v-if="reachSlug"
+        :to="`/my/reaches/${reachSlug}`"
+        class="w-full flex items-center justify-center gap-1.5 py-2 text-sm text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 font-medium transition-colors"
+        @click="open = false"
+      >
+        Edit reach
+        <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 10h10M11 6l4 4-4 4"/>
+        </svg>
+      </NuxtLink>
+      <NuxtLink
+        v-else
+        :to="`/my/gauges/${gaugeSlug}`"
+        class="w-full flex items-center justify-center gap-1.5 py-2 text-sm text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 font-medium transition-colors"
+        @click="open = false"
+      >
+        Edit gauge
+        <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 10h10M11 6l4 4-4 4"/>
+        </svg>
+      </NuxtLink>
     </template>
   </UModal>
 </template>
@@ -121,6 +147,28 @@ const readings  = ref<Array<{ timestamp: string; cfs: number }>>([])
 const hours     = ref<12 | 24 | 48>(48)
 const container = ref<HTMLElement | null>(null)
 let chart: uPlot | null = null
+
+interface InputGauge {
+  position: number
+  gauge_id: string
+  external_id: string
+  source: string
+  gauge_name: string
+  sign: number
+}
+const inputs = ref<InputGauge[]>([])
+
+async function loadDetail() {
+  const token = await getToken()
+  const res = await fetch(
+    `${apiBase}/api/v1/me/custom-gauges/${props.gaugeSlug}`,
+    { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+  ).catch(() => null)
+  if (res?.ok) {
+    const data = await res.json()
+    inputs.value = data.inputs ?? []
+  }
+}
 
 async function load() {
   loading.value = true
@@ -155,7 +203,7 @@ function buildChart() {
   chart = new uPlot(
     {
       width:   container.value.clientWidth || 400,
-      height:  200,
+      height:  240,
       padding: [8, 0, 0, 0],
       cursor:  { show: true },
       legend:  { show: false },
@@ -184,10 +232,12 @@ watch(open, async (v) => {
   if (v) {
     await nextTick()
     load()
+    loadDetail()
   } else {
     chart?.destroy()
     chart = null
     readings.value = []
+    inputs.value = []
   }
 }, { immediate: true })
 
