@@ -74,7 +74,7 @@
         </div>
         <span
           v-if="displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)"
-          :class="['inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(item), displayFlowStatus(item))]"
+          :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(item), displayFlowStatus(item))]"
         >{{ flowBandLabel(displayFlowBandLabel(item), displayFlowStatus(item)) }}</span>
         <button
           class="shrink-0 p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
@@ -180,7 +180,7 @@
         </div>
         <span
           v-if="displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)"
-          :class="['inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(item), displayFlowStatus(item))]"
+          :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(item), displayFlowStatus(item))]"
         >{{ flowBandLabel(displayFlowBandLabel(item), displayFlowStatus(item)) }}</span>
         <button
           class="shrink-0 p-1.5 rounded-lg text-neutral-400 dark:text-neutral-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"

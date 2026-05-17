@@ -2,25 +2,25 @@
   <div class="min-h-screen bg-neutral-50 dark:bg-neutral-950">
     <AppHeader />
 
-    <!-- Dashboard tab bar (only when authenticated and dashboards loaded) -->
-    <DashboardTabBar
-      v-if="isAuthenticated && db.loaded.value && db.dashboards.value.length"
-      :dashboards="db.dashboards.value"
-      :active-dashboard-id="db.activeDashboardId.value"
-      @select="onSelectDashboard"
-      @new="newDashboardOpen = true"
-      @delete="onDeleteDashboard"
-      @rename="(slug, name) => db.rename(slug, name)"
-    />
-
-    <!-- Sticky controls bar — always shown when authenticated -->
+    <!-- Unified sticky header: tab bar + controls bar in one block anchored at AppHeader bottom -->
     <div
       v-if="isAuthenticated && db.loaded.value"
-      class="sticky z-10 bg-neutral-50/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800"
-      :class="db.dashboards.value.length ? 'top-[90px]' : 'top-12.75'"
+      class="sticky top-[50px] z-20"
     >
+      <DashboardTabBar
+        v-if="db.dashboards.value.length"
+        :dashboards="db.dashboards.value"
+        :active-dashboard-id="db.activeDashboardId.value"
+        @select="onSelectDashboard"
+        @new="newDashboardOpen = true"
+        @delete="onDeleteDashboard"
+        @rename="(slug, name) => db.rename(slug, name)"
+      />
+
+      <!-- Controls bar -->
+      <div class="bg-neutral-50/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
       <div class="max-w-5xl mx-auto px-4 py-2 flex items-center justify-between gap-2">
-        <div v-if="hasAnyContent" class="flex items-center gap-2">
+        <div v-if="hasAnyContent" class="flex shrink-0 items-center gap-2">
           <!-- View mode toggle -->
           <div class="flex items-center gap-0.5 bg-neutral-100 dark:bg-neutral-800 rounded-lg p-1">
             <button
@@ -77,6 +77,7 @@
         <UButton size="xs" color="neutral" variant="outline" icon="i-heroicons-plus" @click="searchOpen = true">
           Add gauge
         </UButton>
+      </div>
       </div>
     </div>
 
@@ -397,7 +398,7 @@
               <!-- My reach origin badge -->
               <div class="flex items-center gap-1 mt-1.5 text-neutral-400/50 dark:text-neutral-500/40">
                 <svg class="w-3 h-3 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
-                <span class="text-[10px] font-medium">My reach</span>
+                <span class="text-xs font-medium">My reach</span>
               </div>
             </div>
           </div>
@@ -496,7 +497,7 @@
               <div class="flex items-center gap-2 mt-1.5">
                 <div class="flex items-center gap-1 text-neutral-400/50 dark:text-neutral-500/40">
                   <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="14" y1="18" x2="16" y2="18"/></svg>
-                  <span class="text-[10px] font-medium">Calculated</span>
+                  <span class="text-xs font-medium">Calculated</span>
                 </div>
                 <span v-if="cg.any_input_unhealthy" class="inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">Stale</span>
               </div>

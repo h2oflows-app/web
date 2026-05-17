@@ -1,5 +1,5 @@
 <template>
-  <div class="sticky top-12.5 z-20 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
+  <div class="bg-white/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
     <div class="max-w-5xl mx-auto px-4">
       <div ref="scrollerRef" class="flex items-center gap-0.5 overflow-x-auto scrollbar-none py-0.5">
 
