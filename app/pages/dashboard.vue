@@ -17,7 +17,7 @@
     <div
       v-if="isAuthenticated && db.loaded.value"
       class="sticky z-10 bg-neutral-50/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800"
-      :class="db.dashboards.value.length ? 'top-24' : 'top-12.75'"
+      :class="db.dashboards.value.length ? 'top-[90px]' : 'top-12.75'"
     >
       <div class="max-w-5xl mx-auto px-4 py-2 flex items-center justify-between gap-2">
         <div v-if="hasAnyContent" class="flex items-center gap-2">
