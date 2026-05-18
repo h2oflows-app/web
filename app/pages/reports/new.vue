@@ -143,7 +143,7 @@
         </div>
 
         <!-- Submit -->
-        <div class="flex items-center justify-end gap-3 pt-2">
+        <div class="flex items-center justify-end gap-3 pt-2 flex-wrap">
           <NuxtLink
             v-if="prefillSlug"
             :to="`/reaches/${prefillSlug}`"
@@ -158,6 +158,15 @@
             @click="router.back()"
           >
             Cancel
+          </button>
+          <button
+            type="button"
+            :disabled="submitting || !selectedReach"
+            class="inline-flex items-center gap-2 rounded-lg border border-primary-600 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/40 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 text-sm font-medium transition-colors"
+            @click="submit(true)"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/></svg>
+            Submit &amp; Share
           </button>
           <button
             type="submit"
@@ -193,6 +202,14 @@
     </div>
 
   </div>
+
+  <ShareReportModal
+    v-if="pendingShareReport"
+    :report="pendingShareReport"
+    :open="shareModalOpen"
+    @close="onShareClose"
+    @synced="shareModalOpen = false"
+  />
 </template>
 
 <script setup lang="ts">
@@ -270,7 +287,21 @@ onMounted(async () => {
 const submitting = ref(false)
 const error = ref('')
 
-async function submit() {
+interface PendingReport {
+  id: string; slug: string; handle: string; name: string; report_date: string
+  content: string; paddled: boolean; reach_name: string; reach_slug: string
+}
+const pendingShareReport = ref<PendingReport | null>(null)
+const shareModalOpen = ref(false)
+
+function onShareClose() {
+  const id = pendingShareReport.value?.id
+  pendingShareReport.value = null
+  shareModalOpen.value = false
+  if (id) router.push(`/reports/${id}`)
+}
+
+async function submit(shareAfter = false) {
   if (!selectedReach.value) return
   error.value = ''
   submitting.value = true
@@ -296,7 +327,22 @@ async function submit() {
       error.value = data.error ?? 'Failed to submit report'
       return
     }
-    router.push(`/reports/${data.id}`)
+    if (shareAfter) {
+      pendingShareReport.value = {
+        id:          data.id,
+        slug:        data.slug,
+        handle:      data.handle ?? '',
+        name:        form.value.name,
+        report_date: form.value.report_date,
+        content:     form.value.content,
+        paddled:     form.value.paddled,
+        reach_name:  reachDisplayName(selectedReach.value),
+        reach_slug:  selectedReach.value.slug,
+      }
+      shareModalOpen.value = true
+    } else {
+      router.push(`/reports/${data.id}`)
+    }
   } catch (e: any) {
     error.value = e?.message ?? 'Network error'
   } finally {
