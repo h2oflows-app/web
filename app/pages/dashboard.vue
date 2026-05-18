@@ -66,6 +66,21 @@
             </svg>
             <span class="hidden sm:inline">Group</span>
           </button>
+          <!-- Basin map -->
+          <button
+            class="p-1.5 rounded-md bg-neutral-100 dark:bg-neutral-800 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+            title="Basin map"
+            @click="basinMapOpen = true"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="8" cy="2.5" r="1.5"/>
+              <circle cx="3.5" cy="13" r="1.5"/>
+              <circle cx="12.5" cy="13" r="1.5"/>
+              <line x1="8" y1="4" x2="8" y2="6.5"/>
+              <path d="M8 6.5 C6 8 3.5 9 3.5 11.5"/>
+              <path d="M8 6.5 C10 8 12.5 9 12.5 11.5"/>
+            </svg>
+          </button>
           <!-- Expand / Collapse all -->
           <button
             v-if="byStateTree.length > 0"
@@ -482,6 +497,13 @@
       v-bind="customGaugeModalProps"
     />
 
+    <!-- Basin map modal -->
+    <UModal v-model:open="basinMapOpen" title="Basin Map" :ui="{ content: 'max-w-4xl' }">
+      <template #body>
+        <DashboardBasinMap :leaves="dashboardLeaves" @select="onBasinMapSelect" />
+      </template>
+    </UModal>
+
     <!-- New dashboard modal -->
     <Teleport to="body">
       <div v-if="newDashboardOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="newDashboardOpen = false">
@@ -511,6 +533,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useWatchlistStore, type WatchedGauge } from '~/stores/watchlist'
 import { cleanBasinName, slugifyBasin } from '~/utils/basin'
 import { flowBandLabel } from '~/utils/flowBand'
+import type { DashboardLeaf } from '~/components/dashboard/DashboardBasinMap.vue'
 
 definePageMeta({ ssr: false })
 
@@ -862,6 +885,89 @@ const byStateTree = computed<StateGroup[]>(() => {
     })
 })
 
+// ── Dashboard basin map ───────────────────────────────────────────────────────
+
+const dashboardLeaves = computed<DashboardLeaf[]>(() => {
+  const out: DashboardLeaf[] = []
+  const seen = new Set<string>()
+
+  // Real gauges with reach context
+  for (const g of store.gauges) {
+    const key = `gauge:${g.id}:${g.contextReachSlug ?? ''}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push({
+      id: key,
+      type: 'gauge',
+      slug: g.contextReachSlug ?? g.id,
+      label: g.externalId ?? g.contextReachSlug ?? g.id,
+      name: g.contextReachCommonName ?? g.contextReachFullName ?? g.name ?? g.id,
+      basinGroup: cleanBasinName(g.contextReachBasinGroup)
+        ?? cleanBasinName(g.watershedName)
+        ?? cleanBasinName(g.basinName)
+        ?? cleanBasinName(g.contextReachRiverName)
+        ?? cleanBasinName(g.riverName)
+        ?? 'Other',
+      riverName: g.contextReachRiverName ?? g.riverName ?? (g.contextReachSlug ? 'Unknown River' : 'Standalone'),
+      riverOrder: g.contextReachRiverOrder,
+      centerLng: g.contextReachCenterLng ?? g.lng,
+    })
+  }
+
+  // Visible user reaches
+  for (const r of visibleUserReaches.value) {
+    out.push({
+      id: `ur:${r.id}`,
+      type: 'user_reach',
+      slug: r.slug,
+      label: r.slug,
+      name: r.name,
+      basinGroup: cleanBasinName(r.basin_group) ?? 'Other',
+      riverName: r.river_name ?? 'My Reaches',
+      riverOrder: null,
+      centerLng: null,
+    })
+  }
+
+  // Visible custom gauges — shown as single leaves (input gauge detail not in listing payload)
+  for (const cg of visibleCustomGauges.value) {
+    const key = `cg:${cg.id}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push({
+      id: key,
+      type: 'custom_gauge',
+      slug: cg.slug,
+      label: cg.slug,
+      name: cg.name,
+      basinGroup: 'Calculated',
+      riverName: 'Custom Gauges',
+      riverOrder: null,
+      centerLng: null,
+    })
+  }
+
+  return out
+})
+
+function onBasinMapSelect(leaf: DashboardLeaf) {
+  basinMapOpen.value = false
+  if (leaf.type === 'user_reach') {
+    router.push(`/my/reaches/${leaf.slug}`)
+    return
+  }
+  if (leaf.type === 'custom_gauge') {
+    const cg = customGauges.value.find(c => c.slug === leaf.slug)
+    if (cg) openStandaloneCustomGauge(cg)
+    return
+  }
+  // gauge — find by contextReachSlug if available, else by gauge id embedded in leaf.id
+  const gauge = leaf.slug !== leaf.id
+    ? store.gauges.find(g => g.contextReachSlug === leaf.slug)
+    : store.gauges.find(g => g.id === leaf.slug)
+  if (gauge) openGauge(gauge, 'gauge')
+}
+
 // ── Collapsible sections ────────────────────────────────────────────────────
 const COLLAPSED_STATES_KEY = 'h2oflow_dashboard_collapsed_states'
 const COLLAPSED_BASINS_KEY = 'h2oflow_dashboard_collapsed_basins'
@@ -979,6 +1085,7 @@ const reachContainerClass = computed(() =>
 
 // ── UI state ─────────────────────────────────────────────────────────────────
 const searchOpen  = ref(false)
+const basinMapOpen = ref(false)
 const MAP_VIS_KEY = 'h2oflow_dashboard_map_visible'
 const mapVisible  = ref(true)
 onMounted(() => {
