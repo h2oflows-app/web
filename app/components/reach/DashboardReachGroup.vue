@@ -147,7 +147,7 @@
                 :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(reach), displayFlowStatus(reach))]"
               >{{ flowBandLabel(displayFlowBandLabel(reach), displayFlowStatus(reach)) }}</span>
             </div>
-            <div class="mt-1.5 opacity-60 pointer-events-none" :class="density === 'full' ? 'h-14' : 'h-6'">
+            <div class="mt-1.5 opacity-60" :class="density === 'full' ? 'h-14' : 'h-6 pointer-events-none'">
               <GaugeSparkline :gauge-id="reach.id" flow-status="unknown" :color="sparklineColor(reach)" :compact="density !== 'full'" @latest-cfs="(v) => setLiveCfs(reach, v)" />
             </div>
           </div>

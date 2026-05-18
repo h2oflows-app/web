@@ -218,7 +218,7 @@
                               ? 'text-primary-500 dark:text-primary-400'
                               : 'text-neutral-400 dark:text-neutral-500 hover:text-primary-500 dark:hover:text-primary-400'"
                             :aria-label="isOnDashboard(reach) ? 'On dashboard' : 'Add to dashboard'"
-                            @click="dropdownSlug = dropdownSlug === reach.slug ? null : reach.slug"
+                            @click="openDropdown(reach)"
                           >
                             <svg v-if="isOnDashboard(reach)" class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
                               <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
@@ -232,7 +232,9 @@
                             v-if="dropdownSlug === reach.slug"
                             class="absolute right-0 top-full mt-1 z-40 min-w-40 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden"
                           >
+                            <div v-if="membershipLoading" class="px-3 py-2 text-xs text-neutral-400">Loading…</div>
                             <button
+                              v-else
                               v-for="dashboard in db.dashboards.value"
                               :key="dashboard.id"
                               class="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
@@ -240,10 +242,10 @@
                             >
                               <svg
                                 class="w-3.5 h-3.5 shrink-0"
-                                :class="isOnDashboard(reach) ? 'text-primary-500' : 'text-neutral-300 dark:text-neutral-600'"
+                                :class="membershipDashboardIds.has(dashboard.id) ? 'text-primary-500' : 'text-neutral-300 dark:text-neutral-600'"
                                 viewBox="0 0 20 20" fill="currentColor"
                               >
-                                <path v-if="isOnDashboard(reach)" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                <path v-if="membershipDashboardIds.has(dashboard.id)" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                                 <circle v-else cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/>
                               </svg>
                               <span class="truncate text-neutral-700 dark:text-neutral-300">{{ dashboard.name }}</span>
@@ -460,7 +462,35 @@ function onReachImported() {
 const showDemoBanner = ref(false)
 
 // ── Dashboard dropdown per reach ──────────────────────────────────────────────
-const dropdownSlug = ref<string | null>(null)
+const dropdownSlug         = ref<string | null>(null)
+const membershipDashboardIds = ref<Set<string>>(new Set())
+const membershipLoading    = ref(false)
+
+async function openDropdown(reach: ReachListItem) {
+  if (dropdownSlug.value === reach.slug) { dropdownSlug.value = null; return }
+  dropdownSlug.value = reach.slug
+  if (!reach.gauge_id) return
+  membershipLoading.value = true
+  membershipDashboardIds.value = new Set()
+  const token = await getToken()
+  if (!token) { membershipLoading.value = false; return }
+  try {
+    const res = await fetch(`${apiBase}/api/v1/watchlist`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    const ids = new Set<string>()
+    for (const item of (data.items ?? [])) {
+      if (item.gauge_id === reach.gauge_id && item.reach_slug === reach.slug && item.dashboard_id) {
+        ids.add(item.dashboard_id)
+      }
+    }
+    membershipDashboardIds.value = ids
+  } finally {
+    membershipLoading.value = false
+  }
+}
 
 function onDocClick(e: MouseEvent) {
   const target = e.target as HTMLElement
@@ -736,11 +766,26 @@ function isOnDashboard(reach: ReachListItem): boolean {
   return watchlistStore.gauges.some(g => g.id === reach.gauge_id && g.contextReachSlug === reach.slug)
 }
 
-function toggleDashboardForId(reach: ReachListItem, dashboardId: string) {
+async function toggleDashboardForId(reach: ReachListItem, dashboardId: string) {
   if (!reach.gauge_id) return
-  if (isOnDashboard(reach)) {
-    removeAndSync(reach.gauge_id, reach.slug)
+  if (membershipDashboardIds.value.has(dashboardId)) {
+    // Optimistic remove from this dashboard only
+    membershipDashboardIds.value = new Set([...membershipDashboardIds.value].filter(id => id !== dashboardId))
+    const token = await getToken()
+    if (token) {
+      const qs = `?reach_slug=${encodeURIComponent(reach.slug)}&dashboard_id=${encodeURIComponent(dashboardId)}`
+      fetch(`${apiBase}/api/v1/watchlist/${reach.gauge_id}${qs}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {})
+      // Sync local store if this was the active dashboard
+      if (dashboardId === db.activeDashboard.value?.id) {
+        watchlistStore.removeGauge(reach.gauge_id, reach.slug)
+      }
+    }
   } else {
+    // Optimistic add to this dashboard
+    membershipDashboardIds.value = new Set([...membershipDashboardIds.value, dashboardId])
     addAndSync(buildWatchedGauge(reach), dashboardId)
   }
   dropdownSlug.value = null
