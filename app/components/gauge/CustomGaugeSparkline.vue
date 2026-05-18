@@ -5,8 +5,8 @@
       <div v-if="loading" class="w-full h-full rounded animate-pulse bg-neutral-100 dark:bg-neutral-800" />
       <template v-else-if="points.length >= 2">
         <svg viewBox="0 0 100 40" preserveAspectRatio="none" class="w-full h-full overflow-visible">
-          <path :d="areaPath" fill="#3b82f6" fill-opacity="0.12" />
-          <path :d="linePath" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+          <path :d="areaPath" :fill="props.color ?? '#3b82f6'" fill-opacity="0.12" />
+          <path :d="linePath" :stroke="props.color ?? '#3b82f6'" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
         </svg>
         <span class="absolute top-0 left-0 text-[9px] leading-none text-neutral-400 font-mono">{{ maxLabel }}</span>
         <span class="absolute bottom-0 left-0 text-[9px] leading-none text-neutral-400 font-mono">{{ minLabel }}</span>
@@ -24,6 +24,7 @@ import { ref, computed, onMounted } from 'vue'
 const props = defineProps<{
   gaugeSlug: string
   compact?: boolean
+  color?: string
 }>()
 
 const { apiBase } = useRuntimeConfig().public
