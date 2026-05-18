@@ -505,6 +505,15 @@ async function toggleDashboard(dashboardId: string) {
     } else {
       await addReachToWatchlist(slug.value, dashboardId)
     }
+    // Clear the per-dashboard localStorage hidden flag so a previously-trashed
+    // reach becomes visible again without needing a manual dashboard refresh.
+    if (import.meta.client && reach.value.id) {
+      const key = `h2oflow_hidden_reaches_${dashboardId}`
+      try {
+        const set = new Set<string>(JSON.parse(localStorage.getItem(key) ?? '[]'))
+        if (set.delete(reach.value.id)) localStorage.setItem(key, JSON.stringify([...set]))
+      } catch {}
+    }
     toast.add({ title: 'Added to dashboard', color: 'success' })
   }
   loadReachDashboards()
