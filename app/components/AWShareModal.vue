@@ -49,43 +49,84 @@
 
           <!-- Cross-post panel -->
           <div v-else class="px-5 py-4 space-y-4">
-            <!-- Formatted text preview -->
-            <div class="rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 p-3">
-              <p class="text-xs text-neutral-500 dark:text-neutral-400 mb-2 font-medium uppercase tracking-wide">Copy to AW journal</p>
-              <p class="text-sm text-neutral-700 dark:text-neutral-200 leading-relaxed whitespace-pre-wrap">{{ awText }}</p>
+            <!-- Tab switcher -->
+            <div class="flex rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-700 text-xs font-medium">
+              <button
+                class="flex-1 py-1.5 transition-colors"
+                :class="activeTab === 'copy' ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-100' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
+                @click="activeTab = 'copy'"
+              >Copy to journal</button>
+              <button
+                class="flex-1 py-1.5 transition-colors border-l border-neutral-200 dark:border-neutral-700"
+                :class="activeTab === 'api' ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-100' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
+                @click="activeTab = 'api'"
+              >API preview</button>
             </div>
 
-            <button
-              class="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-              @click="copyAWText"
-            >
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              {{ textCopied ? 'Copied!' : 'Copy text' }}
-            </button>
+            <!-- Copy to journal tab -->
+            <template v-if="activeTab === 'copy'">
+              <div class="rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 p-3">
+                <p class="text-xs text-neutral-500 dark:text-neutral-400 mb-2 font-medium uppercase tracking-wide">Copy to AW journal</p>
+                <p class="text-sm text-neutral-700 dark:text-neutral-200 leading-relaxed whitespace-pre-wrap">{{ awText }}</p>
+              </div>
 
-            <a
-              href="https://www.americanwhitewater.org/content/Journal/"
-              target="_blank"
-              rel="noopener"
-              class="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors"
-            >
-              Open AW journal
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            </a>
+              <button
+                class="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                @click="copyAWText"
+              >
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                {{ textCopied ? 'Copied!' : 'Copy text' }}
+              </button>
 
-            <div class="border-t border-neutral-100 dark:border-neutral-800" />
+              <a
+                href="https://www.americanwhitewater.org/content/Journal/"
+                target="_blank"
+                rel="noopener"
+                class="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors"
+              >
+                Open AW journal
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              </a>
 
-            <button
-              v-if="!synced"
-              class="w-full py-2 rounded-lg border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-sm font-medium hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
-              :disabled="syncing"
-              @click="markPosted"
-            >
-              {{ syncing ? 'Marking…' : 'I posted it ✓' }}
-            </button>
-            <div v-else class="text-center text-sm text-emerald-600 dark:text-emerald-400 font-medium">
-              Marked as posted on AW
-            </div>
+              <div class="border-t border-neutral-100 dark:border-neutral-800" />
+
+              <button
+                v-if="!synced"
+                class="w-full py-2 rounded-lg border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-sm font-medium hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
+                :disabled="syncing"
+                @click="markPosted"
+              >
+                {{ syncing ? 'Marking…' : 'I posted it ✓' }}
+              </button>
+              <div v-else class="text-center text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                Marked as posted on AW
+              </div>
+            </template>
+
+            <!-- API preview tab -->
+            <template v-else>
+              <div class="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                AW doesn't offer a public API yet. This is what H2OFlows would submit on your behalf if they did.
+              </div>
+
+              <div class="rounded-lg bg-neutral-900 dark:bg-neutral-950 border border-neutral-700 overflow-hidden">
+                <div class="flex items-center justify-between px-3 py-1.5 border-b border-neutral-700">
+                  <span class="text-[10px] font-mono text-neutral-500 uppercase tracking-wide">HTTP Request</span>
+                  <button
+                    class="text-[10px] font-mono text-neutral-400 hover:text-neutral-200 transition-colors"
+                    @click="copyApiJson"
+                  >{{ apiJsonCopied ? 'Copied!' : 'Copy JSON' }}</button>
+                </div>
+                <pre class="text-[11px] font-mono text-neutral-300 p-3 overflow-x-auto leading-relaxed"><span class="text-emerald-400">POST</span> <span class="text-sky-300">https://www.americanwhitewater.org/api/journal</span>
+<span class="text-neutral-500">Content-Type: application/json</span>
+
+{{ apiPreviewJson }}</pre>
+              </div>
+
+              <p class="text-[10px] text-neutral-400 dark:text-neutral-500 text-center">
+                Field names verified from AW's live form · endpoint approximate
+              </p>
+            </template>
 
             <button
               class="w-full text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
@@ -138,6 +179,16 @@ const savingMapping = ref(false)
 const textCopied = ref(false)
 const syncing = ref(false)
 const synced = ref(false)
+const activeTab = ref<'copy' | 'api'>('copy')
+const apiJsonCopied = ref(false)
+
+const awObservationNumeric: Record<string, number> = {
+  'too-low':  -1,
+  'low':       0.1,
+  'medium':    0.45,
+  'high':      0.8,
+  'too-high':  1.5,
+}
 
 onMounted(async () => {
   try {
@@ -193,6 +244,26 @@ async function copyAWText() {
   await navigator.clipboard.writeText(awText.value)
   textCopied.value = true
   setTimeout(() => { textCopied.value = false }, 2000)
+}
+
+const apiPreviewBody = computed(() => {
+  const body: Record<string, unknown> = {
+    title:       props.report.name,
+    postDate:    props.report.report_date,
+    observation: awObservationNumeric[awBandLabel.value] ?? null,
+    body:        props.report.content,
+  }
+  if (props.report.flow_cfs != null) body.gage_reading = Math.round(props.report.flow_cfs)
+  if (props.report.hazard_warning) body.hazard = props.report.hazard_warning
+  return body
+})
+
+const apiPreviewJson = computed(() => JSON.stringify(apiPreviewBody.value, null, 2))
+
+async function copyApiJson() {
+  await navigator.clipboard.writeText(apiPreviewJson.value)
+  apiJsonCopied.value = true
+  setTimeout(() => { apiJsonCopied.value = false }, 2000)
 }
 
 async function markPosted() {
