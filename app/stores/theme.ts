@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
-import type { PaletteId } from '../../app.config'
+import type { ThemeId } from '../../app.config'
 
 export const useThemeStore = defineStore('theme', {
   state: () => ({
-    paletteId: 'h2oflows-slate' as PaletteId,
+    themeId: 'h2oflows' as ThemeId,
   }),
   persist: true,
 })

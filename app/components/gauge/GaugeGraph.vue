@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-3">
-    <!-- Time window toggle -->
-    <div class="flex justify-end">
+    <!-- Time window toggle — hidden when parent controls hours externally -->
+    <div v-if="!props.controlledHours" class="flex justify-end">
       <div class="flex text-xs rounded overflow-hidden border border-neutral-200 dark:border-neutral-700">
         <button
           v-for="h in ([12, 24, 48] as const)"
@@ -15,7 +15,7 @@
 
     <!-- Chart container — always mounted so the ref is never torn down mid-update.
          Overlay states sit on top without removing the canvas from the DOM. -->
-    <div class="relative w-full" style="height:200px">
+    <div class="relative w-full overflow-hidden" :style="{ height: `${props.height ?? 200}px` }">
       <div ref="container" class="w-full h-full" />
       <!-- Hover tooltip -->
       <div
@@ -103,7 +103,9 @@ const props = defineProps<{
   reachSlug?: string | null
   currentCfs?: number | null
   noRanges?: boolean
-  color?: string   // override line color (e.g. '#3b82f6' for neutral blue in gauge-only mode)
+  color?: string          // override line color
+  height?: number         // chart height in px (default 200)
+  controlledHours?: 12 | 24 | 48  // parent-controlled time window; hides toggle
 }>()
 
 const emit = defineEmits<{
@@ -126,7 +128,8 @@ const { apiBase } = useRuntimeConfig().public
 
 // ---- Data fetching ----------------------------------------------------------
 
-const hours = ref<12 | 24 | 48>(48)
+const hours = ref<12 | 24 | 48>(props.controlledHours ?? 48)
+watch(() => props.controlledHours, h => { if (h && h !== hours.value) { hours.value = h } })
 
 async function load() {
   loading.value = true
@@ -184,7 +187,7 @@ function buildChart() {
 
   const opts: uPlot.Options = {
     width:  container.value!.clientWidth,
-    height: 200,
+    height: props.height ?? 200,
     padding: [8, 0, 0, 0],
     cursor: { show: true },
     legend: { show: false },   // we render our own legend below
@@ -236,6 +239,14 @@ function buildChart() {
   }
 
   chart = new uPlot(opts, [xs, ys], container.value!)
+
+  // Re-measure once the browser has finished painting — catches mobile modals
+  // where clientWidth is stale at the time buildChart first runs.
+  requestAnimationFrame(() => {
+    if (chart && container.value) {
+      chart.setSize({ width: container.value.clientWidth, height: props.height ?? 200 })
+    }
+  })
 }
 
 // ---- Canvas drawing helpers -------------------------------------------------
@@ -362,7 +373,7 @@ onMounted(() => {
   load()
   resizeObserver = new ResizeObserver(() => {
     if (chart && container.value) {
-      chart.setSize({ width: container.value.clientWidth, height: 200 })
+      chart.setSize({ width: container.value.clientWidth, height: props.height ?? 200 })
     }
   })
   if (container.value) resizeObserver.observe(container.value)

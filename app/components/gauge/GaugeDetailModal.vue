@@ -1,5 +1,5 @@
 <template>
-  <UModal v-model:open="open" :ui="{ width: 'max-w-xl' }">
+  <UModal v-model:open="open" :ui="{ content: 'sm:max-w-xl max-sm:!inset-0 max-sm:!w-auto max-sm:!max-w-none max-sm:!rounded-none max-sm:!ring-0 max-sm:!translate-x-0 max-sm:!translate-y-0' }">
     <template #header>
       <div class="flex items-start justify-between gap-3 w-full">
         <div class="min-w-0 flex-1">
@@ -30,33 +30,49 @@
             </p>
           </template>
         </div>
-        <!-- Close button only in header -->
-        <button
-          class="shrink-0 p-1 rounded-md text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
-          aria-label="Close"
-          @click="open = false"
-        >
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 6 6 18M6 6l12 12"/>
-          </svg>
-        </button>
+        <!-- View reach + close buttons -->
+        <div class="flex items-center gap-1 shrink-0">
+          <NuxtLink
+            v-if="mode === 'reach' && reachSlugForLink"
+            :to="`/reaches/${reachSlugForLink}`"
+            class="p-1.5 rounded-md text-neutral-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
+            :title="`View ${reachTitle ?? 'reach'} details`"
+            @click="open = false"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 10h10M11 6l4 4-4 4"/>
+            </svg>
+          </NuxtLink>
+          <button
+            class="p-1 rounded-md text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+            aria-label="Close"
+            @click="open = false"
+          >
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6 6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </template>
 
     <template #body>
       <div class="space-y-3">
         <!-- CFS + trend arrow — left-aligned, prominent -->
-        <div class="flex items-baseline gap-2 flex-wrap">
-          <span class="text-3xl font-bold tabular-nums leading-none text-neutral-900 dark:text-white">
-            {{ displayCfs != null ? displayCfs.toLocaleString() : '—' }}
-          </span>
-          <span class="text-sm text-neutral-500">cfs</span>
-          <TrendArrow v-if="displayCfs != null" :gauge-id="gauge.id" class="text-lg" />
-          <!-- Flow band badge — reach mode only -->
-          <span
-            v-if="mode === 'reach' && (gauge.flowStatus !== 'unknown' || gauge.flowBandLabel)"
-            :class="['inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium', bandBadgeClass(gauge.flowBandLabel, gauge.flowStatus)]"
-          >{{ flowBandLabel(gauge.flowBandLabel, gauge.flowStatus) }}</span>
+        <div>
+          <div class="flex items-baseline gap-2 flex-wrap">
+            <span class="text-3xl font-bold tabular-nums leading-none text-neutral-900 dark:text-white">
+              {{ displayCfs != null ? displayCfs.toLocaleString() : '—' }}
+            </span>
+            <span class="text-sm text-neutral-500">cfs</span>
+            <TrendArrow v-if="displayCfs != null" :gauge-id="gauge.id" class="text-lg" />
+            <!-- Flow band badge — reach mode only -->
+            <span
+              v-if="mode === 'reach' && (gauge.flowStatus !== 'unknown' || gauge.flowBandLabel)"
+              :class="['inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium', bandBadgeClass(gauge.flowBandLabel, gauge.flowStatus)]"
+            >{{ flowBandLabel(gauge.flowBandLabel, gauge.flowStatus) }}</span>
+          </div>
+          <p v-if="gauge.lastReadingAt" class="text-xs text-neutral-400 mt-0.5">Last reading {{ lastReadingRelative }}</p>
         </div>
 
         <!-- Add / remove from dashboard -->
@@ -96,30 +112,13 @@
           :reach-slug="graphReachSlug"
           :no-ranges="mode !== 'reach'"
           :color="mode !== 'reach' ? '#3b82f6' : undefined"
+          :height="280"
           @latest-cfs="liveCfs = $event"
         />
 
-        <!-- Last updated -->
-        <p v-if="gauge.lastReadingAt" class="text-xs text-neutral-500">
-          Last reading {{ lastReadingRelative }}
-        </p>
-
-        <!-- View this reach — reach mode only -->
-        <div v-if="mode === 'reach' && reachSlugForLink" class="pt-1 border-t border-neutral-100 dark:border-neutral-800">
-          <NuxtLink
-            :to="`/reaches/${reachSlugForLink}`"
-            class="inline-flex items-center gap-1 text-sm text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 font-medium transition-colors"
-            @click="open = false"
-          >
-            View {{ reachTitle ?? 'reach' }} details
-            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M5 10h10M11 6l4 4-4 4"/>
-            </svg>
-          </NuxtLink>
-        </div>
-
       </div>
     </template>
+
   </UModal>
 </template>
 

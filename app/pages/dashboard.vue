@@ -2,25 +2,25 @@
   <div class="min-h-screen bg-neutral-50 dark:bg-neutral-950">
     <AppHeader />
 
-    <!-- Dashboard tab bar (only when authenticated and dashboards loaded) -->
-    <DashboardTabBar
-      v-if="isAuthenticated && db.loaded.value && db.dashboards.value.length"
-      :dashboards="db.dashboards.value"
-      :active-dashboard-id="db.activeDashboardId.value"
-      @select="onSelectDashboard"
-      @new="newDashboardOpen = true"
-      @delete="onDeleteDashboard"
-      @rename="(slug, name) => db.rename(slug, name)"
-    />
-
-    <!-- Sticky controls bar — always shown when authenticated -->
+    <!-- Unified sticky header: tab bar + controls bar in one block anchored at AppHeader bottom -->
     <div
       v-if="isAuthenticated && db.loaded.value"
-      class="sticky z-10 bg-neutral-50/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800"
-      :class="db.dashboards.value.length ? 'top-24' : 'top-12.75'"
+      class="sticky top-[50px] z-20"
     >
+      <DashboardTabBar
+        v-if="db.dashboards.value.length"
+        :dashboards="db.dashboards.value"
+        :active-dashboard-id="db.activeDashboardId.value"
+        @select="onSelectDashboard"
+        @new="newDashboardOpen = true"
+        @delete="onDeleteDashboard"
+        @rename="(slug, name) => db.rename(slug, name)"
+      />
+
+      <!-- Controls bar -->
+      <div class="bg-neutral-50/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
       <div class="max-w-5xl mx-auto px-4 py-2 flex items-center justify-between gap-2">
-        <div v-if="hasAnyContent" class="flex items-center gap-2">
+        <div v-if="hasAnyContent" class="flex shrink-0 items-center gap-2">
           <!-- View mode toggle -->
           <div class="flex items-center gap-0.5 bg-neutral-100 dark:bg-neutral-800 rounded-lg p-1">
             <button
@@ -77,6 +77,7 @@
         <UButton size="xs" color="neutral" variant="outline" icon="i-heroicons-plus" @click="searchOpen = true">
           Add gauge
         </UButton>
+      </div>
       </div>
     </div>
 
@@ -218,6 +219,78 @@
                       />
                     </div>
                   </template>
+
+                <!-- User reaches inline — same river, marked with person icon -->
+                <template v-if="river.userReaches.length > 0">
+                  <div v-if="viewMode === 'list'" class="space-y-1.5 mt-1.5">
+                    <div
+                      v-for="r in river.userReaches"
+                      :key="r.id"
+                      class="flex items-center gap-2 sm:gap-3 px-3 py-2 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 transition-all duration-200 cursor-pointer"
+                      @click="openUserReach(r)"
+                    >
+                      <div class="min-w-0 flex-1 flex items-center gap-1.5">
+                        <svg class="w-3 h-3 shrink-0 text-neutral-400/40 dark:text-neutral-500/30" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
+                        <span class="text-sm font-medium truncate">{{ r.name }}</span>
+                        <NuxtLink :to="`/my/reaches/${r.slug}`" class="shrink-0 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit reach" @click.stop>
+                          <svg class="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
+                        </NuxtLink>
+                      </div>
+                      <div class="flex items-center gap-2 shrink-0">
+                        <div v-if="r.gauge_id" class="w-32 shrink-0 hidden sm:block">
+                          <GaugeSparkline :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :flow-band-label="r.flow_band ?? null" compact class="h-full w-full" />
+                        </div>
+                        <div v-else-if="r.custom_gauge_slug" class="w-32 shrink-0 hidden sm:block">
+                          <CustomGaugeSparkline :gauge-slug="r.custom_gauge_slug" compact class="h-full w-full" />
+                        </div>
+                        <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['hidden sm:inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium shrink-0', reachBadgeClass(r)]">{{ reachStatusLabel(r) }}</span>
+                        <span class="text-base font-bold tabular-nums min-w-14 text-right" :style="{ color: bandSolid(r.flow_band, r.flow_status) }">
+                          {{ r.current_cfs != null ? r.current_cfs.toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-400 dark:text-neutral-500 ml-0.5">cfs</span>
+                        </span>
+                      </div>
+                      <button class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-red-400 dark:hover:text-red-400 transition-colors shrink-0" aria-label="Remove from dashboard" @click.stop="hideReach(r.id)">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div v-else :class="[cardGridClass, 'mt-1.5']">
+                    <div
+                      v-for="r in river.userReaches"
+                      :key="r.id"
+                      class="relative rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-3 transition-all duration-200 cursor-pointer overflow-hidden"
+                      @click="openUserReach(r)"
+                    >
+                      <div class="flex items-start gap-3 mb-2">
+                        <div class="min-w-0 flex-1">
+                          <div class="flex items-center gap-1.5 min-w-0">
+                            <svg class="w-3 h-3 shrink-0 text-neutral-400/40 dark:text-neutral-500/30" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
+                            <span class="text-sm font-medium truncate">{{ r.name }}</span>
+                            <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['shrink-0 inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium', reachBadgeClass(r)]">{{ reachStatusLabel(r) }}</span>
+                          </div>
+                          <span v-if="r.river_name" class="text-xs text-primary-400/70 truncate block mt-0.5">{{ r.river_name }}</span>
+                        </div>
+                        <div class="shrink-0 flex items-center gap-1">
+                          <span class="text-xl font-bold tabular-nums leading-none" :style="{ color: bandSolid(r.flow_band, r.flow_status) }">
+                            {{ r.current_cfs != null ? r.current_cfs.toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-500 dark:text-neutral-400 ml-0.5">cfs</span>
+                          </span>
+                          <NuxtLink :to="`/my/reaches/${r.slug}`" class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit reach" @click.stop>
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
+                          </NuxtLink>
+                          <button class="rounded p-1 transition-all duration-150 text-neutral-300 dark:text-neutral-600 hover:text-red-400 dark:hover:text-red-400" aria-label="Remove from dashboard" @click.stop="hideReach(r.id)">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"/></svg>
+                          </button>
+                        </div>
+                      </div>
+                      <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :flow-band-label="r.flow_band ?? null" compact class="mb-1" />
+                      <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" compact class="mb-1" />
+                      <p v-if="viewMode === 'full' && r.last_reading_at" class="text-xs text-neutral-400 mt-0.5">{{ reachLastUpdated(r) }}</p>
+                      <div class="flex items-center gap-1 mt-1.5 text-neutral-400/50 dark:text-neutral-500/40">
+                        <svg class="w-3 h-3 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
+                        <span class="text-xs font-medium">My reach</span>
+                      </div>
+                    </div>
+                  </div>
+                </template>
                 </template><!-- end v-for river -->
               </div>
 
@@ -277,130 +350,6 @@
             <UButton size="xs" color="neutral" variant="ghost" icon="i-heroicons-x-mark" @click="closeAggregate" />
           </div>
           <AggregateGraph :gauges="aggregateGauges" />
-        </section>
-
-        <!-- My Reaches section — all on primary; watchlist-filtered on secondary dashboards -->
-        <section v-if="visibleUserReaches.length > 0">
-          <div class="flex items-center gap-2 mb-3">
-            <h2 class="text-sm font-semibold text-neutral-500 uppercase tracking-wide">My Reaches</h2>
-            <div class="flex-1 h-px bg-neutral-200 dark:bg-neutral-800" />
-            <div v-if="activeUserReaches.some(r => hiddenReaches.has(r.id))" class="relative" ref="reachAddWrap">
-              <button
-                class="text-xs text-primary-500 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 transition-colors flex items-center gap-1"
-                @click="reachAddOpen = !reachAddOpen"
-              >
-                <svg class="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
-                Add
-              </button>
-              <div v-if="reachAddOpen" class="absolute right-0 top-full mt-1 z-50 w-52 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg overflow-hidden">
-                <button
-                  v-for="r in activeUserReaches.filter(r => hiddenReaches.has(r.id))"
-                  :key="r.id"
-                  class="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-colors"
-                  @click="showReach(r.id); reachAddOpen = false"
-                >{{ r.name }}</button>
-              </div>
-            </div>
-            <NuxtLink to="/my/reaches" class="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors">Manage</NuxtLink>
-          </div>
-          <!-- List view -->
-          <div v-if="viewMode === 'list'" class="space-y-1.5">
-            <div
-              v-for="r in activeUserReaches.filter(r => !hiddenReaches.has(r.id))"
-              :key="r.id"
-              class="flex items-center gap-2 sm:gap-3 px-3 py-2 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 transition-all duration-200 cursor-pointer"
-              @click="openUserReach(r)"
-            >
-              <div class="min-w-0 flex-1 flex items-center gap-1.5">
-                <!-- My reach origin indicator — list -->
-                <svg class="w-3 h-3 shrink-0 hidden sm:block text-neutral-400/40 dark:text-neutral-500/30" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
-                <span class="text-sm font-medium truncate">{{ r.name }}</span>
-                <NuxtLink
-                  :to="`/my/reaches/${r.slug}`"
-                  class="shrink-0 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
-                  title="Edit reach"
-                  @click.stop
-                >
-                  <svg class="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
-                </NuxtLink>
-              </div>
-              <div class="flex items-center gap-2 shrink-0">
-                <div v-if="r.gauge_id" class="w-32 shrink-0 hidden sm:block">
-                  <GaugeSparkline :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :flow-band-label="r.flow_band ?? null" compact class="h-full w-full" />
-                </div>
-                <div v-else-if="r.custom_gauge_slug" class="w-32 shrink-0 hidden sm:block">
-                  <CustomGaugeSparkline :gauge-slug="r.custom_gauge_slug" compact class="h-full w-full" />
-                </div>
-                <span
-                  v-if="r.flow_status !== 'unknown' || r.flow_band"
-                  :class="['hidden sm:inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium shrink-0', reachBadgeClass(r)]"
-                >{{ reachStatusLabel(r) }}</span>
-                <span class="text-base font-bold tabular-nums min-w-14 text-right" :style="{ color: bandSolid(r.flow_band, r.flow_status) }">
-                  {{ r.current_cfs != null ? r.current_cfs.toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-400 dark:text-neutral-500 ml-0.5">cfs</span>
-                </span>
-              </div>
-              <button
-                class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-red-400 dark:hover:text-red-400 transition-colors shrink-0"
-                aria-label="Remove from dashboard"
-                @click.stop="hideReach(r.id)"
-              >
-                <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"/></svg>
-              </button>
-            </div>
-          </div>
-          <!-- Card views (comfortable / full) -->
-          <div v-else :class="cardGridClass">
-            <div
-              v-for="r in activeUserReaches.filter(r => !hiddenReaches.has(r.id))"
-              :key="r.id"
-              class="relative rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-3 transition-all duration-200 cursor-pointer overflow-hidden"
-              @click="openUserReach(r)"
-            >
-              <!-- Name+badge (left) | CFS + link + remove (right) -->
-              <div class="flex items-start gap-3 mb-2">
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-center gap-1.5 min-w-0">
-                    <span class="text-sm font-medium truncate">{{ r.name }}</span>
-                    <span
-                      v-if="r.flow_status !== 'unknown' || r.flow_band"
-                      :class="['shrink-0 inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium', reachBadgeClass(r)]"
-                    >{{ reachStatusLabel(r) }}</span>
-                  </div>
-                  <span v-if="r.river_name" class="text-xs text-primary-400/70 truncate block mt-0.5">{{ r.river_name }}</span>
-                </div>
-                <div class="shrink-0 flex items-center gap-1">
-                  <span class="text-xl font-bold tabular-nums leading-none" :style="{ color: bandSolid(r.flow_band, r.flow_status) }">
-                    {{ r.current_cfs != null ? r.current_cfs.toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-500 dark:text-neutral-400 ml-0.5">cfs</span>
-                  </span>
-                  <NuxtLink
-                    :to="`/my/reaches/${r.slug}`"
-                    class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
-                    title="Edit reach"
-                    @click.stop
-                  >
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
-                  </NuxtLink>
-                  <button
-                    class="rounded p-1 transition-all duration-150 text-neutral-300 dark:text-neutral-600 hover:text-red-400 dark:hover:text-red-400"
-                    aria-label="Remove from dashboard"
-                    @click.stop="hideReach(r.id)"
-                  >
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"/></svg>
-                  </button>
-                </div>
-              </div>
-              <!-- Sparkline -->
-              <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :flow-band-label="r.flow_band ?? null" compact class="mb-1" />
-              <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" compact class="mb-1" />
-              <!-- Last reading — full only -->
-              <p v-if="viewMode === 'full' && r.last_reading_at" class="text-xs text-neutral-400 mt-0.5">{{ reachLastUpdated(r) }}</p>
-              <!-- My reach origin badge -->
-              <div class="flex items-center gap-1 mt-1.5 text-neutral-400/50 dark:text-neutral-500/40">
-                <svg class="w-3 h-3 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
-                <span class="text-[10px] font-medium">My reach</span>
-              </div>
-            </div>
-          </div>
         </section>
 
         <!-- Custom Gauges section — shows active-dashboard gauges on all tabs -->
@@ -496,7 +445,7 @@
               <div class="flex items-center gap-2 mt-1.5">
                 <div class="flex items-center gap-1 text-neutral-400/50 dark:text-neutral-500/40">
                   <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="14" y1="18" x2="16" y2="18"/></svg>
-                  <span class="text-[10px] font-medium">Calculated</span>
+                  <span class="text-xs font-medium">Calculated</span>
                 </div>
                 <span v-if="cg.any_input_unhealthy" class="inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">Stale</span>
               </div>
@@ -651,6 +600,7 @@ const isDefaultDashboard = computed(() =>
 // ── User reaches ──────────────────────────────────────────────────────────────
 interface UserReachSummary {
   id: string; slug: string; name: string; river_name: string | null
+  state_abbr: string | null; basin_group: string | null
   current_cfs: number | null; flow_band: string | null
   flow_status: 'runnable' | 'caution' | 'flood' | 'unknown'
   last_reading_at: string | null; gauge_id: string | null
@@ -741,9 +691,7 @@ const hiddenGaugesKey  = computed(() => `h2oflow_hidden_custom_gauges_${db.activ
 
 const hiddenReaches      = ref<Set<string>>(new Set())
 const hiddenCustomGauges = ref<Set<string>>(new Set())
-const reachAddOpen       = ref(false)
 const gaugeAddOpen       = ref(false)
-const reachAddWrap       = ref<HTMLElement | null>(null)
 const gaugeAddWrap       = ref<HTMLElement | null>(null)
 
 onMounted(() => {
@@ -777,7 +725,6 @@ function showCustomGauge(id: string) {
 // Close add-dropdowns on outside click
 if (import.meta.client) {
   document.addEventListener('click', (e) => {
-    if (reachAddWrap.value && !reachAddWrap.value.contains(e.target as Node)) reachAddOpen.value = false
     if (gaugeAddWrap.value && !gaugeAddWrap.value.contains(e.target as Node)) gaugeAddOpen.value = false
   })
 }
@@ -829,13 +776,14 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
 
 // ── Reach-primary grouping: state → basin → river → reaches ─────────────────
 
-interface RiverGroup { name: string; reaches: WatchedGauge[] }
+interface RiverGroup { name: string; reaches: WatchedGauge[]; userReaches: UserReachSummary[] }
 interface BasinGroup { name: string; reachCount: number; rivers: RiverGroup[]; standaloneGauges: WatchedGauge[] }
 interface StateGroup { name: string; reachCount: number; basins: BasinGroup[] }
 
 const byStateTree = computed<StateGroup[]>(() => {
-  // state → basin → river → reaches
-  type BasinEntry = { rivers: Map<string, WatchedGauge[]>; standalone: WatchedGauge[] }
+  // state → basin → river → reaches (curated + user)
+  type RiverEntry = { curatedReaches: WatchedGauge[]; userReaches: UserReachSummary[] }
+  type BasinEntry = { rivers: Map<string, RiverEntry>; standalone: WatchedGauge[] }
   const stateMap = new Map<string, Map<string, BasinEntry>>()
 
   // De-duplicate: same gauge+reach should only appear once
@@ -860,11 +808,24 @@ const byStateTree = computed<StateGroup[]>(() => {
 
     if (g.contextReachSlug) {
       const river = g.contextReachRiverName ?? g.riverName ?? 'Unknown River'
-      if (!entry.rivers.has(river)) entry.rivers.set(river, [])
-      entry.rivers.get(river)!.push(g)
+      if (!entry.rivers.has(river)) entry.rivers.set(river, { curatedReaches: [], userReaches: [] })
+      entry.rivers.get(river)!.curatedReaches.push(g)
     } else {
       entry.standalone.push(g)
     }
+  }
+
+  // Fold visible user reaches into the same tree
+  for (const ur of activeUserReaches.value.filter(r => !hiddenReaches.value.has(r.id))) {
+    const state = ur.state_abbr ?? '—'
+    const basin = cleanBasinName(ur.basin_group) ?? 'Other'
+    const river = ur.river_name ?? 'My Reaches'
+    if (!stateMap.has(state)) stateMap.set(state, new Map())
+    const basinMap = stateMap.get(state)!
+    if (!basinMap.has(basin)) basinMap.set(basin, { rivers: new Map(), standalone: [] })
+    const entry = basinMap.get(basin)!
+    if (!entry.rivers.has(river)) entry.rivers.set(river, { curatedReaches: [], userReaches: [] })
+    entry.rivers.get(river)!.userReaches.push(ur)
   }
 
   return [...stateMap.entries()]
@@ -875,9 +836,10 @@ const byStateTree = computed<StateGroup[]>(() => {
         .map(([bName, { rivers, standalone }]) => {
           const riverGroups = [...rivers.entries()]
             .sort(([a], [b]) => a.localeCompare(b))
-            .map(([rName, reaches]) => ({
+            .map(([rName, { curatedReaches, userReaches }]) => ({
               name: rName,
-              reaches: [...reaches].sort((a, b) => {
+              userReaches,
+              reaches: [...curatedReaches].sort((a, b) => {
                 // river_order (stored, admin-set) preferred; fall back to center longitude
                 const ao = a.contextReachRiverOrder
                 const bo = b.contextReachRiverOrder
@@ -892,7 +854,7 @@ const byStateTree = computed<StateGroup[]>(() => {
                 return al - bl
               }),
             }))
-          const reachCount = riverGroups.reduce((s, r) => s + r.reaches.length, 0) + standalone.length
+          const reachCount = riverGroups.reduce((s, r) => s + r.reaches.length + r.userReaches.length, 0) + standalone.length
           return { name: bName, reachCount, rivers: riverGroups, standaloneGauges: standalone }
         })
       const reachCount = basins.reduce((s, b) => s + b.reachCount, 0)

@@ -53,120 +53,66 @@
 
       <!-- Hero -->
       <section>
-        <div class="flex items-start justify-between gap-4 flex-wrap">
-          <div>
+        <!-- Title row + icon toolbar -->
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
             <div v-if="reach.river_name" class="text-xs font-medium text-primary-500 uppercase tracking-wide mb-1">{{ reach.river_name }}</div>
-            <h1 class="text-2xl font-bold">
+            <h1 class="text-2xl font-bold leading-tight">
               <template v-if="reach.put_in_name && reach.take_out_name">
                 {{ reach.put_in_name }} to {{ reach.take_out_name }}
                 <span v-if="reach.common_name" class="font-normal text-neutral-400">({{ reach.common_name }})</span>
               </template>
               <template v-else>{{ reach.common_name ?? reach.name }}</template>
             </h1>
-            <p class="text-neutral-500 text-sm mt-0.5">
-              {{ reach.region }}
-            </p>
-            <!-- Permit / multi-day badges -->
-            <div v-if="(reach as any).permit_required || (reach as any).multi_day_days > 1" class="flex items-center gap-2 mt-2 flex-wrap">
-              <span
-                v-if="(reach as any).permit_required"
-                class="inline-flex items-center gap-1 rounded-md bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400"
-              >
-                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M12 7V5a2 2 0 00-2-2H9a2 2 0 00-2 2v6"/><circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/></svg>
-                Permit Required
-              </span>
-              <span
-                v-if="(reach as any).multi_day_days > 1"
-                class="inline-flex items-center gap-1 rounded-md bg-primary-100 dark:bg-primary-950/60 px-2 py-0.5 text-xs font-medium text-primary-700 dark:text-primary-400"
-              >
-                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                {{ (reach as any).multi_day_days }}-Day Trip
-              </span>
-            </div>
           </div>
 
-          <!-- Action row: dashboard add/remove + edit + share -->
-          <div class="shrink-0 flex items-center gap-2 flex-wrap">
-            <ClientOnly>
-              <template v-if="allGauges.length > 0">
-                <div v-if="!onDashboard(allGauges[0].id)" class="relative" data-add-dashboard-wrap>
-                  <div class="flex items-stretch rounded-xl border-2 border-neutral-200 dark:border-neutral-700 hover:border-primary-400 dark:hover:border-primary-500 transition-colors overflow-hidden">
-                    <button
-                      class="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-                      @click="addToDashboard(allGauges[0], dashboardsAdd.activeDashboard.value?.id ?? null)"
-                    >
-                      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                      </svg>
-                      Add to {{ dashboardsAdd.activeDashboard.value?.name ?? 'dashboard' }}
-                    </button>
-                    <button
-                      v-if="dashboardsAdd.dashboards.value.length > 1"
-                      class="flex items-center justify-center px-2 border-l-2 border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-                      title="Pick a different dashboard"
-                      @click="dashboardPickerOpen = !dashboardPickerOpen"
-                    >
-                      <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
-                  </div>
-                  <div
-                    v-if="dashboardPickerOpen"
-                    class="absolute right-0 top-full mt-1 z-30 w-48 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg overflow-hidden"
-                  >
-                    <button
-                      v-for="d in dashboardsAdd.dashboards.value"
-                      :key="d.id"
-                      class="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-colors"
-                      :class="d.id === dashboardsAdd.activeDashboardId.value ? 'font-medium text-primary-600 dark:text-primary-400' : 'text-neutral-600 dark:text-neutral-300'"
-                      @click="addToDashboard(allGauges[0], d.id); dashboardPickerOpen = false"
-                    >{{ d.name }}</button>
-                  </div>
-                </div>
-                <div
-                  v-else
-                  class="flex items-stretch rounded-xl border-2 border-primary-400 dark:border-primary-600 bg-primary-50 dark:bg-primary-950/50 overflow-hidden"
-                >
-                  <span class="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-primary-600 dark:text-primary-400">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                    On dashboard
-                  </span>
-                  <button
-                    class="flex items-center justify-center px-3 border-l-2 border-primary-400 dark:border-primary-600 text-primary-600 dark:text-primary-400 hover:bg-red-100 dark:hover:bg-red-950 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                    aria-label="Remove from dashboard"
-                    title="Remove from dashboard"
-                    @click="confirmRemoveDashboard(allGauges[0].id)"
-                  >
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 012-2h2a2 2 0 012 2v2"/>
-                    </svg>
-                  </button>
-                </div>
-              </template>
-            </ClientOnly>
+          <!-- Icon toolbar -->
+          <div class="shrink-0 flex items-center gap-1 mt-0.5">
 
+            <!-- Create Report -->
+            <NuxtLink
+              :to="`/reports/new?reach=${reach.slug}`"
+              class="flex items-center justify-center p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-colors"
+              title="Create report"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
+              </svg>
+            </NuxtLink>
+
+            <!-- Edit (admin only) -->
             <NuxtLink
               v-if="isDataAdmin"
               :to="`/reaches/${route.params.slug}/edit`"
-              class="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-neutral-200 dark:border-neutral-700 text-sm font-semibold text-neutral-600 dark:text-neutral-300 hover:border-neutral-400 dark:hover:border-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
+              class="flex items-center justify-center p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+              title="Edit reach"
             >
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
               </svg>
-              Edit
             </NuxtLink>
-
-            <button
-              class="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-primary-600 bg-primary-600 hover:bg-primary-700 hover:border-primary-700 text-white text-sm font-semibold transition-colors"
-              @click="openShareForm"
-            >
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-              </svg>
-              Share
-            </button>
           </div>
+        </div>
+
+        <!-- Description row below title -->
+        <p class="text-neutral-500 text-sm mt-1">{{ reach.region }}</p>
+
+        <!-- Permit / multi-day badges -->
+        <div v-if="(reach as any).permit_required || (reach as any).multi_day_days > 1" class="flex items-center gap-2 mt-2 flex-wrap">
+          <span
+            v-if="(reach as any).permit_required"
+            class="inline-flex items-center gap-1 rounded-md bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400"
+          >
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M12 7V5a2 2 0 00-2-2H9a2 2 0 00-2 2v6"/><circle cx="12" cy="16" r="1" fill="currentColor" stroke="none"/></svg>
+            Permit Required
+          </span>
+          <span
+            v-if="(reach as any).multi_day_days > 1"
+            class="inline-flex items-center gap-1 rounded-md bg-primary-100 dark:bg-primary-950/60 px-2 py-0.5 text-xs font-medium text-primary-700 dark:text-primary-400"
+          >
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            {{ (reach as any).multi_day_days }}-Day Trip
+          </span>
         </div>
       </section>
 
@@ -189,22 +135,21 @@
               <div class="text-[10px] text-neutral-400 uppercase tracking-wide mb-1">Gradient</div>
               <div class="text-lg sm:text-xl font-bold text-neutral-800 dark:text-neutral-100">{{ reach.gradient_fpm != null ? `${reach.gradient_fpm} ft/mi` : '—' }}</div>
             </div>
+            <!-- Flow: stacks vertically at all widths to avoid badge/link overlap -->
             <div v-if="allGauges.length > 0" class="col-span-3 sm:col-span-1 border-t sm:border-t-0 sm:border-l border-neutral-200 dark:border-neutral-700 pt-2 sm:pt-0 sm:pl-4">
-              <div class="flex items-center gap-3">
-                <div class="min-w-0">
-                  <div class="text-[10px] text-neutral-400 uppercase tracking-wide mb-1">Flow</div>
-                  <div class="flex items-center gap-2">
-                    <span class="text-lg sm:text-xl font-bold tabular-nums" :style="{ color: bandSolid(allGauges[0].flow_band_label, allGauges[0].flow_status) }">
-                      {{ allGauges[0].current_cfs != null ? allGauges[0].current_cfs.toLocaleString() : '—' }}
-                    </span>
-                    <span class="text-xs text-neutral-500">cfs</span>
-                    <span :class="['inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium', flowBadgeClass(allGauges[0].flow_status, allGauges[0].flow_band_label)]">
-                      {{ flowBandLabel(allGauges[0].flow_status, allGauges[0].flow_band_label) }}
-                    </span>
-                  </div>
+              <div class="flex flex-col gap-1">
+                <div class="text-[10px] text-neutral-400 uppercase tracking-wide">Flow</div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-lg sm:text-xl font-bold tabular-nums" :style="{ color: bandSolid(allGauges[0].flow_band_label, allGauges[0].flow_status) }">
+                    {{ allGauges[0].current_cfs != null ? allGauges[0].current_cfs.toLocaleString() : '—' }}
+                  </span>
+                  <span class="text-xs text-neutral-500">cfs</span>
+                  <span :class="['inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium', flowBadgeClass(allGauges[0].flow_status, allGauges[0].flow_band_label)]">
+                    {{ flowBandLabel(allGauges[0].flow_status, allGauges[0].flow_band_label) }}
+                  </span>
                 </div>
                 <button
-                  class="shrink-0 text-xs text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 font-medium transition-colors ml-auto"
+                  class="text-xs text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 font-medium transition-colors text-left"
                   @click="openGaugeModal(allGauges[0])"
                 >
                   View flow →
@@ -212,6 +157,67 @@
               </div>
             </div>
           </div>
+
+          <!-- Dashboard control — full-width bottom row -->
+          <ClientOnly>
+            <div
+              v-if="allGauges.length > 0 && isAuthenticated"
+              class="relative mt-3 pt-2 border-t border-neutral-200 dark:border-neutral-700"
+              data-add-dashboard-wrap
+            >
+              <!-- Not on dashboard -->
+              <button
+                v-if="!onDashboard(allGauges[0].id)"
+                class="flex items-center gap-1.5 text-sm text-neutral-600 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                @click="dashboardsAdd.dashboards.value.length > 1 ? dashboardPickerOpen = !dashboardPickerOpen : addToDashboard(allGauges[0], dashboardsAdd.activeDashboard.value?.id ?? null)"
+              >
+                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Add to {{ dashboardsAdd.activeDashboard.value?.name ?? 'dashboard' }}
+                <svg v-if="dashboardsAdd.dashboards.value.length > 1" class="w-3 h-3 shrink-0 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <!-- On dashboard -->
+              <div v-else class="flex items-center gap-2">
+                <button
+                  class="flex items-center gap-1.5 text-sm text-primary-600 dark:text-primary-400 transition-colors"
+                  :class="dashboardsAdd.dashboards.value.length > 1 ? 'hover:text-primary-700 dark:hover:text-primary-300 cursor-pointer' : 'cursor-default'"
+                  @click="dashboardsAdd.dashboards.value.length > 1 ? dashboardPickerOpen = !dashboardPickerOpen : undefined"
+                >
+                  <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                  On dashboard
+                  <svg v-if="dashboardsAdd.dashboards.value.length > 1" class="w-3 h-3 shrink-0 text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <button
+                  class="ml-1 p-1 rounded text-neutral-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                  title="Remove from dashboard"
+                  @click="confirmRemoveDashboard(allGauges[0].id)"
+                >
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                  </svg>
+                </button>
+              </div>
+              <!-- Picker dropdown (add or move) -->
+              <div
+                v-if="dashboardPickerOpen"
+                class="absolute left-0 top-full mt-1 z-30 w-52 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg overflow-hidden"
+              >
+                <p class="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wide text-neutral-400 font-medium">
+                  {{ onDashboard(allGauges[0].id) ? 'Move to dashboard' : 'Add to dashboard' }}
+                </p>
+                <button
+                  v-for="d in dashboardsAdd.dashboards.value"
+                  :key="d.id"
+                  class="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-colors"
+                  :class="d.id === dashboardsAdd.activeDashboardId.value ? 'font-medium text-primary-600 dark:text-primary-400' : 'text-neutral-600 dark:text-neutral-300'"
+                  @click="onDashboard(allGauges[0].id) ? moveToDashboard(allGauges[0].id, d.id) : addToDashboard(allGauges[0], d.id); dashboardPickerOpen = false"
+                >{{ d.name }}</button>
+              </div>
+            </div>
+          </ClientOnly>
         </div>
       </section>
 
@@ -1192,6 +1198,12 @@ function addToDashboard(g: any, dashboardId: string | null = null) {
 function removeFromDashboard(gaugeId: string) {
   const reachSlug = (reach.value as any)?.slug ?? null
   removeAndSync(gaugeId, reachSlug)
+}
+
+function moveToDashboard(gaugeId: string, newDashboardId: string) {
+  removeFromDashboard(gaugeId)
+  const g = allGauges.value.find((x: any) => x.id === gaugeId)
+  if (g) addToDashboard(g, newDashboardId)
 }
 
 // ---- Gauge flow modal -------------------------------------------------------

@@ -33,15 +33,21 @@
           </div>
           <div
             v-if="dashboardPickerOpen"
-            class="absolute left-0 top-full mt-1 z-30 w-44 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg overflow-hidden"
+            class="absolute left-0 top-full mt-1 z-30 w-52 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg overflow-hidden max-h-64 overflow-y-auto"
           >
             <button
               v-for="d in dashboardsAdd.dashboards.value"
               :key="d.id"
-              class="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-colors"
-              :class="d.id === dashboardsAdd.activeDashboardId.value ? 'font-medium text-primary-600 dark:text-primary-400' : 'text-neutral-600 dark:text-neutral-300'"
-              @click="addUserReachToDashboard(d.id); dashboardPickerOpen = false"
-            >{{ d.name }}</button>
+              class="w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-neutral-600 dark:text-neutral-300"
+              @click="addUserReachToDashboard(d.id)"
+            >
+              <svg
+                class="w-3.5 h-3.5 shrink-0"
+                :class="reachDashboardIds.has(d.id) ? 'text-primary-500' : 'text-transparent'"
+                viewBox="0 0 20 20" fill="currentColor"
+              ><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              {{ d.name }}
+            </button>
           </div>
         </div>
       </div>
@@ -90,6 +96,20 @@
               Last update {{ new Date(reach.gauge_last_poll_success_at).toLocaleDateString() }}
             </span>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- River confirmation banner -->
+    <div v-if="riverConfirmBannerVisible" class="px-4 pt-2">
+      <div class="rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 flex flex-wrap items-center gap-3">
+        <svg class="w-4 h-4 text-emerald-500 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+        <p class="text-sm text-emerald-800 dark:text-emerald-200 flex-1 min-w-0">
+          Looks like <strong>{{ reach.river_name }}</strong><template v-if="reach.river_state_abbr || reach.river_basin"> ({{ [reach.river_state_abbr, reach.river_basin].filter(Boolean).join(' · ') }})</template> — is this correct?
+        </p>
+        <div class="flex items-center gap-2 shrink-0">
+          <UButton size="xs" color="success" variant="solid" @click="confirmRiver">Yes</UButton>
+          <UButton size="xs" color="neutral" variant="outline" @click="riverCorrectionOpen = true">No, fix...</UButton>
         </div>
       </div>
     </div>
@@ -377,6 +397,48 @@
   </div>
 
   <!-- Share modal -->
+  <UModal v-model:open="riverCorrectionOpen" title="Suggest a correction">
+    <template #body>
+      <p class="text-sm text-neutral-600 dark:text-neutral-400 mb-4">What's wrong with the river info for <strong>{{ reach?.river_name }}</strong>?</p>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">Field to correct</label>
+          <div class="flex gap-4">
+            <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+              <input type="radio" v-model="correctionField" value="basin" class="accent-primary-500" /> Basin
+            </label>
+            <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+              <input type="radio" v-model="correctionField" value="state_abbr" class="accent-primary-500" /> State
+            </label>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">Correct value</label>
+          <input
+            v-model="correctionValue"
+            type="text"
+            class="w-full rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            :placeholder="correctionField === 'basin' ? 'e.g. Arkansas' : 'e.g. CO'"
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">Note <span class="text-neutral-400">(optional)</span></label>
+          <textarea
+            v-model="correctionNote"
+            rows="2"
+            class="w-full rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="Why is this wrong?"
+          />
+        </div>
+        <p v-if="correctionError" class="text-xs text-red-500">{{ correctionError }}</p>
+      </div>
+      <div class="flex justify-end gap-2 mt-4">
+        <UButton size="xs" variant="outline" color="neutral" @click="riverCorrectionOpen = false">Cancel</UButton>
+        <UButton size="xs" :disabled="!correctionValue.trim() || correctionSubmitting" :loading="correctionSubmitting" @click="submitRiverCorrection">Submit</UButton>
+      </div>
+    </template>
+  </UModal>
+
   <UModal v-model:open="shareOpen" title="Share reach">
     <template #body>
       <p class="text-xs text-neutral-500 mb-2">Copy this payload and paste it into the import dialog on another account.</p>
@@ -413,17 +475,41 @@ const slug = computed(() => route.params.slug as string)
 // ── Dashboard picker (for "Add to dashboard" button) ──────────────────────────
 const dashboardsAdd = useDashboards()
 const dashboardPickerOpen = ref(false)
+const reachDashboardIds   = ref<Set<string>>(new Set())
 const { addUserReachToWatchlist, addCustomGaugeToWatchlist } = useWatchlistSync()
+
+async function loadReachDashboards() {
+  const token = await getToken()
+  if (!token) return
+  const res = await fetch(`${apiBase}/api/v1/watchlist`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).catch(() => null)
+  if (!res?.ok) return
+  const data = await res.json()
+  const ids = new Set<string>()
+  for (const item of data.items ?? []) {
+    if (item.reach_slug === slug.value && item.dashboard_id) ids.add(item.dashboard_id)
+  }
+  reachDashboardIds.value = ids
+}
+
+const toast = useToast()
+
 async function addUserReachToDashboard(dashboardId: string | null) {
   if (!reach.value) return
+  if (!reach.value.gauge_id && !reach.value.custom_gauge_id) {
+    toast.add({ title: 'Link a gauge first', description: 'Dashboard tracking requires a linked gauge.', color: 'warning' })
+    dashboardPickerOpen.value = false
+    return
+  }
   if (reach.value.gauge_id) {
     await addUserReachToWatchlist(reach.value.gauge_id, slug.value, dashboardId)
   } else if (reach.value.custom_gauge_id) {
     await addCustomGaugeToWatchlist(reach.value.custom_gauge_id, dashboardId, slug.value)
-  } else {
-    return
   }
+  if (dashboardId) reachDashboardIds.value = new Set([...reachDashboardIds.value, dashboardId])
   dashboardPickerOpen.value = false
+  toast.add({ title: 'Added to dashboard', color: 'success' })
 }
 onMounted(() => {
   if (!dashboardsAdd.loaded.value) dashboardsAdd.load()
@@ -457,6 +543,9 @@ interface UserReachDetail {
   slug:              string
   name:              string
   river_name:        string | null
+  river_slug:        string | null
+  river_state_abbr:  string | null
+  river_basin:       string | null
   put_in_lng:        number
   put_in_lat:        number
   take_out_lng:      number
@@ -532,7 +621,8 @@ const repinPendingGauge    = ref<PendingGauge | null>(null)
 const repinGaugeSaving     = ref(false)
 const repinGaugeError      = ref('')
 
-const riverNameLooking     = ref(false)
+const riverNameLooking = ref(false)
+const nldiGnisId       = ref<string | null>(null)
 
 const customGauges           = ref<CustomGaugeSummary[]>([])
 const customGaugePickerOpen  = ref(false)
@@ -540,6 +630,54 @@ const customGaugeSaving      = ref(false)
 
 const shareOpen   = ref(false)
 const shareCopied = ref(false)
+
+// ── River confirmation banner ──────────────────────────────────────────────────
+
+const riverConfirmed       = ref(false)
+const riverCorrectionOpen  = ref(false)
+const correctionField      = ref<'basin' | 'state_abbr'>('basin')
+const correctionValue      = ref('')
+const correctionNote       = ref('')
+const correctionError      = ref('')
+const correctionSubmitting = ref(false)
+
+const riverConfirmBannerVisible = computed(() =>
+  !!(reach.value?.river_name && reach.value?.river_slug && !riverConfirmed.value))
+
+function confirmRiver() {
+  if (!reach.value) return
+  localStorage.setItem(`river-confirmed-${reach.value.id}`, '1')
+  riverConfirmed.value = true
+}
+
+async function submitRiverCorrection() {
+  if (!reach.value?.river_slug || !correctionValue.value.trim()) return
+  correctionError.value      = ''
+  correctionSubmitting.value = true
+  try {
+    const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) }
+    const res = await fetch(`${apiBase}/api/v1/me/river-corrections`, {
+      method:  'POST',
+      headers,
+      body:    JSON.stringify({
+        river_slug:     reach.value.river_slug,
+        field:          correctionField.value,
+        proposed_value: correctionValue.value.trim(),
+        note:           correctionNote.value.trim() || undefined,
+      }),
+    })
+    if (!res.ok) { correctionError.value = `HTTP ${res.status}`; return }
+    riverCorrectionOpen.value = false
+    correctionValue.value     = ''
+    correctionNote.value      = ''
+    confirmRiver()
+    toast.add({ title: 'Thanks — admin will review.', color: 'success' })
+  } catch (e: any) {
+    correctionError.value = e?.message ?? 'Submit failed'
+  } finally {
+    correctionSubmitting.value = false
+  }
+}
 
 // ── Computed ──────────────────────────────────────────────────────────────────
 
@@ -651,6 +789,7 @@ async function lookupRiverName(): Promise<void> {
     if (res.ok) {
       const data = await res.json()
       if (data.river_name) form.value.riverName = data.river_name
+      if (data.gnis_id)    nldiGnisId.value = data.gnis_id
     }
   } catch { /* non-fatal */ }
   finally { riverNameLooking.value = false }
@@ -881,6 +1020,7 @@ function populateForm(r: UserReachDetail) {
     running: { min: running?.min_value ?? null,  max: running?.max_value ?? null },
     high:    { min: high?.min_value    ?? null,  max: null               },
   }
+  nldiGnisId.value = null
 }
 
 async function load() {
@@ -893,6 +1033,7 @@ async function load() {
     if (!res.ok) throw new Error(`${res.status}`)
     const data: UserReachDetail = await res.json()
     reach.value = data
+    riverConfirmed.value = !!localStorage.getItem(`river-confirmed-${data.id}`)
     populateForm(data)
 
     // Seed ComID state from saved reach data.
@@ -916,7 +1057,7 @@ async function load() {
   }
 }
 
-onMounted(() => { load(); loadCustomGauges() })
+onMounted(() => { load(); loadCustomGauges(); loadReachDashboards() })
 
 // ── Save metadata + flow bands ────────────────────────────────────────────────
 
@@ -933,6 +1074,7 @@ async function save() {
         name:       form.value.name.trim(),
         river_name: form.value.riverName.trim() || null,
         note:       form.value.note.trim()      || null,
+        gnis_id:    nldiGnisId.value ?? undefined,
       }),
     })
     if (!patchRes.ok) throw new Error(`Save failed: ${patchRes.status}`)

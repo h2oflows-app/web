@@ -90,6 +90,13 @@ export const PALETTE_FLOW_SOLID: Record<string, { low: string; running: string; 
   fuchsia: { low: '#ef4444',   running: '#4ade80',      high: '#22d3ee' },  // red-500, green-400, cyan-400
   rose:    { low: '#dc2626',   running: '#34d399',      high: '#818cf8' },  // red-600, emerald-400, indigo-400
   lime:    { low: '#ef4444',   running: '#84cc16',      high: '#22d3ee' },  // red-500, lime-500, cyan-400
+  // New primaries added in 0.2.15 theme overhaul
+  green:   { low: '#ef4444',   running: '#4ade80',      high: '#38bdf8' },  // red-500, green-400, sky-400
+  cyan:    { low: '#f43f5e',   running: '#22d3ee',      high: '#818cf8' },  // rose-500, cyan-400, indigo-400
+  purple:  { low: '#f43f5e',   running: '#c084fc',      high: '#38bdf8' },  // rose-500, purple-400, sky-400
+  yellow:  { low: '#ef4444',   running: '#facc15',      high: '#38bdf8' },  // red-500, yellow-400, sky-400
+  red:     { low: '#f97316',   running: '#34d399',      high: '#60a5fa' },  // orange-500, emerald-400, blue-400
+  pink:    { low: '#ef4444',   running: '#f472b6',      high: '#38bdf8' },  // red-500, pink-400, sky-400
 }
 
 // ── Badge pill classes per palette (pre-declared so Tailwind includes them) ─
@@ -104,6 +111,13 @@ export const PALETTE_BADGE_CLASS: Record<string, { low: string; running: string;
   fuchsia: { low: 'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400',         running: 'bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-400',         high: 'bg-cyan-100 dark:bg-cyan-950/50 text-cyan-700 dark:text-cyan-400' },
   rose:    { low: 'bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-500',         running: 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400', high: 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400' },
   lime:    { low: 'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400',         running: 'bg-lime-100 dark:bg-lime-950/50 text-lime-700 dark:text-lime-500',             high: 'bg-cyan-100 dark:bg-cyan-950/50 text-cyan-700 dark:text-cyan-400' },
+  // New primaries added in 0.2.15 theme overhaul
+  green:   { low: 'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400',         running: 'bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-400',         high: 'bg-sky-100 dark:bg-sky-950/50 text-sky-700 dark:text-sky-400' },
+  cyan:    { low: 'bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400',     running: 'bg-cyan-100 dark:bg-cyan-950/50 text-cyan-700 dark:text-cyan-400',             high: 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400' },
+  purple:  { low: 'bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400',     running: 'bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-400',     high: 'bg-sky-100 dark:bg-sky-950/50 text-sky-700 dark:text-sky-400' },
+  yellow:  { low: 'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400',         running: 'bg-yellow-100 dark:bg-yellow-950/50 text-yellow-700 dark:text-yellow-500',     high: 'bg-sky-100 dark:bg-sky-950/50 text-sky-700 dark:text-sky-400' },
+  red:     { low: 'bg-orange-100 dark:bg-orange-950/50 text-orange-700 dark:text-orange-400', running: 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400', high: 'bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400' },
+  pink:    { low: 'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400',         running: 'bg-pink-100 dark:bg-pink-950/50 text-pink-700 dark:text-pink-400',             high: 'bg-sky-100 dark:bg-sky-950/50 text-sky-700 dark:text-sky-400' },
 }
 
 export function flowBandPaletteBadgeClass(band?: string | null, status?: string | null, primary?: string | null): string {
