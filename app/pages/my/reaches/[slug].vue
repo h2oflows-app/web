@@ -708,6 +708,10 @@ const sharePayload = computed(() => {
       high:    { min_value: fr.high.min,   max_value: null           },
     },
   }
+  if (r.gauge_external_id && r.gauge_source) {
+    payload.gauge_external_id = r.gauge_external_id
+    payload.gauge_source = r.gauge_source
+  }
   return JSON.stringify(payload, null, 2)
 })
 
