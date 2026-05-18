@@ -772,7 +772,7 @@ async function activateDashboard(id: string) {
   dashboardCustomGaugeIds.value = customGaugeIds
   dashboardReachSlugs.value = reachSlugs
 }
-onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
+onUnmounted(() => { serverSynced = false; if (refreshTimer) clearInterval(refreshTimer) })
 
 // ── Reach-primary grouping: state → basin → river → reaches ─────────────────
 

@@ -197,10 +197,29 @@ export function useWatchlistSync() {
     }).catch(() => {})
   }
 
+  /**
+   * Adds an ungauged user reach (reach_slug only) to the watchlist. Used when
+   * a user reach has no gauge or custom gauge linked but should still appear on
+   * a dashboard for planning/reference.
+   */
+  async function addReachToWatchlist(reachSlug: string, dashboardId: string | null) {
+    const token = await getToken()
+    if (!token) return
+    await fetch(`${apiBase}/api/v1/watchlist`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        reach_slug: reachSlug,
+        dashboard_id: dashboardId ?? null,
+      }),
+    }).catch(() => {})
+  }
+
   return {
     addAndSync,
     addCustomGaugeToWatchlist,
     addUserReachToWatchlist,
+    addReachToWatchlist,
     removeAndSync,
     loadFromServer,
     loadForDashboard,

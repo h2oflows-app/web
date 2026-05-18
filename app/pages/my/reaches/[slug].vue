@@ -11,45 +11,6 @@
     <div v-if="reach" class="sticky top-[51px] z-10 flex items-center justify-between gap-2 px-4 py-2 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
       <div class="flex items-center gap-1.5 min-w-0">
         <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-x-mark" :to="'/my/reaches'" title="Close"><span class="hidden sm:inline">Close</span></UButton>
-        <span class="text-xs text-neutral-300 dark:text-neutral-700 hidden sm:inline">·</span>
-        <div class="relative" data-add-dashboard-wrap>
-          <div class="flex items-stretch rounded-md border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-            <button
-              class="flex items-center gap-1 px-2 py-1 text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-colors"
-              @click="addUserReachToDashboard(dashboardsAdd.activeDashboard.value?.id ?? null)"
-            >
-              <svg class="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
-              <span class="hidden sm:inline">Add to {{ dashboardsAdd.activeDashboard.value?.name ?? 'dashboard' }}</span>
-              <span class="sm:hidden">Add</span>
-            </button>
-            <button
-              v-if="dashboardsAdd.dashboards.value.length > 1"
-              class="flex items-center justify-center px-1.5 border-l border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-              title="Pick a different dashboard"
-              @click="dashboardPickerOpen = !dashboardPickerOpen"
-            >
-              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-          </div>
-          <div
-            v-if="dashboardPickerOpen"
-            class="absolute left-0 top-full mt-1 z-30 w-52 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg overflow-hidden max-h-64 overflow-y-auto"
-          >
-            <button
-              v-for="d in dashboardsAdd.dashboards.value"
-              :key="d.id"
-              class="w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-neutral-600 dark:text-neutral-300"
-              @click="addUserReachToDashboard(d.id)"
-            >
-              <svg
-                class="w-3.5 h-3.5 shrink-0"
-                :class="reachDashboardIds.has(d.id) ? 'text-primary-500' : 'text-transparent'"
-                viewBox="0 0 20 20" fill="currentColor"
-              ><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-              {{ d.name }}
-            </button>
-          </div>
-        </div>
       </div>
       <div class="flex items-center gap-1.5 shrink-0">
         <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-share" title="Share" @click="shareOpen = true"><span class="hidden sm:inline">Share</span></UButton>
@@ -96,6 +57,28 @@
               Last update {{ new Date(reach.gauge_last_poll_success_at).toLocaleDateString() }}
             </span>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dashboard membership pills -->
+    <div v-if="reach && dashboardsAdd.dashboards.value.length > 0" class="px-4 pt-3">
+      <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-4 py-3">
+        <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium mb-2">Dashboards</p>
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="d in dashboardsAdd.dashboards.value"
+            :key="d.id"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+            :class="reachDashboardIds.has(d.id)
+              ? 'bg-primary-500 text-white hover:bg-primary-600'
+              : 'border border-neutral-300 dark:border-neutral-600 text-neutral-600 dark:text-neutral-300 hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400'"
+            @click="toggleDashboard(d.id)"
+          >
+            <svg v-if="reachDashboardIds.has(d.id)" class="w-3 h-3 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+            <svg v-else class="w-3 h-3 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+            {{ d.name }}
+          </button>
         </div>
       </div>
     </div>
@@ -458,7 +441,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { flowBandLabel } from '~/utils/flowBand'
 
 definePageMeta({ ssr: false })
@@ -472,11 +455,10 @@ const { apiBase }  = useRuntimeConfig().public
 
 const slug = computed(() => route.params.slug as string)
 
-// ── Dashboard picker (for "Add to dashboard" button) ──────────────────────────
+// ── Dashboard membership pills ─────────────────────────────────────────────────
 const dashboardsAdd = useDashboards()
-const dashboardPickerOpen = ref(false)
 const reachDashboardIds   = ref<Set<string>>(new Set())
-const { addUserReachToWatchlist, addCustomGaugeToWatchlist } = useWatchlistSync()
+const { addUserReachToWatchlist, addCustomGaugeToWatchlist, addReachToWatchlist } = useWatchlistSync()
 
 async function loadReachDashboards() {
   const token = await getToken()
@@ -495,32 +477,40 @@ async function loadReachDashboards() {
 
 const toast = useToast()
 
-async function addUserReachToDashboard(dashboardId: string | null) {
+async function toggleDashboard(dashboardId: string) {
   if (!reach.value) return
-  if (!reach.value.gauge_id && !reach.value.custom_gauge_id) {
-    toast.add({ title: 'Link a gauge first', description: 'Dashboard tracking requires a linked gauge.', color: 'warning' })
-    dashboardPickerOpen.value = false
-    return
+  if (reachDashboardIds.value.has(dashboardId)) {
+    const token = await getToken()
+    if (!token) return
+    const db = encodeURIComponent(dashboardId)
+    if (reach.value.gauge_id) {
+      await fetch(`${apiBase}/api/v1/watchlist/${reach.value.gauge_id}?reach_slug=${encodeURIComponent(slug.value)}&dashboard_id=${db}`, {
+        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {})
+    } else if (reach.value.custom_gauge_id) {
+      await fetch(`${apiBase}/api/v1/watchlist/${reach.value.custom_gauge_id}?kind=custom_gauge&reach_slug=${encodeURIComponent(slug.value)}&dashboard_id=${db}`, {
+        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {})
+    } else {
+      await fetch(`${apiBase}/api/v1/watchlist/${encodeURIComponent(slug.value)}?kind=reach&dashboard_id=${db}`, {
+        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {})
+    }
+    toast.add({ title: 'Removed from dashboard', color: 'neutral' })
+  } else {
+    if (reach.value.gauge_id) {
+      await addUserReachToWatchlist(reach.value.gauge_id, slug.value, dashboardId)
+    } else if (reach.value.custom_gauge_id) {
+      await addCustomGaugeToWatchlist(reach.value.custom_gauge_id, dashboardId, slug.value)
+    } else {
+      await addReachToWatchlist(slug.value, dashboardId)
+    }
+    toast.add({ title: 'Added to dashboard', color: 'success' })
   }
-  if (reach.value.gauge_id) {
-    await addUserReachToWatchlist(reach.value.gauge_id, slug.value, dashboardId)
-  } else if (reach.value.custom_gauge_id) {
-    await addCustomGaugeToWatchlist(reach.value.custom_gauge_id, dashboardId, slug.value)
-  }
-  if (dashboardId) reachDashboardIds.value = new Set([...reachDashboardIds.value, dashboardId])
-  dashboardPickerOpen.value = false
-  toast.add({ title: 'Added to dashboard', color: 'success' })
+  loadReachDashboards()
 }
-onMounted(() => {
-  if (!dashboardsAdd.loaded.value) dashboardsAdd.load()
-  document.addEventListener('click', closeDashboardPickerOnOutside)
-})
-onUnmounted(() => document.removeEventListener('click', closeDashboardPickerOnOutside))
-function closeDashboardPickerOnOutside(e: MouseEvent) {
-  if (dashboardPickerOpen.value && !(e.target as HTMLElement).closest('[data-add-dashboard-wrap]')) {
-    dashboardPickerOpen.value = false
-  }
-}
+
+onMounted(() => { if (!dashboardsAdd.loaded.value) dashboardsAdd.load() })
 
 const loading   = ref(false)
 const error     = ref('')
