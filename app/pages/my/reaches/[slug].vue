@@ -717,8 +717,14 @@ const sharePayload = computed(() => {
 
 const reachShareLink = computed(() => {
   if (!sharePayload.value || !import.meta.client) return ''
-  const token = btoa(sharePayload.value).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
-  return `${window.location.origin}/import/reach?token=${token}`
+  try {
+    // btoa requires Latin1 — encode through URI escaping to handle any Unicode in notes/names
+    const latin1 = unescape(encodeURIComponent(sharePayload.value))
+    const token = btoa(latin1).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+    return `${window.location.origin}/import/reach?token=${token}`
+  } catch {
+    return ''
+  }
 })
 
 // ── Auth helper ───────────────────────────────────────────────────────────────

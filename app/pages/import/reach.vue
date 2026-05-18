@@ -76,7 +76,7 @@ const payload = computed(() => {
   if (!token.value) return null
   try {
     const base64 = token.value.replace(/-/g, '+').replace(/_/g, '/')
-    const json = atob(base64)
+    const json = decodeURIComponent(escape(atob(base64)))
     return JSON.parse(json) as {
       name: string
       river_name?: string
