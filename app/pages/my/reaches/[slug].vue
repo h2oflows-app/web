@@ -422,22 +422,13 @@
     </template>
   </UModal>
 
-  <UModal v-model:open="shareOpen" title="Share reach">
-    <template #body>
-      <p class="text-xs text-neutral-500 mb-2">Copy this payload and paste it into the import dialog on another account.</p>
-      <textarea
-        readonly
-        rows="12"
-        class="w-full rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 px-3 py-2 text-xs font-mono resize-none focus:outline-none"
-        :value="sharePayload"
-        @click="($event.target as HTMLTextAreaElement).select()"
-      />
-      <div class="flex justify-end gap-2 mt-3">
-        <UButton size="xs" variant="outline" color="neutral" @click="shareOpen = false">Close</UButton>
-        <UButton size="xs" icon="i-heroicons-clipboard-document" @click="copyShare">{{ shareCopied ? 'Copied!' : 'Copy' }}</UButton>
-      </div>
-    </template>
-  </UModal>
+  <ShareLinkModal
+    :open="shareOpen"
+    title="Share reach"
+    :link="reachShareLink"
+    :json="sharePayload"
+    @close="shareOpen = false"
+  />
 </template>
 
 <script setup lang="ts">
@@ -627,8 +618,7 @@ const customGauges           = ref<CustomGaugeSummary[]>([])
 const customGaugePickerOpen  = ref(false)
 const customGaugeSaving      = ref(false)
 
-const shareOpen   = ref(false)
-const shareCopied = ref(false)
+const shareOpen = ref(false)
 
 // ── River confirmation banner ──────────────────────────────────────────────────
 
@@ -721,12 +711,11 @@ const sharePayload = computed(() => {
   return JSON.stringify(payload, null, 2)
 })
 
-async function copyShare() {
-  if (!sharePayload.value) return
-  await navigator.clipboard.writeText(sharePayload.value)
-  shareCopied.value = true
-  setTimeout(() => { shareCopied.value = false }, 2000)
-}
+const reachShareLink = computed(() => {
+  if (!sharePayload.value || !import.meta.client) return ''
+  const token = btoa(sharePayload.value).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+  return `${window.location.origin}/import/reach?token=${token}`
+})
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
