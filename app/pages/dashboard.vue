@@ -20,7 +20,7 @@
       <!-- Controls bar -->
       <div class="bg-neutral-50/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
       <div class="max-w-5xl mx-auto px-4 py-2 flex items-center justify-between gap-2">
-        <div v-if="hasAnyContent" class="flex shrink-0 items-center gap-2">
+        <div v-if="hasAnyContent" class="flex shrink-0 items-center gap-2 flex-wrap">
           <!-- View mode toggle -->
           <div class="flex items-center gap-0.5 bg-neutral-100 dark:bg-neutral-800 rounded-lg p-1">
             <button
@@ -45,33 +45,15 @@
             </button>
           </div>
           <!-- Group by gauge toggle -->
-          <button
-            v-if="hasSharedGauges"
-            class="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors"
-            :class="groupByGauge
-              ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 shadow-sm'
-              : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200'"
-            title="Group by gauge"
-            @click="groupByGauge = !groupByGauge"
-          >
-            <svg v-if="groupByGauge" class="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <ToolbarButton v-if="hasSharedGauges" :active="groupByGauge" label="Group" title="Group by gauge" @click="groupByGauge = !groupByGauge">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <rect x="1" y="5" width="5" height="6" rx="1"/>
               <rect x="10" y="5" width="5" height="6" rx="1"/>
               <line x1="6" y1="8" x2="10" y2="8"/>
             </svg>
-            <svg v-else class="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="1" y="5" width="5" height="6" rx="1"/>
-              <rect x="10" y="5" width="5" height="6" rx="1"/>
-              <line x1="6.5" y1="6.5" x2="9.5" y2="9.5"/>
-            </svg>
-            <span class="hidden sm:inline">Group</span>
-          </button>
+          </ToolbarButton>
           <!-- Basin map -->
-          <button
-            class="p-1.5 rounded-md bg-neutral-100 dark:bg-neutral-800 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
-            title="Basin map"
-            @click="basinMapOpen = true"
-          >
+          <ToolbarButton title="Basin map" @click="basinMapOpen = true">
             <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="8" cy="2.5" r="1.5"/>
               <circle cx="3.5" cy="13" r="1.5"/>
@@ -80,13 +62,33 @@
               <path d="M8 6.5 C6 8 3.5 9 3.5 11.5"/>
               <path d="M8 6.5 C10 8 12.5 9 12.5 11.5"/>
             </svg>
-          </button>
+          </ToolbarButton>
           <!-- Expand / Collapse all -->
           <button
             v-if="byStateTree.length > 0"
             class="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 font-medium transition-colors whitespace-nowrap"
             @click="toggleAllSections"
           >{{ allExpanded ? 'Collapse all' : 'Expand all' }}</button>
+          <!-- Filter toggles -->
+          <div class="h-4 w-px bg-neutral-200 dark:bg-neutral-700 mx-0.5" />
+          <ToolbarButton :active="filterCurated" label="Curated" title="Show curated reaches" @click="filterCurated = !filterCurated">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+              <path d="M4 14c3-6 6-9 8-9s5 9 8 9 5-9 8-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              <path d="M4 22c3-6 6-9 8-9s5 9 8 9 5-9 8-9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+            </svg>
+          </ToolbarButton>
+          <ToolbarButton :active="filterUserReaches" label="My reaches" title="Show my reaches" @click="filterUserReaches = !filterUserReaches">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+            </svg>
+          </ToolbarButton>
+          <ToolbarButton :active="filterGauges" label="Gauges" title="Show gauges" @click="filterGauges = !filterGauges">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
+              <path d="M12 12 16 8"/>
+              <path d="M3 12a9 9 0 0 1 18 0"/>
+            </svg>
+          </ToolbarButton>
         </div>
         <div v-else class="flex-1" />
         <UButton size="xs" color="neutral" variant="outline" icon="i-heroicons-plus" @click="searchOpen = true">
@@ -172,6 +174,7 @@
                     <div class="flex-1 h-px bg-neutral-200 dark:bg-neutral-700" />
                   </div>
                   <!-- Cards wrapper -->
+                  <template v-if="filterCurated">
                   <template v-if="groupByGauge">
                     <template v-for="split in [splitReachGroups(river.reaches)]" :key="'split'">
                       <div v-if="split.gaugeGroups.length > 0" :class="viewMode === 'list' ? 'space-y-1.5' : cardGridClass">
@@ -230,9 +233,10 @@
                       />
                     </div>
                   </template>
+                  </template><!-- end filterCurated -->
 
                 <!-- User reaches inline — same river, marked with person icon -->
-                <template v-if="river.userReaches.length > 0">
+                <template v-if="filterUserReaches && river.userReaches.length > 0">
                   <div v-if="viewMode === 'list'" class="space-y-1.5 mt-1.5">
                     <div
                       v-for="r in river.userReaches"
@@ -241,7 +245,7 @@
                       @click="openUserReach(r)"
                     >
                       <div class="min-w-0 flex-1 flex items-center gap-1.5">
-                        <svg class="w-3 h-3 shrink-0 text-neutral-400/40 dark:text-neutral-500/30" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
+                        <svg class="w-4 h-4 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
                         <span class="text-sm font-medium truncate">{{ r.name }}</span>
                         <NuxtLink :to="`/my/reaches/${r.slug}`" class="shrink-0 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit reach" @click.stop>
                           <svg class="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
@@ -259,9 +263,7 @@
                           {{ r.current_cfs != null ? r.current_cfs.toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-400 dark:text-neutral-500 ml-0.5">cfs</span>
                         </span>
                       </div>
-                      <button class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-red-400 dark:hover:text-red-400 transition-colors shrink-0" aria-label="Remove from dashboard" @click.stop="hideReach(r.id)">
-                        <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"/></svg>
-                      </button>
+                      <TrashButton label="Remove from dashboard" @click="hideReach(r.id)" />
                     </div>
                   </div>
                   <div v-else :class="[cardGridClass, 'mt-1.5']">
@@ -274,11 +276,10 @@
                       <div class="flex items-start gap-3 mb-2">
                         <div class="min-w-0 flex-1">
                           <div class="flex items-center gap-1.5 min-w-0">
-                            <svg class="w-3 h-3 shrink-0 text-neutral-400/40 dark:text-neutral-500/30" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
-                            <span class="text-sm font-medium truncate">{{ r.name }}</span>
+                            <svg class="w-4 h-4 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
+                            <span class="text-base font-semibold truncate">{{ r.name }}</span>
                             <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['shrink-0 inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium', reachBadgeClass(r)]">{{ reachStatusLabel(r) }}</span>
                           </div>
-                          <span v-if="r.river_name" class="text-xs text-primary-400/70 truncate block mt-0.5">{{ r.river_name }}</span>
                         </div>
                         <div class="shrink-0 flex items-center gap-1">
                           <span class="text-xl font-bold tabular-nums leading-none" :style="{ color: bandSolid(r.flow_band, r.flow_status) }">
@@ -287,18 +288,12 @@
                           <NuxtLink :to="`/my/reaches/${r.slug}`" class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit reach" @click.stop>
                             <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
                           </NuxtLink>
-                          <button class="rounded p-1 transition-all duration-150 text-neutral-300 dark:text-neutral-600 hover:text-red-400 dark:hover:text-red-400" aria-label="Remove from dashboard" @click.stop="hideReach(r.id)">
-                            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"/></svg>
-                          </button>
+                          <TrashButton label="Remove from dashboard" @click="hideReach(r.id)" />
                         </div>
                       </div>
                       <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :flow-band-label="r.flow_band ?? null" compact class="mb-1" />
                       <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" compact :color="bandSolid(r.flow_band, r.flow_status)" class="mb-1" />
                       <p v-if="viewMode === 'full' && r.last_reading_at" class="text-xs text-neutral-400 mt-0.5">{{ reachLastUpdated(r) }}</p>
-                      <div class="flex items-center gap-1 mt-1.5 text-neutral-400/50 dark:text-neutral-500/40">
-                        <svg class="w-3 h-3 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
-                        <span class="text-xs font-medium">My reach</span>
-                      </div>
                     </div>
                   </div>
                 </template>
@@ -306,7 +301,7 @@
               </div>
 
               <!-- Standalone gauges (no reach context) -->
-              <div v-if="basin.standaloneGauges.length > 0" class="mb-2 mt-1">
+              <div v-if="filterGauges && basin.standaloneGauges.length > 0" class="mb-2 mt-1">
                 <div class="flex items-center gap-2 py-1">
                   <svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
@@ -339,13 +334,7 @@
                         {{ g.currentCfs != null ? g.currentCfs.toLocaleString() : '—' }}
                       </span>
                       <span class="text-xs text-neutral-400">cfs</span>
-                      <button
-                        class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-red-400 dark:hover:text-red-400 transition-colors shrink-0"
-                        aria-label="Remove from dashboard"
-                        @click.stop="removeAndSync(g.id)"
-                      >
-                        <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"/></svg>
-                      </button>
+                      <TrashButton label="Remove from dashboard" @click="removeAndSync(g.id)" />
                     </div>
                   </div>
                 </div>
@@ -364,7 +353,7 @@
         </section>
 
         <!-- Custom Gauges section — shows active-dashboard gauges on all tabs -->
-        <section v-if="visibleCustomGauges.length > 0">
+        <section v-if="filterGauges && visibleCustomGauges.length > 0">
           <div class="flex items-center gap-2 mb-3">
             <h2 class="text-sm font-semibold text-neutral-500 uppercase tracking-wide">Custom Gauges</h2>
             <div class="flex-1 h-px bg-neutral-200 dark:bg-neutral-800" />
@@ -407,13 +396,7 @@
               <span class="text-base font-bold tabular-nums text-neutral-900 dark:text-white shrink-0">
                 {{ cg.last_value_cfs != null ? cg.last_value_cfs.toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-400 ml-0.5">{{ cg.unit }}</span>
               </span>
-              <button
-                class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-red-400 dark:hover:text-red-400 transition-colors shrink-0"
-                aria-label="Remove from dashboard"
-                @click.stop="hideCustomGauge(cg.id)"
-              >
-                <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"/></svg>
-              </button>
+              <TrashButton label="Remove from dashboard" @click="hideCustomGauge(cg.id)" />
             </div>
           </div>
           <!-- Card views (comfortable / full) -->
@@ -431,7 +414,7 @@
                     <svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="14" y1="18" x2="16" y2="18"/>
                     </svg>
-                    <span class="text-sm font-medium truncate block">{{ cg.name }}</span>
+                    <span class="text-base font-semibold truncate block">{{ cg.name }}</span>
                   </div>
                   <p v-if="viewMode === 'full' && cg.description" class="text-xs text-neutral-400 truncate mt-0.5">{{ cg.description }}</p>
                 </div>
@@ -439,13 +422,7 @@
                   <span class="text-xl font-bold tabular-nums leading-none text-neutral-900 dark:text-white">
                     {{ cg.last_value_cfs != null ? cg.last_value_cfs.toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-500 dark:text-neutral-400 ml-0.5">{{ cg.unit }}</span>
                   </span>
-                  <button
-                    class="rounded-lg p-1.5 transition-all duration-150 text-neutral-300 dark:text-neutral-600 hover:text-red-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40"
-                    aria-label="Remove from dashboard"
-                    @click.stop="hideCustomGauge(cg.id)"
-                  >
-                    <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 112 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd"/></svg>
-                  </button>
+                  <TrashButton label="Remove from dashboard" @click="hideCustomGauge(cg.id)" />
                 </div>
               </div>
               <!-- Sparkline -->
@@ -1037,6 +1014,11 @@ onMounted(() => {
   if (saved !== null) groupByGauge.value = saved === 'true'
 })
 watch(groupByGauge, val => localStorage.setItem(GROUP_KEY, String(val)))
+
+// ── Content filters ───────────────────────────────────────────────────────────
+const filterCurated     = ref(true)
+const filterUserReaches = ref(true)
+const filterGauges      = ref(true)
 
 // True when at least one gauge ID appears on multiple reaches (toggle is meaningful).
 const hasSharedGauges = computed(() => {

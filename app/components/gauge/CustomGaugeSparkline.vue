@@ -1,7 +1,7 @@
 <template>
   <div class="w-full" @click.stop>
     <div class="relative w-full" :class="compact ? 'h-6' : 'h-10'">
-      <span v-if="compact" class="absolute top-0 right-0 text-[9px] leading-none text-neutral-400 dark:text-neutral-500 font-mono z-10 pointer-events-none">48h</span>
+      <button v-if="compact" class="absolute top-0 right-0 text-[9px] leading-none text-neutral-400 dark:text-neutral-500 hover:text-primary-500 dark:hover:text-primary-400 font-mono z-10 transition-colors" @click.stop="toggleHours">{{ hours }}h</button>
       <div v-if="loading" class="w-full h-full rounded animate-pulse bg-neutral-100 dark:bg-neutral-800" />
       <template v-else-if="points.length >= 2">
         <svg viewBox="0 0 100 40" preserveAspectRatio="none" class="w-full h-full overflow-visible">
@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 
 const props = defineProps<{
   gaugeSlug: string
@@ -32,12 +32,19 @@ const { getToken } = useAuth()
 
 const loading  = ref(true)
 const readings = ref<{ cfs: number; timestamp: string }[]>([])
+const hours    = ref(24)
+
+function toggleHours() {
+  hours.value = hours.value === 24 ? 12 : 24
+}
+
+watch(hours, fetchReadings)
 
 async function fetchReadings() {
   loading.value = true
   try {
     const token = await getToken()
-    const since = new Date(Date.now() - 48 * 3_600_000).toISOString()
+    const since = new Date(Date.now() - hours.value * 3_600_000).toISOString()
     const res = await fetch(
       `${apiBase}/api/v1/me/custom-gauges/${props.gaugeSlug}/readings?since=${since}&limit=500`,
       { headers: token ? { Authorization: `Bearer ${token}` } : {} },
