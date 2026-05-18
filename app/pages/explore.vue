@@ -206,31 +206,58 @@
                           :style="{ color: bandSolid(null, reach.flow_status) }"
                         >{{ reach.current_cfs.toLocaleString() }}</span>
                         <span v-else class="text-xs text-neutral-300 dark:text-neutral-600 shrink-0">—</span>
-                        <!-- Add to dashboard -->
-                        <button
-                          v-if="reach.gauge_id"
-                          class="shrink-0 p-0.5 rounded transition-opacity"
-                          :class="isOnDashboard(reach)
-                            ? 'text-primary-500 dark:text-primary-400 opacity-100'
-                            : 'text-neutral-400 dark:text-neutral-500 hover:text-primary-500 dark:hover:text-primary-400 opacity-100 sm:opacity-0 sm:group-hover:opacity-100'"
-                          :aria-label="isOnDashboard(reach) ? 'On dashboard' : 'Add to dashboard'"
-                          @click.stop="toggleDashboard(reach)"
+                        <!-- Add to dashboard dropdown -->
+                        <div
+                          v-if="reach.gauge_id && isAuthenticated"
+                          class="dashboard-dropdown-anchor shrink-0 relative"
+                          @click.stop
                         >
-                          <svg v-if="isOnDashboard(reach)" class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                          </svg>
-                          <svg v-else class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                            <circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="14"/><line x1="6" y1="10" x2="14" y2="10"/>
-                          </svg>
-                        </button>
-                        <!-- Reach page link -->
+                          <button
+                            class="p-1 rounded transition-colors"
+                            :class="isOnDashboard(reach)
+                              ? 'text-primary-500 dark:text-primary-400'
+                              : 'text-neutral-400 dark:text-neutral-500 hover:text-primary-500 dark:hover:text-primary-400'"
+                            :aria-label="isOnDashboard(reach) ? 'On dashboard' : 'Add to dashboard'"
+                            @click="dropdownSlug = dropdownSlug === reach.slug ? null : reach.slug"
+                          >
+                            <svg v-if="isOnDashboard(reach)" class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            <svg v-else class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                              <circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="14"/><line x1="6" y1="10" x2="14" y2="10"/>
+                            </svg>
+                          </button>
+                          <!-- Dashboard picker dropdown -->
+                          <div
+                            v-if="dropdownSlug === reach.slug"
+                            class="absolute right-0 top-full mt-1 z-40 min-w-40 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden"
+                          >
+                            <button
+                              v-for="dashboard in db.dashboards.value"
+                              :key="dashboard.id"
+                              class="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                              @click="toggleDashboardForId(reach, dashboard.id)"
+                            >
+                              <svg
+                                class="w-3.5 h-3.5 shrink-0"
+                                :class="isOnDashboard(reach) ? 'text-primary-500' : 'text-neutral-300 dark:text-neutral-600'"
+                                viewBox="0 0 20 20" fill="currentColor"
+                              >
+                                <path v-if="isOnDashboard(reach)" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                <circle v-else cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                              </svg>
+                              <span class="truncate text-neutral-700 dark:text-neutral-300">{{ dashboard.name }}</span>
+                            </button>
+                          </div>
+                        </div>
+                        <!-- Reach detail link -->
                         <NuxtLink
                           :to="`/reaches/${reach.slug}`"
-                          class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-opacity opacity-60 sm:opacity-0 sm:group-hover:opacity-100 hover:opacity-100"
+                          class="shrink-0 p-1 rounded text-neutral-400 dark:text-neutral-500 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
                           aria-label="View reach"
                           @click.stop
                         >
-                          <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                          <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11" stroke-linecap="round" stroke-linejoin="round"/>
                           </svg>
                         </NuxtLink>
@@ -404,6 +431,7 @@ let pendingFocusSlug: string | null = (route.query.focus as string) || null
 const watchlistStore = useWatchlistStore()
 const { addAndSync, removeAndSync } = useWatchlistSync()
 const { isDataAdmin, isAuthenticated, getToken } = useAuth()
+const db = useDashboards()
 
 // ── Mode toggle ───────────────────────────────────────────────────────────────
 const mode = ref<'curated' | 'user'>('curated')
@@ -431,16 +459,19 @@ function onReachImported() {
 // ── Demo banner ───────────────────────────────────────────────────────────────
 const showDemoBanner = ref(false)
 
+// ── Dashboard dropdown per reach ──────────────────────────────────────────────
+const dropdownSlug = ref<string | null>(null)
+
 function onDocClick(e: MouseEvent) {
-  if (reachPickerOpen.value) {
-    const target = e.target as HTMLElement
-    if (!target.closest('.reach-picker-anchor')) reachPickerOpen.value = false
-  }
+  const target = e.target as HTMLElement
+  if (reachPickerOpen.value && !target.closest('.reach-picker-anchor')) reachPickerOpen.value = false
+  if (dropdownSlug.value && !target.closest('.dashboard-dropdown-anchor')) dropdownSlug.value = null
 }
 
 onMounted(() => {
   showDemoBanner.value = localStorage.getItem('demo-banner-dismissed') !== 'true'
   document.addEventListener('click', onDocClick)
+  if (isAuthenticated.value) db.load()
 })
 onUnmounted(() => document.removeEventListener('click', onDocClick))
 function dismissBanner() {
@@ -705,13 +736,14 @@ function isOnDashboard(reach: ReachListItem): boolean {
   return watchlistStore.gauges.some(g => g.id === reach.gauge_id && g.contextReachSlug === reach.slug)
 }
 
-function toggleDashboard(reach: ReachListItem) {
+function toggleDashboardForId(reach: ReachListItem, dashboardId: string) {
   if (!reach.gauge_id) return
   if (isOnDashboard(reach)) {
     removeAndSync(reach.gauge_id, reach.slug)
   } else {
-    addAndSync(buildWatchedGauge(reach))
+    addAndSync(buildWatchedGauge(reach), dashboardId)
   }
+  dropdownSlug.value = null
 }
 
 function addAllRiverReaches(reaches: ReachListItem[]) {
