@@ -75,32 +75,23 @@
           <p v-if="gauge.lastReadingAt" class="text-xs text-neutral-400 mt-0.5">Last reading {{ lastReadingRelative }}</p>
         </div>
 
-        <!-- Add / remove from dashboard -->
-        <div class="flex items-center gap-2">
-          <button
-            v-if="isOnDashboard"
-            class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium bg-primary-50 dark:bg-primary-950/40 text-primary-700 dark:text-primary-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 dark:hover:text-red-400 transition-colors group"
-            @click="toggleDashboard"
-          >
-            <svg class="w-4 h-4 group-hover:hidden" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/>
-            </svg>
-            <svg class="w-4 h-4 hidden group-hover:block" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/>
-            </svg>
-            <span class="group-hover:hidden">On Dashboard</span>
-            <span class="hidden group-hover:inline">Remove</span>
-          </button>
-          <button
-            v-else
-            class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium bg-primary-600 hover:bg-primary-700 text-white transition-colors"
-            @click="toggleDashboard"
-          >
-            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z"/>
-            </svg>
-            Add to Dashboard
-          </button>
+        <!-- Diurnal cycle banner — hoisted above graph when detected -->
+        <div
+          v-if="diurnalData?.detected"
+          class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300"
+        >
+          <span class="text-base">🌡</span>
+          <span>
+            <strong>Diurnal cycle</strong> —
+            {{ diurnalPhaseLabel }}
+            <template v-if="diurnalData.estimatedPeakHour != null">
+              · Est. peak {{ formatHour(diurnalData.estimatedPeakHour) }}
+              (~{{ diurnalData.peakCfs?.toLocaleString() }} cfs)
+            </template>
+            <template v-if="diurnalData.swingPct != null">
+              · {{ diurnalData.swingPct }}% daily swing
+            </template>
+          </span>
         </div>
 
         <!-- Graph:
@@ -113,7 +104,9 @@
           :no-ranges="mode !== 'reach'"
           :color="mode !== 'reach' ? '#3b82f6' : undefined"
           :height="280"
+          hide-diurnal
           @latest-cfs="liveCfs = $event"
+          @diurnal="diurnalData = $event"
         />
 
       </div>
@@ -125,8 +118,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import type { WatchedGauge } from '~/stores/watchlist'
-import { useWatchlistStore } from '~/stores/watchlist'
 import { flowBandLabel } from '~/utils/flowBand'
+import { type DiurnalPattern } from '~/composables/useDiurnalPattern'
 
 const { bandBadgeClass } = useFlowBandPalette()
 
@@ -136,8 +129,9 @@ const props = defineProps<{
   mode?: 'gauge' | 'reach'  // 'gauge' = neutral blue, no bands; 'reach' = colored + reach name + bands
 }>()
 
-const liveCfs = ref<number | null>(null)
-watch(open, (v) => { if (!v) liveCfs.value = null })
+const liveCfs    = ref<number | null>(null)
+const diurnalData = ref<DiurnalPattern | null>(null)
+watch(open, (v) => { if (!v) { liveCfs.value = null; diurnalData.value = null } })
 
 const displayCfs = computed(() => liveCfs.value ?? props.gauge.currentCfs)
 
@@ -168,25 +162,20 @@ const graphReachSlug = computed(() =>
     : null
 )
 
-// ── Dashboard add/remove ──────────────────────────────────────────────────
-const watchlistStore = useWatchlistStore()
-const { addAndSync, removeAndSync } = useWatchlistSync()
-
-const isOnDashboard = computed(() =>
-  watchlistStore.gauges.some(
-    g => g.id === props.gauge.id &&
-         (g.contextReachSlug ?? null) === (props.gauge.contextReachSlug ?? null)
-  )
-)
-
-function toggleDashboard() {
-  if (isOnDashboard.value) {
-    removeAndSync(props.gauge.id, props.gauge.contextReachSlug)
-  } else {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { watchState: _ws, activeSince: _as, ...gaugeData } = props.gauge
-    addAndSync(gaugeData)
+// ── Diurnal helpers ───────────────────────────────────────────────────────
+const diurnalPhaseLabel = computed(() => {
+  switch (diurnalData.value?.phase) {
+    case 'rising':      return 'Rising'
+    case 'falling':     return 'Falling'
+    case 'near_peak':   return 'Near peak'
+    case 'near_trough': return 'Near trough'
+    default:            return 'Stable'
   }
+})
+
+function formatHour(h: number): string {
+  const ampm = h >= 12 ? 'pm' : 'am'
+  return `${h % 12 === 0 ? 12 : h % 12}${ampm}`
 }
 
 const sourceUrl = computed(() => {

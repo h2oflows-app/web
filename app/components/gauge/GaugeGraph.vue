@@ -50,10 +50,10 @@
       </div>
     </div>
 
-    <!-- Seasonal context + diurnal cycle — below the chart -->
+    <!-- Seasonal context + diurnal cycle — below the chart (suppressed when parent hoists) -->
     <GaugeSeasonalBanner :gauge-id="gaugeId" :current-cfs="currentCfs" />
     <div
-      v-if="diurnal.detected"
+      v-if="diurnal.detected && !props.hideDiurnal"
       class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300"
     >
       <span class="text-base">🌡</span>
@@ -76,7 +76,7 @@
 import { ref, watch, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
-import { useDiurnalPattern } from '~/composables/useDiurnalPattern'
+import { useDiurnalPattern, type DiurnalPattern } from '~/composables/useDiurnalPattern'
 
 // ---- Types ------------------------------------------------------------------
 
@@ -106,11 +106,13 @@ const props = defineProps<{
   color?: string          // override line color
   height?: number         // chart height in px (default 200)
   controlledHours?: 12 | 24 | 48  // parent-controlled time window; hides toggle
+  hideDiurnal?: boolean   // suppress inline diurnal banner (parent renders it above graph)
 }>()
 
 const emit = defineEmits<{
   (e: 'latestCfs', cfs: number): void
   (e: 'liveFlowBand', band: { flowBandLabel: string | null; flowStatus: string }): void
+  (e: 'diurnal', data: DiurnalPattern): void
 }>()
 
 // ---- State ------------------------------------------------------------------
@@ -164,6 +166,7 @@ async function load() {
       const liveLabel = matchedRange?.label ?? null
       emit('liveFlowBand', { flowBandLabel: liveLabel, flowStatus: flowStatusForBand(liveLabel) })
     }
+    emit('diurnal', useDiurnalPattern(readings.value))
     await nextTick()
     buildChart()
   }
