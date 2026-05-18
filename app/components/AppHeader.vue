@@ -114,72 +114,6 @@
               <p class="px-3 py-1.5 text-xs text-neutral-400 truncate">{{ user?.email ?? user?.user_metadata?.user_name }}</p>
               <div class="border-t border-neutral-100 dark:border-neutral-800" />
             </template>
-            <!-- Appearance: collapsed by default; expand to show palette + mode -->
-            <button
-              class="w-full flex items-center justify-between px-3 py-1.5 text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-              @click="appearanceOpen = !appearanceOpen"
-            >
-              <span class="flex items-center gap-2">
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/>
-                  <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
-                </svg>
-                Appearance
-              </span>
-              <span class="flex items-center gap-1.5">
-                <!-- Active theme swatch preview -->
-                <span v-if="activeTheme" class="w-4 h-4 rounded-full overflow-hidden border border-neutral-200 dark:border-neutral-700 inline-flex">
-                  <span class="w-1/2 h-full" :style="{ background: activeTheme.neutralSwatch }" />
-                  <span class="w-1/2 h-full" :style="{ background: activeTheme.primarySwatch }" />
-                </span>
-                <svg
-                  class="w-3 h-3 text-neutral-400 transition-transform"
-                  :class="{ 'rotate-180': appearanceOpen }"
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                ><polyline points="6 9 12 15 18 9"/></svg>
-              </span>
-            </button>
-            <div v-if="appearanceOpen" class="pb-1">
-              <!-- 11 named themes list -->
-              <div class="max-h-66 overflow-y-auto">
-                <button
-                  v-for="t in THEMES"
-                  :key="t.id"
-                  class="w-full flex items-center gap-2.5 px-3 py-1.5 text-sm transition-colors"
-                  :class="themeStore.themeId === t.id
-                    ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-700 dark:text-primary-300'
-                    : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800'"
-                  @click="applyTheme(t.id)"
-                >
-                  <span class="w-4 h-4 rounded-full overflow-hidden border border-neutral-200 dark:border-neutral-700 shrink-0 inline-flex">
-                    <span class="w-1/2 h-full" :style="{ background: t.neutralSwatch }" />
-                    <span class="w-1/2 h-full" :style="{ background: t.primarySwatch }" />
-                  </span>
-                  <span class="flex-1 text-left">{{ t.label }}</span>
-                  <svg v-if="themeStore.themeId === t.id" class="w-3.5 h-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                </button>
-              </div>
-              <!-- Light / Dark / System -->
-              <div class="flex items-center gap-1 px-3 py-1.5 border-t border-neutral-100 dark:border-neutral-800 mt-0.5">
-                <span class="text-[9px] text-neutral-400 w-8 shrink-0">Mode</span>
-                <div class="flex items-center gap-1">
-                  <button
-                    v-for="mode in colorModes"
-                    :key="mode.value"
-                    :title="mode.label"
-                    class="flex items-center justify-center w-7 h-7 rounded-md transition-colors"
-                    :class="colorMode.preference === mode.value
-                      ? 'bg-neutral-200 dark:bg-neutral-700 text-neutral-900 dark:text-white'
-                      : 'text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800'"
-                    @click="colorMode.preference = mode.value"
-                  >
-                    <svg v-if="mode.value === 'light'" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-                    <svg v-else-if="mode.value === 'dark'" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                    <svg v-else class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-                  </button>
-                </div>
-              </div>
-            </div>
             <div class="border-t border-neutral-100 dark:border-neutral-800" />
             <NuxtLink
               v-if="isAuthenticated"
@@ -410,35 +344,11 @@
 <script setup lang="ts">
 import { ref, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import MarkdownIt from 'markdown-it'
-import { THEMES } from '../../app.config'
-import type { ThemeId } from '../../app.config'
-import { useThemeStore } from '~/stores/theme'
-
 const { user, isAuthenticated, isDataAdmin, signOut } = useAuth()
 const router = useRouter()
 const route = useRoute()
-const colorMode = useColorMode()
-const appConfig = useAppConfig()
-const themeStore = useThemeStore()
 const menuOpen = ref(false)
 const userMenuOpen = ref(false)
-const appearanceOpen = ref(false)
-
-const colorModes = [
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-  { value: 'system', label: 'System' },
-]
-
-const activeTheme = computed(() => THEMES.find(t => t.id === themeStore.themeId) ?? null)
-
-function applyTheme(id: ThemeId) {
-  const theme = THEMES.find(t => t.id === id)
-  if (!theme) return
-  themeStore.themeId = id
-  appConfig.ui.colors.primary = theme.primary
-  appConfig.ui.colors.neutral = theme.neutral
-}
 
 const { apiBase } = useRuntimeConfig().public
 

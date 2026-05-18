@@ -121,7 +121,7 @@ const igCopied = ref(false)
 const awOpen = ref(false)
 
 const reportUrl = computed(() =>
-  `${config.public.appUrl ?? 'https://h2oflow.org'}/reports/${props.report.id}`
+  `${config.public.appUrl ?? 'https://h2oflows.app'}/reports/${props.report.id}`
 )
 
 const shareText = computed(() => {
