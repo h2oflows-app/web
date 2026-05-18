@@ -103,7 +103,6 @@ interface Report {
   name: string
   report_date: string
   content: string
-  hazard_warning?: string
   paddled: boolean
   flow_cfs?: number
   flow_band?: string

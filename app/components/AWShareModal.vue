@@ -149,7 +149,6 @@ interface Report {
   report_date: string
   report_time?: string
   content: string
-  hazard_warning?: string
   paddled: boolean
   flow_cfs?: number
   flow_band?: string
@@ -233,10 +232,6 @@ const awText = computed(() => {
   if (props.report.paddled) lines.push('Paddled this reach')
   lines.push('')
   lines.push(props.report.content)
-  if (props.report.hazard_warning) {
-    lines.push('')
-    lines.push(`⚠ Hazard: ${props.report.hazard_warning}`)
-  }
   return lines.join('\n')
 })
 
@@ -254,7 +249,6 @@ const apiPreviewBody = computed(() => {
     body:        props.report.content,
   }
   if (props.report.flow_cfs != null) body.gage_reading = Math.round(props.report.flow_cfs)
-  if (props.report.hazard_warning) body.hazard = props.report.hazard_warning
   return body
 })
 
