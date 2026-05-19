@@ -91,41 +91,17 @@
 
         <!-- Ask anything -->
         <div class="w-full max-w-xl mb-4">
-          <form @submit.prevent="askQuestion" class="flex gap-2 mb-3">
-            <div class="relative flex-1">
-              <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary-400 dark:text-primary-500 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192zM6.949 5.684a1 1 0 00-1.898 0l-.683 2.051a1 1 0 01-.633.633l-2.051.683a1 1 0 000 1.898l2.051.683a1 1 0 01.633.633l.683 2.051a1 1 0 001.898 0l.683-2.051a1 1 0 01.633-.633l2.051-.683a1 1 0 000-1.898l-2.051-.683a1 1 0 01-.633-.633L6.95 5.684zM13.949 13.684a1 1 0 00-1.898 0l-.184.551a1 1 0 01-.632.633l-.551.183a1 1 0 000 1.898l.551.183a1 1 0 01.633.633l.183.551a1 1 0 001.898 0l.184-.551a1 1 0 01.632-.633l.551-.183a1 1 0 000-1.898l-.551-.184a1 1 0 01-.633-.632l-.183-.551z"/>
-              </svg>
-              <input
-                ref="searchInputRef"
-                v-model="searchQuery"
-                type="text"
-                placeholder='Ask anything — e.g. "Browns Canyon at 800 cfs?"'
-                class="w-full pl-9 pr-4 py-2.5 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                :disabled="searching"
-              />
-            </div>
-            <button
-              v-if="!searching"
-              type="submit"
-              :disabled="!searchQuery.trim()"
-              class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-sm font-semibold transition-colors shrink-0"
-            >
-              <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M15.98 1.804a1 1 0 00-1.96 0l-.24 1.192a1 1 0 01-.784.785l-1.192.238a1 1 0 000 1.962l1.192.238a1 1 0 01.785.785l.238 1.192a1 1 0 001.962 0l.238-1.192a1 1 0 01.785-.785l1.192-.238a1 1 0 000-1.962l-1.192-.238a1 1 0 01-.785-.785l-.238-1.192zM6.949 5.684a1 1 0 00-1.898 0l-.683 2.051a1 1 0 01-.633.633l-2.051.683a1 1 0 000 1.898l2.051.683a1 1 0 01.633.633l.683 2.051a1 1 0 001.898 0l.683-2.051a1 1 0 01.633-.633l2.051-.683a1 1 0 000-1.898l-2.051-.683a1 1 0 01-.633-.633L6.95 5.684zM13.949 13.684a1 1 0 00-1.898 0l-.184.551a1 1 0 01-.632.633l-.551.183a1 1 0 000 1.898l.551.183a1 1 0 01.633.633l.183.551a1 1 0 001.898 0l.184-.551a1 1 0 01.632-.633l.551-.183a1 1 0 000-1.898l-.551-.184a1 1 0 01-.633-.632l-.183-.551z"/>
-              </svg>
-              Ask
-            </button>
-            <button
-              v-else
-              type="button"
-              class="px-4 py-2.5 rounded-lg bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 text-neutral-700 dark:text-neutral-200 text-sm font-semibold transition-colors shrink-0 flex items-center gap-1.5"
-              @click="cancelSearch"
-            >
-              <span class="w-3.5 h-3.5 border-2 border-neutral-400 border-t-neutral-700 dark:border-t-neutral-200 rounded-full animate-spin"/>
-              Stop
-            </button>
-          </form>
+          <UChatPrompt
+            ref="promptRef"
+            v-model="searchQuery"
+            placeholder='Ask anything — e.g. "Browns Canyon at 800 cfs?"'
+            :loading="searching"
+            class="mb-3"
+            @submit="askQuestion"
+            @close="cancelSearch"
+          >
+            <UChatPromptSubmit :loading="searching" />
+          </UChatPrompt>
 
           <p v-if="searching" class="text-sm text-neutral-400 dark:text-neutral-500 animate-pulse text-center -mt-1 mb-2">{{ loadingVerb }}…</p>
 
@@ -240,7 +216,7 @@ import { ref, onMounted } from 'vue'
 import { useWatchlistStore, type WatchedGauge } from '~/stores/watchlist'
 
 const waveRef = ref<SVGSVGElement | null>(null)
-const searchInputRef = ref<HTMLInputElement | null>(null)
+const promptRef = ref<{ $el: HTMLElement } | null>(null)
 
 // ── DB stats ──────────────────────────────────────────────────────────────────
 
@@ -251,8 +227,9 @@ const { data: dbStats } = await useAsyncData<{ reaches: number; rivers: number; 
 )
 
 function focusAsk() {
-  searchInputRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  searchInputRef.value?.focus({ preventScroll: true })
+  const el = promptRef.value?.$el
+  el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  el?.querySelector('textarea')?.focus({ preventScroll: true })
 }
 const { apiBase } = useRuntimeConfig().public
 const store = useWatchlistStore()
