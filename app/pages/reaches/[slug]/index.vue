@@ -1096,11 +1096,60 @@ const metaDesc = computed(() => {
   return parts.join(' · ')
 })
 
+const apiBase = config.public.apiBase
+const reachOgImage = computed(() => {
+  if (!reach.value) return undefined
+  return `${apiBase}/og/reaches/${(reach.value as any).slug}.png`
+})
+const reachCanonical = computed(() => {
+  if (!reach.value) return undefined
+  return `https://h2oflows.app/reaches/${(reach.value as any).slug}`
+})
+
 useSeoMeta({
   title:           () => metaTitle.value,
   ogTitle:         () => metaTitle.value,
   description:     () => metaDesc.value,
   ogDescription:   () => metaDesc.value,
+  ogType:          'website',
+  ogImage:         () => reachOgImage.value,
+  ogImageWidth:    1200,
+  ogImageHeight:   630,
+  ogImageType:     'image/png',
+  ogUrl:           () => reachCanonical.value,
+  twitterCard:     'summary_large_image',
+  twitterTitle:    () => metaTitle.value,
+  twitterDescription: () => metaDesc.value,
+  twitterImage:    () => reachOgImage.value,
+})
+
+// JSON-LD structured data — Place schema for the reach
+useHead(() => {
+  if (!reach.value) return {}
+  const r = reach.value as any
+  const ld: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'Place',
+    name: r.name,
+    description: metaDesc.value,
+    url: reachCanonical.value,
+  }
+  if (r.put_in_lat != null && r.put_in_lng != null) {
+    ld.geo = {
+      '@type': 'GeoCoordinates',
+      latitude: r.put_in_lat,
+      longitude: r.put_in_lng,
+    }
+  }
+  if (r.region) {
+    ld.address = { '@type': 'PostalAddress', addressRegion: r.region, addressCountry: 'US' }
+  }
+  return {
+    script: [{
+      type: 'application/ld+json',
+      innerHTML: JSON.stringify(ld),
+    }],
+  }
 })
 
 const cfsColor = computed(() => bandSolid(reach.value?.gauge.flow_band_label ?? null, reach.value?.gauge.flow_status ?? null))
