@@ -287,11 +287,6 @@
               :key="rep.id"
               class="px-4 py-3 space-y-1"
             >
-              <!-- Hazard badge -->
-              <div v-if="rep.hazard_warning" class="flex items-start gap-2 mb-1.5 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900 px-2.5 py-1.5">
-                <svg class="w-3.5 h-3.5 mt-0.5 shrink-0 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
-                <p class="text-xs text-red-700 dark:text-red-400">{{ rep.hazard_warning }}</p>
-              </div>
               <div class="flex items-start justify-between gap-2">
                 <span class="text-sm font-medium text-neutral-800 dark:text-neutral-100">{{ rep.name }}</span>
                 <span class="text-xs text-neutral-400 shrink-0">{{ formatReportDate(rep.report_date) }}</span>
@@ -633,7 +628,6 @@ interface ReachReport {
   name: string
   report_date: string
   content: string
-  hazard_warning?: string
   paddled: boolean
   flow_cfs?: number
   flow_band?: string
@@ -654,8 +648,7 @@ const filteredReports = computed(() => {
   if (!q) return reachReports.value
   return reachReports.value.filter(r =>
     r.content.toLowerCase().includes(q) ||
-    r.name.toLowerCase().includes(q) ||
-    (r.hazard_warning ?? '').toLowerCase().includes(q)
+    r.name.toLowerCase().includes(q)
   )
 })
 

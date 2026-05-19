@@ -64,7 +64,7 @@
               Delete
             </UButton>
             <div class="flex gap-3">
-              <UButton variant="outline" color="neutral" type="button" @click="copyShareLink">Share</UButton>
+              <UButton variant="outline" color="neutral" type="button" @click="openShare">Share</UButton>
               <UButton type="submit" :loading="saving" :disabled="!form.name || form.inputs.length === 0">Save</UButton>
             </div>
           </div>
@@ -73,15 +73,16 @@
 
       <div v-else class="mt-20 text-center text-neutral-400">Gauge not found.</div>
 
-      <!-- Share toast -->
-      <div
-        v-if="shareToast"
-        class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/80 px-4 py-2.5 text-sm text-green-700 dark:text-green-300 shadow-lg"
-      >
-        Share link copied to clipboard
-      </div>
-
     </main>
+
+    <ShareLinkModal
+      :open="shareModalOpen"
+      title="Share custom gauge"
+      :link="shareLink"
+      :json="shareJson"
+      :loading="shareLoading"
+      @close="shareModalOpen = false"
+    />
   </div>
 </template>
 
@@ -118,7 +119,10 @@ const loading = ref(true)
 const saving = ref(false)
 const deleting = ref(false)
 const saveError = ref<string | null>(null)
-const shareToast = ref(false)
+const shareModalOpen = ref(false)
+const shareLoading  = ref(false)
+const shareLink     = ref('')
+const shareJson     = ref('')
 
 const form = ref({
   name: '',
@@ -198,7 +202,10 @@ async function confirmDelete() {
   }
 }
 
-async function copyShareLink() {
+async function openShare() {
+  shareModalOpen.value = true
+  if (shareLink.value) return
+  shareLoading.value = true
   try {
     const token = await getToken()
     const res = await fetch(`${apiBase}/api/v1/me/custom-gauges/${slug.value}/share`, {
@@ -206,11 +213,16 @@ async function copyShareLink() {
     })
     if (!res.ok) return
     const { token: shareToken } = await res.json()
-    const url = `${window.location.origin}/import/gauge?token=${shareToken}`
-    await navigator.clipboard.writeText(url)
-    shareToast.value = true
-    setTimeout(() => { shareToast.value = false }, 2500)
-  } catch {}
+    shareLink.value = `${window.location.origin}/import/gauge?token=${shareToken}`
+    try {
+      const decoded = JSON.parse(atob(shareToken.replace(/-/g, '+').replace(/_/g, '/')))
+      shareJson.value = JSON.stringify(decoded, null, 2)
+    } catch {
+      shareJson.value = shareToken
+    }
+  } finally {
+    shareLoading.value = false
+  }
 }
 
 onMounted(load)

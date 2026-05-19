@@ -8,3 +8,9 @@
     <MobileTabBar />
   </UApp>
 </template>
+
+<script setup lang="ts">
+import { useFontSize } from '~/composables/useFontSize'
+const { load } = useFontSize()
+onMounted(load)
+</script>

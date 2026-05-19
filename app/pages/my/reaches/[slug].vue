@@ -13,7 +13,7 @@
         <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-x-mark" :to="'/my/reaches'" title="Close"><span class="hidden sm:inline">Close</span></UButton>
       </div>
       <div class="flex items-center gap-1.5 shrink-0">
-        <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-share" title="Share" @click="shareOpen = true"><span class="hidden sm:inline">Share</span></UButton>
+        <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-share" title="Share" @click="openShare()"><span class="hidden sm:inline">Share</span></UButton>
         <UButton size="xs" variant="ghost" color="error" icon="i-heroicons-trash" title="Delete" @click="confirmDelete"><span class="hidden sm:inline">Delete</span></UButton>
         <UButton size="xs" variant="outline" color="neutral" icon="i-heroicons-x-circle" :to="'/my/reaches'" title="Cancel"><span class="hidden sm:inline">Cancel</span></UButton>
         <UButton size="xs" :disabled="!form.name.trim()" :loading="saving" icon="i-heroicons-check" title="Save" @click="save"><span class="hidden sm:inline">Save</span></UButton>
@@ -422,22 +422,14 @@
     </template>
   </UModal>
 
-  <UModal v-model:open="shareOpen" title="Share reach">
-    <template #body>
-      <p class="text-xs text-neutral-500 mb-2">Copy this payload and paste it into the import dialog on another account.</p>
-      <textarea
-        readonly
-        rows="12"
-        class="w-full rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 px-3 py-2 text-xs font-mono resize-none focus:outline-none"
-        :value="sharePayload"
-        @click="($event.target as HTMLTextAreaElement).select()"
-      />
-      <div class="flex justify-end gap-2 mt-3">
-        <UButton size="xs" variant="outline" color="neutral" @click="shareOpen = false">Close</UButton>
-        <UButton size="xs" icon="i-heroicons-clipboard-document" @click="copyShare">{{ shareCopied ? 'Copied!' : 'Copy' }}</UButton>
-      </div>
-    </template>
-  </UModal>
+  <ShareLinkModal
+    :open="shareOpen"
+    title="Share reach"
+    :link="reachShareLink"
+    :json="sharePayload"
+    :loading="shareLoading"
+    @close="shareOpen = false; customGaugePayload = null"
+  />
 </template>
 
 <script setup lang="ts">
@@ -627,8 +619,9 @@ const customGauges           = ref<CustomGaugeSummary[]>([])
 const customGaugePickerOpen  = ref(false)
 const customGaugeSaving      = ref(false)
 
-const shareOpen   = ref(false)
-const shareCopied = ref(false)
+const shareOpen           = ref(false)
+const shareLoading        = ref(false)
+const customGaugePayload  = ref<object | null>(null)
 
 // ── River confirmation banner ──────────────────────────────────────────────────
 
@@ -718,14 +711,45 @@ const sharePayload = computed(() => {
       high:    { min_value: fr.high.min,   max_value: null           },
     },
   }
+  if (customGaugePayload.value) {
+    payload.custom_gauge = customGaugePayload.value
+  } else if (r.gauge_external_id && r.gauge_source) {
+    payload.gauge_external_id = r.gauge_external_id
+    payload.gauge_source = r.gauge_source
+  }
   return JSON.stringify(payload, null, 2)
 })
 
-async function copyShare() {
-  if (!sharePayload.value) return
-  await navigator.clipboard.writeText(sharePayload.value)
-  shareCopied.value = true
-  setTimeout(() => { shareCopied.value = false }, 2000)
+const reachShareLink = computed(() => {
+  if (!sharePayload.value || !import.meta.client) return ''
+  try {
+    // btoa requires Latin1 — encode through URI escaping to handle any Unicode in notes/names
+    const latin1 = unescape(encodeURIComponent(sharePayload.value))
+    const token = btoa(latin1).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+    return `${window.location.origin}/import/reach?token=${token}`
+  } catch {
+    return ''
+  }
+})
+
+async function openShare() {
+  customGaugePayload.value = null
+  shareOpen.value          = true
+  const r = reach.value
+  if (!r?.custom_gauge_id) return
+  const cg = customGauges.value.find(g => g.id === r.custom_gauge_id)
+  if (!cg?.slug) return
+  shareLoading.value = true
+  try {
+    const headers = await authHeaders()
+    const res = await fetch(`${apiBase}/api/v1/me/custom-gauges/${cg.slug}/share`, { headers })
+    if (!res.ok) return
+    const { token } = await res.json()
+    // server uses standard base64url (with padding); decode to get gauge definition
+    const base64 = token.replace(/-/g, '+').replace(/_/g, '/')
+    customGaugePayload.value = JSON.parse(atob(base64))
+  } catch { /* non-fatal — share still works, gauge just won't auto-link */ }
+  finally { shareLoading.value = false }
 }
 
 // ── Auth helper ───────────────────────────────────────────────────────────────

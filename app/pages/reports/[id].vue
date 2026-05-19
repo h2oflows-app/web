@@ -17,18 +17,6 @@
 
     <main v-else class="max-w-2xl mx-auto px-4 py-8 pb-20 sm:pb-8 space-y-6">
 
-      <!-- Hazard callout -->
-      <div
-        v-if="report.hazard_warning"
-        class="flex items-start gap-3 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-4 py-3"
-      >
-        <svg class="w-5 h-5 mt-0.5 shrink-0 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        <div>
-          <p class="text-sm font-semibold text-red-700 dark:text-red-400 mb-0.5">Hazard warning</p>
-          <p class="text-sm text-red-700 dark:text-red-400">{{ report.hazard_warning }}</p>
-        </div>
-      </div>
-
       <!-- Header card -->
       <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 px-5 py-4 space-y-3">
         <div class="flex items-start justify-between gap-3 flex-wrap">
@@ -108,7 +96,6 @@ interface Report {
   report_date: string
   report_time?: string
   content: string
-  hazard_warning?: string
   paddled: boolean
   flow_cfs?: number
   flow_band?: string

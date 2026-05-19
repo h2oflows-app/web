@@ -110,21 +110,6 @@
           />
         </div>
 
-        <!-- Hazard warning -->
-
-        <div>
-          <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-            Hazard warning
-            <span class="text-neutral-400 font-normal">(optional — shown prominently)</span>
-          </label>
-          <textarea
-            v-model="form.hazard_warning"
-            rows="2"
-            placeholder="e.g. Strainer at the bottom of Gorge rapid, river left"
-            class="w-full rounded-lg border border-red-200 dark:border-red-800 bg-white dark:bg-neutral-900 px-3 py-2 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-red-400 resize-y"
-          />
-        </div>
-
         <!-- Paddled toggle -->
         <div class="flex items-center gap-3">
           <button
@@ -158,7 +143,7 @@
         </div>
 
         <!-- Submit -->
-        <div class="flex items-center justify-end gap-3 pt-2">
+        <div class="flex items-center justify-end gap-3 pt-2 flex-wrap">
           <NuxtLink
             v-if="prefillSlug"
             :to="`/reaches/${prefillSlug}`"
@@ -175,6 +160,15 @@
             Cancel
           </button>
           <button
+            type="button"
+            :disabled="submitting || !selectedReach"
+            class="inline-flex items-center gap-2 rounded-lg border border-primary-600 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/40 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 text-sm font-medium transition-colors"
+            @click="submit(true)"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/></svg>
+            Submit &amp; Share
+          </button>
+          <button
             type="submit"
             :disabled="submitting || !selectedReach"
             class="inline-flex items-center gap-2 rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2 text-sm font-medium text-white transition-colors"
@@ -188,14 +182,10 @@
     </main>
 
     <!-- Live card preview -->
-    <div v-if="form.name || form.content || form.hazard_warning" class="mt-2">
+    <div v-if="form.name || form.content" class="mt-2">
       <p class="text-xs font-semibold uppercase tracking-wide text-neutral-400 dark:text-neutral-500 mb-2">Card preview</p>
       <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
         <div class="px-4 py-3 space-y-1">
-          <div v-if="form.hazard_warning.trim()" class="flex items-start gap-2 mb-1.5 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900 px-2.5 py-1.5">
-            <svg class="w-3.5 h-3.5 mt-0.5 shrink-0 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
-            <p class="text-xs text-red-700 dark:text-red-400">{{ form.hazard_warning }}</p>
-          </div>
           <div class="flex items-start justify-between gap-2">
             <span class="text-sm font-medium text-neutral-800 dark:text-neutral-100">{{ form.name || 'Your name' }}</span>
             <span class="text-xs text-neutral-400 shrink-0">{{ formatPreviewDate(form.report_date) }}</span>
@@ -211,39 +201,15 @@
       </div>
     </div>
 
-    <!-- Hazard confirm dialog -->
-    <Teleport to="body">
-      <div
-        v-if="hazardConfirmOpen"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-4"
-      >
-        <div class="w-full max-w-sm bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-700 shadow-2xl p-6 space-y-4">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950/50 flex items-center justify-center shrink-0">
-              <svg class="w-5 h-5 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            </div>
-            <h3 class="text-base font-semibold text-neutral-900 dark:text-white">Hazard notification</h3>
-          </div>
-          <p class="text-sm text-neutral-600 dark:text-neutral-400">
-            Your hazard warning will appear on the dashboards of all H2OFlows users watching this reach. Please make sure the description is accurate and specific.
-          </p>
-          <div class="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2 text-sm text-amber-800 dark:text-amber-300 italic">
-            "{{ form.hazard_warning }}"
-          </div>
-          <div class="flex items-center justify-end gap-3 pt-1">
-            <button
-              class="text-sm text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
-              @click="hazardConfirmOpen = false"
-            >Edit warning</button>
-            <button
-              class="inline-flex items-center gap-2 rounded-lg bg-amber-500 hover:bg-amber-600 px-4 py-2 text-sm font-medium text-white transition-colors"
-              @click="hazardConfirmOpen = false; doSubmit()"
-            >Submit report</button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
   </div>
+
+  <ShareReportModal
+    v-if="pendingShareReport"
+    :report="pendingShareReport"
+    :open="shareModalOpen"
+    @close="onShareClose"
+    @synced="shareModalOpen = false"
+  />
 </template>
 
 <script setup lang="ts">
@@ -266,7 +232,6 @@ const form = ref({
   report_time: '',
   name: '',
   content: '',
-  hazard_warning: '',
   paddled: false,
 })
 
@@ -321,18 +286,22 @@ onMounted(async () => {
 
 const submitting = ref(false)
 const error = ref('')
-const hazardConfirmOpen = ref(false)
 
-function submit() {
-  if (!selectedReach.value) return
-  if (form.value.hazard_warning.trim() && !hazardConfirmOpen.value) {
-    hazardConfirmOpen.value = true
-    return
-  }
-  doSubmit()
+interface PendingReport {
+  id: string; slug: string; handle: string; name: string; report_date: string
+  content: string; paddled: boolean; reach_name: string; reach_slug: string
+}
+const pendingShareReport = ref<PendingReport | null>(null)
+const shareModalOpen = ref(false)
+
+function onShareClose() {
+  const id = pendingShareReport.value?.id
+  pendingShareReport.value = null
+  shareModalOpen.value = false
+  if (id) router.push(`/reports/${id}`)
 }
 
-async function doSubmit() {
+async function submit(shareAfter = false) {
   if (!selectedReach.value) return
   error.value = ''
   submitting.value = true
@@ -348,7 +317,6 @@ async function doSubmit() {
       paddled: form.value.paddled,
     }
     if (form.value.report_time) body.report_time = form.value.report_time
-    if (form.value.hazard_warning.trim()) body.hazard_warning = form.value.hazard_warning.trim()
 
     const res = await fetch(
       `${config.public.apiBase}/api/v1/reaches/${selectedReach.value.slug}/reports`,
@@ -359,7 +327,22 @@ async function doSubmit() {
       error.value = data.error ?? 'Failed to submit report'
       return
     }
-    router.push(`/reports/${data.id}`)
+    if (shareAfter) {
+      pendingShareReport.value = {
+        id:          data.id,
+        slug:        data.slug,
+        handle:      data.handle ?? '',
+        name:        form.value.name,
+        report_date: form.value.report_date,
+        content:     form.value.content,
+        paddled:     form.value.paddled,
+        reach_name:  reachDisplayName(selectedReach.value),
+        reach_slug:  selectedReach.value.slug,
+      }
+      shareModalOpen.value = true
+    } else {
+      router.push(`/reports/${data.id}`)
+    }
   } catch (e: any) {
     error.value = e?.message ?? 'Network error'
   } finally {
