@@ -106,7 +106,8 @@
             v-model="form.content"
             content-type="markdown"
             placeholder="Describe conditions, flow, any notable observations…"
-            class="min-h-40 rounded-lg border border-neutral-200 dark:border-neutral-700"
+            :ui="{ base: 'min-h-40' }"
+            class="rounded-lg border border-neutral-200 dark:border-neutral-700"
           />
         </div>
 
