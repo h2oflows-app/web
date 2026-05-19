@@ -74,8 +74,12 @@
           </button>
         </form>
 
-        <!-- Sign up link -->
-        <p class="text-xs text-center text-neutral-400">
+        <!-- Sign up link / success -->
+        <div v-if="signUpSent" class="rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 px-4 py-3 text-xs text-green-800 dark:text-green-300 space-y-1">
+          <p class="font-medium">Check your email to confirm your account.</p>
+          <p class="text-green-700 dark:text-green-400">After confirming, sign in and set your handle in <NuxtLink to="/settings" class="underline">Settings</NuxtLink> before submitting reports.</p>
+        </div>
+        <p v-else class="text-xs text-center text-neutral-400">
           Don't have an account?
           <button class="text-primary-500 hover:text-primary-600 font-medium" @click="signUpWithEmail">Sign up</button>
         </p>
@@ -102,8 +106,9 @@ const route  = useRoute()
 
 const email    = ref('')
 const password = ref('')
-const loading  = ref(false)
+const loading   = ref(false)
 const authError = ref('')
+const signUpSent = ref(false)
 
 // Redirect destination — come from wherever they were trying to go
 const redirectTo = computed(() => (route.query.redirect as string) || '/trips')
@@ -151,8 +156,8 @@ async function signUpWithEmail() {
   if (error) {
     authError.value = error.message
   } else {
-    authError.value = '' // show a "check your email" message
-    alert('Check your email to confirm your account.')
+    authError.value = ''
+    signUpSent.value = true
   }
 }
 </script>

@@ -86,27 +86,27 @@
           </div>
         </div>
 
-        <!-- Name -->
+        <!-- Name (from profile — not editable) -->
         <div>
-          <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Your name <span class="text-red-500">*</span></label>
-          <input
-            v-model="form.name"
-            type="text"
-            placeholder="e.g. Jane Paddler"
-            maxlength="80"
-            required
-            class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
+          <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Posted as</label>
+          <div v-if="profileHandle" class="flex items-center gap-2 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 px-3 py-2 text-sm text-neutral-700 dark:text-neutral-300">
+            <span class="font-medium">{{ profileHandle }}</span>
+            <NuxtLink to="/settings" class="ml-auto text-xs text-primary-500 hover:underline shrink-0">Change in Settings</NuxtLink>
+          </div>
+          <div v-else class="flex items-center gap-2 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-300">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Set a handle in <NuxtLink to="/settings" class="underline font-medium mx-1">Settings</NuxtLink> before submitting a report.
+          </div>
         </div>
 
         <!-- Content -->
         <div>
           <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Report <span class="text-red-500">*</span></label>
-          <MarkdownEditor
+          <UEditor
             v-model="form.content"
-            :rows="6"
+            content-type="markdown"
             placeholder="Describe conditions, flow, any notable observations…"
-            :required="true"
+            class="min-h-40 rounded-lg border border-neutral-200 dark:border-neutral-700"
           />
         </div>
 
@@ -161,7 +161,7 @@
           </button>
           <button
             type="button"
-            :disabled="submitting || !selectedReach"
+            :disabled="submitting || !selectedReach || !profileHandle"
             class="inline-flex items-center gap-2 rounded-lg border border-primary-600 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950/40 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 text-sm font-medium transition-colors"
             @click="submit(true)"
           >
@@ -170,7 +170,7 @@
           </button>
           <button
             type="submit"
-            :disabled="submitting || !selectedReach"
+            :disabled="submitting || !selectedReach || !profileHandle"
             class="inline-flex items-center gap-2 rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2 text-sm font-medium text-white transition-colors"
           >
             <div v-if="submitting" class="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
@@ -182,12 +182,12 @@
     </main>
 
     <!-- Live card preview -->
-    <div v-if="form.name || form.content" class="mt-2">
+    <div v-if="profileHandle || form.content" class="mt-2">
       <p class="text-xs font-semibold uppercase tracking-wide text-neutral-400 dark:text-neutral-500 mb-2">Card preview</p>
       <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
         <div class="px-4 py-3 space-y-1">
           <div class="flex items-start justify-between gap-2">
-            <span class="text-sm font-medium text-neutral-800 dark:text-neutral-100">{{ form.name || 'Your name' }}</span>
+            <span class="text-sm font-medium text-neutral-800 dark:text-neutral-100">{{ profileHandle || 'your_handle' }}</span>
             <span class="text-xs text-neutral-400 shrink-0">{{ formatPreviewDate(form.report_date) }}</span>
           </div>
           <p class="text-sm text-neutral-600 dark:text-neutral-400 line-clamp-3 leading-relaxed min-h-5">
@@ -227,10 +227,11 @@ const today = new Date().toISOString().slice(0, 10)
 
 const prefillSlug = computed(() => route.query.reach as string | undefined)
 
+const profileHandle = ref('')
+
 const form = ref({
   report_date: today,
   report_time: '',
-  name: '',
   content: '',
   paddled: false,
 })
@@ -275,8 +276,15 @@ function onReachBlur() {
 }
 
 onMounted(async () => {
-  const data = await $fetch<ReachItem[]>(`${config.public.apiBase}/api/v1/reaches`).catch(() => [])
-  allReaches.value = data ?? []
+  const [reaches, profile] = await Promise.all([
+    $fetch<ReachItem[]>(`${config.public.apiBase}/api/v1/reaches`).catch(() => [] as ReachItem[]),
+    getToken().then(token => fetch(`${config.public.apiBase}/api/v1/me/profile`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    }).then(r => r.ok ? r.json() : null).catch(() => null)),
+  ])
+
+  allReaches.value = reaches ?? []
+  profileHandle.value = profile?.handle ?? ''
 
   if (prefillSlug.value) {
     const found = allReaches.value.find(r => r.slug === prefillSlug.value)
@@ -311,7 +319,7 @@ async function submit(shareAfter = false) {
     if (token) headers['Authorization'] = `Bearer ${token}`
 
     const body: Record<string, unknown> = {
-      name: form.value.name,
+      name: profileHandle.value,
       report_date: form.value.report_date,
       content: form.value.content,
       paddled: form.value.paddled,
@@ -332,7 +340,7 @@ async function submit(shareAfter = false) {
         id:          data.id,
         slug:        data.slug,
         handle:      data.handle ?? '',
-        name:        form.value.name,
+        name:        profileHandle.value,
         report_date: form.value.report_date,
         content:     form.value.content,
         paddled:     form.value.paddled,
