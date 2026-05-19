@@ -215,30 +215,41 @@ async function fetchReadings() {
   }
 }
 
+function padBase64(s: string): string {
+  // atob is strict in some browsers — pad back to multiple of 4
+  const r = s.length % 4
+  if (r === 2) return s + '=='
+  if (r === 3) return s + '='
+  return s
+}
+
 // Token formats:
 //   v1: base64url(JSON)             — payload {v:1, items:[...]}
 //   v2: "z" + base64url(gzip(JSON)) — payload {v:2, items:[...]}
 async function decodeToken(raw: string): Promise<SharePayload | null> {
   try {
     if (raw.startsWith('z')) {
-      const pad = raw.slice(1).replace(/-/g, '+').replace(/_/g, '/')
-      const binary = atob(pad)
+      const b64 = padBase64(raw.slice(1).replace(/-/g, '+').replace(/_/g, '/'))
+      const binary = atob(b64)
       const bytes = Uint8Array.from(binary, c => c.charCodeAt(0))
       const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))
       const json = await new Response(stream).text()
       const parsed = JSON.parse(json) as SharePayload
       if ((parsed.v === 1 || parsed.v === 2) && Array.isArray(parsed.items)) return parsed
+      console.warn('share: v2 token parsed but shape rejected', parsed)
       return null
     }
     // Legacy v1: plain base64url JSON
-    const pad = raw.replace(/-/g, '+').replace(/_/g, '/')
-    const binary = atob(pad)
+    const b64 = padBase64(raw.replace(/-/g, '+').replace(/_/g, '/'))
+    const binary = atob(b64)
     const bytes = Uint8Array.from(binary, c => c.charCodeAt(0))
     const json = new TextDecoder().decode(bytes)
     const parsed = JSON.parse(json) as SharePayload
     if (parsed.v === 1 && Array.isArray(parsed.items)) return parsed
+    console.warn('share: v1 token parsed but shape rejected', parsed)
     return null
-  } catch {
+  } catch (err) {
+    console.error('share: token decode failed', err, 'raw:', raw.slice(0, 60) + '…')
     return null
   }
 }
