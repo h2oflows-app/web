@@ -15,6 +15,8 @@
         @new="newDashboardOpen = true"
         @delete="onDeleteDashboard"
         @rename="(slug, name) => db.rename(slug, name)"
+        @share="shareOpen = true"
+        @view-basin-map="basinMapScope = null; basinMapOpen = true"
       />
 
       <!-- Controls bar -->
@@ -96,38 +98,7 @@
         </template>
       </div>
 
-        <!-- Pinned right: context menu + Add gauge -->
-        <template v-if="hasAnyContent">
-          <DashboardContextMenu class="shrink-0 ml-1">
-            <button
-              class="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-              @click="basinMapScope = null; basinMapOpen = true"
-            >
-              <svg class="w-3.5 h-3.5 shrink-0 text-neutral-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="8" cy="2.5" r="1.5"/>
-                <circle cx="3.5" cy="13" r="1.5"/>
-                <circle cx="12.5" cy="13" r="1.5"/>
-                <line x1="8" y1="4" x2="8" y2="6.5"/>
-                <path d="M8 6.5 C6 8 3.5 9 3.5 11.5"/>
-                <path d="M8 6.5 C10 8 12.5 9 12.5 11.5"/>
-              </svg>
-              View basin map
-            </button>
-            <button
-              class="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-              @click="shareOpen = true"
-            >
-              <svg class="w-3.5 h-3.5 shrink-0 text-neutral-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="13" cy="3" r="1.5"/>
-                <circle cx="3" cy="8" r="1.5"/>
-                <circle cx="13" cy="13" r="1.5"/>
-                <line x1="4.5" y1="7.2" x2="11.5" y2="4"/>
-                <line x1="4.5" y1="8.8" x2="11.5" y2="12"/>
-              </svg>
-              Share dashboard
-            </button>
-          </DashboardContextMenu>
-        </template>
+        <!-- Add gauge — pinned right, outside scroll group -->
         <ToolbarButton label="Add gauge" title="Add gauge" class="shrink-0 ml-1" @click="searchOpen = true">
           <svg class="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
             <line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>

@@ -19,17 +19,17 @@
             {{ db.name }}
           </button>
 
-          <!-- Three-dot menu trigger per tab. Visible always on mobile (no hover),
-               and hover-revealed on desktop. -->
+          <!-- Three-dot menu trigger per tab. Always visible — holds Rename/Delete
+               and (on active tab) Share + View basin map actions. -->
           <button
-            v-if="dashboards.length > 1 || db.id === activeDashboardId"
             :ref="(el) => setMenuButtonRef(db.id, el as HTMLElement | null)"
-            class="p-1 rounded transition-opacity text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-            :class="{ '!opacity-100': menuOpenId === db.id }"
+            class="p-1 rounded text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+            :class="{ 'bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-100': menuOpenId === db.id }"
+            title="Dashboard actions"
             @click.stop="toggleMenu(db.id)"
           >
-            <svg class="w-3 h-3" viewBox="0 0 16 16" fill="currentColor">
-              <circle cx="8" cy="3" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="8" cy="13" r="1.2"/>
+            <svg class="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+              <circle cx="8" cy="3" r="1.6"/><circle cx="8" cy="8" r="1.6"/><circle cx="8" cy="13" r="1.6"/>
             </svg>
           </button>
         </div>
@@ -53,16 +53,47 @@
     <div
       v-if="menuOpenId && menuPos"
       :style="{ position: 'fixed', top: `${menuPos.top}px`, left: `${menuPos.left}px` }"
-      class="z-50 w-36 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg overflow-hidden"
+      class="z-50 w-44 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg overflow-hidden py-1"
       @click.stop
     >
+      <!-- Active-dashboard-only actions -->
+      <template v-if="menuOpenId === activeDashboardId">
+        <button
+          class="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+          @click="emitAndClose('view-basin-map')"
+        >
+          <svg class="w-3.5 h-3.5 shrink-0 text-neutral-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="8" cy="2.5" r="1.5"/>
+            <circle cx="3.5" cy="13" r="1.5"/>
+            <circle cx="12.5" cy="13" r="1.5"/>
+            <line x1="8" y1="4" x2="8" y2="6.5"/>
+            <path d="M8 6.5 C6 8 3.5 9 3.5 11.5"/>
+            <path d="M8 6.5 C10 8 12.5 9 12.5 11.5"/>
+          </svg>
+          View basin map
+        </button>
+        <button
+          class="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+          @click="emitAndClose('share')"
+        >
+          <svg class="w-3.5 h-3.5 shrink-0 text-neutral-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="13" cy="3" r="1.5"/>
+            <circle cx="3" cy="8" r="1.5"/>
+            <circle cx="13" cy="13" r="1.5"/>
+            <line x1="4.5" y1="7.2" x2="11.5" y2="4"/>
+            <line x1="4.5" y1="8.8" x2="11.5" y2="12"/>
+          </svg>
+          Share dashboard
+        </button>
+        <div class="h-px bg-neutral-100 dark:bg-neutral-800 my-1" />
+      </template>
       <button
-        class="w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+        class="w-full text-left px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
         @click="startRenameById(menuOpenId)"
       >Rename</button>
       <button
         v-if="dashboards.length > 1"
-        class="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+        class="w-full text-left px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
         @click="confirmDeleteById(menuOpenId)"
       >Delete</button>
     </div>
@@ -121,7 +152,14 @@ const emit = defineEmits<{
   new: []
   delete: [slug: string]
   rename: [slug: string, name: string]
+  share: []
+  'view-basin-map': []
 }>()
+
+function emitAndClose(event: 'share' | 'view-basin-map') {
+  closeMenu()
+  emit(event)
+}
 
 const menuOpenId = ref<string | null>(null)
 const menuPos = ref<{ top: number; left: number } | null>(null)
