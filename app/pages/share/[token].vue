@@ -215,20 +215,37 @@ async function fetchReadings() {
   }
 }
 
-onMounted(async () => {
-  const raw = route.params.token as string
+// Token formats:
+//   v1: base64url(JSON)             — payload {v:1, items:[...]}
+//   v2: "z" + base64url(gzip(JSON)) — payload {v:2, items:[...]}
+async function decodeToken(raw: string): Promise<SharePayload | null> {
   try {
+    if (raw.startsWith('z')) {
+      const pad = raw.slice(1).replace(/-/g, '+').replace(/_/g, '/')
+      const binary = atob(pad)
+      const bytes = Uint8Array.from(binary, c => c.charCodeAt(0))
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))
+      const json = await new Response(stream).text()
+      const parsed = JSON.parse(json) as SharePayload
+      if ((parsed.v === 1 || parsed.v === 2) && Array.isArray(parsed.items)) return parsed
+      return null
+    }
+    // Legacy v1: plain base64url JSON
     const pad = raw.replace(/-/g, '+').replace(/_/g, '/')
     const binary = atob(pad)
     const bytes = Uint8Array.from(binary, c => c.charCodeAt(0))
     const json = new TextDecoder().decode(bytes)
     const parsed = JSON.parse(json) as SharePayload
-    if (parsed.v === 1 && Array.isArray(parsed.items)) {
-      payload.value = parsed
-    }
+    if (parsed.v === 1 && Array.isArray(parsed.items)) return parsed
+    return null
   } catch {
-    // invalid token — payload stays null
+    return null
   }
+}
+
+onMounted(async () => {
+  const raw = route.params.token as string
+  payload.value = await decodeToken(raw)
   loading.value = false
   if (payload.value) {
     await fetchReadings()

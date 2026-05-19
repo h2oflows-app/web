@@ -81,7 +81,7 @@ function itemLabel(g: WatchedGauge): string {
 // (including names) from /api/v1/gauges/batch on the share page. Including
 // labels here bloats the URL beyond Netlify's 414 limit for large watchlists.
 const payload = computed(() => ({
-  v: 1,
+  v: 2,
   items: props.gauges.map(g => ({
     t: 'g' as const,
     id: g.id,
@@ -89,16 +89,34 @@ const payload = computed(() => ({
   })),
 }))
 
-const token = computed(() => {
-  const json = JSON.stringify(payload.value)
-  const bytes = new TextEncoder().encode(json)
-  const b64 = btoa(String.fromCharCode(...bytes))
-  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
-})
+// Token = "z" + base64url(gzip(JSON)) — gzip cuts payload size ~3x for
+// repetitive JSON (UUIDs share structure). Older v1 tokens remain decodable
+// on the share page via legacy fallback (no "z" prefix → plain base64 JSON).
+const token = ref('')
+
+async function encodeToken(p: unknown): Promise<string> {
+  const json = JSON.stringify(p)
+  const enc = new TextEncoder().encode(json)
+  const stream = new Blob([enc]).stream().pipeThrough(new CompressionStream('gzip'))
+  const buf = await new Response(stream).arrayBuffer()
+  const bytes = new Uint8Array(buf)
+  let binary = ''
+  // Chunked to avoid stack-overflow on large arrays
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk) as unknown as number[])
+  }
+  const b64 = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+  return 'z' + b64
+}
+
+watch(payload, async (p) => {
+  token.value = await encodeToken(p)
+}, { immediate: true })
 
 const shareUrl = computed(() => {
   const base = (config.public as any).appUrl ?? 'https://h2oflows.app'
-  return `${base}/share/${token.value}`
+  return token.value ? `${base}/share/${token.value}` : ''
 })
 
 const jsonPretty = computed(() => JSON.stringify(payload.value, null, 2))
