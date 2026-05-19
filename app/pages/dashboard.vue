@@ -62,8 +62,6 @@
             </svg>
           </ToolbarButton>
 
-          <div class="h-4 w-px bg-neutral-200 dark:bg-neutral-700 mx-0.5" />
-
           <!-- Filter dropdown -->
           <div class="relative" ref="filterWrap">
             <ToolbarButton :active="!filterCurated || !filterUserReaches || !filterGauges" title="Filter content" @click="filterOpen = !filterOpen">
@@ -95,8 +93,12 @@
               </button>
             </div>
           </div>
-          <!-- 3-dot context menu (Share / Basin map) -->
-          <DashboardContextMenu>
+        </template>
+      </div>
+
+        <!-- Pinned right: context menu + Add gauge -->
+        <template v-if="hasAnyContent">
+          <DashboardContextMenu class="shrink-0 ml-1">
             <button
               class="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
               @click="basinMapScope = null; basinMapOpen = true"
@@ -126,9 +128,6 @@
             </button>
           </DashboardContextMenu>
         </template>
-      </div>
-
-        <!-- Add gauge — pinned right, outside scroll group -->
         <ToolbarButton label="Add gauge" title="Add gauge" class="shrink-0 ml-1" @click="searchOpen = true">
           <svg class="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
             <line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>
