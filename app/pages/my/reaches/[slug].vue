@@ -452,28 +452,12 @@ async function toggleDashboard(dashboardId: string) {
     const token = await getToken()
     if (!token) return
     const db = encodeURIComponent(dashboardId)
-    if (reach.value.gauge_id) {
-      await fetch(`${apiBase}/api/v1/watchlist/${reach.value.gauge_id}?reach_slug=${encodeURIComponent(slug.value)}&dashboard_id=${db}`, {
-        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {})
-    } else if (reach.value.custom_gauge_id) {
-      await fetch(`${apiBase}/api/v1/watchlist/${reach.value.custom_gauge_id}?kind=custom_gauge&reach_slug=${encodeURIComponent(slug.value)}&dashboard_id=${db}`, {
-        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {})
-    } else {
-      await fetch(`${apiBase}/api/v1/watchlist/${encodeURIComponent(slug.value)}?kind=reach&dashboard_id=${db}`, {
-        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {})
-    }
+    await fetch(`${apiBase}/api/v1/watchlist/${encodeURIComponent(slug.value)}?kind=reach&dashboard_id=${db}`, {
+      method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {})
     toast.add({ title: 'Removed from dashboard', color: 'neutral' })
   } else {
-    if (reach.value.gauge_id) {
-      await addUserReachToWatchlist(reach.value.gauge_id, slug.value, dashboardId)
-    } else if (reach.value.custom_gauge_id) {
-      await addCustomGaugeToWatchlist(reach.value.custom_gauge_id, dashboardId, slug.value)
-    } else {
-      await addReachToWatchlist(slug.value, dashboardId)
-    }
+    await addReachToWatchlist(slug.value, dashboardId)
     // Clear the per-dashboard localStorage hidden flag so a previously-trashed
     // reach becomes visible again without needing a manual dashboard refresh.
     if (import.meta.client && reach.value.id) {
