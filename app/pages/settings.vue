@@ -67,9 +67,9 @@
         </div>
       </section>
 
-      <!-- Appearance: theme + color mode -->
+      <!-- Theme + color mode -->
       <section class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-5 space-y-4">
-        <h2 class="text-sm font-semibold text-neutral-900 dark:text-white uppercase tracking-wide">Appearance</h2>
+        <h2 class="text-sm font-semibold text-neutral-900 dark:text-white uppercase tracking-wide">Theme</h2>
 
         <div>
           <label class="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-2">Theme</label>

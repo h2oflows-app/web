@@ -25,7 +25,7 @@
       :height="layout.height"
       class="block"
       :style="{ minHeight: '120px', cursor: isPanning ? 'grabbing' : 'grab' }"
-      @wheel.prevent="onWheel"
+      @wheel.prevent
       @pointerdown="onPointerDown"
       @pointermove="onPointerMove"
       @pointerup="onPointerUp"
@@ -147,14 +147,6 @@ function zoomReset() {
   scale.value = 1
   tx.value = 0
   ty.value = 0
-}
-
-function onWheel(e: WheelEvent) {
-  const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect()
-  const cx = e.clientX - rect.left
-  const cy = e.clientY - rect.top
-  const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15
-  zoomBy(factor, cx, cy)
 }
 
 // ── Pointer drag / pinch ─────────────────────────────────────────────────────
