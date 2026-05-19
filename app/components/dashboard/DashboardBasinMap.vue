@@ -1,12 +1,38 @@
 <template>
-  <div ref="container" class="w-full">
-    <div class="overflow-x-auto">
-      <svg
-        v-if="layout.nodes.length > 0"
-        :width="layout.width"
-        :height="layout.height"
-        class="select-none"
-      >
+  <div ref="container" class="relative w-full overflow-hidden select-none">
+    <!-- Zoom buttons -->
+    <div v-if="layout.nodes.length > 0" class="absolute top-2 right-2 z-10 flex flex-col gap-1">
+      <button
+        class="w-7 h-7 flex items-center justify-center rounded-md bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors shadow-sm text-base leading-none"
+        title="Zoom in"
+        @click="zoomBy(1.35)"
+      >+</button>
+      <button
+        class="w-7 h-7 flex items-center justify-center rounded-md bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors shadow-sm text-base leading-none"
+        title="Zoom out"
+        @click="zoomBy(1 / 1.35)"
+      >−</button>
+      <button
+        class="w-7 h-7 flex items-center justify-center rounded-md bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors shadow-sm text-xs leading-none"
+        title="Reset zoom"
+        @click="zoomReset"
+      >⊡</button>
+    </div>
+
+    <svg
+      v-if="layout.nodes.length > 0"
+      ref="svgEl"
+      :width="layout.width"
+      :height="layout.height"
+      class="block"
+      :style="{ minHeight: '120px', cursor: isPanning ? 'grabbing' : 'grab' }"
+      @wheel.prevent
+      @pointerdown="onPointerDown"
+      @pointermove="onPointerMove"
+      @pointerup="onPointerUp"
+      @pointercancel="onPointerUp"
+    >
+      <g :transform="`translate(${tx},${ty}) scale(${scale})`">
         <!-- Links -->
         <path
           v-for="(link, i) in layout.links"
@@ -77,15 +103,15 @@
             >{{ node.name }}</text>
           </template>
         </g>
-      </svg>
+      </g>
+    </svg>
 
-      <p v-else-if="leaves.length > 0" class="text-sm text-neutral-400 italic py-2">
-        Building tree…
-      </p>
-      <p v-else class="text-sm text-neutral-400 italic py-4">
-        Add gauges or reaches to your dashboard to see them mapped here.
-      </p>
-    </div>
+    <p v-else-if="filteredLeaves.length > 0" class="text-sm text-neutral-400 italic py-2">
+      Building tree…
+    </p>
+    <p v-else class="text-sm text-neutral-400 italic py-4">
+      Add gauges or reaches to your dashboard to see them mapped here.
+    </p>
   </div>
 </template>
 
@@ -108,11 +134,19 @@ export interface DashboardLeaf {
 
 const props = defineProps<{
   leaves: DashboardLeaf[]
+  /** Restrict the tree to a single basin group; omit to show all. */
+  scopeBasin?: string | null
 }>()
 
 const emit = defineEmits<{ (e: 'select', leaf: DashboardLeaf): void }>()
 
 const container = ref<HTMLElement | null>(null)
+const svgEl     = ref<SVGSVGElement | null>(null)
+
+const filteredLeaves = computed(() => {
+  if (!props.scopeBasin) return props.leaves
+  return props.leaves.filter(l => l.basinGroup === props.scopeBasin)
+})
 
 const isDark = typeof window !== 'undefined'
   && window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -131,7 +165,7 @@ const treeData = computed<TreeNode>(() => {
   // basin → river → leaf[]
   const basinMap = new Map<string, Map<string, DashboardLeaf[]>>()
 
-  for (const leaf of props.leaves) {
+  for (const leaf of filteredLeaves.value) {
     if (!basinMap.has(leaf.basinGroup)) basinMap.set(leaf.basinGroup, new Map())
     const riverMap = basinMap.get(leaf.basinGroup)!
     if (!riverMap.has(leaf.riverName)) riverMap.set(leaf.riverName, [])
@@ -234,4 +268,13 @@ const layout = computed(() => {
 
   return { nodes, links, width: svgW, height: svgH }
 })
+
+// ── Zoom / pan / pinch — shared composable ────────────────────────────────────
+const layoutWidth  = computed(() => layout.value.width)
+const layoutHeight = computed(() => layout.value.height)
+const {
+  scale, tx, ty, isPanning,
+  zoomBy, zoomReset,
+  onPointerDown, onPointerMove, onPointerUp,
+} = useDendrogramZoom({ width: layoutWidth, height: layoutHeight, svgEl })
 </script>

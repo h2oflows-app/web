@@ -20,6 +20,8 @@
       <!-- Controls bar -->
       <div class="bg-neutral-50/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
       <div class="max-w-5xl mx-auto px-4 py-2 flex items-center gap-1">
+      <!-- Left items wrap their own overflow so Add gauge stays pinned right -->
+      <div class="flex items-center gap-1 min-w-0 overflow-x-auto flex-1 scrollbar-none [&::-webkit-scrollbar]:hidden">
         <template v-if="hasAnyContent">
           <!-- View mode -->
           <ToolbarButton
@@ -52,18 +54,6 @@
             </svg>
           </ToolbarButton>
 
-          <!-- Basin map -->
-          <ToolbarButton title="Basin map" @click="basinMapOpen = true">
-            <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="8" cy="2.5" r="1.5"/>
-              <circle cx="3.5" cy="13" r="1.5"/>
-              <circle cx="12.5" cy="13" r="1.5"/>
-              <line x1="8" y1="4" x2="8" y2="6.5"/>
-              <path d="M8 6.5 C6 8 3.5 9 3.5 11.5"/>
-              <path d="M8 6.5 C10 8 12.5 9 12.5 11.5"/>
-            </svg>
-          </ToolbarButton>
-
           <!-- Expand / Collapse all -->
           <ToolbarButton v-if="byStateTree.length > 0" :title="allExpanded ? 'Collapse all' : 'Expand all'" @click="toggleAllSections">
             <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -71,8 +61,6 @@
               <path v-else d="M3 3l5 5 5-5M3 13l5-5 5 5"/>
             </svg>
           </ToolbarButton>
-
-          <div class="h-4 w-px bg-neutral-200 dark:bg-neutral-700 mx-0.5" />
 
           <!-- Filter dropdown -->
           <div class="relative" ref="filterWrap">
@@ -105,22 +93,42 @@
               </button>
             </div>
           </div>
-          <!-- Share dashboard -->
-          <ToolbarButton title="Share dashboard" @click="shareOpen = true">
-            <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="13" cy="3" r="1.5"/>
-              <circle cx="3" cy="8" r="1.5"/>
-              <circle cx="13" cy="13" r="1.5"/>
-              <line x1="4.5" y1="7.2" x2="11.5" y2="4"/>
-              <line x1="4.5" y1="8.8" x2="11.5" y2="12"/>
-            </svg>
-          </ToolbarButton>
         </template>
+      </div>
 
-        <div class="flex-1" />
-
-        <!-- Add gauge -->
-        <ToolbarButton label="Add gauge" title="Add gauge" @click="searchOpen = true">
+        <!-- Pinned right: context menu + Add gauge -->
+        <template v-if="hasAnyContent">
+          <DashboardContextMenu class="shrink-0 ml-1">
+            <button
+              class="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+              @click="basinMapScope = null; basinMapOpen = true"
+            >
+              <svg class="w-3.5 h-3.5 shrink-0 text-neutral-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="8" cy="2.5" r="1.5"/>
+                <circle cx="3.5" cy="13" r="1.5"/>
+                <circle cx="12.5" cy="13" r="1.5"/>
+                <line x1="8" y1="4" x2="8" y2="6.5"/>
+                <path d="M8 6.5 C6 8 3.5 9 3.5 11.5"/>
+                <path d="M8 6.5 C10 8 12.5 9 12.5 11.5"/>
+              </svg>
+              View basin map
+            </button>
+            <button
+              class="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+              @click="shareOpen = true"
+            >
+              <svg class="w-3.5 h-3.5 shrink-0 text-neutral-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="13" cy="3" r="1.5"/>
+                <circle cx="3" cy="8" r="1.5"/>
+                <circle cx="13" cy="13" r="1.5"/>
+                <line x1="4.5" y1="7.2" x2="11.5" y2="4"/>
+                <line x1="4.5" y1="8.8" x2="11.5" y2="12"/>
+              </svg>
+              Share dashboard
+            </button>
+          </DashboardContextMenu>
+        </template>
+        <ToolbarButton label="Add gauge" title="Add gauge" class="shrink-0 ml-1" @click="searchOpen = true">
           <svg class="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
             <line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>
           </svg>
@@ -176,10 +184,11 @@
                   <h2 class="text-sm font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide">{{ basin.name }} Basin</h2>
                   <span class="text-xs text-neutral-400">({{ basin.reachCount }})</span>
                 </button>
-                <NuxtLink
-                  :to="`/basin/${slugifyBasin(basin.name)}`"
+                <!-- Open basin map modal scoped to this basin -->
+                <button
                   class="p-0.5 rounded text-primary-500 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors shrink-0"
                   title="View basin map"
+                  @click="openBasinMapForBasin(basin.name)"
                 >
                   <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="8" cy="3" r="1.5"/>
@@ -188,6 +197,17 @@
                     <line x1="8" y1="4.5" x2="8" y2="7"/>
                     <path d="M8 7 Q4 9 4 11.5"/>
                     <path d="M8 7 Q12 9 12 11.5"/>
+                  </svg>
+                </button>
+                <!-- Map-pin link to full basin page -->
+                <NuxtLink
+                  :to="`/basin/${slugifyBasin(basin.name)}`"
+                  class="p-0.5 rounded text-primary-500 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors shrink-0"
+                  title="Open basin page"
+                >
+                  <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 1.5 C 5.2 1.5 3 3.7 3 6.5 C 3 10.5 8 14.5 8 14.5 C 8 14.5 13 10.5 13 6.5 C 13 3.7 10.8 1.5 8 1.5 Z"/>
+                    <circle cx="8" cy="6.5" r="1.7"/>
                   </svg>
                 </NuxtLink>
                 <div class="flex-1 h-px bg-neutral-200 dark:bg-neutral-700/60" />
@@ -316,7 +336,7 @@
                           </div>
                         </div>
                         <div class="shrink-0 flex items-center gap-1">
-                          <span class="text-xl font-bold tabular-nums leading-none" :style="{ color: bandSolid(r.flow_band, r.flow_status) }">
+                          <span class="font-bold tabular-nums leading-none" :class="viewMode === 'comfortable' ? 'text-2xl' : 'text-3xl'" :style="{ color: bandSolid(r.flow_band, r.flow_status) }">
                             {{ r.current_cfs != null ? r.current_cfs.toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-500 dark:text-neutral-400 ml-0.5">cfs</span>
                           </span>
                           <NuxtLink :to="`/my/reaches/${r.slug}`" class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit reach" @click.stop>
@@ -365,7 +385,7 @@
                       <div class="w-20 shrink-0 hidden sm:block h-5 opacity-50 pointer-events-none">
                         <GaugeSparkline :gauge-id="g.id" flow-status="unknown" color="#3b82f6" compact />
                       </div>
-                      <span :class="viewMode === 'list' ? 'text-sm font-bold tabular-nums text-neutral-900 dark:text-white' : 'text-2xl font-bold tabular-nums text-neutral-900 dark:text-white leading-none'">
+                      <span class="font-bold tabular-nums text-neutral-900 dark:text-white leading-none" :class="viewMode === 'list' ? 'text-sm' : viewMode === 'comfortable' ? 'text-2xl' : 'text-3xl'">
                         {{ g.currentCfs != null ? g.currentCfs.toLocaleString() : '—' }}
                       </span>
                       <span class="text-xs text-neutral-400">cfs</span>
@@ -508,9 +528,13 @@
     />
 
     <!-- Basin map modal -->
-    <UModal v-model:open="basinMapOpen" title="Basin Map" :ui="{ content: 'max-w-4xl' }">
+    <UModal v-model:open="basinMapOpen" :title="basinMapTitle" :ui="{ content: 'max-w-4xl' }">
       <template #body>
-        <DashboardBasinMap :leaves="dashboardLeaves" @select="onBasinMapSelect" />
+        <DashboardBasinMap
+          :leaves="dashboardLeaves"
+          :scope-basin="basinMapScope"
+          @select="onBasinMapSelect"
+        />
       </template>
     </UModal>
 
@@ -1123,7 +1147,15 @@ const reachContainerClass = computed(() =>
 
 // ── UI state ─────────────────────────────────────────────────────────────────
 const searchOpen   = ref(false)
-const basinMapOpen = ref(false)
+const basinMapOpen  = ref(false)
+const basinMapScope = ref<string | null>(null)
+const basinMapTitle = computed(() => basinMapScope.value ? `${basinMapScope.value} Basin` : 'Basin Map')
+function openBasinMapForBasin(name: string) {
+  basinMapScope.value = name
+  basinMapOpen.value = true
+}
+// Reset scope whenever the modal closes so the next toolbar-menu open shows all basins
+watch(basinMapOpen, (open) => { if (!open) basinMapScope.value = null })
 const filterOpen   = ref(false)
 const filterWrap   = ref<HTMLElement | null>(null)
 const MAP_VIS_KEY = 'h2oflow_dashboard_map_visible'
