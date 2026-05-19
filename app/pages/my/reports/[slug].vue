@@ -91,20 +91,6 @@
           />
         </div>
 
-        <!-- Hazard warning -->
-        <div>
-          <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
-            Hazard warning
-            <span class="text-neutral-400 font-normal">(optional — shown prominently)</span>
-          </label>
-          <textarea
-            v-model="form.hazard_warning"
-            rows="2"
-            placeholder="e.g. Strainer at the bottom of Gorge rapid, river left"
-            class="w-full rounded-lg border border-red-200 dark:border-red-800 bg-white dark:bg-neutral-900 px-3 py-2 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-red-400 resize-y"
-          />
-        </div>
-
         <!-- Paddled toggle -->
         <div class="flex items-center gap-3">
           <button
@@ -175,7 +161,6 @@ interface MyReport {
   report_date: string
   report_time?: string
   content: string
-  hazard_warning?: string
   paddled: boolean
   flow_cfs?: number
   flow_band?: string
@@ -192,7 +177,6 @@ const form = ref({
   name: '',
   report_time: '',
   content: '',
-  hazard_warning: '',
   paddled: false,
 })
 
@@ -213,7 +197,6 @@ async function load() {
       name: found.name,
       report_time: found.report_time ?? '',
       content: found.content,
-      hazard_warning: found.hazard_warning ?? '',
       paddled: found.paddled,
     }
   } finally {
@@ -240,7 +223,6 @@ async function submit() {
     const body: Record<string, unknown> = {
       name: form.value.name,
       content: form.value.content,
-      hazard_warning: form.value.hazard_warning.trim(),
       paddled: form.value.paddled,
     }
     if (form.value.report_time) body.report_time = form.value.report_time

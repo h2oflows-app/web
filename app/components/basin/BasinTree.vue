@@ -1,12 +1,37 @@
 <template>
-  <div ref="container" class="w-full">
-    <div class="overflow-x-auto">
-      <svg
-        v-if="layout.nodes.length > 0"
-        :width="layout.width"
-        :height="layout.height"
-        class="select-none"
-      >
+  <div ref="container" class="relative w-full overflow-hidden select-none">
+    <!-- Zoom buttons -->
+    <div class="absolute top-2 right-2 z-10 flex flex-col gap-1">
+      <button
+        class="w-7 h-7 flex items-center justify-center rounded-md bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors shadow-sm text-base leading-none"
+        title="Zoom in"
+        @click="zoomBy(1.35)"
+      >+</button>
+      <button
+        class="w-7 h-7 flex items-center justify-center rounded-md bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors shadow-sm text-base leading-none"
+        title="Zoom out"
+        @click="zoomBy(1 / 1.35)"
+      >−</button>
+      <button
+        class="w-7 h-7 flex items-center justify-center rounded-md bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors shadow-sm text-xs leading-none"
+        title="Reset zoom"
+        @click="zoomReset"
+      >⊡</button>
+    </div>
+
+    <svg
+      ref="svgEl"
+      :width="layout.width"
+      :height="layout.height"
+      class="block"
+      :style="{ minHeight: '120px', cursor: isPanning ? 'grabbing' : 'grab' }"
+      @wheel.prevent
+      @pointerdown="onPointerDown"
+      @pointermove="onPointerMove"
+      @pointerup="onPointerUp"
+      @pointercancel="onPointerUp"
+    >
+      <g :transform="`translate(${tx},${ty}) scale(${scale})`">
         <!-- Links -->
         <path
           v-for="(link, i) in layout.links"
@@ -64,20 +89,20 @@
             >{{ node.name }}</text>
           </template>
         </g>
-      </svg>
+      </g>
+    </svg>
 
-      <p v-else-if="reaches.length > 0" class="text-sm text-neutral-400 italic py-2">
-        Building tree…
-      </p>
-      <p v-else class="text-sm text-neutral-400 italic py-2">
-        No reaches loaded yet.
-      </p>
-    </div>
+    <p v-if="layout.nodes.length === 0 && reaches.length > 0" class="text-sm text-neutral-400 italic py-2">
+      Building tree…
+    </p>
+    <p v-else-if="layout.nodes.length === 0" class="text-sm text-neutral-400 italic py-2">
+      No reaches loaded yet.
+    </p>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { hierarchy, tree } from 'd3-hierarchy'
 import { linkHorizontal } from 'd3-shape'
 import type { BasinReach } from './BasinMap.vue'
@@ -92,6 +117,98 @@ const emit = defineEmits<{ (e: 'select', slug: string): void }>()
 
 const isDark = typeof window !== 'undefined'
   && window.matchMedia('(prefers-color-scheme: dark)').matches
+
+// ── Zoom / pan state ──────────────────────────────────────────────────────────
+
+const scale = ref(1)
+const tx    = ref(0)
+const ty    = ref(0)
+const MIN_SCALE = 0.25
+const MAX_SCALE = 4
+
+const svgEl    = ref<SVGSVGElement | null>(null)
+const container = ref<HTMLElement | null>(null)
+const isPanning = ref(false)
+
+function clampScale(s: number) { return Math.min(MAX_SCALE, Math.max(MIN_SCALE, s)) }
+
+function zoomBy(factor: number, cx?: number, cy?: number) {
+  const newScale = clampScale(scale.value * factor)
+  const ratio = newScale / scale.value
+  // zoom toward cursor or SVG center
+  const ox = cx ?? layout.value.width  / 2
+  const oy = cy ?? layout.value.height / 2
+  tx.value = ox - ratio * (ox - tx.value)
+  ty.value = oy - ratio * (oy - ty.value)
+  scale.value = newScale
+}
+
+function zoomReset() {
+  scale.value = 1
+  tx.value = 0
+  ty.value = 0
+}
+
+// ── Pointer drag / pinch ─────────────────────────────────────────────────────
+
+interface ActivePointer { id: number; x: number; y: number }
+const pointers = ref<ActivePointer[]>([])
+let lastPinchDist = 0
+
+function onPointerDown(e: PointerEvent) {
+  ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
+  pointers.value = [...pointers.value, { id: e.pointerId, x: e.clientX, y: e.clientY }]
+  if (pointers.value.length === 1) isPanning.value = true
+  if (pointers.value.length === 2) {
+    lastPinchDist = pinchDist()
+  }
+}
+
+function onPointerMove(e: PointerEvent) {
+  const idx = pointers.value.findIndex(p => p.id === e.pointerId)
+  if (idx === -1) return
+  const prev = pointers.value[idx]!
+
+  if (pointers.value.length === 1 && isPanning.value) {
+    tx.value += e.clientX - prev.x
+    ty.value += e.clientY - prev.y
+  } else if (pointers.value.length === 2) {
+    const other = pointers.value[idx === 0 ? 1 : 0]!
+    const updated = [...pointers.value]
+    updated[idx] = { id: e.pointerId, x: e.clientX, y: e.clientY }
+    const newDist = Math.hypot(
+      updated[0]!.x - updated[1]!.x,
+      updated[0]!.y - updated[1]!.y,
+    )
+    if (lastPinchDist > 0) {
+      const mid = midpoint(updated[0]!, updated[1]!)
+      const rect = svgEl.value!.getBoundingClientRect()
+      zoomBy(newDist / lastPinchDist, mid.x - rect.left, mid.y - rect.top)
+    }
+    lastPinchDist = newDist
+  }
+
+  pointers.value = pointers.value.map(p =>
+    p.id === e.pointerId ? { ...p, x: e.clientX, y: e.clientY } : p,
+  )
+}
+
+function onPointerUp(e: PointerEvent) {
+  pointers.value = pointers.value.filter(p => p.id !== e.pointerId)
+  if (pointers.value.length < 2) lastPinchDist = 0
+  if (pointers.value.length === 0) isPanning.value = false
+}
+
+function pinchDist() {
+  if (pointers.value.length < 2) return 0
+  return Math.hypot(
+    pointers.value[0]!.x - pointers.value[1]!.x,
+    pointers.value[0]!.y - pointers.value[1]!.y,
+  )
+}
+function midpoint(a: ActivePointer, b: ActivePointer) {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+}
 
 // ── Tree data ─────────────────────────────────────────────────────────────────
 
@@ -140,7 +257,7 @@ const H_LEVEL_W   = 180
 const H_NODE_H    = 36
 const H_LABEL_W   = 220
 const PAD         = 24
-const H_ROOT_PAD  = 110  // left margin so root label doesn't clip
+const H_ROOT_PAD  = 110
 
 interface LayoutNode {
   id:     string
@@ -157,7 +274,7 @@ interface LayoutNode {
 
 const layout = computed(() => {
   const root = hierarchy<TreeNode>(treeData.value)
-  if (root.leaves().length === 0) return { nodes: [], links: [], width: 0, height: 0 }
+  if (root.leaves().length === 0) return { nodes: [], links: [], width: 400, height: 200 }
 
   const treeLayout = tree<TreeNode>().nodeSize([H_NODE_H, H_LEVEL_W])
   treeLayout(root)

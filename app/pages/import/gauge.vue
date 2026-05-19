@@ -33,9 +33,22 @@
 
           <!-- Ready -->
           <div v-else class="space-y-4">
-            <p class="text-sm text-neutral-500 dark:text-neutral-400">
-              Import a shared custom gauge formula into your account.
-            </p>
+            <!-- Preview -->
+            <div v-if="preview" class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 p-3 space-y-1.5">
+              <p class="text-sm font-semibold text-neutral-900 dark:text-white">{{ preview.name }}</p>
+              <p v-if="preview.description" class="text-xs text-neutral-500 dark:text-neutral-400">{{ preview.description }}</p>
+              <div class="flex flex-wrap gap-1.5 pt-0.5">
+                <span
+                  v-for="inp in preview.inputs"
+                  :key="inp.external_id"
+                  class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-mono border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300"
+                >
+                  <span v-if="inp.sign === -1" class="text-red-500">−</span>
+                  {{ inp.external_id }} ({{ inp.source }})
+                </span>
+              </div>
+            </div>
+
             <div v-if="importError" class="rounded border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-3 text-sm text-red-600 dark:text-red-400">
               {{ importError }}
             </div>
@@ -62,6 +75,21 @@ const authReady = ref(false)
 const importing = ref(false)
 const importError = ref<string | null>(null)
 const importedSlug = ref<string | null>(null)
+
+const preview = computed(() => {
+  if (!token.value) return null
+  try {
+    const base64 = token.value.replace(/-/g, '+').replace(/_/g, '/')
+    return JSON.parse(atob(base64)) as {
+      name: string
+      description?: string
+      unit?: string
+      inputs: Array<{ external_id: string; source: string; sign: number }>
+    }
+  } catch {
+    return null
+  }
+})
 
 onMounted(() => { authReady.value = true })
 

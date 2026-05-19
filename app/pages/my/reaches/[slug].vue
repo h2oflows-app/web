@@ -13,7 +13,7 @@
         <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-x-mark" :to="'/my/reaches'" title="Close"><span class="hidden sm:inline">Close</span></UButton>
       </div>
       <div class="flex items-center gap-1.5 shrink-0">
-        <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-share" title="Share" @click="shareOpen = true"><span class="hidden sm:inline">Share</span></UButton>
+        <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-share" title="Share" @click="openShare()"><span class="hidden sm:inline">Share</span></UButton>
         <UButton size="xs" variant="ghost" color="error" icon="i-heroicons-trash" title="Delete" @click="confirmDelete"><span class="hidden sm:inline">Delete</span></UButton>
         <UButton size="xs" variant="outline" color="neutral" icon="i-heroicons-x-circle" :to="'/my/reaches'" title="Cancel"><span class="hidden sm:inline">Cancel</span></UButton>
         <UButton size="xs" :disabled="!form.name.trim()" :loading="saving" icon="i-heroicons-check" title="Save" @click="save"><span class="hidden sm:inline">Save</span></UButton>
@@ -174,7 +174,7 @@
               @click="repinGaugeSelectMode = false; repinComIDEditMode = 'up'"
             >
               <span class="w-2 h-2 rounded-full bg-green-500 shrink-0" />
-              Upstream<template v-if="repinUpComID"> · <span class="font-mono">{{ repinUpComID }}</span></template>
+              Put-In<template v-if="repinUpComID"> · <span class="font-mono">{{ repinUpComID }}</span></template>
             </button>
             <button
               class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors"
@@ -184,7 +184,7 @@
               @click="repinGaugeSelectMode = false; repinComIDEditMode = 'down'"
             >
               <span class="w-2 h-2 rounded-full bg-red-500 shrink-0" />
-              Downstream<template v-if="repinDownComID"> · <span class="font-mono">{{ repinDownComID }}</span></template>
+              Take-Out<template v-if="repinDownComID"> · <span class="font-mono">{{ repinDownComID }}</span></template>
             </button>
             <button
               class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors"
@@ -224,24 +224,65 @@
           <p v-if="repinGaugeSelectMode" class="text-xs text-amber-600 dark:text-amber-400">Click an amber dot on the map to assign a primary gauge.</p>
           <p v-if="repinFlowlinesLoading" class="text-xs text-primary-500 animate-pulse">Loading downstream mainstem…</p>
 
-          <!-- Footer: preview / revert / save -->
-          <div class="flex items-center gap-2 pt-1 flex-wrap">
+          <!-- Linked gauge -->
+          <div class="pt-2 border-t border-neutral-100 dark:border-neutral-800 space-y-1.5">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-xs text-neutral-500">Linked gauge</p>
+              <div class="relative">
+                <UButton
+                  v-if="!reach.custom_gauge_id && !reach.gauge_id"
+                  size="2xs" variant="outline" color="neutral"
+                  :loading="customGaugeSaving"
+                  @click="customGaugePickerOpen = !customGaugePickerOpen"
+                >
+                  Link custom gauge
+                </UButton>
+                <div
+                  v-if="customGaugePickerOpen && customGauges.length"
+                  class="absolute right-0 top-full mt-1 z-50 w-56 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg overflow-hidden"
+                >
+                  <button
+                    v-for="cg in customGauges"
+                    :key="cg.id"
+                    type="button"
+                    class="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-colors"
+                    @click="linkCustomGauge(cg)"
+                  >{{ cg.name }}</button>
+                </div>
+                <p v-if="customGaugePickerOpen && !customGauges.length" class="text-xs text-neutral-400">
+                  No custom gauges yet. <NuxtLink to="/my/gauges/new" class="text-primary-500 underline">Create one</NuxtLink>
+                </p>
+              </div>
+            </div>
+            <template v-if="reach.gauge_name">
+              <p class="text-sm text-neutral-700 dark:text-neutral-300">{{ reach.gauge_name }}</p>
+              <p v-if="reach.gauge_external_id" class="text-xs text-neutral-400 font-mono">
+                {{ reach.gauge_external_id }}<span v-if="reach.gauge_source" class="uppercase ml-1.5">{{ reach.gauge_source }}</span>
+              </p>
+            </template>
+            <template v-else-if="reach.custom_gauge_name">
+              <div class="flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="16" y2="14"/>
+                </svg>
+                <p class="text-sm text-neutral-700 dark:text-neutral-300">{{ reach.custom_gauge_name }}</p>
+              </div>
+              <NuxtLink
+                :to="customGauges.find(g => g.id === reach.custom_gauge_id)?.slug
+                  ? `/my/gauges/${customGauges.find(g => g.id === reach.custom_gauge_id)!.slug}`
+                  : '/my/gauges'"
+                class="text-xs text-primary-500 hover:underline"
+              >Edit formula →</NuxtLink>
+            </template>
+            <p v-else class="text-xs text-neutral-400 italic">None</p>
+          </div>
+
+          <!-- Status / revert -->
+          <div v-if="repinPreviewLoading || repinError || repinSuccess || repinFlowlinesDirty" class="flex items-center gap-2 pt-1 flex-wrap">
+            <span v-if="repinPreviewLoading" class="text-xs text-primary-500 animate-pulse">Computing centerline…</span>
             <span v-if="repinError" class="text-xs text-red-500">{{ repinError }}</span>
             <span v-if="repinSuccess" class="text-xs text-green-600 dark:text-green-400">{{ repinSuccess }}</span>
             <div class="flex-1" />
-            <button
-              v-if="reach.centerline && !repinFlowlinesDirty"
-              class="text-xs px-2 py-1 rounded-md font-medium text-red-500 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
-              @click="clearCenterline"
-            >Clear centerline</button>
-            <UButton
-              v-if="repinUpComID && repinDownComID"
-              size="xs"
-              variant="outline"
-              color="neutral"
-              :loading="repinPreviewLoading"
-              @click="previewCenterline"
-            >{{ repinPreviewCenterline ? 'Refresh preview' : 'Preview centerline' }}</UButton>
             <UButton
               v-if="repinFlowlinesDirty"
               size="xs"
@@ -249,12 +290,6 @@
               color="neutral"
               @click="revertComIDs"
             >Revert</UButton>
-            <UButton
-              size="xs"
-              :loading="repinSaving"
-              :disabled="!repinUpComID || !repinDownComID"
-              @click="saveFlowLines"
-            >Save flow lines</UButton>
           </div>
         </div>
 
@@ -283,67 +318,9 @@
 
           <div>
             <label class="block text-xs text-neutral-500 mb-1">Notes</label>
-            <textarea v-model="form.note" rows="3" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm resize-y" placeholder="Beta, access, hazards…" />
+            <textarea v-model="form.note" rows="3" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm resize-y" placeholder="Beta, access, permanent hazards…" />
           </div>
 
-          <!-- Gauge read-only display -->
-          <div class="pt-2 border-t border-neutral-100 dark:border-neutral-800 space-y-1.5">
-            <div class="flex items-center justify-between gap-2">
-              <p class="text-xs text-neutral-500">Linked gauge</p>
-              <div class="relative">
-                <UButton
-                  v-if="!reach.custom_gauge_id && !reach.gauge_id"
-                  size="2xs" variant="outline" color="neutral"
-                  :loading="customGaugeSaving"
-                  @click="customGaugePickerOpen = !customGaugePickerOpen"
-                >
-                  Link custom gauge
-                </UButton>
-                <!-- Custom gauge picker dropdown -->
-                <div
-                  v-if="customGaugePickerOpen && customGauges.length"
-                  class="absolute right-0 top-full mt-1 z-50 w-56 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg overflow-hidden"
-                >
-                  <button
-                    v-for="cg in customGauges"
-                    :key="cg.id"
-                    type="button"
-                    class="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-colors"
-                    @click="linkCustomGauge(cg)"
-                  >{{ cg.name }}</button>
-                </div>
-                <p v-if="customGaugePickerOpen && !customGauges.length" class="text-xs text-neutral-400">
-                  No custom gauges yet. <NuxtLink to="/my/gauges/new" class="text-primary-500 underline">Create one</NuxtLink>
-                </p>
-              </div>
-            </div>
-
-            <!-- Real gauge linked -->
-            <template v-if="reach.gauge_name">
-              <p class="text-sm text-neutral-700 dark:text-neutral-300">{{ reach.gauge_name }}</p>
-              <p v-if="reach.gauge_external_id" class="text-xs text-neutral-400 font-mono">
-                {{ reach.gauge_external_id }}<span v-if="reach.gauge_source" class="uppercase ml-1.5">{{ reach.gauge_source }}</span>
-              </p>
-            </template>
-
-            <!-- Custom gauge linked -->
-            <template v-else-if="reach.custom_gauge_name">
-              <div class="flex items-center gap-1.5">
-                <svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="16" y2="14"/>
-                </svg>
-                <p class="text-sm text-neutral-700 dark:text-neutral-300">{{ reach.custom_gauge_name }}</p>
-              </div>
-              <NuxtLink
-                :to="customGauges.find(g => g.id === reach.custom_gauge_id)?.slug
-                  ? `/my/gauges/${customGauges.find(g => g.id === reach.custom_gauge_id)!.slug}`
-                  : '/my/gauges'"
-                class="text-xs text-primary-500 hover:underline"
-              >Edit formula →</NuxtLink>
-            </template>
-
-            <p v-else class="text-xs text-neutral-400 italic">None</p>
-          </div>
         </div>
 
         <!-- Flow bands -->
@@ -422,26 +399,18 @@
     </template>
   </UModal>
 
-  <UModal v-model:open="shareOpen" title="Share reach">
-    <template #body>
-      <p class="text-xs text-neutral-500 mb-2">Copy this payload and paste it into the import dialog on another account.</p>
-      <textarea
-        readonly
-        rows="12"
-        class="w-full rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 px-3 py-2 text-xs font-mono resize-none focus:outline-none"
-        :value="sharePayload"
-        @click="($event.target as HTMLTextAreaElement).select()"
-      />
-      <div class="flex justify-end gap-2 mt-3">
-        <UButton size="xs" variant="outline" color="neutral" @click="shareOpen = false">Close</UButton>
-        <UButton size="xs" icon="i-heroicons-clipboard-document" @click="copyShare">{{ shareCopied ? 'Copied!' : 'Copy' }}</UButton>
-      </div>
-    </template>
-  </UModal>
+  <ShareLinkModal
+    :open="shareOpen"
+    title="Share reach"
+    :link="reachShareLink"
+    :json="sharePayload"
+    :loading="shareLoading"
+    @close="shareOpen = false; customGaugePayload = null"
+  />
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { flowBandLabel } from '~/utils/flowBand'
 
 definePageMeta({ ssr: false })
@@ -483,28 +452,12 @@ async function toggleDashboard(dashboardId: string) {
     const token = await getToken()
     if (!token) return
     const db = encodeURIComponent(dashboardId)
-    if (reach.value.gauge_id) {
-      await fetch(`${apiBase}/api/v1/watchlist/${reach.value.gauge_id}?reach_slug=${encodeURIComponent(slug.value)}&dashboard_id=${db}`, {
-        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {})
-    } else if (reach.value.custom_gauge_id) {
-      await fetch(`${apiBase}/api/v1/watchlist/${reach.value.custom_gauge_id}?kind=custom_gauge&reach_slug=${encodeURIComponent(slug.value)}&dashboard_id=${db}`, {
-        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {})
-    } else {
-      await fetch(`${apiBase}/api/v1/watchlist/${encodeURIComponent(slug.value)}?kind=reach&dashboard_id=${db}`, {
-        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {})
-    }
+    await fetch(`${apiBase}/api/v1/watchlist/${encodeURIComponent(slug.value)}?kind=reach&dashboard_id=${db}`, {
+      method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {})
     toast.add({ title: 'Removed from dashboard', color: 'neutral' })
   } else {
-    if (reach.value.gauge_id) {
-      await addUserReachToWatchlist(reach.value.gauge_id, slug.value, dashboardId)
-    } else if (reach.value.custom_gauge_id) {
-      await addCustomGaugeToWatchlist(reach.value.custom_gauge_id, dashboardId, slug.value)
-    } else {
-      await addReachToWatchlist(slug.value, dashboardId)
-    }
+    await addReachToWatchlist(slug.value, dashboardId)
     // Clear the per-dashboard localStorage hidden flag so a previously-trashed
     // reach becomes visible again without needing a manual dashboard refresh.
     if (import.meta.client && reach.value.id) {
@@ -610,7 +563,6 @@ const repinEndLng          = ref<number | null>(null)
 const repinFlowlinesDirty  = ref(false)
 const repinPreviewCenterline = ref<object | null>(null)
 const repinPreviewLoading  = ref(false)
-const repinSaving          = ref(false)
 const repinError           = ref('')
 const repinSuccess         = ref('')
 
@@ -627,8 +579,9 @@ const customGauges           = ref<CustomGaugeSummary[]>([])
 const customGaugePickerOpen  = ref(false)
 const customGaugeSaving      = ref(false)
 
-const shareOpen   = ref(false)
-const shareCopied = ref(false)
+const shareOpen           = ref(false)
+const shareLoading        = ref(false)
+const customGaugePayload  = ref<object | null>(null)
 
 // ── River confirmation banner ──────────────────────────────────────────────────
 
@@ -718,14 +671,45 @@ const sharePayload = computed(() => {
       high:    { min_value: fr.high.min,   max_value: null           },
     },
   }
+  if (customGaugePayload.value) {
+    payload.custom_gauge = customGaugePayload.value
+  } else if (r.gauge_external_id && r.gauge_source) {
+    payload.gauge_external_id = r.gauge_external_id
+    payload.gauge_source = r.gauge_source
+  }
   return JSON.stringify(payload, null, 2)
 })
 
-async function copyShare() {
-  if (!sharePayload.value) return
-  await navigator.clipboard.writeText(sharePayload.value)
-  shareCopied.value = true
-  setTimeout(() => { shareCopied.value = false }, 2000)
+const reachShareLink = computed(() => {
+  if (!sharePayload.value || !import.meta.client) return ''
+  try {
+    // btoa requires Latin1 — encode through URI escaping to handle any Unicode in notes/names
+    const latin1 = unescape(encodeURIComponent(sharePayload.value))
+    const token = btoa(latin1).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+    return `${window.location.origin}/import/reach?token=${token}`
+  } catch {
+    return ''
+  }
+})
+
+async function openShare() {
+  customGaugePayload.value = null
+  shareOpen.value          = true
+  const r = reach.value
+  if (!r?.custom_gauge_id) return
+  const cg = customGauges.value.find(g => g.id === r.custom_gauge_id)
+  if (!cg?.slug) return
+  shareLoading.value = true
+  try {
+    const headers = await authHeaders()
+    const res = await fetch(`${apiBase}/api/v1/me/custom-gauges/${cg.slug}/share`, { headers })
+    if (!res.ok) return
+    const { token } = await res.json()
+    // server uses standard base64url (with padding); decode to get gauge definition
+    const base64 = token.replace(/-/g, '+').replace(/_/g, '/')
+    customGaugePayload.value = JSON.parse(atob(base64))
+  } catch { /* non-fatal — share still works, gauge just won't auto-link */ }
+  finally { shareLoading.value = false }
 }
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
@@ -890,57 +874,6 @@ async function previewCenterline() {
   finally { repinPreviewLoading.value = false }
 }
 
-async function saveFlowLines() {
-  if (!repinUpComID.value || !repinDownComID.value) return
-  repinError.value   = ''
-  repinSuccess.value = ''
-  repinSaving.value  = true
-  try {
-    if (!repinPreviewCenterline.value) {
-      await previewCenterline()
-      if (!repinPreviewCenterline.value) { repinError.value = 'Preview failed — try "Preview centerline" first.'; return }
-    }
-    const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) }
-    const putIn   = repinPutInPin.value
-    const takeOut = repinTakeOutPin.value
-    const patchRes = await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}`, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify({
-        put_in:     putIn   ? { lat: putIn.lat,   lng: putIn.lng   } : undefined,
-        take_out:   takeOut ? { lat: takeOut.lat, lng: takeOut.lng } : undefined,
-        up_comid:   repinUpComID.value,
-        down_comid: repinDownComID.value,
-      }),
-    })
-    if (!patchRes.ok) { repinError.value = `Save failed: HTTP ${patchRes.status}`; return }
-
-    const clRes = await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}/centerline`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ geojson: repinPreviewCenterline.value }),
-    })
-    if (!clRes.ok) { repinError.value = `Centerline save failed: HTTP ${clRes.status}`; return }
-
-    repinOrigUpComID.value   = repinUpComID.value
-    repinOrigDownComID.value = repinDownComID.value
-    repinFlowlinesDirty.value = false
-    repinSuccess.value = 'Flow lines saved'
-    await load()
-  } finally {
-    repinSaving.value = false
-  }
-}
-
-async function clearCenterline() {
-  if (!confirm('Clear the centerline? This cannot be undone.')) return
-  try {
-    const headers = await authHeaders()
-    await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}/centerline`, { method: 'DELETE', headers })
-    resetGeometryState()
-    await load()
-  } catch { /* non-fatal */ }
-}
 
 // ── Gauge handlers ────────────────────────────────────────────────────────────
 
@@ -1056,6 +989,13 @@ async function load() {
   }
 }
 
+// Auto-preview centerline whenever both ComIDs are set by user interaction (dirty state tracks user changes)
+watch([repinUpComID, repinDownComID], async ([up, down]) => {
+  if (!up || !down || !repinFlowlinesDirty.value) return
+  repinPreviewCenterline.value = null
+  await previewCenterline()
+})
+
 onMounted(() => { load(); loadCustomGauges(); loadReachDashboards() })
 
 // ── Save metadata + flow bands ────────────────────────────────────────────────
@@ -1067,16 +1007,48 @@ async function save() {
   try {
     const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) }
 
+    // Auto-preview centerline if flow lines changed and preview not yet computed
+    if (repinFlowlinesDirty.value && repinUpComID.value && repinDownComID.value && !repinPreviewCenterline.value) {
+      await previewCenterline()
+      if (!repinPreviewCenterline.value) {
+        saveError.value = 'Centerline preview failed — ensure Put-In and Take-Out are on the same river.'
+        return
+      }
+    }
+
+    // Build combined patch: metadata + flow lines if dirty
+    const patchBody: Record<string, unknown> = {
+      name:       form.value.name.trim(),
+      river_name: form.value.riverName.trim() || null,
+      note:       form.value.note.trim()      || null,
+      gnis_id:    nldiGnisId.value ?? undefined,
+    }
+    if (repinFlowlinesDirty.value && repinUpComID.value && repinDownComID.value) {
+      const putIn   = repinPutInPin.value
+      const takeOut = repinTakeOutPin.value
+      if (putIn)   patchBody.put_in    = { lat: putIn.lat,   lng: putIn.lng   }
+      if (takeOut) patchBody.take_out  = { lat: takeOut.lat, lng: takeOut.lng }
+      patchBody.up_comid   = repinUpComID.value
+      patchBody.down_comid = repinDownComID.value
+    }
+
     const patchRes = await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}`, {
       method: 'PATCH', headers,
-      body: JSON.stringify({
-        name:       form.value.name.trim(),
-        river_name: form.value.riverName.trim() || null,
-        note:       form.value.note.trim()      || null,
-        gnis_id:    nldiGnisId.value ?? undefined,
-      }),
+      body: JSON.stringify(patchBody),
     })
     if (!patchRes.ok) throw new Error(`Save failed: ${patchRes.status}`)
+
+    // Persist centerline if dirty
+    if (repinFlowlinesDirty.value && repinPreviewCenterline.value) {
+      const clRes = await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}/centerline`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ geojson: repinPreviewCenterline.value }),
+      })
+      if (!clRes.ok) throw new Error(`Centerline save failed: ${clRes.status}`)
+      repinOrigUpComID.value    = repinUpComID.value
+      repinOrigDownComID.value  = repinDownComID.value
+      repinFlowlinesDirty.value = false
+    }
 
     const r = form.value.ranges
     await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}/flow-ranges`, {
