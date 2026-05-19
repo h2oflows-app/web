@@ -77,13 +77,15 @@ function itemLabel(g: WatchedGauge): string {
     ?? `${g.source.toUpperCase()}-${g.externalId}`
 }
 
+// Payload deliberately excludes labels — recipient fetches gauge metadata
+// (including names) from /api/v1/gauges/batch on the share page. Including
+// labels here bloats the URL beyond Netlify's 414 limit for large watchlists.
 const payload = computed(() => ({
   v: 1,
   items: props.gauges.map(g => ({
     t: 'g' as const,
     id: g.id,
     rs: g.contextReachSlug ?? null,
-    l: itemLabel(g),
   })),
 }))
 
