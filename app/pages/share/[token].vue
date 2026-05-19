@@ -30,7 +30,7 @@
           </p>
         </div>
 
-        <!-- Item list -->
+        <!-- Item list with live readings -->
         <div class="rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden divide-y divide-neutral-100 dark:divide-neutral-800">
           <div
             v-for="item in payload.items"
@@ -40,7 +40,18 @@
             <svg class="w-4 h-4 text-neutral-400 dark:text-neutral-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Gauge">
               <path d="M12 14a2 2 0 100-4 2 2 0 000 4z"/><path d="M12 12l4-4"/><path d="M3 12a9 9 0 0118 0"/>
             </svg>
-            <span class="text-sm text-neutral-700 dark:text-neutral-200">{{ item.l }}</span>
+            <span class="flex-1 min-w-0 truncate text-sm text-neutral-700 dark:text-neutral-200">{{ item.l }}</span>
+            <template v-if="readingsFetchDone">
+              <span v-if="reading(item)?.current_cfs != null" class="text-sm font-semibold tabular-nums" :style="{ color: bandColor(reading(item)) }">
+                {{ Math.round(reading(item)!.current_cfs!).toLocaleString() }}
+                <span class="text-xs font-normal text-neutral-400">cfs</span>
+              </span>
+              <span v-else class="text-xs text-neutral-400">—</span>
+              <span v-if="reading(item)?.flow_band_label" class="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded font-semibold" :style="{ color: bandColor(reading(item)), backgroundColor: bandBgColor(reading(item)) }">
+                {{ reading(item)!.flow_band_label }}
+              </span>
+            </template>
+            <span v-else class="w-3 h-3 rounded-full border-2 border-neutral-300 border-t-transparent animate-spin" />
           </div>
         </div>
 
@@ -120,7 +131,76 @@ const importing = ref(false)
 const imported = ref(false)
 const importError = ref('')
 
-onMounted(() => {
+// Live readings fetched from the batch endpoint
+interface BatchReading {
+  id: string
+  context_reach_slug: string | null
+  current_cfs: number | null
+  flow_status: string
+  flow_band_label: string | null
+}
+const readings = ref<BatchReading[]>([])
+const readingsFetchDone = ref(false)
+
+function readingKey(id: string, rs: string | null): string {
+  return id + '|' + (rs ?? '')
+}
+const readingMap = computed(() => {
+  const m = new Map<string, BatchReading>()
+  for (const r of readings.value) {
+    m.set(readingKey(r.id, r.context_reach_slug), r)
+  }
+  return m
+})
+
+function reading(item: ShareItem): BatchReading | undefined {
+  // Exact match by (gauge id, reach slug); fall back to gauge-only match if reach context not present.
+  return readingMap.value.get(readingKey(item.id, item.rs))
+      ?? readingMap.value.get(readingKey(item.id, null))
+}
+
+function bandColor(r: BatchReading | undefined): string {
+  if (!r) return '#94a3b8'
+  switch (r.flow_status) {
+    case 'runnable': return '#22c55e'
+    case 'caution':  return '#ef4444'
+    case 'flood':    return '#3b82f6'
+    default:         return '#94a3b8'
+  }
+}
+
+function bandBgColor(r: BatchReading | undefined): string {
+  if (!r) return 'transparent'
+  switch (r.flow_status) {
+    case 'runnable': return 'rgba(34,197,94,0.12)'
+    case 'caution':  return 'rgba(239,68,68,0.12)'
+    case 'flood':    return 'rgba(59,130,246,0.12)'
+    default:         return 'transparent'
+  }
+}
+
+async function fetchReadings() {
+  if (!payload.value) return
+  // POST is preferred for large lists — avoids URL length limits.
+  const ids = payload.value.items.map(it => it.rs ? `${it.id}:${it.rs}` : it.id)
+  try {
+    const res = await fetch(`${apiBase}/api/v1/gauges/batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    })
+    if (res.ok) {
+      const data = await res.json() as { features?: { properties: BatchReading }[] }
+      readings.value = (data.features ?? []).map(f => f.properties)
+    }
+  } catch {
+    // best-effort; missing readings render as "—"
+  } finally {
+    readingsFetchDone.value = true
+  }
+}
+
+onMounted(async () => {
   const raw = route.params.token as string
   try {
     const pad = raw.replace(/-/g, '+').replace(/_/g, '/')
@@ -135,6 +215,9 @@ onMounted(() => {
     // invalid token — payload stays null
   }
   loading.value = false
+  if (payload.value) {
+    await fetchReadings()
+  }
 })
 
 async function importAll() {
