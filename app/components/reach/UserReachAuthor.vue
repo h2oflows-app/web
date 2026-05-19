@@ -3,7 +3,7 @@
     <!-- Step 1: pick anchor -->
     <template v-if="!anchorSnap && !anchorSnapping">
       <div class="mb-3 rounded-lg bg-primary-50 dark:bg-primary-950/60 border border-primary-200 dark:border-primary-800 px-3 py-2.5 text-xs text-primary-800 dark:text-primary-200">
-        <span class="font-medium">Tap the river on the map</span> near the reach start point. We'll snap to the nearest NHD flowline.
+        <span class="font-medium">Click river closest to put-in.</span> We'll snap to the nearest NHD flowline.
       </div>
     </template>
     <template v-else-if="anchorSnapping">
@@ -23,12 +23,9 @@
       </div>
     </template>
 
-    <!-- Step 2: guide text for ComID selection -->
-    <div v-if="anchorSnap && !upComID && !gaugeSelectMode" class="mb-3 rounded-lg bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700 px-3 py-2 text-xs text-neutral-600 dark:text-neutral-300">
-      Click the <strong>put-in</strong> flowline segment on the map.
-    </div>
-    <div v-else-if="upComID && !downComID && !gaugeSelectMode" class="mb-3 rounded-lg bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700 px-3 py-2 text-xs text-neutral-600 dark:text-neutral-300">
-      Now click the <strong>take-out</strong> flowline segment.
+    <!-- Step 2: guide text for take-out selection -->
+    <div v-if="upComID && !downComID && !gaugeSelectMode" class="mb-3 rounded-lg bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700 px-3 py-2 text-xs text-neutral-600 dark:text-neutral-300">
+      Put-in set — now click the <strong>take-out</strong> flowline segment on the map.
     </div>
 
     <!-- ComID + gauge slot selector -->
@@ -93,12 +90,10 @@
     </ClientOnly>
     <p v-if="downstreamLoading" class="text-xs text-primary-500 dark:text-primary-400 mt-1 animate-pulse">Loading downstream mainstem…</p>
 
-    <!-- Preview centerline controls -->
-    <div v-if="upComID && downComID" class="flex items-center gap-2 mt-1 flex-wrap">
-      <UButton size="xs" variant="outline" color="neutral" :loading="previewLoading" @click="fetchPreviewCenterline">
-        {{ previewCenterline ? 'Refresh preview' : 'Preview centerline' }}
-      </UButton>
-      <span v-if="previewCenterline" class="text-xs text-primary-600 dark:text-primary-400">Dashed line shows trimmed reach</span>
+    <!-- Centerline status -->
+    <div v-if="upComID && downComID" class="flex items-center gap-2 mt-1">
+      <span v-if="previewLoading" class="text-xs text-primary-500 animate-pulse">Computing centerline…</span>
+      <span v-else-if="previewCenterline" class="text-xs text-primary-600 dark:text-primary-400">Dashed line shows trimmed reach</span>
       <span v-if="riverNameFetching" class="text-xs text-neutral-400 animate-pulse">Looking up river…</span>
     </div>
 
@@ -336,6 +331,11 @@ async function onAnchorPick(lat: number, lng: number) {
     if (data.snap.name) {
       form.value.riverName = data.snap.name
     }
+    // One-click put-in: anchor snap IS the put-in point
+    upComID.value    = data.snap.comid
+    startLat.value   = lat
+    startLng.value   = lng
+    comIDSlot.value  = 'down'
     // Fetch nearby gauges immediately so they're ready on the map.
     fetchNearbyGauges(lat, lng, data.snap.comid)
   } catch (e: any) {
