@@ -179,27 +179,28 @@
         </div>
 
       </form>
-    </main>
 
-    <!-- Live card preview -->
-    <div v-if="profileHandle || form.content" class="mt-2">
-      <p class="text-xs font-semibold uppercase tracking-wide text-neutral-400 dark:text-neutral-500 mb-2">Card preview</p>
-      <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-        <div class="px-4 py-3 space-y-1">
-          <div class="flex items-start justify-between gap-2">
-            <span class="text-sm font-medium text-neutral-800 dark:text-neutral-100">{{ profileHandle || 'your_handle' }}</span>
-            <span class="text-xs text-neutral-400 shrink-0">{{ formatPreviewDate(form.report_date) }}</span>
-          </div>
-          <p class="text-sm text-neutral-600 dark:text-neutral-400 line-clamp-3 leading-relaxed min-h-5">
-            {{ extractPreview(form.content) || 'Your report will appear here…' }}
-          </p>
-          <div class="flex items-center gap-2 pt-0.5">
-            <span class="text-xs text-neutral-400 italic">flow recorded at submit</span>
-            <span v-if="form.paddled" class="text-xs text-primary-500 dark:text-primary-400">• paddled</span>
+      <!-- Live card preview -->
+      <div v-if="profileHandle || form.content" class="mt-2">
+        <p class="text-xs font-semibold uppercase tracking-wide text-neutral-400 dark:text-neutral-500 mb-2">Card preview</p>
+        <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+          <div class="px-4 py-3 space-y-1">
+            <div class="flex items-start justify-between gap-2">
+              <span class="text-sm font-medium text-neutral-800 dark:text-neutral-100">{{ profileHandle || 'your_handle' }}</span>
+              <span class="text-xs text-neutral-400 shrink-0">{{ formatPreviewDate(form.report_date) }}</span>
+            </div>
+            <p class="text-sm text-neutral-600 dark:text-neutral-400 line-clamp-3 leading-relaxed min-h-5">
+              {{ extractPreview(form.content) || 'Your report will appear here…' }}
+            </p>
+            <div class="flex items-center gap-2 pt-0.5">
+              <span class="text-xs text-neutral-400 italic">flow recorded at submit</span>
+              <span v-if="form.paddled" class="text-xs text-primary-500 dark:text-primary-400">• paddled</span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+    </main>
 
   </div>
 
