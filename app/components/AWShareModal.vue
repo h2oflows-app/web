@@ -8,132 +8,125 @@
       >
         <div class="absolute inset-0 bg-black/50" @click="$emit('close')" />
 
-        <div class="relative w-full max-w-sm bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-700 shadow-xl overflow-hidden">
+        <div class="relative w-full max-w-lg bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-700 shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
           <!-- Header -->
-          <div class="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800">
-            <h2 class="text-sm font-semibold text-neutral-900 dark:text-white">Share to American Whitewater</h2>
+          <div class="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-800 shrink-0">
+            <div class="flex items-center gap-2">
+              <button
+                v-if="showPreview"
+                class="p-1 rounded-md text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+                @click="showPreview = false"
+              >
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+              </button>
+              <h2 class="text-sm font-semibold text-neutral-900 dark:text-white">
+                {{ showPreview ? 'HTTP request preview' : 'Post to American Whitewater' }}
+              </h2>
+            </div>
             <button class="p-1 rounded-md text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200" @click="$emit('close')">
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
 
-          <!-- Band mapping setup (first time) -->
-          <div v-if="!mappingReady" class="px-5 py-4 space-y-4">
-            <p class="text-sm text-neutral-600 dark:text-neutral-400">
-              AW uses 5 flow levels. Map your H2OFlows flow bands to AW levels once — we'll remember it.
-            </p>
-
-            <div class="space-y-3">
-              <div v-for="band in ['low', 'running', 'high'] as const" :key="band" class="flex items-center justify-between gap-3">
-                <div class="flex items-center gap-2">
-                  <span class="w-2 h-2 rounded-full shrink-0" :class="bandDotClass(band)" />
-                  <span class="text-sm font-medium text-neutral-700 dark:text-neutral-200 capitalize">{{ band }}</span>
-                </div>
-                <select
-                  v-model="mapping[band]"
-                  class="text-xs rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 px-2 py-1"
-                >
-                  <option v-for="opt in awOptions[band]" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                </select>
-              </div>
+          <!-- Form view -->
+          <div v-if="!showPreview" class="px-5 py-4 space-y-4 overflow-y-auto flex-1">
+            <!-- Title -->
+            <div>
+              <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Title</label>
+              <input
+                v-model="form.title"
+                type="text"
+                placeholder="Trip report title"
+                class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
             </div>
 
-            <button
-              class="w-full py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors"
-              :disabled="savingMapping"
-              @click="saveMapping"
-            >
-              {{ savingMapping ? 'Saving…' : 'Save & continue' }}
-            </button>
-            <p v-if="mappingError" class="text-xs text-red-600 dark:text-red-400 text-center">{{ mappingError }}</p>
+            <!-- Date -->
+            <div>
+              <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Date</label>
+              <input
+                v-model="form.date"
+                type="date"
+                class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+
+            <!-- Describe the flow -->
+            <div>
+              <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Describe the flow</label>
+              <select
+                v-model="form.flowLevel"
+                class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="">Select a level…</option>
+                <option v-for="l in AW_FLOW_LEVELS" :key="l.value" :value="l.value">{{ l.label }}</option>
+              </select>
+            </div>
+
+            <!-- Report detail -->
+            <div>
+              <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Report detail</label>
+              <MarkdownEditor
+                v-model="form.content"
+                :rows="5"
+                placeholder="Describe conditions, flow, any notable observations…"
+              />
+            </div>
+
+            <!-- Photos stub -->
+            <div>
+              <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                Photos <span class="font-normal text-neutral-400">(coming soon)</span>
+              </label>
+              <div class="flex items-center gap-2 rounded-lg border border-dashed border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50 px-4 py-3 text-sm text-neutral-400">
+                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                Photo upload not yet available
+              </div>
+            </div>
           </div>
 
-          <!-- Cross-post panel -->
-          <div v-else class="px-5 py-4 space-y-4">
-            <!-- Tab switcher -->
-            <div class="flex rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-700 text-xs font-medium">
-              <button
-                class="flex-1 py-1.5 transition-colors"
-                :class="activeTab === 'copy' ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-100' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
-                @click="activeTab = 'copy'"
-              >Copy to journal</button>
-              <button
-                class="flex-1 py-1.5 transition-colors border-l border-neutral-200 dark:border-neutral-700"
-                :class="activeTab === 'api' ? 'bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-100' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
-                @click="activeTab = 'api'"
-              >API preview</button>
+          <!-- API preview view -->
+          <div v-else class="px-5 py-4 space-y-4 overflow-y-auto flex-1">
+            <div class="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+              AW doesn't offer a public API yet. This is what H2OFlows would submit on your behalf if they did.
             </div>
 
-            <!-- Copy to journal tab -->
-            <template v-if="activeTab === 'copy'">
-              <div class="rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 p-3">
-                <p class="text-xs text-neutral-500 dark:text-neutral-400 mb-2 font-medium uppercase tracking-wide">Copy to AW journal</p>
-                <p class="text-sm text-neutral-700 dark:text-neutral-200 leading-relaxed whitespace-pre-wrap">{{ awText }}</p>
+            <div class="rounded-lg bg-neutral-900 dark:bg-neutral-950 border border-neutral-700 overflow-hidden">
+              <div class="flex items-center justify-between px-3 py-1.5 border-b border-neutral-700">
+                <span class="text-[10px] font-mono text-neutral-500 uppercase tracking-wide">HTTP Request</span>
+                <button
+                  class="text-[10px] font-mono text-neutral-400 hover:text-neutral-200 transition-colors"
+                  @click="copyApiJson"
+                >{{ apiJsonCopied ? 'Copied!' : 'Copy JSON' }}</button>
               </div>
-
-              <button
-                class="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-                @click="copyAWText"
-              >
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                {{ textCopied ? 'Copied!' : 'Copy text' }}
-              </button>
-
-              <a
-                href="https://www.americanwhitewater.org/content/Journal/"
-                target="_blank"
-                rel="noopener"
-                class="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors"
-              >
-                Open AW journal
-                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-              </a>
-
-              <div class="border-t border-neutral-100 dark:border-neutral-800" />
-
-              <button
-                v-if="!synced"
-                class="w-full py-2 rounded-lg border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-sm font-medium hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
-                :disabled="syncing"
-                @click="markPosted"
-              >
-                {{ syncing ? 'Marking…' : 'I posted it ✓' }}
-              </button>
-              <div v-else class="text-center text-sm text-emerald-600 dark:text-emerald-400 font-medium">
-                Marked as posted on AW
-              </div>
-            </template>
-
-            <!-- API preview tab -->
-            <template v-else>
-              <div class="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-                AW doesn't offer a public API yet. This is what H2OFlows would submit on your behalf if they did.
-              </div>
-
-              <div class="rounded-lg bg-neutral-900 dark:bg-neutral-950 border border-neutral-700 overflow-hidden">
-                <div class="flex items-center justify-between px-3 py-1.5 border-b border-neutral-700">
-                  <span class="text-[10px] font-mono text-neutral-500 uppercase tracking-wide">HTTP Request</span>
-                  <button
-                    class="text-[10px] font-mono text-neutral-400 hover:text-neutral-200 transition-colors"
-                    @click="copyApiJson"
-                  >{{ apiJsonCopied ? 'Copied!' : 'Copy JSON' }}</button>
-                </div>
-                <pre class="text-[11px] font-mono text-neutral-300 p-3 overflow-x-auto leading-relaxed"><span class="text-emerald-400">POST</span> <span class="text-sky-300">https://www.americanwhitewater.org/api/journal</span>
+              <pre class="text-[11px] font-mono text-neutral-300 p-3 overflow-x-auto leading-relaxed"><span class="text-emerald-400">POST</span> <span class="text-sky-300">https://www.americanwhitewater.org/api/journal</span>
 <span class="text-neutral-500">Content-Type: application/json</span>
 
 {{ apiPreviewJson }}</pre>
-              </div>
+            </div>
 
-              <p class="text-[10px] text-neutral-400 dark:text-neutral-500 text-center">
-                Field names verified from AW's live form · endpoint approximate
-              </p>
-            </template>
+            <p class="text-[10px] text-neutral-400 dark:text-neutral-500 text-center">
+              Field names verified from AW's live form · endpoint approximate
+            </p>
+          </div>
 
-            <button
-              class="w-full text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
-              @click="mappingReady = false"
+          <!-- Footer -->
+          <div class="px-5 py-4 border-t border-neutral-100 dark:border-neutral-800 flex items-center gap-3 shrink-0">
+            <a
+              href="https://www.americanwhitewater.org/user/my-trip-reports"
+              target="_blank"
+              rel="noopener"
+              class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
             >
-              Change flow band mapping
+              Go to my AW Trip Reports
+              <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </a>
+            <button
+              v-if="!showPreview"
+              class="flex-1 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors"
+              @click="showPreview = true"
+            >
+              Post Trip Report
             </button>
           </div>
         </div>
@@ -159,30 +152,15 @@ interface Report {
 }
 
 const props = defineProps<{ report: Report; open: boolean }>()
-const emit = defineEmits<{ close: []; synced: [] }>()
+defineEmits<{ close: []; synced: [] }>()
 
-const config = useRuntimeConfig()
-const { getToken } = useAuth()
-
-const awOptions = {
-  low:     [{ value: 'too-low', label: 'Too low' },  { value: 'low',    label: 'Low'    }],
-  running: [{ value: 'low',    label: 'Low'    },    { value: 'medium', label: 'Medium' }, { value: 'high', label: 'High' }],
-  high:    [{ value: 'high',   label: 'High'   },    { value: 'too-high', label: 'Too high' }],
-}
-
-const mapping = reactive<Record<string, string>>({
-  low:     'too-low',
-  running: 'medium',
-  high:    'too-high',
-})
-const mappingReady = ref(false)
-const savingMapping = ref(false)
-const mappingError = ref('')
-const textCopied = ref(false)
-const syncing = ref(false)
-const synced = ref(false)
-const activeTab = ref<'copy' | 'api'>('copy')
-const apiJsonCopied = ref(false)
+const AW_FLOW_LEVELS = [
+  { value: 'too-low', label: 'Too Low' },
+  { value: 'low',     label: 'Low' },
+  { value: 'medium',  label: 'Medium' },
+  { value: 'high',    label: 'High' },
+  { value: 'too-high', label: 'Too High' },
+]
 
 const awObservationNumeric: Record<string, number> = {
   'too-low':  -1,
@@ -192,86 +170,32 @@ const awObservationNumeric: Record<string, number> = {
   'too-high':  1.5,
 }
 
-onMounted(async () => {
-  synced.value = !!props.report.aw_synced_at
-  const token = await getToken()
-  if (!token) return
-  try {
-    const res = await fetch(`${config.public.apiBase}/api/v1/me/preferences`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (res.ok) {
-      const prefs = await res.json() as { aw_band_mapping: Record<string, string> | null }
-      if (prefs.aw_band_mapping) {
-        Object.assign(mapping, prefs.aw_band_mapping)
-        mappingReady.value = true
-      }
-    }
-  } catch {
-    // no prefs yet — show mapping setup
-  }
+const showPreview = ref(false)
+const apiJsonCopied = ref(false)
+
+const form = reactive({
+  title:     props.report.name,
+  date:      props.report.report_date,
+  flowLevel: '',
+  content:   props.report.content,
 })
 
-async function saveMapping() {
-  mappingError.value = ''
-  savingMapping.value = true
-  const token = await getToken()
-  if (!token) {
-    // Not logged in — advance locally without persisting
-    mappingReady.value = true
-    savingMapping.value = false
-    return
-  }
-  try {
-    const res = await fetch(`${config.public.apiBase}/api/v1/me/preferences`, {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ aw_band_mapping: mapping }),
-    })
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
-      mappingError.value = (data as any).error ?? `Save failed (${res.status})`
-      return
-    }
-    mappingReady.value = true
-  } catch {
-    mappingError.value = 'Network error — try again'
-  } finally {
-    savingMapping.value = false
-  }
-}
-
-const awBandLabel = computed(() => {
-  if (!props.report.flow_band) return ''
-  return mapping[props.report.flow_band] ?? props.report.flow_band
+// Reset form and view when modal opens with a new report
+watch(() => props.report, (r) => {
+  form.title     = r.name
+  form.date      = r.report_date
+  form.content   = r.content
+  form.flowLevel = ''
+  showPreview.value = false
 })
-
-const awText = computed(() => {
-  const lines: string[] = []
-  lines.push(props.report.name)
-  lines.push(`${props.report.reach_name} — ${props.report.report_date}`)
-  if (props.report.flow_cfs != null) {
-    lines.push(`Flow: ${Math.round(props.report.flow_cfs).toLocaleString()} cfs (${awBandLabel.value})`)
-  }
-  if (props.report.paddled) lines.push('Paddled this reach')
-  lines.push('')
-  lines.push(props.report.content)
-  return lines.join('\n')
-})
-
-async function copyAWText() {
-  await navigator.clipboard.writeText(awText.value)
-  textCopied.value = true
-  setTimeout(() => { textCopied.value = false }, 2000)
-}
 
 const apiPreviewBody = computed(() => {
   const body: Record<string, unknown> = {
-    title:       props.report.name,
-    postDate:    props.report.report_date,
-    observation: awObservationNumeric[awBandLabel.value] ?? null,
-    body:        props.report.content,
+    title:    form.title,
+    postDate: form.date,
+    body:     form.content,
   }
+  if (form.flowLevel) body.observation = awObservationNumeric[form.flowLevel] ?? null
   if (props.report.flow_cfs != null) body.gage_reading = Math.round(props.report.flow_cfs)
   return body
 })
@@ -282,27 +206,6 @@ async function copyApiJson() {
   await navigator.clipboard.writeText(apiPreviewJson.value)
   apiJsonCopied.value = true
   setTimeout(() => { apiJsonCopied.value = false }, 2000)
-}
-
-async function markPosted() {
-  syncing.value = true
-  const token = await getToken()
-  try {
-    await fetch(`${config.public.apiBase}/api/v1/me/reports/${props.report.slug}/aw-sync`, {
-      method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-    synced.value = true
-    emit('synced')
-  } finally {
-    syncing.value = false
-  }
-}
-
-function bandDotClass(band: string): string {
-  if (band === 'low') return 'bg-sky-500'
-  if (band === 'running') return 'bg-emerald-500'
-  return 'bg-amber-500'
 }
 </script>
 
