@@ -115,7 +115,11 @@ watch(payload, async (p) => {
 }, { immediate: true })
 
 const shareUrl = computed(() => {
-  const base = (config.public as any).appUrl ?? 'https://h2oflows.app'
+  // Prefer current origin so share URLs generated from deploy previews point
+  // back at the same deploy. Prod requests fall back to the configured app URL.
+  const base = typeof window !== 'undefined'
+    ? window.location.origin
+    : ((config.public as any).appUrl ?? 'https://h2oflows.app')
   return token.value ? `${base}/share/${token.value}` : ''
 })
 
