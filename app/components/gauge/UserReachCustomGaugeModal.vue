@@ -70,26 +70,6 @@
           </div>
         </div>
 
-        <!-- Diurnal cycle banners — hoisted from input gauges to the top of the modal -->
-        <div
-          v-for="inp in inputsWithDiurnal"
-          :key="`d-${inp.gauge_id}`"
-          class="flex items-start gap-2 rounded-lg px-3 py-2 text-xs bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300"
-        >
-          <span class="text-base shrink-0 leading-tight">🌡</span>
-          <span class="min-w-0">
-            <strong>{{ inp.gauge_name }}</strong> diurnal cycle —
-            {{ diurnalPhaseLabel(inp.diurnal!) }}
-            <template v-if="inp.diurnal!.estimatedPeakHour != null">
-              · Est. peak {{ formatHour(inp.diurnal!.estimatedPeakHour) }}
-              (~{{ inp.diurnal!.peakCfs?.toLocaleString() }} cfs)
-            </template>
-            <template v-if="inp.diurnal!.swingPct != null">
-              · {{ inp.diurnal!.swingPct }}% daily swing
-            </template>
-          </span>
-        </div>
-
         <!-- Main custom gauge chart -->
         <div class="relative w-full overflow-hidden" style="height:240px">
           <div ref="container" class="w-full h-full" />
@@ -122,11 +102,9 @@
                 <GaugeGraph
                   :gauge-id="inp.gauge_id"
                   no-ranges
-                  hide-diurnal
                   :color="inp.sign >= 0 ? '#10b981' : '#f87171'"
                   :height="130"
                   :controlled-hours="hours"
-                  @diurnal="(d) => onInputDiurnal(inp.gauge_id, d)"
                 />
               </div>
             </div>
@@ -139,11 +117,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onUnmounted, onMounted } from 'vue'
+import { ref, watch, nextTick, onUnmounted, onMounted } from 'vue'
 import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
 import { flowBandLabel } from '~/utils/flowBand'
-import type { DiurnalPattern } from '~/composables/useDiurnalPattern'
 
 const { bandBadgeClass } = useFlowBandPalette()
 
@@ -177,37 +154,6 @@ interface InputGauge {
   sign: number
 }
 const inputs = ref<InputGauge[]>([])
-
-// Per-input-gauge diurnal data hoisted from child GaugeGraphs so banners
-// can render at the top of the modal instead of below each chart.
-const inputDiurnals = ref(new Map<string, DiurnalPattern>())
-
-function onInputDiurnal(gaugeId: string, d: DiurnalPattern) {
-  if (d.detected) inputDiurnals.value.set(gaugeId, d)
-  else inputDiurnals.value.delete(gaugeId)
-}
-
-const inputsWithDiurnal = computed(() =>
-  inputs.value
-    .map(inp => ({ ...inp, diurnal: inputDiurnals.value.get(inp.gauge_id) ?? null }))
-    .filter(inp => inp.diurnal?.detected),
-)
-
-function diurnalPhaseLabel(d: DiurnalPattern): string {
-  switch (d.phase) {
-    case 'rising':      return 'Rising'
-    case 'falling':     return 'Falling'
-    case 'near_peak':   return 'Near peak'
-    case 'near_trough': return 'Near trough'
-    default:            return 'Stable'
-  }
-}
-
-function formatHour(h: number): string {
-  const ampm = h >= 12 ? 'pm' : 'am'
-  const display = h % 12 === 0 ? 12 : h % 12
-  return `${display}${ampm}`
-}
 
 async function loadDetail() {
   const token = await getToken()
