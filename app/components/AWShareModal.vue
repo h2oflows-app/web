@@ -45,6 +45,7 @@
             >
               {{ savingMapping ? 'Saving…' : 'Save & continue' }}
             </button>
+            <p v-if="mappingError" class="text-xs text-red-600 dark:text-red-400 text-center">{{ mappingError }}</p>
           </div>
 
           <!-- Cross-post panel -->
@@ -161,6 +162,7 @@ const props = defineProps<{ report: Report; open: boolean }>()
 const emit = defineEmits<{ close: []; synced: [] }>()
 
 const config = useRuntimeConfig()
+const { getToken } = useAuth()
 
 const awOptions = {
   low:     [{ value: 'too-low', label: 'Too low' },  { value: 'low',    label: 'Low'    }],
@@ -175,6 +177,7 @@ const mapping = reactive<Record<string, string>>({
 })
 const mappingReady = ref(false)
 const savingMapping = ref(false)
+const mappingError = ref('')
 const textCopied = ref(false)
 const syncing = ref(false)
 const synced = ref(false)
@@ -190,28 +193,49 @@ const awObservationNumeric: Record<string, number> = {
 }
 
 onMounted(async () => {
+  synced.value = !!props.report.aw_synced_at
+  const token = await getToken()
+  if (!token) return
   try {
-    const prefs = await $fetch<{ aw_band_mapping: Record<string, string> | null }>(
-      `${config.public.apiBase}/api/v1/me/preferences`
-    )
-    if (prefs.aw_band_mapping) {
-      Object.assign(mapping, prefs.aw_band_mapping)
-      mappingReady.value = true
+    const res = await fetch(`${config.public.apiBase}/api/v1/me/preferences`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      const prefs = await res.json() as { aw_band_mapping: Record<string, string> | null }
+      if (prefs.aw_band_mapping) {
+        Object.assign(mapping, prefs.aw_band_mapping)
+        mappingReady.value = true
+      }
     }
   } catch {
-    // no prefs yet
+    // no prefs yet — show mapping setup
   }
-  synced.value = !!props.report.aw_synced_at
 })
 
 async function saveMapping() {
+  mappingError.value = ''
   savingMapping.value = true
-  try {
-    await $fetch(`${config.public.apiBase}/api/v1/me/preferences`, {
-      method: 'PATCH',
-      body: { aw_band_mapping: mapping },
-    })
+  const token = await getToken()
+  if (!token) {
+    // Not logged in — advance locally without persisting
     mappingReady.value = true
+    savingMapping.value = false
+    return
+  }
+  try {
+    const res = await fetch(`${config.public.apiBase}/api/v1/me/preferences`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ aw_band_mapping: mapping }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      mappingError.value = (data as any).error ?? `Save failed (${res.status})`
+      return
+    }
+    mappingReady.value = true
+  } catch {
+    mappingError.value = 'Network error — try again'
   } finally {
     savingMapping.value = false
   }
@@ -262,9 +286,11 @@ async function copyApiJson() {
 
 async function markPosted() {
   syncing.value = true
+  const token = await getToken()
   try {
-    await $fetch(`${config.public.apiBase}/api/v1/me/reports/${props.report.slug}/aw-sync`, {
+    await fetch(`${config.public.apiBase}/api/v1/me/reports/${props.report.slug}/aw-sync`, {
       method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
     synced.value = true
     emit('synced')
