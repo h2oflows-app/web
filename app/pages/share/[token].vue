@@ -40,7 +40,7 @@
             <svg class="w-4 h-4 text-neutral-400 dark:text-neutral-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Gauge">
               <path d="M12 14a2 2 0 100-4 2 2 0 000 4z"/><path d="M12 12l4-4"/><path d="M3 12a9 9 0 0118 0"/>
             </svg>
-            <span class="flex-1 min-w-0 truncate text-sm text-neutral-700 dark:text-neutral-200">{{ item.l }}</span>
+            <span class="flex-1 min-w-0 truncate text-sm text-neutral-700 dark:text-neutral-200">{{ itemLabel(item) }}</span>
             <template v-if="readingsFetchDone">
               <span v-if="reading(item)?.current_cfs != null" class="text-sm font-semibold tabular-nums" :style="{ color: bandColor(reading(item)) }">
                 {{ Math.round(reading(item)!.current_cfs!).toLocaleString() }}
@@ -114,7 +114,9 @@ interface ShareItem {
   t: 'g'
   id: string
   rs: string | null
-  l: string
+  // Label — optional. Legacy tokens included it; newer (smaller) tokens omit it
+  // and rely on the batch endpoint response for gauge names. Both forms render.
+  l?: string
 }
 interface SharePayload {
   v: number
@@ -134,7 +136,10 @@ const importError = ref('')
 // Live readings fetched from the batch endpoint
 interface BatchReading {
   id: string
+  name: string | null
   context_reach_slug: string | null
+  context_reach_common_name: string | null
+  context_reach_full_name: string | null
   current_cfs: number | null
   flow_status: string
   flow_band_label: string | null
@@ -157,6 +162,16 @@ function reading(item: ShareItem): BatchReading | undefined {
   // Exact match by (gauge id, reach slug); fall back to gauge-only match if reach context not present.
   return readingMap.value.get(readingKey(item.id, item.rs))
       ?? readingMap.value.get(readingKey(item.id, null))
+}
+
+function itemLabel(item: ShareItem): string {
+  // Prefer legacy embedded label (older tokens). Otherwise pull from batch response.
+  if (item.l) return item.l
+  const r = reading(item)
+  return r?.context_reach_common_name
+      ?? r?.context_reach_full_name
+      ?? r?.name
+      ?? '…'
 }
 
 function bandColor(r: BatchReading | undefined): string {
@@ -200,20 +215,48 @@ async function fetchReadings() {
   }
 }
 
-onMounted(async () => {
-  const raw = route.params.token as string
+function padBase64(s: string): string {
+  // atob is strict in some browsers — pad back to multiple of 4
+  const r = s.length % 4
+  if (r === 2) return s + '=='
+  if (r === 3) return s + '='
+  return s
+}
+
+// Token formats:
+//   v1: base64url(JSON)             — payload {v:1, items:[...]}
+//   v2: "z" + base64url(gzip(JSON)) — payload {v:2, items:[...]}
+async function decodeToken(raw: string): Promise<SharePayload | null> {
   try {
-    const pad = raw.replace(/-/g, '+').replace(/_/g, '/')
-    const binary = atob(pad)
+    if (raw.startsWith('z')) {
+      const b64 = padBase64(raw.slice(1).replace(/-/g, '+').replace(/_/g, '/'))
+      const binary = atob(b64)
+      const bytes = Uint8Array.from(binary, c => c.charCodeAt(0))
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))
+      const json = await new Response(stream).text()
+      const parsed = JSON.parse(json) as SharePayload
+      if ((parsed.v === 1 || parsed.v === 2) && Array.isArray(parsed.items)) return parsed
+      console.warn('share: v2 token parsed but shape rejected', parsed)
+      return null
+    }
+    // Legacy v1: plain base64url JSON
+    const b64 = padBase64(raw.replace(/-/g, '+').replace(/_/g, '/'))
+    const binary = atob(b64)
     const bytes = Uint8Array.from(binary, c => c.charCodeAt(0))
     const json = new TextDecoder().decode(bytes)
     const parsed = JSON.parse(json) as SharePayload
-    if (parsed.v === 1 && Array.isArray(parsed.items)) {
-      payload.value = parsed
-    }
-  } catch {
-    // invalid token — payload stays null
+    if (parsed.v === 1 && Array.isArray(parsed.items)) return parsed
+    console.warn('share: v1 token parsed but shape rejected', parsed)
+    return null
+  } catch (err) {
+    console.error('share: token decode failed', err, 'raw:', raw.slice(0, 60) + '…')
+    return null
   }
+}
+
+onMounted(async () => {
+  const raw = route.params.token as string
+  payload.value = await decodeToken(raw)
   loading.value = false
   if (payload.value) {
     await fetchReadings()
