@@ -356,7 +356,7 @@
                         <path d="M12 12 16 8"/>
                         <path d="M3 12a9 9 0 0 1 18 0"/>
                       </svg>
-                      <span class="flex-1 min-w-0 text-sm font-semibold text-neutral-800 dark:text-neutral-200 truncate">
+                      <span class="flex-1 min-w-0 font-semibold text-neutral-800 dark:text-neutral-200 truncate" :class="viewMode === 'list' ? 'text-sm' : 'text-base'">
                         {{ g.name ?? `${g.source.toUpperCase()} ${g.externalId}` }}
                       </span>
                       <div class="w-20 shrink-0 hidden sm:block h-5 opacity-50 pointer-events-none">

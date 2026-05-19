@@ -86,7 +86,7 @@
           <!-- Left -->
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-1">
-              <span class="min-w-0 font-semibold text-neutral-800 dark:text-neutral-100 truncate" :class="density === 'comfortable' ? 'text-base' : 'text-base'">
+              <span class="min-w-0 text-base font-semibold text-neutral-800 dark:text-neutral-100 truncate">
                 {{ reachLabel(reach) }}
               </span>
               <NuxtLink
