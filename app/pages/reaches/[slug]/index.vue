@@ -116,6 +116,47 @@
         </div>
       </section>
 
+      <!-- AI ask -->
+      <section>
+        <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+          <form class="flex items-center gap-2 px-4 py-3" @submit.prevent="askQuestion">
+            <svg class="w-4 h-4 text-purple-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+            </svg>
+            <input
+              v-model="askQuery"
+              type="text"
+              placeholder="Ask about conditions, flow, access…"
+              class="flex-1 min-w-0 bg-transparent text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none"
+              :disabled="asking"
+              @keydown.esc="askQuery = ''; askAnswer = ''; askError = ''"
+            />
+            <button
+              v-if="askQuery"
+              type="button"
+              class="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+              @click="askQuery = ''; askAnswer = ''; askError = ''"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+            <button
+              type="submit"
+              :disabled="asking || !askQuery.trim()"
+              class="shrink-0 px-3 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white text-xs font-semibold transition-colors"
+            >
+              <span v-if="asking" class="flex items-center gap-1">
+                <span class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              </span>
+              <span v-else>Ask</span>
+            </button>
+          </form>
+          <div v-if="askAnswer" class="px-4 pb-4 border-t border-neutral-100 dark:border-neutral-800 pt-3">
+            <div class="ask-answer text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed" v-html="askMd.render(askAnswer)" />
+          </div>
+          <p v-if="askError" class="px-4 pb-3 text-sm text-red-500 dark:text-red-400">{{ askError }}</p>
+        </div>
+      </section>
+
       <!-- Quick stats — consolidated -->
       <section>
         <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 px-4 py-3">
@@ -218,156 +259,6 @@
               </div>
             </div>
           </ClientOnly>
-        </div>
-      </section>
-
-      <!-- Community Reports -->
-      <section>
-        <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-
-          <!-- Header row -->
-          <div class="flex items-center gap-2 px-4 py-3 border-b border-neutral-100 dark:border-neutral-800">
-            <h2 class="text-sm font-semibold text-neutral-700 dark:text-neutral-300 shrink-0">
-              Reports
-              <span v-if="reportsFetchDone && reachReports.length > 0" class="ml-1.5 text-neutral-400 font-normal text-xs">({{ reachReports.length }})</span>
-            </h2>
-            <!-- Search toggle -->
-            <button
-              v-if="reportsFetchDone && reachReports.length > 0"
-              class="shrink-0 p-1 rounded text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
-              :class="reportsSearchOpen ? 'text-primary-500 dark:text-primary-400' : ''"
-              title="Search reports"
-              @click="reportsSearchOpen = !reportsSearchOpen; if (!reportsSearchOpen) reportsQuery = ''"
-            >
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            </button>
-            <input
-              v-if="reportsSearchOpen"
-              v-model="reportsQuery"
-              type="text"
-              placeholder="Search reports…"
-              class="flex-1 min-w-0 bg-transparent text-xs text-neutral-700 dark:text-neutral-300 placeholder-neutral-400 focus:outline-none"
-              autofocus
-            />
-            <div v-else class="flex-1" />
-            <NuxtLink
-              v-if="isAuthenticated"
-              :to="`/reports/new?reach=${(reach as any).slug}`"
-              class="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline"
-            >
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-              Add report
-            </NuxtLink>
-            <NuxtLink
-              v-else
-              to="/login"
-              class="shrink-0 text-xs text-neutral-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
-            >Sign in to report</NuxtLink>
-          </div>
-
-          <!-- Loading -->
-          <div v-if="!reportsFetchDone" class="px-4 py-6 flex justify-center">
-            <div class="w-5 h-5 rounded-full border-2 border-primary-400 border-t-transparent animate-spin" />
-          </div>
-
-          <!-- Empty state -->
-          <div v-else-if="reachReports.length === 0" class="px-4 py-6 text-center text-sm text-neutral-400">
-            Be the first to file a report for this reach.
-          </div>
-
-          <!-- No search results -->
-          <div v-else-if="filteredReports.length === 0" class="px-4 py-6 text-center text-sm text-neutral-400">
-            No reports match "{{ reportsQuery }}".
-          </div>
-
-          <!-- Report list -->
-          <div v-else class="divide-y divide-neutral-100 dark:divide-neutral-800">
-            <div
-              v-for="rep in visibleReports"
-              :key="rep.id"
-              class="px-4 py-3 space-y-1"
-            >
-              <div class="flex items-start justify-between gap-2">
-                <span class="text-sm font-medium text-neutral-800 dark:text-neutral-100">{{ rep.name }}</span>
-                <span class="text-xs text-neutral-400 shrink-0">{{ formatReportDate(rep.report_date) }}</span>
-              </div>
-              <p class="text-sm text-neutral-600 dark:text-neutral-400 line-clamp-3 leading-relaxed">{{ extractPreview(rep.content) }}</p>
-              <div class="flex items-center gap-2 pt-0.5">
-                <span v-if="rep.flow_cfs != null" class="text-xs text-neutral-400">{{ Math.round(rep.flow_cfs).toLocaleString() }} cfs</span>
-                <span v-if="rep.flow_band" class="text-xs font-medium capitalize" :class="reportBandClass(rep.flow_band)">{{ rep.flow_band }}</span>
-                <span v-if="rep.paddled" class="text-xs text-primary-500 dark:text-primary-400">• paddled</span>
-                <NuxtLink v-if="rep.url" :to="rep.url" class="text-xs text-primary-500 dark:text-primary-400 hover:underline ml-auto">Full report →</NuxtLink>
-              </div>
-            </div>
-          </div>
-
-          <!-- Show more / less -->
-          <div v-if="reportsFetchDone && filteredReports.length > reportsPageSize" class="px-4 py-3 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
-            <span class="text-xs text-neutral-400">{{ visibleReports.length }} of {{ filteredReports.length }}</span>
-            <button
-              class="text-xs text-primary-600 dark:text-primary-400 hover:underline font-medium"
-              @click="reportsExpanded = !reportsExpanded"
-            >
-              {{ reportsExpanded ? 'Show fewer' : `Show all ${filteredReports.length}` }}
-            </button>
-          </div>
-
-          <!-- Load more (cursor pagination) -->
-          <div v-if="reportsNextCursor && !reportsExpanded && !reportsQuery" class="px-4 py-3 border-t border-neutral-100 dark:border-neutral-800 text-center">
-            <button
-              :disabled="reportsLoadingMore"
-              class="text-xs text-primary-600 dark:text-primary-400 hover:underline font-medium disabled:opacity-50"
-              @click="loadMoreReports"
-            >
-              <span v-if="reportsLoadingMore" class="flex items-center gap-1 justify-center">
-                <span class="w-3 h-3 rounded-full border-2 border-primary-400 border-t-transparent animate-spin" />
-                Loading…
-              </span>
-              <span v-else>Load more reports</span>
-            </button>
-          </div>
-
-        </div>
-      </section>
-
-      <!-- AI ask -->
-      <section>
-        <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-          <form class="flex items-center gap-2 px-4 py-3" @submit.prevent="askQuestion">
-            <svg class="w-4 h-4 text-purple-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
-            </svg>
-            <input
-              v-model="askQuery"
-              type="text"
-              placeholder="Ask about conditions, flow, access…"
-              class="flex-1 min-w-0 bg-transparent text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none"
-              :disabled="asking"
-              @keydown.esc="askQuery = ''; askAnswer = ''; askError = ''"
-            />
-            <button
-              v-if="askQuery"
-              type="button"
-              class="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
-              @click="askQuery = ''; askAnswer = ''; askError = ''"
-            >
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
-            </button>
-            <button
-              type="submit"
-              :disabled="asking || !askQuery.trim()"
-              class="shrink-0 px-3 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white text-xs font-semibold transition-colors"
-            >
-              <span v-if="asking" class="flex items-center gap-1">
-                <span class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              </span>
-              <span v-else>Ask</span>
-            </button>
-          </form>
-          <div v-if="askAnswer" class="px-4 pb-4 border-t border-neutral-100 dark:border-neutral-800 pt-3">
-            <div class="ask-answer text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed" v-html="askMd.render(askAnswer)" />
-          </div>
-          <p v-if="askError" class="px-4 pb-3 text-sm text-red-500 dark:text-red-400">{{ askError }}</p>
         </div>
       </section>
 
@@ -522,6 +413,115 @@
             <span class="text-sm font-medium">{{ rel.name }}</span>
             <span class="text-xs text-neutral-400 capitalize">{{ rel.relationship }}</span>
           </NuxtLink>
+        </div>
+      </section>
+
+      <!-- Community Reports -->
+      <section>
+        <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+
+          <!-- Header row -->
+          <div class="flex items-center gap-2 px-4 py-3 border-b border-neutral-100 dark:border-neutral-800">
+            <h2 class="text-sm font-semibold text-neutral-700 dark:text-neutral-300 shrink-0">
+              Reports
+              <span v-if="reportsFetchDone && reachReports.length > 0" class="ml-1.5 text-neutral-400 font-normal text-xs">({{ reachReports.length }})</span>
+            </h2>
+            <!-- Search toggle -->
+            <button
+              v-if="reportsFetchDone && reachReports.length > 0"
+              class="shrink-0 p-1 rounded text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+              :class="reportsSearchOpen ? 'text-primary-500 dark:text-primary-400' : ''"
+              title="Search reports"
+              @click="reportsSearchOpen = !reportsSearchOpen; if (!reportsSearchOpen) reportsQuery = ''"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            </button>
+            <input
+              v-if="reportsSearchOpen"
+              v-model="reportsQuery"
+              type="text"
+              placeholder="Search reports…"
+              class="flex-1 min-w-0 bg-transparent text-xs text-neutral-700 dark:text-neutral-300 placeholder-neutral-400 focus:outline-none"
+              autofocus
+            />
+            <div v-else class="flex-1" />
+            <NuxtLink
+              v-if="isAuthenticated"
+              :to="`/reports/new?reach=${(reach as any).slug}`"
+              class="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+              Add report
+            </NuxtLink>
+            <NuxtLink
+              v-else
+              to="/login"
+              class="shrink-0 text-xs text-neutral-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
+            >Sign in to report</NuxtLink>
+          </div>
+
+          <!-- Loading -->
+          <div v-if="!reportsFetchDone" class="px-4 py-6 flex justify-center">
+            <div class="w-5 h-5 rounded-full border-2 border-primary-400 border-t-transparent animate-spin" />
+          </div>
+
+          <!-- Empty state -->
+          <div v-else-if="reachReports.length === 0" class="px-4 py-6 text-center text-sm text-neutral-400">
+            Be the first to file a report for this reach.
+          </div>
+
+          <!-- No search results -->
+          <div v-else-if="filteredReports.length === 0" class="px-4 py-6 text-center text-sm text-neutral-400">
+            No reports match "{{ reportsQuery }}".
+          </div>
+
+          <!-- Report list -->
+          <div v-else class="divide-y divide-neutral-100 dark:divide-neutral-800">
+            <div
+              v-for="rep in visibleReports"
+              :key="rep.id"
+              class="px-4 py-3 space-y-1"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <span class="text-sm font-medium text-neutral-800 dark:text-neutral-100">{{ rep.name }}</span>
+                <span class="text-xs text-neutral-400 shrink-0">{{ formatReportDate(rep.report_date) }}</span>
+              </div>
+              <p class="text-sm text-neutral-600 dark:text-neutral-400 line-clamp-3 leading-relaxed">{{ extractPreview(rep.content) }}</p>
+              <div class="flex items-center gap-2 pt-0.5">
+                <span v-if="rep.flow_cfs != null" class="text-xs text-neutral-400">{{ Math.round(rep.flow_cfs).toLocaleString() }} cfs</span>
+                <span v-if="rep.flow_band" class="text-xs font-medium capitalize" :class="reportBandClass(rep.flow_band)">{{ rep.flow_band }}</span>
+                <span v-if="rep.paddled" class="text-xs text-primary-500 dark:text-primary-400">• paddled</span>
+                <NuxtLink v-if="rep.url" :to="rep.url" class="text-xs text-primary-500 dark:text-primary-400 hover:underline ml-auto">Full report →</NuxtLink>
+              </div>
+            </div>
+          </div>
+
+          <!-- Show more / less -->
+          <div v-if="reportsFetchDone && filteredReports.length > reportsPageSize" class="px-4 py-3 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
+            <span class="text-xs text-neutral-400">{{ visibleReports.length }} of {{ filteredReports.length }}</span>
+            <button
+              class="text-xs text-primary-600 dark:text-primary-400 hover:underline font-medium"
+              @click="reportsExpanded = !reportsExpanded"
+            >
+              {{ reportsExpanded ? 'Show fewer' : `Show all ${filteredReports.length}` }}
+            </button>
+          </div>
+
+          <!-- Load more (cursor pagination) -->
+          <div v-if="reportsNextCursor && !reportsExpanded && !reportsQuery" class="px-4 py-3 border-t border-neutral-100 dark:border-neutral-800 text-center">
+            <button
+              :disabled="reportsLoadingMore"
+              class="text-xs text-primary-600 dark:text-primary-400 hover:underline font-medium disabled:opacity-50"
+              @click="loadMoreReports"
+            >
+              <span v-if="reportsLoadingMore" class="flex items-center gap-1 justify-center">
+                <span class="w-3 h-3 rounded-full border-2 border-primary-400 border-t-transparent animate-spin" />
+                Loading…
+              </span>
+              <span v-else>Load more reports</span>
+            </button>
+          </div>
+
         </div>
       </section>
 
