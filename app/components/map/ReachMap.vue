@@ -41,6 +41,11 @@
           @click="exportKml"
         >⬇ KML</button>
         <button
+          v-if="allFeatures.length > 0 || centerline"
+          class="text-xs bg-white/90 dark:bg-neutral-800/90 rounded-md px-2 py-1 shadow border border-neutral-200 dark:border-neutral-600 font-medium text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
+          @click="exportGpx"
+        >⬇ GPX</button>
+        <button
           class="text-xs bg-white/90 dark:bg-neutral-800/90 rounded-md px-2 py-1 shadow border border-neutral-200 dark:border-neutral-600 font-medium text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
           @click="toggleFullscreen"
         >
@@ -893,6 +898,64 @@ function exportKml() {
   const a = document.createElement('a')
   a.href = url
   a.download = `${docName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.kml`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// ── GPX export ────────────────────────────────────────────────────────────────
+
+function exportGpx() {
+  const docName = props.name ?? 'Reach'
+  const esc = (s: string) => s
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+  // Waypoints — access points + rapids
+  const waypoints: string[] = []
+  for (const a of accessFeatures.value) {
+    waypoints.push(`  <wpt lat="${a.lat}" lon="${a.lng}">
+    <name>${esc(a.label)}</name>
+    <type>${esc(a.type)}</type>${a.notes ? `\n    <desc>${esc(a.notes)}</desc>` : ''}
+  </wpt>`)
+  }
+  for (const r of rapidFeatures.value) {
+    const cls = r.classLabel ? ` (Class ${r.classLabel})` : ''
+    waypoints.push(`  <wpt lat="${r.lat}" lon="${r.lng}">
+    <name>${esc(r.label)}${cls}</name>
+    <type>${r.isSurf ? 'wave' : 'rapid'}</type>${r.desc ? `\n    <desc>${esc(r.desc)}</desc>` : ''}
+  </wpt>`)
+  }
+
+  // Track — centerline
+  let track = ''
+  if (props.centerline?.coordinates) {
+    const raw = props.centerline.type === 'LineString'
+      ? props.centerline.coordinates as [number, number][]
+      : (props.centerline.coordinates as [number, number][][]).flat()
+    const pts = raw.map((c: [number, number]) => `      <trkpt lat="${c[1]}" lon="${c[0]}"/>`).join('\n')
+    track = `  <trk>
+    <name>${esc(docName)}</name>
+    <trkseg>
+${pts}
+    </trkseg>
+  </trk>`
+  }
+
+  const canonical = props.slug ? `https://h2oflows.app/reaches/${props.slug}` : ''
+  const gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="H2OFlows" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>${esc(docName)}</name>${canonical ? `\n    <link href="${esc(canonical)}"/>` : ''}
+  </metadata>
+${waypoints.join('\n')}
+${track}
+</gpx>`
+
+  const blob = new Blob([gpx], { type: 'application/gpx+xml' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${docName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.gpx`
   a.click()
   URL.revokeObjectURL(url)
 }
