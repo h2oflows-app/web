@@ -186,7 +186,7 @@
             @click="repinGaugeSelectMode = false; repinComIDEditMode = 'up'"
           >
             <span class="w-2 h-2 rounded-full bg-green-500 shrink-0" />
-            Upstream<template v-if="repinUpComID"> · <span class="font-mono">{{ repinUpComID }}</span></template>
+            Put-In<template v-if="repinUpComID"> · <span class="font-mono">{{ repinUpComID }}</span></template>
           </button>
           <button
             class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors"
@@ -194,7 +194,7 @@
             @click="repinGaugeSelectMode = false; repinComIDEditMode = 'down'"
           >
             <span class="w-2 h-2 rounded-full bg-red-500 shrink-0" />
-            Downstream<template v-if="repinDownComID"> · <span class="font-mono">{{ repinDownComID }}</span></template>
+            Take-Out<template v-if="repinDownComID"> · <span class="font-mono">{{ repinDownComID }}</span></template>
           </button>
           <button
             class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -251,12 +251,10 @@
         />
 
         <div class="flex items-center gap-3 pt-1">
+          <span v-if="repinPreviewLoading" class="text-xs text-primary-500 animate-pulse">Computing centerline…</span>
           <span v-if="repinError" class="text-xs text-red-500">{{ repinError }}</span>
           <span v-if="repinSuccess" class="text-xs text-green-600 dark:text-green-400">{{ repinSuccess }}</span>
           <div class="flex-1" />
-          <UButton v-if="repinUpComID && repinDownComID" size="xs" variant="outline" color="neutral" :loading="repinPreviewLoading" @click="previewCenterline">
-            {{ repinPreviewCenterline ? 'Refresh preview' : 'Preview centerline' }}
-          </UButton>
           <UButton v-if="repinFlowlinesDirty" size="sm" variant="outline" color="neutral" @click="resetComIDs">Revert</UButton>
           <UButton size="sm" :loading="repinSaving" :disabled="!repinUpComID || !repinDownComID" @click="saveFlowLines">Save flow lines</UButton>
         </div>
@@ -404,6 +402,12 @@ const repinTakeOutPin = computed(() => {
 })
 
 // ── Watchers ──────────────────────────────────────────────────────────────────
+watch([repinUpComID, repinDownComID], async ([up, down]) => {
+  if (!up || !down || !repinFlowlinesDirty.value) return
+  repinPreviewCenterline.value = null
+  await previewCenterline()
+})
+
 watch(() => repinForm.value.slug, (val) => {
   repinSlugAvailable.value = null
   if (repinSlugTimer) clearTimeout(repinSlugTimer)
