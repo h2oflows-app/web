@@ -129,13 +129,58 @@ function bandBadgeClass(band: string): string {
   return 'text-neutral-500'
 }
 
-useHead(() => ({
-  title: report.value ? `${report.value.name} — H2OFlows` : 'Report — H2OFlows',
-  meta: [
-    { name: 'description', content: report.value ? `${report.value.reach_name} report by ${report.value.handle || 'a paddler'}` : '' },
-    { property: 'og:title', content: report.value?.name ?? 'H2OFlows Report' },
-    { property: 'og:description', content: report.value ? `${report.value.reach_name}${report.value.flow_cfs != null ? ` @ ${Math.round(report.value.flow_cfs).toLocaleString()} cfs` : ''} — ${report.value.report_date}` : '' },
-    { property: 'og:type', content: 'article' },
-  ],
-}))
+const reportTitle = computed(() =>
+  report.value ? `${report.value.name} — H2OFlows` : 'Report — H2OFlows'
+)
+const reportDesc = computed(() => {
+  if (!report.value) return ''
+  const r = report.value
+  const cfsPart = r.flow_cfs != null ? ` @ ${Math.round(r.flow_cfs).toLocaleString()} cfs` : ''
+  return `${r.reach_name}${cfsPart} — ${r.report_date}`
+})
+const reportOgImage = computed(() =>
+  report.value ? `${config.public.apiBase}/og/reports/${report.value.id}.png` : undefined
+)
+const reportCanonical = computed(() =>
+  report.value ? `https://h2oflows.app/reports/${report.value.id}` : undefined
+)
+
+useSeoMeta({
+  title:           () => reportTitle.value,
+  description:     () => reportDesc.value,
+  ogTitle:         () => report.value?.name ?? 'H2OFlows Report',
+  ogDescription:   () => reportDesc.value,
+  ogType:          'article',
+  ogImage:         () => reportOgImage.value,
+  ogImageWidth:    1200,
+  ogImageHeight:   630,
+  ogImageType:     'image/png',
+  ogUrl:           () => reportCanonical.value,
+  twitterCard:     'summary_large_image',
+  twitterTitle:    () => report.value?.name ?? 'H2OFlows Report',
+  twitterDescription: () => reportDesc.value,
+  twitterImage:    () => reportOgImage.value,
+})
+
+// JSON-LD structured data — Article schema for the report
+useHead(() => {
+  if (!report.value) return {}
+  const r = report.value
+  const ld = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: r.name,
+    author: r.handle ? { '@type': 'Person', name: `@${r.handle}` } : undefined,
+    datePublished: r.created_at,
+    description: reportDesc.value,
+    url: reportCanonical.value,
+    about: { '@type': 'Place', name: r.reach_name },
+  }
+  return {
+    script: [{
+      type: 'application/ld+json',
+      innerHTML: JSON.stringify(ld),
+    }],
+  }
+})
 </script>
