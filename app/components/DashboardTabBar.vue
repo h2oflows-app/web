@@ -60,20 +60,6 @@
       <template v-if="menuOpenId === activeDashboardId">
         <button
           class="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-          @click="emitAndClose('view-basin-map')"
-        >
-          <svg class="w-3.5 h-3.5 shrink-0 text-neutral-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="8" cy="2.5" r="1.5"/>
-            <circle cx="3.5" cy="13" r="1.5"/>
-            <circle cx="12.5" cy="13" r="1.5"/>
-            <line x1="8" y1="4" x2="8" y2="6.5"/>
-            <path d="M8 6.5 C6 8 3.5 9 3.5 11.5"/>
-            <path d="M8 6.5 C10 8 12.5 9 12.5 11.5"/>
-          </svg>
-          View basin map
-        </button>
-        <button
-          class="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
           @click="emitAndClose('share')"
         >
           <svg class="w-3.5 h-3.5 shrink-0 text-neutral-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -153,10 +139,9 @@ const emit = defineEmits<{
   delete: [slug: string]
   rename: [slug: string, name: string]
   share: []
-  'view-basin-map': []
 }>()
 
-function emitAndClose(event: 'share' | 'view-basin-map') {
+function emitAndClose(event: 'share') {
   closeMenu()
   emit(event)
 }
