@@ -211,7 +211,7 @@
                           v-if="reach.current_cfs != null"
                           class="text-xs font-medium tabular-nums shrink-0"
                           :style="{ color: bandSolid(null, reach.flow_status) }"
-                        >{{ reach.current_cfs.toLocaleString() }}</span>
+                        >{{ Math.round(reach.current_cfs).toLocaleString() }}</span>
                         <span v-else class="text-xs text-neutral-300 dark:text-neutral-600 shrink-0">—</span>
                         <!-- Add to dashboard dropdown -->
                         <div
@@ -312,7 +312,7 @@
                 v-if="reach.current_cfs != null"
                 class="text-xs font-medium tabular-nums shrink-0"
                 :style="{ color: bandSolid(null, reach.flow_status) }"
-              >{{ reach.current_cfs.toLocaleString() }}</span>
+              >{{ Math.round(reach.current_cfs).toLocaleString() }}</span>
               <span v-else class="text-xs text-neutral-300 dark:text-neutral-600 shrink-0">—</span>
               <!-- Add to dashboard dropdown -->
               <div
@@ -866,6 +866,14 @@ async function toggleDashboardForUserReach(r: UserReachSummary, dashboardId: str
   } else {
     membershipDashboardIds.value = new Set([...membershipDashboardIds.value, dashboardId])
     await addReachToWatchlist(r.slug, dashboardId)
+    // Clear stale localStorage hidden flag so a previously-trashed reach becomes visible
+    if (import.meta.client) {
+      const key = `h2oflow_hidden_reaches_${dashboardId}`
+      try {
+        const set = new Set<string>(JSON.parse(localStorage.getItem(key) ?? '[]'))
+        if (set.delete(r.id)) localStorage.setItem(key, JSON.stringify([...set]))
+      } catch {}
+    }
   }
 }
 
