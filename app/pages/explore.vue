@@ -43,32 +43,36 @@
           </button>
         </div>
 
-        <!-- New reach button + picker (authenticated only) -->
-        <div v-if="isAuthenticated" class="reach-picker-anchor px-3 pb-2 shrink-0 relative">
+        <!-- New reach button — curated mode: admin only, opens admin author directly.
+             User mode: any authed user, opens picker with create/import options. -->
+        <div
+          v-if="isAuthenticated && (mode === 'user' || (mode === 'curated' && isDataAdmin))"
+          class="reach-picker-anchor px-3 pb-2 shrink-0 relative"
+        >
           <button
             class="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white transition-colors shadow-sm"
-            @click="reachPickerOpen = !reachPickerOpen"
+            @click="onNewReachClick"
           >
             <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
               <line x1="10" y1="3" x2="10" y2="17"/><line x1="3" y1="10" x2="17" y2="10"/>
             </svg>
             New Reach
           </button>
-          <!-- Picker popover -->
+          <!-- Picker popover (user mode only) -->
           <div
-            v-if="reachPickerOpen"
+            v-if="reachPickerOpen && mode === 'user'"
             class="absolute left-3 right-3 top-full mt-1 z-40 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden"
           >
             <button
               class="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-              @click="reachPickerOpen = false; isDataAdmin ? (authorModalOpen = true) : navigateTo('/my/reaches/new')"
+              @click="reachPickerOpen = false; navigateTo('/my/reaches/new')"
             >
               <svg class="w-4 h-4 text-primary-500 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/>
               </svg>
               <div>
                 <p class="font-medium text-neutral-800 dark:text-neutral-100">Create new</p>
-                <p class="text-xs text-neutral-400">{{ isDataAdmin ? 'Open reach author form' : 'Build your own reach' }}</p>
+                <p class="text-xs text-neutral-400">Build your own reach</p>
               </div>
             </button>
             <div class="border-t border-neutral-100 dark:border-neutral-800" />
@@ -307,6 +311,45 @@
                 :style="{ color: bandSolid(null, reach.flow_status) }"
               >{{ reach.current_cfs.toLocaleString() }}</span>
               <span v-else class="text-xs text-neutral-300 dark:text-neutral-600 shrink-0">—</span>
+              <!-- Add to dashboard dropdown -->
+              <div
+                v-if="isAuthenticated"
+                class="dashboard-dropdown-anchor shrink-0 relative"
+                @click.stop
+              >
+                <button
+                  class="p-1 rounded transition-colors text-neutral-400 dark:text-neutral-500 hover:text-primary-500 dark:hover:text-primary-400"
+                  aria-label="Add to dashboard"
+                  @click="openUserReachDropdown(reach)"
+                >
+                  <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="14"/><line x1="6" y1="10" x2="14" y2="10"/>
+                  </svg>
+                </button>
+                <div
+                  v-if="dropdownSlug === reach.slug"
+                  class="absolute right-0 top-full mt-1 z-40 min-w-40 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden"
+                >
+                  <div v-if="membershipLoading" class="px-3 py-2 text-xs text-neutral-400">Loading…</div>
+                  <button
+                    v-else
+                    v-for="dashboard in db.dashboards.value"
+                    :key="dashboard.id"
+                    class="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                    @click="toggleDashboardForUserReach(reach, dashboard.id)"
+                  >
+                    <svg
+                      class="w-3.5 h-3.5 shrink-0"
+                      :class="membershipDashboardIds.has(dashboard.id) ? 'text-primary-500' : 'text-neutral-300 dark:text-neutral-600'"
+                      viewBox="0 0 20 20" fill="currentColor"
+                    >
+                      <path v-if="membershipDashboardIds.has(dashboard.id)" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                      <circle v-else cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                    </svg>
+                    <span class="truncate text-neutral-700 dark:text-neutral-300">{{ dashboard.name }}</span>
+                  </button>
+                </div>
+              </div>
               <NuxtLink
                 :to="`/my/reaches/${reach.slug}`"
                 class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-opacity opacity-60 sm:opacity-0 sm:group-hover:opacity-100 hover:opacity-100"
@@ -431,7 +474,7 @@ const router = useRouter()
 const route = useRoute()
 let pendingFocusSlug: string | null = (route.query.focus as string) || null
 const watchlistStore = useWatchlistStore()
-const { addAndSync, removeAndSync } = useWatchlistSync()
+const { addAndSync, removeAndSync, addReachToWatchlist } = useWatchlistSync()
 const { isDataAdmin, isAuthenticated, getToken } = useAuth()
 const db = useDashboards()
 
@@ -452,6 +495,16 @@ const importModalOpen  = ref(false)
 function onAuthorCreated(slug: string) {
   authorModalOpen.value = false
   router.push(`/reaches/${slug}/edit`)
+}
+
+function onNewReachClick() {
+  // Curated mode (admin-only): skip picker, open admin author directly.
+  if (mode.value === 'curated') {
+    authorModalOpen.value = true
+    return
+  }
+  // User mode: toggle picker (Create new / Import shared).
+  reachPickerOpen.value = !reachPickerOpen.value
 }
 
 function onReachImported() {
@@ -532,6 +585,7 @@ interface UserReachSummary {
   river_name: string | null
   current_cfs: number | null
   flow_status: string
+  gauge_id?: string | null
 }
 interface UserRiverGroup { name: string; reaches: UserReachSummary[] }
 
@@ -764,6 +818,53 @@ function buildWatchedGauge(reach: ReachListItem): WatchedGauge {
 function isOnDashboard(reach: ReachListItem): boolean {
   if (!reach.gauge_id) return false
   return watchlistStore.gauges.some(g => g.id === reach.gauge_id && g.contextReachSlug === reach.slug)
+}
+
+// User reaches are watchlisted by reach_slug only (no gauge_id). The user reach
+// row in the dashboard renders from the /me/reaches summary, which already
+// includes current_cfs from the primary_gauge. Storing the gauge in the
+// watchlist as well would double-display it as a standalone gauge.
+async function openUserReachDropdown(r: UserReachSummary) {
+  if (dropdownSlug.value === r.slug) { dropdownSlug.value = null; return }
+  dropdownSlug.value = r.slug
+  membershipLoading.value = true
+  membershipDashboardIds.value = new Set()
+  const token = await getToken()
+  if (!token) { membershipLoading.value = false; return }
+  try {
+    const res = await fetch(`${apiBase}/api/v1/watchlist`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    const ids = new Set<string>()
+    for (const item of (data.items ?? [])) {
+      if (item.reach_slug === r.slug && item.gauge_id == null && item.dashboard_id) {
+        ids.add(item.dashboard_id)
+      }
+    }
+    membershipDashboardIds.value = ids
+  } finally {
+    membershipLoading.value = false
+  }
+}
+
+async function toggleDashboardForUserReach(r: UserReachSummary, dashboardId: string) {
+  if (membershipDashboardIds.value.has(dashboardId)) {
+    membershipDashboardIds.value = new Set([...membershipDashboardIds.value].filter(id => id !== dashboardId))
+    const token = await getToken()
+    if (token) {
+      const qs = `?kind=reach&dashboard_id=${encodeURIComponent(dashboardId)}`
+      fetch(`${apiBase}/api/v1/watchlist/${encodeURIComponent(r.slug)}${qs}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {})
+    }
+  } else {
+    membershipDashboardIds.value = new Set([...membershipDashboardIds.value, dashboardId])
+    await addReachToWatchlist(r.slug, dashboardId)
+  }
+  dropdownSlug.value = null
 }
 
 async function toggleDashboardForId(reach: ReachListItem, dashboardId: string) {
