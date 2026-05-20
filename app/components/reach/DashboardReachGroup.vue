@@ -32,7 +32,7 @@
         v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)"
         :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(reach), displayFlowStatus(reach))]"
       >{{ flowBandLabel(displayFlowBandLabel(reach), displayFlowStatus(reach)) }}</span>
-      <span class="w-16 shrink-0 text-right text-base font-bold tabular-nums" :style="{ color: bandSolid(displayFlowBandLabel(reach)) }">
+      <span class="shrink-0 whitespace-nowrap text-right text-base font-bold tabular-nums" :style="{ color: bandSolid(displayFlowBandLabel(reach)) }">
         {{ displayCfs(reach) != null ? displayCfs(reach)!.toLocaleString() : '—' }}
         <span class="text-xs font-normal text-neutral-400">cfs</span>
       </span>

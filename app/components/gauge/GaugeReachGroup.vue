@@ -31,10 +31,9 @@
             @latest-cfs="liveCfs = $event"
           />
         </div>
-        <span class="w-16 shrink-0 text-right text-base font-bold tabular-nums text-neutral-900 dark:text-white">
-          {{ currentCfs != null ? currentCfs.toLocaleString() : '—' }}
+        <span class="shrink-0 whitespace-nowrap text-right text-base font-bold tabular-nums text-neutral-900 dark:text-white">
+          {{ currentCfs != null ? currentCfs.toLocaleString() : '—' }} <span class="text-xs font-normal text-neutral-400 dark:text-neutral-500">cfs</span>
         </span>
-        <span class="text-xs font-normal text-neutral-400 dark:text-neutral-500 shrink-0">cfs</span>
         <TrashButton label="Remove gauge group" @click="$emit('remove-group')" />
       </div>
     </div>
