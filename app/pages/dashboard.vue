@@ -77,6 +77,7 @@
             </svg>
           </ToolbarButton>
 
+
         </template>
       </div>
 
@@ -222,7 +223,7 @@
                 <template v-for="river in sub.rivers" :key="river.name">
                 <template v-if="riverHasVisibleContent(river)">
                   <!-- River section divider -->
-                  <div class="flex items-center gap-2 mt-4 first:mt-0 mb-2">
+                  <div v-if="showRivers" class="flex items-center gap-2 mt-4 first:mt-0 mb-2">
                     <svg class="w-4 h-4 text-primary-500/70 dark:text-primary-400/70 shrink-0" viewBox="0 0 32 32" fill="none" aria-hidden="true">
                       <path d="M4 14c3-6 6-9 8-9s5 9 8 9 5-9 8-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
                       <path d="M4 22c3-6 6-9 8-9s5 9 8 9 5-9 8-9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
@@ -320,7 +321,7 @@
                           {{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-400 dark:text-neutral-500 ml-0.5">cfs</span>
                         </span>
                       </div>
-                      <TrashButton label="Remove from dashboard" @click="hideReach(r.id)" />
+                      <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
                     </div>
                   </div>
                   <div v-else :class="[cardGridClass, 'mt-1.5']">
@@ -345,7 +346,7 @@
                           <NuxtLink :to="`/my/reaches/${r.slug}`" class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit reach" @click.stop>
                             <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
                           </NuxtLink>
-                          <TrashButton label="Remove from dashboard" @click="hideReach(r.id)" />
+                          <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
                         </div>
                       </div>
                       <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :flow-band-label="r.flow_band ?? null" compact class="mb-1" />
@@ -445,8 +446,7 @@
               @click="openStandaloneCustomGauge(cg)"
             >
               <div class="min-w-0 flex-1 flex items-center gap-1.5">
-                <!-- Calculated origin indicator — list -->
-                <svg class="w-3.5 h-3.5 text-neutral-400/40 dark:text-neutral-500/30 shrink-0 hidden sm:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="14" y1="18" x2="16" y2="18"/></svg>
+                <svg class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
                 <span class="text-sm font-medium truncate">{{ cg.name }}</span>
                 <span v-if="cg.any_input_unhealthy" class="hidden sm:inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 shrink-0">Stale</span>
               </div>
@@ -471,9 +471,7 @@
               <div class="flex items-start gap-3">
                 <div class="min-w-0 flex-1">
                   <div class="flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="14" y1="18" x2="16" y2="18"/>
-                    </svg>
+                    <svg class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
                     <span class="text-base font-semibold truncate block">{{ cg.name }}</span>
                   </div>
                   <p v-if="cg.description" class="text-xs text-neutral-400 truncate mt-0.5">{{ cg.description }}</p>
@@ -760,6 +758,23 @@ function hideReach(id: string) {
 function showReach(id: string) {
   const s = new Set(hiddenReaches.value); s.delete(id)
   hiddenReaches.value = s; saveSet(hiddenReachesKey.value, s)
+}
+async function removeUserReach(r: UserReachSummary) {
+  // Remove from dashboardReachSlugs immediately (reactive — no page reload needed)
+  dashboardReachSlugs.value = dashboardReachSlugs.value.filter(s => s !== r.slug)
+  // Clear any stale localStorage hidden flag for this reach
+  const s = new Set(hiddenReaches.value); s.delete(r.id)
+  hiddenReaches.value = s; saveSet(hiddenReachesKey.value, s)
+  // API DELETE so re-add from explore works correctly
+  const dashboardId = db.activeDashboard.value?.id
+  if (!dashboardId) return
+  const token = await getToken()
+  if (!token) return
+  const qs = `?kind=reach&dashboard_id=${encodeURIComponent(dashboardId)}`
+  fetch(`${apiBase}/api/v1/watchlist/${encodeURIComponent(r.slug)}${qs}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  }).catch(() => {})
 }
 function hideCustomGauge(id: string) {
   hiddenCustomGauges.value = new Set([...hiddenCustomGauges.value, id])
@@ -1073,6 +1088,7 @@ interface DashboardPrefs {
   filterGauges: boolean
   collapsedSections: string[]
   mapVisible: boolean
+  showRivers: boolean
 }
 
 const DEFAULT_PREFS: DashboardPrefs = {
@@ -1085,6 +1101,7 @@ const DEFAULT_PREFS: DashboardPrefs = {
   filterGauges: true,
   collapsedSections: [],
   mapVisible: true,
+  showRivers: true,
 }
 
 function prefsKey(dashboardId: string | null): string {
@@ -1116,6 +1133,7 @@ function savePrefs() {
     filterGauges:       filterGauges.value,
     collapsedSections:  [...collapsedSections.value],
     mapVisible:         mapVisible.value,
+    showRivers:         showRivers.value,
   }
   localStorage.setItem(prefsKey(db.activeDashboardId.value), JSON.stringify(prefs))
 }
@@ -1129,6 +1147,7 @@ const filterUserReaches = ref(DEFAULT_PREFS.filterUserReaches)
 const filterGauges      = ref(DEFAULT_PREFS.filterGauges)
 const collapsedSections = ref<Set<string>>(new Set())
 const mapVisible        = ref(DEFAULT_PREFS.mapVisible)
+const showRivers        = ref(DEFAULT_PREFS.showRivers)
 
 // Hydrate refs from the active dashboard's blob. Called on mount and whenever
 // activeDashboardId changes. While hydrating we suppress the save watcher so
@@ -1145,6 +1164,7 @@ function applyPrefs(prefs: DashboardPrefs) {
   filterGauges.value      = prefs.filterGauges
   collapsedSections.value = new Set(prefs.collapsedSections)
   mapVisible.value        = prefs.mapVisible
+  showRivers.value        = prefs.showRivers
   nextTick(() => { hydrating.value = false })
 }
 
@@ -1160,7 +1180,7 @@ watch(() => db.activeDashboardId.value, (id) => {
 watch(
   [viewMode, groupByGauge, groupByState, groupByBasin,
    filterCurated, filterUserReaches, filterGauges,
-   collapsedSections, () => mapVisible.value],
+   collapsedSections, () => mapVisible.value, () => showRivers.value],
   () => { if (!hydrating.value) savePrefs() },
   { deep: true },
 )
@@ -1195,6 +1215,7 @@ function setViewMode(m: ViewMode) {
 const groupingOptions = computed(() => [
   { key: 'state', label: 'By state', active: groupByState.value, toggle: () => { groupByState.value = !groupByState.value } },
   { key: 'basin', label: 'By basin', active: groupByBasin.value, toggle: () => { groupByBasin.value = !groupByBasin.value } },
+  { key: 'river', label: 'By river', active: showRivers.value,   toggle: () => { showRivers.value = !showRivers.value } },
   { key: 'gauge', label: 'By gauge', active: groupByGauge.value, toggle: () => { groupByGauge.value = !groupByGauge.value } },
 ])
 
