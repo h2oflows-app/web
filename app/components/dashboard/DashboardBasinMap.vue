@@ -1,7 +1,8 @@
 <template>
   <div ref="container" class="relative w-full overflow-hidden select-none">
-    <!-- Zoom buttons -->
-    <div v-if="layout.nodes.length > 0" class="absolute top-2 right-2 z-10 flex flex-col gap-1">
+    <!-- Zoom buttons — sticky so they stay visible when modal body scrolls -->
+    <div v-if="layout.nodes.length > 0" class="sticky top-2 z-10 flex justify-end mb-1 pointer-events-none">
+    <div class="flex flex-col gap-1 pointer-events-auto">
       <button
         class="w-7 h-7 flex items-center justify-center rounded-md bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors shadow-sm text-base leading-none"
         title="Zoom in"
@@ -17,6 +18,7 @@
         title="Reset zoom"
         @click="zoomReset"
       >⊡</button>
+    </div>
     </div>
 
     <svg
@@ -130,12 +132,15 @@ export interface DashboardLeaf {
   riverName: string
   riverOrder: number | null
   centerLng: number | null
+  stateAbbr: string | null
 }
 
 const props = defineProps<{
   leaves: DashboardLeaf[]
   /** Restrict the tree to a single basin group; omit to show all. */
   scopeBasin?: string | null
+  /** Restrict the tree to a single state; tree root becomes the state name. */
+  scopeState?: string | null
 }>()
 
 const emit = defineEmits<{ (e: 'select', leaf: DashboardLeaf): void }>()
@@ -144,8 +149,10 @@ const container = ref<HTMLElement | null>(null)
 const svgEl     = ref<SVGSVGElement | null>(null)
 
 const filteredLeaves = computed(() => {
-  if (!props.scopeBasin) return props.leaves
-  return props.leaves.filter(l => l.basinGroup === props.scopeBasin)
+  let out = props.leaves
+  if (props.scopeState) out = out.filter(l => l.stateAbbr === props.scopeState)
+  if (props.scopeBasin) out = out.filter(l => l.basinGroup === props.scopeBasin)
+  return out
 })
 
 const isDark = typeof window !== 'undefined'
@@ -204,7 +211,8 @@ const treeData = computed<TreeNode>(() => {
       return { name: basin, children: rivers }
     })
 
-  return { name: 'Dashboard', children: basins }
+  const rootName = props.scopeState ?? 'Dashboard'
+  return { name: rootName, children: basins }
 })
 
 // ── Layout constants ──────────────────────────────────────────────────────────

@@ -16,7 +16,7 @@
         @delete="onDeleteDashboard"
         @rename="(slug, name) => db.rename(slug, name)"
         @share="shareOpen = true"
-        @view-basin-map="basinMapScope = null; basinMapOpen = true"
+        @view-basin-map="basinMapScope = null; basinMapStateScope = null; basinMapOpen = true"
       />
 
       <!-- Controls bar -->
@@ -36,12 +36,9 @@
             <svg v-if="m.key === 'list'" class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
               <line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/>
             </svg>
-            <svg v-else-if="m.key === 'comfortable'" class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <svg v-else class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/>
               <rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/>
-            </svg>
-            <svg v-else class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="2" width="12" height="4" rx="1"/><rect x="2" y="7" width="12" height="3" rx="1"/><rect x="2" y="11" width="12" height="3" rx="1"/>
             </svg>
           </ToolbarButton>
 
@@ -57,10 +54,23 @@
           </ToolbarButton>
 
           <!-- Expand / Collapse all -->
-          <ToolbarButton v-if="byStateTree.length > 0" :title="allExpanded ? 'Collapse all' : 'Expand all'" @click="toggleAllSections">
+          <ToolbarButton
+            v-if="byStateTree.length > 0"
+            :label="allExpanded ? 'Collapse' : 'Expand'"
+            :title="allExpanded ? 'Collapse all sections' : 'Expand all sections'"
+            @click="toggleAllSections"
+          >
             <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path v-if="allExpanded" d="M3 5l5-3 5 3M3 11l5 3 5-3"/>
-              <path v-else d="M3 3l5 5 5-5M3 13l5-5 5 5"/>
+              <!-- Collapse: two chevrons pointing toward center -->
+              <template v-if="allExpanded">
+                <path d="M3 4l5 3 5-3"/>
+                <path d="M3 12l5-3 5 3"/>
+              </template>
+              <!-- Expand: two chevrons pointing away from center -->
+              <template v-else>
+                <path d="M3 6l5-3 5 3"/>
+                <path d="M3 10l5 3 5-3"/>
+              </template>
             </svg>
           </ToolbarButton>
 
@@ -126,18 +136,36 @@
         <template v-for="stateGroup in byStateTree" :key="stateGroup.name">
         <section v-if="stateHasVisibleContent(stateGroup)" class="mb-4">
           <!-- State header: large, collapsible, h1+hr style -->
-          <button class="flex items-center gap-3 w-full text-left mb-3" @click="toggleState(stateGroup.name)">
-            <svg
-              class="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500 shrink-0 transition-transform duration-200"
-              :class="{ 'rotate-90': !collapsedStates.has(stateGroup.name) }"
-              viewBox="0 0 20 20" fill="currentColor"
+          <div class="flex items-center gap-2 w-full mb-3">
+            <button class="flex items-center gap-2 shrink-0" @click="toggleState(stateGroup.name)">
+              <svg
+                class="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500 shrink-0 transition-transform duration-200"
+                :class="{ 'rotate-90': !collapsedStates.has(stateGroup.name) }"
+                viewBox="0 0 20 20" fill="currentColor"
+              >
+                <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+              </svg>
+              <h1 class="text-2xl font-bold text-neutral-900 dark:text-white">{{ stateGroup.name === '—' ? 'No State' : stateGroup.name }}</h1>
+            </button>
+            <!-- Basin map icon for this state -->
+            <button
+              v-if="stateGroup.name !== '—'"
+              class="p-0.5 rounded text-primary-500 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors shrink-0"
+              title="View state basin map"
+              @click="openBasinMapForState(stateGroup.name)"
             >
-              <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
-            </svg>
-            <h1 class="text-2xl font-bold text-neutral-900 dark:text-white shrink-0">{{ stateGroup.name === '—' ? 'No State' : stateGroup.name }}</h1>
+              <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="8" cy="3" r="1.5"/>
+                <circle cx="4" cy="13" r="1.5"/>
+                <circle cx="12" cy="13" r="1.5"/>
+                <line x1="8" y1="4.5" x2="8" y2="7"/>
+                <path d="M8 7 Q4 9 4 11.5"/>
+                <path d="M8 7 Q12 9 12 11.5"/>
+              </svg>
+            </button>
             <div class="flex-1 h-px bg-neutral-300 dark:bg-neutral-700" />
             <span class="text-sm text-neutral-400 shrink-0">({{ stateGroup.reachCount }})</span>
-          </button>
+          </div>
 
           <template v-if="!collapsedStates.has(stateGroup.name)">
             <template v-for="basin in stateGroup.basins" :key="basin.name">
@@ -307,7 +335,7 @@
                           </div>
                         </div>
                         <div class="shrink-0 flex items-center gap-1">
-                          <span class="font-bold tabular-nums leading-none" :class="viewMode === 'comfortable' ? 'text-2xl' : 'text-3xl'" :style="{ color: bandSolid(r.flow_band, r.flow_status) }">
+                          <span class="font-bold tabular-nums leading-none text-3xl" :style="{ color: bandSolid(r.flow_band, r.flow_status) }">
                             {{ r.current_cfs != null ? r.current_cfs.toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-500 dark:text-neutral-400 ml-0.5">cfs</span>
                           </span>
                           <NuxtLink :to="`/my/reaches/${r.slug}`" class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit reach" @click.stop>
@@ -318,7 +346,7 @@
                       </div>
                       <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :flow-band-label="r.flow_band ?? null" compact class="mb-1" />
                       <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" compact :color="bandSolid(r.flow_band, r.flow_status)" class="mb-1" />
-                      <p v-if="viewMode === 'full' && r.last_reading_at" class="text-xs text-neutral-400 mt-0.5">{{ reachLastUpdated(r) }}</p>
+                      <p v-if="r.last_reading_at" class="text-xs text-neutral-400 mt-0.5">{{ reachLastUpdated(r) }}</p>
                     </div>
                   </div>
                 </template>
@@ -341,7 +369,7 @@
                     v-for="g in basin.standaloneGauges"
                     :key="g.id"
                     class="rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors"
-                    :class="viewMode === 'list' ? 'px-3 py-1.5' : viewMode === 'comfortable' ? 'px-3 py-2.5' : 'px-4 py-3'"
+                    :class="viewMode === 'list' ? 'px-3 py-1.5' : 'px-4 py-3'"
                     @click="openGauge(g, 'gauge')"
                   >
                     <div class="flex items-center gap-3">
@@ -356,7 +384,7 @@
                       <div class="w-20 shrink-0 hidden sm:block h-5 opacity-50 pointer-events-none">
                         <GaugeSparkline :gauge-id="g.id" flow-status="unknown" color="#3b82f6" compact />
                       </div>
-                      <span class="font-bold tabular-nums text-neutral-900 dark:text-white leading-none" :class="viewMode === 'list' ? 'text-sm' : viewMode === 'comfortable' ? 'text-2xl' : 'text-3xl'">
+                      <span class="font-bold tabular-nums text-neutral-900 dark:text-white leading-none" :class="viewMode === 'list' ? 'text-sm' : 'text-3xl'">
                         {{ g.currentCfs != null ? g.currentCfs.toLocaleString() : '—' }}
                       </span>
                       <span class="text-xs text-neutral-400">cfs</span>
@@ -427,7 +455,7 @@
               <TrashButton label="Remove from dashboard" @click="hideCustomGauge(cg.id)" />
             </div>
           </div>
-          <!-- Card views (comfortable / full) -->
+          <!-- Card view (comfortable) -->
           <div v-else :class="cardGridClass">
             <div
               v-for="cg in activeCustomGauges.filter(g => !hiddenCustomGauges.has(g.id))"
@@ -444,7 +472,7 @@
                     </svg>
                     <span class="text-base font-semibold truncate block">{{ cg.name }}</span>
                   </div>
-                  <p v-if="viewMode === 'full' && cg.description" class="text-xs text-neutral-400 truncate mt-0.5">{{ cg.description }}</p>
+                  <p v-if="cg.description" class="text-xs text-neutral-400 truncate mt-0.5">{{ cg.description }}</p>
                 </div>
                 <div class="shrink-0 flex items-center gap-1.5">
                   <span class="text-xl font-bold tabular-nums leading-none text-neutral-900 dark:text-white">
@@ -504,6 +532,7 @@
         <DashboardBasinMap
           :leaves="dashboardLeaves"
           :scope-basin="basinMapScope"
+          :scope-state="basinMapStateScope"
           @select="onBasinMapSelect"
         />
       </template>
@@ -924,6 +953,7 @@ const dashboardLeaves = computed<DashboardLeaf[]>(() => {
       slug: g.contextReachSlug ?? g.id,
       label: g.externalId ?? g.contextReachSlug ?? g.id,
       name: g.contextReachCommonName ?? g.contextReachFullName ?? g.name ?? g.id,
+      stateAbbr: g.stateAbbr ?? null,
       basinGroup: cleanBasinName(g.contextReachBasinGroup)
         ?? cleanBasinName(g.watershedName)
         ?? cleanBasinName(g.basinName)
@@ -944,6 +974,7 @@ const dashboardLeaves = computed<DashboardLeaf[]>(() => {
       slug: r.slug,
       label: r.slug,
       name: r.name,
+      stateAbbr: r.state_abbr ?? null,
       basinGroup: cleanBasinName(r.basin_group) ?? 'Other',
       riverName: r.river_name ?? 'My Reaches',
       riverOrder: null,
@@ -962,6 +993,7 @@ const dashboardLeaves = computed<DashboardLeaf[]>(() => {
       slug: cg.slug,
       label: cg.slug,
       name: cg.name,
+      stateAbbr: null,
       basinGroup: 'Calculated',
       riverName: 'Custom Gauges',
       riverOrder: null,
@@ -1044,16 +1076,16 @@ const VIEW_MODE_KEY = 'h2oflow_dashboard_view_mode'
 const VIEW_MODES = [
   { key: 'list',        label: 'List'        },
   { key: 'comfortable', label: 'Comfortable' },
-  { key: 'full',        label: 'Full'        },
 ] as const
-type ViewMode = 'list' | 'comfortable' | 'full'
+type ViewMode = 'list' | 'comfortable'
 const viewMode = ref<ViewMode>('comfortable')
 onMounted(() => {
   const saved = localStorage.getItem(VIEW_MODE_KEY)
-  if (saved === 'list' || saved === 'comfortable' || saved === 'full') {
+  if (saved === 'list' || saved === 'comfortable') {
     viewMode.value = saved
-  } else if (saved === 'compact') {
-    viewMode.value = 'comfortable' // migrate old compact saves
+  } else {
+    // migrate old 'full' and 'compact' saves
+    viewMode.value = 'comfortable'
     localStorage.setItem(VIEW_MODE_KEY, 'comfortable')
   }
 })
@@ -1109,24 +1141,37 @@ function splitReachGroups(reaches: WatchedGauge[]): SplitGroups {
 
 const cardGridClass = 'grid grid-cols-1 sm:grid-cols-2 gap-2'
 
-// Container class: multi-col grid for comfortable + full
+// Container class: multi-col grid for comfortable
 const reachContainerClass = computed(() =>
-  viewMode.value === 'comfortable' || viewMode.value === 'full'
+  viewMode.value === 'comfortable'
     ? `${cardGridClass} mt-1`
     : 'space-y-2 mt-1'
 )
 
 // ── UI state ─────────────────────────────────────────────────────────────────
 const searchOpen   = ref(false)
-const basinMapOpen  = ref(false)
-const basinMapScope = ref<string | null>(null)
-const basinMapTitle = computed(() => basinMapScope.value ? `${basinMapScope.value} Basin` : 'Basin Map')
+const basinMapOpen       = ref(false)
+const basinMapScope      = ref<string | null>(null)
+const basinMapStateScope = ref<string | null>(null)
+const basinMapTitle = computed(() => {
+  if (basinMapStateScope.value) return `${basinMapStateScope.value}`
+  if (basinMapScope.value) return `${basinMapScope.value} Basin`
+  return 'Basin Map'
+})
 function openBasinMapForBasin(name: string) {
   basinMapScope.value = name
+  basinMapStateScope.value = null
   basinMapOpen.value = true
 }
-// Reset scope whenever the modal closes so the next toolbar-menu open shows all basins
-watch(basinMapOpen, (open) => { if (!open) basinMapScope.value = null })
+function openBasinMapForState(state: string) {
+  basinMapStateScope.value = state
+  basinMapScope.value = null
+  basinMapOpen.value = true
+}
+// Reset scopes when modal closes
+watch(basinMapOpen, (open) => {
+  if (!open) { basinMapScope.value = null; basinMapStateScope.value = null }
+})
 const filterOpen   = ref(false)
 const filterWrap   = ref<HTMLElement | null>(null)
 const MAP_VIS_KEY = 'h2oflow_dashboard_map_visible'

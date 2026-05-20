@@ -4,10 +4,38 @@ export default defineNuxtConfig({
 
   modules: [
     '@nuxt/ui',
+    '@nuxt/fonts',
     '@pinia/nuxt',
     '@pinia-plugin-persistedstate/nuxt',
     '@nuxtjs/supabase',
   ],
+
+  fonts: {
+    families: [
+      // Eddy
+      { name: 'Sora',             weights: [400, 500, 600, 700] },
+      { name: 'Inter',            weights: [400, 500, 600, 700] },
+      { name: 'JetBrains Mono',   weights: [400, 500] },
+      // Hydraulic
+      { name: 'Space Grotesk',    weights: [400, 500, 600, 700] },
+      { name: 'IBM Plex Sans',    weights: [400, 500, 600, 700] },
+      { name: 'IBM Plex Mono',    weights: [400, 500] },
+      // Confluence
+      { name: 'Fraunces',         weights: [400, 500, 600, 700] },
+      { name: 'Manrope',          weights: [400, 500, 600, 700] },
+      { name: 'Fira Code',        weights: [400, 500] },
+      // Creekin
+      { name: 'Archivo Black',    weights: [400],             styles: ['normal', 'italic'] },
+      { name: 'Archivo',          weights: [400, 500, 600, 700], styles: ['normal', 'italic'] },
+      { name: 'DM Sans',          weights: [400, 500, 600] },
+      { name: 'Roboto Mono',      weights: [400, 500] },
+      // Gauge Line
+      { name: 'Barlow Condensed', weights: [400, 500, 600, 700] },
+      { name: 'Barlow',           weights: [400, 500, 600, 700] },
+      { name: 'Nunito Sans',      weights: [400, 500, 600, 700] },
+      { name: 'Source Code Pro',  weights: [400, 500] },
+    ],
+  },
 
   // Default to localStorage so the watchlist (large array) survives hard refresh.
   // Cookie storage (the plugin default) has a 4KB limit — truncated cookies

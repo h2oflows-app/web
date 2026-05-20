@@ -26,7 +26,7 @@
         </div>
 
         <!-- Wordmark -->
-        <p class="text-2xl font-extrabold tracking-tight text-primary-600 dark:text-primary-400 mb-4">h2oflows</p>
+        <p class="text-2xl font-semibold tracking-tight text-primary-600 dark:text-primary-400 mb-4 font-display">h2oflows</p>
 
         <!-- Badge -->
         <div class="inline-flex items-center gap-1.5 text-xs font-medium text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950 rounded-full px-3 py-1 mb-5">
@@ -38,7 +38,7 @@
         </div>
 
         <!-- Headline -->
-        <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-neutral-900 dark:text-white leading-tight mb-3 text-center">
+        <h1 class="text-4xl sm:text-5xl font-bold tracking-tight text-neutral-900 dark:text-white leading-tight mb-3 text-center font-display">
           Know before<br>you go.
         </h1>
 

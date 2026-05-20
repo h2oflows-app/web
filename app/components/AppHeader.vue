@@ -7,7 +7,7 @@
         <svg class="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M2 12c2-4 4-6 6-6s4 6 6 6 4-6 6-6" stroke-linecap="round"/>
         </svg>
-        <span class="text-sm font-bold tracking-tight hidden sm:inline">H2OFlows</span>
+        <span class="text-sm font-semibold tracking-tight hidden sm:inline font-display">H2OFlows</span>
       </NuxtLink>
 
       <!-- Dashboard shortcut -->
