@@ -1,4 +1,4 @@
-const FONT_SCHEME_KEY = 'h2oflow_font_scheme'
+const FONT_SCHEME_KEY = "h2oflow_font_scheme"
 
 export interface FontScheme {
   id: string
@@ -8,84 +8,86 @@ export interface FontScheme {
   headingFont: string
   bodyFont: string
   monoFont: string
-  fontStyle?: 'normal' | 'italic'
+  fontStyle?: "normal" | "italic"
 }
 
 export const FONT_SCHEMES: FontScheme[] = [
   {
-    id: 'eddy',
-    name: 'Eddy',
-    description: 'Calm, modern, and approachable',
-    displayFont: "'Sora', ui-sans-serif, sans-serif",
-    headingFont: "'Sora', ui-sans-serif, sans-serif",
-    bodyFont:    "'Inter', ui-sans-serif, system-ui, sans-serif",
-    monoFont:    "'JetBrains Mono', ui-monospace, monospace",
+    id: "eddy",
+    name: "Eddy",
+    description: "Bubbly, inflated geometry — smooth and approachable",
+    displayFont: "'Comfortaa', ui-sans-serif, sans-serif",
+    headingFont: "'Comfortaa', ui-sans-serif, sans-serif",
+    bodyFont: "'Nunito', ui-sans-serif, system-ui, sans-serif",
+    monoFont: "'JetBrains Mono', ui-monospace, monospace",
   },
   {
-    id: 'hydraulic',
-    name: 'Hydraulic',
-    description: 'Telemetry-grade, engineered precision',
-    displayFont: "'Space Grotesk', ui-sans-serif, sans-serif",
-    headingFont: "'Space Grotesk', ui-sans-serif, sans-serif",
-    bodyFont:    "'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif",
-    monoFont:    "'IBM Plex Mono', ui-monospace, monospace",
+    id: "hydraulic",
+    name: "Hydraulic",
+    description: "Angular, futuristic, gauge-instrument precise",
+    displayFont: "'Chakra Petch', ui-sans-serif, sans-serif",
+    headingFont: "'Chakra Petch', ui-sans-serif, sans-serif",
+    bodyFont: "'Exo 2', ui-sans-serif, system-ui, sans-serif",
+    monoFont: "'IBM Plex Mono', ui-monospace, monospace",
   },
   {
-    id: 'confluence',
-    name: 'Confluence',
-    description: 'Editorial field-journal meets clean sans',
-    displayFont: "'Fraunces', Georgia, serif",
-    headingFont: "'Fraunces', Georgia, serif",
-    bodyFont:    "'Manrope', ui-sans-serif, system-ui, sans-serif",
-    monoFont:    "'Fira Code', ui-monospace, monospace",
+    id: "confluence",
+    name: "Confluence",
+    description: "High-contrast serif — literary, editorial, elegant",
+    displayFont: "'Cormorant Garamond', Georgia, serif",
+    headingFont: "'Cormorant Garamond', Georgia, serif",
+    bodyFont: "'Lora', Georgia, serif",
+    monoFont: "'Fira Code', ui-monospace, monospace",
   },
   {
-    id: 'creekin',
+    id: "creekin",
     name: "Creekin'",
-    description: 'Bold, punchy steep-creek energy',
-    displayFont: "'Archivo Black', ui-sans-serif, sans-serif",
-    headingFont: "'Archivo', ui-sans-serif, sans-serif",
-    bodyFont:    "'Archivo', ui-sans-serif, system-ui, sans-serif",
-    monoFont:    "'Roboto Mono', ui-monospace, monospace",
-    fontStyle:   'italic',
+    description: "Compressed bold italic — hard-charging and fast",
+    displayFont: "'Barlow Condensed', ui-sans-serif, sans-serif",
+    headingFont: "'Barlow Condensed', ui-sans-serif, sans-serif",
+    bodyFont: "'Barlow', ui-sans-serif, system-ui, sans-serif",
+    monoFont: "'Roboto Mono', ui-monospace, monospace",
+    fontStyle: "italic",
   },
   {
-    id: 'ripple',
-    name: 'Ripple',
-    description: 'Rounded, warm, and universally inviting',
-    displayFont: "'Nunito Sans', ui-sans-serif, sans-serif",
-    headingFont: "'Nunito Sans', ui-sans-serif, sans-serif",
-    bodyFont:    "'DM Sans', ui-sans-serif, system-ui, sans-serif",
-    monoFont:    "'Fira Code', ui-monospace, monospace",
+    id: "ripple",
+    name: "Ripple",
+    description: "Airy geometric italic — soft, flowing, community-first",
+    displayFont: "'Josefin Sans', ui-sans-serif, sans-serif",
+    headingFont: "'Josefin Sans', ui-sans-serif, sans-serif",
+    bodyFont: "'Raleway', ui-sans-serif, system-ui, sans-serif",
+    monoFont: "'Fira Code', ui-monospace, monospace",
+    fontStyle: "italic",
   },
 ]
 
 function applyScheme(scheme: FontScheme) {
-  if (typeof document === 'undefined') return
+  if (typeof document === "undefined") return
   const root = document.documentElement
-  root.style.setProperty('--font-display', scheme.displayFont)
-  root.style.setProperty('--font-heading', scheme.headingFont)
-  root.style.setProperty('--font-sans',    scheme.bodyFont)
-  root.style.setProperty('--font-mono',    scheme.monoFont)
-  root.style.setProperty('--font-style',   scheme.fontStyle ?? 'normal')
+  root.style.setProperty("--font-display", scheme.displayFont)
+  root.style.setProperty("--font-heading", scheme.headingFont)
+  root.style.setProperty("--font-sans", scheme.bodyFont)
+  root.style.setProperty("--font-mono", scheme.monoFont)
+  root.style.setProperty("--font-style", scheme.fontStyle ?? "normal")
 }
 
 export function useFontScheme() {
-  const schemeId = ref<string>('eddy')
+  const schemeId = ref<string>("eddy")
 
   function load() {
-    if (typeof localStorage === 'undefined') return
+    if (typeof localStorage === "undefined") return
     const saved = localStorage.getItem(FONT_SCHEME_KEY)
-    const scheme = FONT_SCHEMES.find(s => s.id === saved) ?? FONT_SCHEMES[0]!
+    const scheme = FONT_SCHEMES.find((s) => s.id === saved) ?? FONT_SCHEMES[0]!
     schemeId.value = scheme.id
     applyScheme(scheme)
   }
 
   function setScheme(id: string) {
-    const scheme = FONT_SCHEMES.find(s => s.id === id)
+    const scheme = FONT_SCHEMES.find((s) => s.id === id)
     if (!scheme) return
     schemeId.value = id
-    if (typeof localStorage !== 'undefined') localStorage.setItem(FONT_SCHEME_KEY, id)
+    if (typeof localStorage !== "undefined")
+      localStorage.setItem(FONT_SCHEME_KEY, id)
     applyScheme(scheme)
   }
 

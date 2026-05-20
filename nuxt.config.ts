@@ -13,27 +13,26 @@ export default defineNuxtConfig({
   fonts: {
     families: [
       // Eddy
-      { name: 'Sora',             weights: [400, 500, 600, 700] },
-      { name: 'Inter',            weights: [400, 500, 600, 700] },
-      { name: 'JetBrains Mono',   weights: [400, 500] },
+      { name: 'Comfortaa',          weights: [400, 500, 600, 700] },
+      { name: 'Nunito',             weights: [400, 500, 600, 700] },
+      { name: 'JetBrains Mono',     weights: [400, 500] },
       // Hydraulic
-      { name: 'Space Grotesk',    weights: [400, 500, 600, 700] },
-      { name: 'IBM Plex Sans',    weights: [400, 500, 600, 700] },
-      { name: 'IBM Plex Mono',    weights: [400, 500] },
+      { name: 'Chakra Petch',       weights: [400, 500, 600, 700] },
+      { name: 'Exo 2',              weights: [400, 500, 600, 700] },
+      { name: 'IBM Plex Mono',      weights: [400, 500] },
       // Confluence
-      { name: 'Fraunces',         weights: [400, 500, 600, 700] },
-      { name: 'Manrope',          weights: [400, 500, 600, 700] },
-      { name: 'Fira Code',        weights: [400, 500] },
-      // Creekin
-      { name: 'Archivo Black',    weights: [400],             styles: ['normal', 'italic'] },
-      { name: 'Archivo',          weights: [400, 500, 600, 700], styles: ['normal', 'italic'] },
-      { name: 'DM Sans',          weights: [400, 500, 600] },
-      { name: 'Roboto Mono',      weights: [400, 500] },
+      { name: 'Cormorant Garamond', weights: [400, 500, 600, 700] },
+      { name: 'Lora',               weights: [400, 500, 600, 700] },
+      { name: 'Fira Code',          weights: [400, 500] },
+      // Creekin (all italic)
+      { name: 'Barlow Condensed',   weights: [400, 500, 600, 700], styles: ['normal', 'italic'] },
+      { name: 'Barlow',             weights: [400, 500, 600, 700], styles: ['normal', 'italic'] },
+      { name: 'Roboto Mono',        weights: [400, 500] },
+      // Ripple (all italic)
+      { name: 'Josefin Sans',       weights: [400, 500, 600, 700], styles: ['normal', 'italic'] },
+      { name: 'Raleway',            weights: [400, 500, 600, 700], styles: ['normal', 'italic'] },
       // Gauge Line
-      { name: 'Barlow Condensed', weights: [400, 500, 600, 700] },
-      { name: 'Barlow',           weights: [400, 500, 600, 700] },
-      { name: 'Nunito Sans',      weights: [400, 500, 600, 700] },
-      { name: 'Source Code Pro',  weights: [400, 500] },
+      { name: 'Source Code Pro',    weights: [400, 500] },
     ],
   },
 
