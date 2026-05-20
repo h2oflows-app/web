@@ -1,5 +1,20 @@
 <template>
   <div class="w-full" @click.stop>
+    <!-- Non-compact: visible time selector row (matches GaugeSparkline) -->
+    <div v-if="!compact" class="flex justify-start mb-1.5 -mt-0.5">
+      <div class="flex text-xs rounded overflow-hidden border border-neutral-200 dark:border-neutral-700">
+        <button
+          class="px-1.5 py-0.5 transition-colors"
+          :class="hours === 12 ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
+          @click.stop="hours = 12"
+        >12h</button>
+        <button
+          class="px-1.5 py-0.5 transition-colors"
+          :class="hours === 24 ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
+          @click.stop="hours = 24"
+        >24h</button>
+      </div>
+    </div>
     <div class="relative w-full" :class="compact ? 'h-6' : 'h-10'">
       <button v-if="compact" class="absolute top-0 right-0 text-[9px] leading-none text-neutral-400 dark:text-neutral-500 hover:text-primary-500 dark:hover:text-primary-400 font-mono z-10 transition-colors" @click.stop="toggleHours">{{ hours }}h</button>
       <div v-if="loading" class="w-full h-full rounded animate-pulse bg-neutral-100 dark:bg-neutral-800" />
@@ -32,7 +47,7 @@ const { getToken } = useAuth()
 
 const loading  = ref(true)
 const readings = ref<{ cfs: number; timestamp: string }[]>([])
-const hours    = ref(24)
+const hours    = ref<12 | 24>(24)
 
 function toggleHours() {
   hours.value = hours.value === 24 ? 12 : 24

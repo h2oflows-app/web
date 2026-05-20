@@ -1,7 +1,7 @@
 <template>
   <div class="w-full" @click.stop>
     <!-- Window toggle — hidden in compact mode -->
-    <div v-if="!compact" class="flex justify-end mb-0.5">
+    <div v-if="!compact" class="flex justify-start mb-1.5 -mt-0.5">
       <div class="flex text-xs rounded overflow-hidden border border-neutral-200 dark:border-neutral-700">
         <button
           class="px-1.5 py-0.5 transition-colors"

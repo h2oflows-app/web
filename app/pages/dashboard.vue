@@ -35,9 +35,12 @@
             <svg v-if="m.key === 'list'" class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
               <line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/>
             </svg>
-            <svg v-else class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <svg v-else-if="m.key === 'comfortable'" class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/>
               <rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/>
+            </svg>
+            <svg v-else class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="1" y="1" width="14" height="6" rx="1"/><rect x="1" y="9" width="14" height="6" rx="1"/>
             </svg>
           </ToolbarButton>
 
@@ -253,11 +256,11 @@
                           v-if="viewMode === 'list'"
                           :reaches="split.ungrouped"
                           density="list"
-                          :class="split.gaugeGroups.length > 0 ? 'mt-3' : ''"
+                          :class="split.gaugeGroups.length > 0 ? 'mt-1.5' : ''"
                           @open="(g, mode) => openGauge(g, mode)"
                           @remove="(g) => removeAndSync(g.id, g.contextReachSlug)"
                         />
-                        <div v-else :class="[cardGridClass, split.gaugeGroups.length > 0 ? 'mt-3' : '']">
+                        <div v-else :class="[cardGridClass, split.gaugeGroups.length > 0 ? 'mt-1.5' : '']">
                           <DashboardReachGroup
                             v-for="reach in split.ungrouped"
                             :key="`${reach.id}::${reach.contextReachSlug}`"
@@ -310,10 +313,10 @@
                         </NuxtLink>
                       </div>
                       <div class="flex items-center gap-2 shrink-0">
-                        <div v-if="r.gauge_id" class="w-32 shrink-0 hidden sm:block">
+                        <div v-if="r.gauge_id" class="w-32 shrink-0 hidden sm:block opacity-60">
                           <GaugeSparkline :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :flow-band-label="r.flow_band ?? null" compact class="h-full w-full" />
                         </div>
-                        <div v-else-if="r.custom_gauge_slug" class="w-32 shrink-0 hidden sm:block">
+                        <div v-else-if="r.custom_gauge_slug" class="w-32 shrink-0 hidden sm:block opacity-60">
                           <CustomGaugeSparkline :gauge-slug="r.custom_gauge_slug" compact :color="bandSolid(r.flow_band, r.flow_status)" class="h-full w-full" />
                         </div>
                         <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', reachBadgeClass(r)]">{{ reachStatusLabel(r) }}</span>
@@ -349,8 +352,8 @@
                           <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
                         </div>
                       </div>
-                      <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :flow-band-label="r.flow_band ?? null" compact class="mb-1" />
-                      <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" compact :color="bandSolid(r.flow_band, r.flow_status)" class="mb-1" />
+                      <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :flow-band-label="r.flow_band ?? null" :compact="viewMode !== 'full'" class="mb-1 opacity-70" />
+                      <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" :compact="viewMode !== 'full'" :color="bandSolid(r.flow_band, r.flow_status)" class="mb-1 opacity-70" />
                       <p v-if="r.last_reading_at" class="text-xs text-neutral-400 mt-0.5">{{ reachLastUpdated(r) }}</p>
                     </div>
                   </div>
@@ -373,8 +376,8 @@
                   <div
                     v-for="g in sub.standaloneGauges"
                     :key="g.id"
-                    class="rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors"
-                    :class="viewMode === 'list' ? 'px-3 py-1.5' : 'px-4 py-3'"
+                    :class="viewMode === 'list' ? 'rounded-lg px-3 py-1.5' : 'rounded-xl px-4 py-3'"
+                    class="border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors"
                     @click="openGauge(g, 'gauge')"
                   >
                     <div class="flex items-center gap-3">
@@ -450,7 +453,7 @@
                 <span class="text-sm font-medium truncate">{{ cg.name }}</span>
                 <span v-if="cg.any_input_unhealthy" class="hidden sm:inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 shrink-0">Stale</span>
               </div>
-              <div class="w-32 shrink-0 hidden sm:block">
+              <div class="w-32 shrink-0 hidden sm:block opacity-60">
                 <CustomGaugeSparkline :gauge-slug="cg.slug" compact class="h-full w-full" />
               </div>
               <span class="text-base font-bold tabular-nums text-neutral-900 dark:text-white shrink-0">
@@ -484,8 +487,8 @@
                 </div>
               </div>
               <!-- Sparkline -->
-              <div class="mt-2">
-                <CustomGaugeSparkline :gauge-slug="cg.slug" compact />
+              <div class="mt-2 opacity-70">
+                <CustomGaugeSparkline :gauge-slug="cg.slug" :compact="viewMode !== 'full'" />
               </div>
               <!-- Calculated origin badge + stale indicator -->
               <div class="flex items-center gap-2 mt-1.5">
@@ -1072,10 +1075,11 @@ function sectionHasVisibleContent(sec: DisplaySection): boolean {
 // Saved as one JSON blob per dashboard so grouping/filter/view/collapse/mapVisible
 // stick on the dashboard they were set on. When the active dashboard changes, all
 // pref refs are rehydrated from the new dashboard's blob.
-type ViewMode = 'list' | 'comfortable'
+type ViewMode = 'list' | 'comfortable' | 'full'
 const VIEW_MODES = [
   { key: 'list',        label: 'List'        },
   { key: 'comfortable', label: 'Comfortable' },
+  { key: 'full',        label: 'Full'        },
 ] as const
 
 interface DashboardPrefs {
@@ -1242,13 +1246,17 @@ function splitReachGroups(reaches: WatchedGauge[]): SplitGroups {
   return { gaugeGroups, ungrouped }
 }
 
-const cardGridClass = 'grid grid-cols-1 sm:grid-cols-2 gap-2'
+const cardGridClass = computed(() =>
+  viewMode.value === 'full'
+    ? 'grid grid-cols-1 gap-2'
+    : 'grid grid-cols-1 sm:grid-cols-2 gap-2'
+)
 
-// Container class: multi-col grid for comfortable
+// Container class: multi-col grid for card modes
 const reachContainerClass = computed(() =>
-  viewMode.value === 'comfortable'
-    ? `${cardGridClass} mt-1`
-    : 'space-y-2 mt-1'
+  viewMode.value === 'list'
+    ? 'space-y-2 mt-1'
+    : `${cardGridClass.value} mt-1`
 )
 
 // ── UI state ─────────────────────────────────────────────────────────────────
