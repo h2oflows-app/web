@@ -80,44 +80,49 @@
         </div>
       </template>
 
-      <!-- Comfortable / Full: left column (name + badge + sparkline) + right CFS -->
+      <!-- Full: header row + full-width sparkline below -->
+      <template v-else-if="density === 'full'">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="flex-1 min-w-0 flex items-center gap-1">
+            <span class="min-w-0 text-base font-semibold text-neutral-800 dark:text-neutral-100 truncate">{{ reachLabel(reach) }}</span>
+            <NuxtLink :to="`/reaches/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View reach page" @click.stop>
+              <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
+            </NuxtLink>
+            <span v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(reach), displayFlowStatus(reach))]">{{ flowBandLabel(displayFlowBandLabel(reach), displayFlowStatus(reach)) }}</span>
+          </div>
+          <div class="text-right shrink-0">
+            <div class="font-bold tabular-nums leading-none text-2xl" :style="{ color: bandSolid(displayFlowBandLabel(reach)) }">
+              {{ displayCfs(reach) != null ? Math.round(displayCfs(reach)!).toLocaleString() : '—' }}
+            </div>
+            <div class="text-xs text-neutral-400">cfs</div>
+          </div>
+          <TrashButton label="Remove" @click="$emit('remove', reach)" />
+        </div>
+        <div class="opacity-70">
+          <GaugeSparkline :gauge-id="reach.id" flow-status="unknown" :color="sparklineColor(reach)" :compact="false" @latest-cfs="(v) => setLiveCfs(reach, v)" />
+        </div>
+      </template>
+
+      <!-- Comfortable: name+CFS header row, full-width sparkline below -->
       <template v-else>
-        <div class="flex items-start gap-3">
-          <!-- Left -->
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-1">
-              <span class="min-w-0 text-base font-semibold text-neutral-800 dark:text-neutral-100 truncate">
-                {{ reachLabel(reach) }}
-              </span>
-              <NuxtLink
-                :to="`/reaches/${reach.contextReachSlug}`"
-                class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
-                aria-label="View reach page"
-                @click.stop
-              >
-                <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/>
-                </svg>
-              </NuxtLink>
-              <span
-                v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)"
-                :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(reach), displayFlowStatus(reach))]"
-              >{{ flowBandLabel(displayFlowBandLabel(reach), displayFlowStatus(reach)) }}</span>
-            </div>
-            <div class="mt-1.5 opacity-70 h-14">
-              <GaugeSparkline :gauge-id="reach.id" flow-status="unknown" :color="sparklineColor(reach)" :compact="false" @latest-cfs="(v) => setLiveCfs(reach, v)" />
-            </div>
+        <div class="flex items-center gap-2 mb-2">
+          <div class="flex-1 min-w-0 flex items-center gap-1">
+            <span class="min-w-0 text-base font-semibold text-neutral-800 dark:text-neutral-100 truncate">{{ reachLabel(reach) }}</span>
+            <NuxtLink :to="`/reaches/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View reach page" @click.stop>
+              <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
+            </NuxtLink>
+            <span v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(reach), displayFlowStatus(reach))]">{{ flowBandLabel(displayFlowBandLabel(reach), displayFlowStatus(reach)) }}</span>
           </div>
-          <!-- Right: CFS + remove -->
-          <div class="flex items-start gap-1 shrink-0">
-            <div class="text-right">
-              <div class="font-bold tabular-nums leading-none text-3xl" :style="{ color: bandSolid(displayFlowBandLabel(reach)) }">
-                {{ displayCfs(reach) != null ? Math.round(displayCfs(reach)!).toLocaleString() : '—' }}
-              </div>
-              <div class="text-xs text-neutral-400 mt-0.5">cfs</div>
+          <div class="text-right shrink-0">
+            <div class="font-bold tabular-nums leading-none text-3xl" :style="{ color: bandSolid(displayFlowBandLabel(reach)) }">
+              {{ displayCfs(reach) != null ? Math.round(displayCfs(reach)!).toLocaleString() : '—' }}
             </div>
-            <TrashButton label="Remove" @click="$emit('remove', reach)" />
+            <div class="text-xs text-neutral-400">cfs</div>
           </div>
+          <TrashButton label="Remove" @click="$emit('remove', reach)" />
+        </div>
+        <div class="opacity-70">
+          <GaugeSparkline :gauge-id="reach.id" flow-status="unknown" :color="sparklineColor(reach)" :compact="false" @latest-cfs="(v) => setLiveCfs(reach, v)" />
         </div>
       </template>
     </div>

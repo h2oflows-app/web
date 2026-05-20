@@ -100,32 +100,49 @@
         </div>
       </template>
 
-      <!-- Comfortable: two-column — name+sparkline left, CFS right -->
-      <template v-else>
-        <div class="flex items-start gap-3">
-          <!-- Left -->
+      <!-- Full: header row + full-width sparkline below -->
+      <template v-else-if="density === 'full'">
+        <div class="flex items-center gap-2 mb-2">
+          <svg class="w-4 h-4 text-neutral-400 dark:text-neutral-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Gauge">
+            <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M12 12 16 8"/><path d="M3 12a9 9 0 0 1 18 0"/>
+          </svg>
           <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-1.5 mb-1">
-              <svg class="w-4 h-4 text-neutral-400 dark:text-neutral-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Gauge">
-                <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M12 12 16 8"/><path d="M3 12a9 9 0 0 1 18 0"/>
-              </svg>
-              <div class="min-w-0">
-                <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate block leading-tight">{{ gaugeName }}</span>
-                <span class="text-xs text-neutral-400 dark:text-neutral-500 font-mono truncate block leading-tight">{{ gaugeShortLabel }}</span>
-                <span v-if="riverDisplayName && !hideRiverName" class="text-xs text-neutral-400 dark:text-neutral-500 truncate block leading-tight">{{ riverDisplayName }}</span>
-              </div>
+            <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate block leading-tight">{{ gaugeName }}</span>
+            <span v-if="riverDisplayName && !hideRiverName" class="text-xs text-neutral-400 dark:text-neutral-500 truncate block leading-tight">{{ riverDisplayName }}</span>
+          </div>
+          <div class="text-right shrink-0">
+            <div class="font-bold tabular-nums leading-none text-neutral-900 dark:text-white text-2xl">
+              {{ currentCfs != null ? Math.round(currentCfs).toLocaleString() : '—' }}
             </div>
-            <div class="opacity-70 h-14">
-              <GaugeSparkline
-                :gauge-id="leadGauge.id"
-                flow-status="unknown"
-                color="#3b82f6"
-                :compact="false"
-                @latest-cfs="liveCfs = $event"
-              />
+            <div class="text-xs text-neutral-400">cfs</div>
+          </div>
+          <TrendArrow v-if="currentCfs != null" :gauge-id="leadGauge.id" class="text-base shrink-0" />
+          <TrashButton label="Remove gauge group" @click.stop="$emit('remove-group')" />
+        </div>
+        <div class="opacity-70">
+          <GaugeSparkline
+            :gauge-id="leadGauge.id"
+            flow-status="unknown"
+            color="#3b82f6"
+            :compact="false"
+            @latest-cfs="liveCfs = $event"
+          />
+        </div>
+      </template>
+
+      <!-- Comfortable: two-column — name left, sparkline below header, CFS right -->
+      <template v-else>
+        <div class="flex items-start gap-3 mb-2">
+          <div class="flex items-center gap-1.5 flex-1 min-w-0">
+            <svg class="w-4 h-4 text-neutral-400 dark:text-neutral-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Gauge">
+              <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M12 12 16 8"/><path d="M3 12a9 9 0 0 1 18 0"/>
+            </svg>
+            <div class="min-w-0">
+              <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate block leading-tight">{{ gaugeName }}</span>
+              <span class="text-xs text-neutral-400 dark:text-neutral-500 font-mono truncate block leading-tight">{{ gaugeShortLabel }}</span>
+              <span v-if="riverDisplayName && !hideRiverName" class="text-xs text-neutral-400 dark:text-neutral-500 truncate block leading-tight">{{ riverDisplayName }}</span>
             </div>
           </div>
-          <!-- Right: CFS -->
           <div class="text-right shrink-0">
             <div class="font-bold tabular-nums leading-none text-neutral-900 dark:text-white text-3xl">
               {{ currentCfs != null ? Math.round(currentCfs).toLocaleString() : '—' }}
@@ -133,6 +150,15 @@
             <div class="text-xs text-neutral-400 mt-0.5">cfs</div>
             <TrendArrow v-if="currentCfs != null" :gauge-id="leadGauge.id" class="text-base justify-end mt-0.5" />
           </div>
+        </div>
+        <div class="opacity-70">
+          <GaugeSparkline
+            :gauge-id="leadGauge.id"
+            flow-status="unknown"
+            color="#3b82f6"
+            :compact="false"
+            @latest-cfs="liveCfs = $event"
+          />
         </div>
       </template>
     </div>
