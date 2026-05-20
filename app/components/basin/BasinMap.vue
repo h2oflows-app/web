@@ -6,6 +6,11 @@
       Loading map…
     </div>
 
+    <div v-if="mapReady && networkLoading" class="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/95 dark:bg-neutral-900/95 border border-neutral-200 dark:border-neutral-700 shadow-md text-xs text-neutral-600 dark:text-neutral-300 pointer-events-none">
+      <div class="w-3 h-3 rounded-full border-2 border-primary-500 border-t-transparent animate-spin" />
+      Loading tributaries…
+    </div>
+
     <div v-if="mapReady && fetchDone && reaches.length === 0" class="absolute inset-0 flex items-center justify-center pointer-events-none">
       <p class="text-sm text-neutral-400 bg-white/80 dark:bg-neutral-900/80 rounded-lg px-4 py-2">
         No centerlines available for this basin yet.
@@ -59,6 +64,7 @@ const props = defineProps<{
   network?:          BasinNetwork | null
   watchedGaugeIds?:  Set<string>   // externalIds already on dashboard (e.g. "09058000")
   fetchDone?:        boolean       // true once the parent's fetch has settled
+  networkLoading?:   boolean       // true while tributaries are loading from NLDI
 }>()
 const emit  = defineEmits<{ (e: 'select', slug: string): void }>()
 

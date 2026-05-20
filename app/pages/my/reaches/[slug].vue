@@ -321,6 +321,17 @@
             <textarea v-model="form.note" rows="3" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm resize-y" placeholder="Beta, access, permanent hazards…" />
           </div>
 
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1">Class min</label>
+              <input v-model.number="form.classMin" type="number" min="1" max="6" step="0.5" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="3" />
+            </div>
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1">Class max</label>
+              <input v-model.number="form.classMax" type="number" min="1" max="6" step="0.5" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="5" />
+            </div>
+          </div>
+
         </div>
 
         <!-- Flow bands -->
@@ -498,6 +509,8 @@ interface UserReachDetail {
   river_slug:        string | null
   river_state_abbr:  string | null
   river_basin:       string | null
+  class_min:         number | null
+  class_max:         number | null
   put_in_lng:        number
   put_in_lat:        number
   take_out_lng:      number
@@ -529,6 +542,8 @@ const form = ref({
   name:      '',
   riverName: '',
   note:      '',
+  classMin:  null as number | null,
+  classMax:  null as number | null,
   ranges: {
     low:     { min: null as number | null, max: null as number | null },
     running: { min: null as number | null, max: null as number | null },
@@ -944,6 +959,8 @@ function populateForm(r: UserReachDetail) {
   form.value.name      = r.name
   form.value.riverName = r.river_name ?? ''
   form.value.note      = r.note ?? ''
+  form.value.classMin  = r.class_min ?? null
+  form.value.classMax  = r.class_max ?? null
   const low     = r.flow_ranges.find(x => x.label === 'low')
   const running = r.flow_ranges.find(x => x.label === 'running')
   const high    = r.flow_ranges.find(x => x.label === 'high')
@@ -1021,6 +1038,8 @@ async function save() {
       name:       form.value.name.trim(),
       river_name: form.value.riverName.trim() || null,
       note:       form.value.note.trim()      || null,
+      class_min:  form.value.classMin,
+      class_max:  form.value.classMax,
       gnis_id:    nldiGnisId.value ?? undefined,
     }
     if (repinFlowlinesDirty.value && repinUpComID.value && repinDownComID.value) {

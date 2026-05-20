@@ -64,6 +64,19 @@
             </svg>
           </ToolbarButton>
 
+          <!-- Show gauge map toggle -->
+          <ToolbarButton
+            :active="mapVisible"
+            :title="mapVisible ? 'Hide gauge map' : 'Show gauge map'"
+            @click="mapVisible = !mapVisible"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5.5 2 1.5 4v10l4-2 5 2 4-2V2l-4 2-5-2z"/>
+              <path d="M5.5 2v10"/>
+              <path d="M10.5 4v10"/>
+            </svg>
+          </ToolbarButton>
+
         </template>
       </div>
 
@@ -489,16 +502,16 @@
         </section>
 
         <!-- Dashboard map -->
-        <section>
+        <section v-if="mapVisible">
           <div class="flex items-center gap-2 mb-3">
             <h2 class="text-sm font-semibold text-neutral-500 uppercase tracking-wide">Gauge Map</h2>
             <div class="flex-1 h-px bg-neutral-200 dark:bg-neutral-800" />
             <button
               class="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
-              @click="mapVisible = !mapVisible"
-            >{{ mapVisible ? 'Hide' : 'Show' }}</button>
+              @click="mapVisible = false"
+            >Hide</button>
           </div>
-          <ClientOnly v-if="mapVisible">
+          <ClientOnly>
             <DashboardMap
               :gauges="store.gauges"
               @remove-gauge="removeAndSync($event)"
@@ -548,7 +561,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useWatchlistStore, type WatchedGauge } from '~/stores/watchlist'
 import { cleanBasinName, slugifyBasin } from '~/utils/basin'
 import { flowBandLabel } from '~/utils/flowBand'
@@ -825,7 +838,13 @@ const byStateTree = computed<StateGroup[]>(() => {
 
   // De-duplicate: same gauge+reach should only appear once
   const seen = new Set<string>()
+  // User reaches render via the activeUserReaches fold-in below. Any watchlist
+  // gauge whose contextReachSlug matches a user reach slug is a stale or legacy
+  // gauge-bound entry — skip it so the user reach isn't double-rendered as a
+  // phantom curated reach under "Unknown River".
+  const userReachSlugs = new Set(userReaches.value.map(r => r.slug))
   for (const g of store.gauges) {
+    if (g.contextReachSlug && userReachSlugs.has(g.contextReachSlug)) continue
     const dedupeKey = `${g.id}::${g.contextReachSlug ?? ''}`
     if (seen.has(dedupeKey)) continue
     seen.add(dedupeKey)
@@ -1034,30 +1053,128 @@ function sectionHasVisibleContent(sec: DisplaySection): boolean {
   return sec.subSections.some(s => subSectionHasVisibleContent(s))
 }
 
-// ── Collapsible sections ────────────────────────────────────────────────────
-const COLLAPSED_KEY = 'h2oflow_dashboard_collapsed_sections'
+// ── Per-dashboard preferences ───────────────────────────────────────────────
+// Saved as one JSON blob per dashboard so grouping/filter/view/collapse/mapVisible
+// stick on the dashboard they were set on. When the active dashboard changes, all
+// pref refs are rehydrated from the new dashboard's blob.
+type ViewMode = 'list' | 'comfortable'
+const VIEW_MODES = [
+  { key: 'list',        label: 'List'        },
+  { key: 'comfortable', label: 'Comfortable' },
+] as const
+
+interface DashboardPrefs {
+  viewMode: ViewMode
+  groupByGauge: boolean
+  groupByState: boolean
+  groupByBasin: boolean
+  filterCurated: boolean
+  filterUserReaches: boolean
+  filterGauges: boolean
+  collapsedSections: string[]
+  mapVisible: boolean
+}
+
+const DEFAULT_PREFS: DashboardPrefs = {
+  viewMode: 'comfortable',
+  groupByGauge: false,
+  groupByState: true,
+  groupByBasin: true,
+  filterCurated: true,
+  filterUserReaches: true,
+  filterGauges: true,
+  collapsedSections: [],
+  mapVisible: true,
+}
+
+function prefsKey(dashboardId: string | null): string {
+  return dashboardId
+    ? `h2oflow_dashboard_prefs_${dashboardId}`
+    : 'h2oflow_dashboard_prefs__default'
+}
+
+function loadPrefs(dashboardId: string | null): DashboardPrefs {
+  if (typeof localStorage === 'undefined') return { ...DEFAULT_PREFS }
+  try {
+    const s = localStorage.getItem(prefsKey(dashboardId))
+    if (!s) return { ...DEFAULT_PREFS }
+    return { ...DEFAULT_PREFS, ...JSON.parse(s) }
+  } catch {
+    return { ...DEFAULT_PREFS }
+  }
+}
+
+function savePrefs() {
+  if (typeof localStorage === 'undefined') return
+  const prefs: DashboardPrefs = {
+    viewMode:           viewMode.value,
+    groupByGauge:       groupByGauge.value,
+    groupByState:       groupByState.value,
+    groupByBasin:       groupByBasin.value,
+    filterCurated:      filterCurated.value,
+    filterUserReaches:  filterUserReaches.value,
+    filterGauges:       filterGauges.value,
+    collapsedSections:  [...collapsedSections.value],
+    mapVisible:         mapVisible.value,
+  }
+  localStorage.setItem(prefsKey(db.activeDashboardId.value), JSON.stringify(prefs))
+}
+
+const viewMode          = ref<ViewMode>(DEFAULT_PREFS.viewMode)
+const groupByGauge      = ref(DEFAULT_PREFS.groupByGauge)
+const groupByState      = ref(DEFAULT_PREFS.groupByState)
+const groupByBasin      = ref(DEFAULT_PREFS.groupByBasin)
+const filterCurated     = ref(DEFAULT_PREFS.filterCurated)
+const filterUserReaches = ref(DEFAULT_PREFS.filterUserReaches)
+const filterGauges      = ref(DEFAULT_PREFS.filterGauges)
 const collapsedSections = ref<Set<string>>(new Set())
+const mapVisible        = ref(DEFAULT_PREFS.mapVisible)
+
+// Hydrate refs from the active dashboard's blob. Called on mount and whenever
+// activeDashboardId changes. While hydrating we suppress the save watcher so
+// loading dashboard A's prefs doesn't write them under dashboard B's key.
+const hydrating = ref(false)
+function applyPrefs(prefs: DashboardPrefs) {
+  hydrating.value = true
+  viewMode.value          = prefs.viewMode
+  groupByGauge.value      = prefs.groupByGauge
+  groupByState.value      = prefs.groupByState
+  groupByBasin.value      = prefs.groupByBasin
+  filterCurated.value     = prefs.filterCurated
+  filterUserReaches.value = prefs.filterUserReaches
+  filterGauges.value      = prefs.filterGauges
+  collapsedSections.value = new Set(prefs.collapsedSections)
+  mapVisible.value        = prefs.mapVisible
+  nextTick(() => { hydrating.value = false })
+}
 
 onMounted(() => {
-  try {
-    const s = localStorage.getItem(COLLAPSED_KEY)
-    if (s) collapsedSections.value = new Set(JSON.parse(s))
-  } catch {}
+  applyPrefs(loadPrefs(db.activeDashboardId.value))
 })
+
+watch(() => db.activeDashboardId.value, (id) => {
+  applyPrefs(loadPrefs(id))
+})
+
+// One unified save watcher — fires after any pref ref changes (except during hydration).
+watch(
+  [viewMode, groupByGauge, groupByState, groupByBasin,
+   filterCurated, filterUserReaches, filterGauges,
+   collapsedSections, () => mapVisible.value],
+  () => { if (!hydrating.value) savePrefs() },
+  { deep: true },
+)
 
 function toggleSection(key: string) {
   const s = new Set(collapsedSections.value)
   if (s.has(key)) s.delete(key); else s.add(key)
   collapsedSections.value = s
-  localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...s]))
 }
 
-// ── Expand / collapse all ────────────────────────────────────────────────────
 const allExpanded = computed(() => collapsedSections.value.size === 0)
 
 function toggleAllSections() {
   if (allExpanded.value) {
-    // Collapse all named outer sections + named subsections
     const keys = new Set<string>()
     for (const sec of displaySections.value) {
       if (sec.name) keys.add(sec.key)
@@ -1066,64 +1183,20 @@ function toggleAllSections() {
       }
     }
     collapsedSections.value = keys
-    localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...keys]))
   } else {
     collapsedSections.value = new Set()
-    localStorage.setItem(COLLAPSED_KEY, '[]')
   }
 }
 
-
-// ── View mode ────────────────────────────────────────────────────────────────
-const VIEW_MODE_KEY = 'h2oflow_dashboard_view_mode'
-const VIEW_MODES = [
-  { key: 'list',        label: 'List'        },
-  { key: 'comfortable', label: 'Comfortable' },
-] as const
-type ViewMode = 'list' | 'comfortable'
-const viewMode = ref<ViewMode>('comfortable')
-onMounted(() => {
-  const saved = localStorage.getItem(VIEW_MODE_KEY)
-  if (saved === 'list' || saved === 'comfortable') {
-    viewMode.value = saved
-  } else {
-    // migrate old 'full' and 'compact' saves
-    viewMode.value = 'comfortable'
-    localStorage.setItem(VIEW_MODE_KEY, 'comfortable')
-  }
-})
 function setViewMode(m: ViewMode) {
   viewMode.value = m
-  localStorage.setItem(VIEW_MODE_KEY, m)
 }
-
-
-// ── Grouping options ──────────────────────────────────────────────────────────
-const GROUP_GAUGE_KEY = 'h2oflow_dashboard_group_by_gauge'
-const GROUP_STATE_KEY = 'h2oflow_dashboard_group_by_state'
-const GROUP_BASIN_KEY = 'h2oflow_dashboard_group_by_basin'
-const groupByGauge = ref(false)
-const groupByState = ref(true)
-const groupByBasin = ref(true)
-onMounted(() => {
-  const g = localStorage.getItem(GROUP_GAUGE_KEY); if (g !== null) groupByGauge.value = g === 'true'
-  const s = localStorage.getItem(GROUP_STATE_KEY); if (s !== null) groupByState.value = s === 'true'
-  const b = localStorage.getItem(GROUP_BASIN_KEY); if (b !== null) groupByBasin.value = b === 'true'
-})
-watch(groupByGauge, val => localStorage.setItem(GROUP_GAUGE_KEY, String(val)))
-watch(groupByState, val => localStorage.setItem(GROUP_STATE_KEY, String(val)))
-watch(groupByBasin, val => localStorage.setItem(GROUP_BASIN_KEY, String(val)))
 
 const groupingOptions = computed(() => [
   { key: 'state', label: 'By state', active: groupByState.value, toggle: () => { groupByState.value = !groupByState.value } },
   { key: 'basin', label: 'By basin', active: groupByBasin.value, toggle: () => { groupByBasin.value = !groupByBasin.value } },
   { key: 'gauge', label: 'By gauge', active: groupByGauge.value, toggle: () => { groupByGauge.value = !groupByGauge.value } },
 ])
-
-// ── Content filters ───────────────────────────────────────────────────────────
-const filterCurated     = ref(true)
-const filterUserReaches = ref(true)
-const filterGauges      = ref(true)
 
 const filterOptions = computed(() => [
   { key: 'curated',   label: 'H2OFlows',        active: filterCurated.value,     toggle: () => { filterCurated.value = !filterCurated.value } },
@@ -1163,13 +1236,6 @@ const filterOpen   = ref(false)
 const groupingOpen = ref(false)
 const groupingWrap = ref<HTMLElement | null>(null)
 const filterWrap   = ref<HTMLElement | null>(null)
-const MAP_VIS_KEY = 'h2oflow_dashboard_map_visible'
-const mapVisible  = ref(true)
-onMounted(() => {
-  const saved = localStorage.getItem(MAP_VIS_KEY)
-  if (saved !== null) mapVisible.value = saved !== 'false'
-})
-watch(mapVisible, val => localStorage.setItem(MAP_VIS_KEY, String(val)))
 
 async function handleAdd(gauge: Omit<WatchedGauge, 'watchState' | 'activeSince'>, dashboardId: string | null) {
   const targetId = dashboardId ?? db.activeDashboard.value?.id ?? null

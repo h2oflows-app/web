@@ -20,8 +20,42 @@
       <template v-else>
         <div class="flex items-center justify-between">
           <h1 class="text-xl font-bold text-neutral-900 dark:text-white">My Reaches</h1>
-          <UButton icon="i-heroicons-plus" size="sm" @click="router.push('/my/reaches/new')">New reach</UButton>
+          <div class="reach-picker-anchor relative">
+            <UButton icon="i-heroicons-plus" size="sm" @click="reachPickerOpen = !reachPickerOpen">New reach</UButton>
+            <div
+              v-if="reachPickerOpen"
+              class="absolute right-0 top-full mt-1 z-40 w-64 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden"
+            >
+              <button
+                class="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                @click="reachPickerOpen = false; router.push('/my/reaches/new')"
+              >
+                <svg class="w-4 h-4 text-primary-500 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/>
+                </svg>
+                <div>
+                  <p class="font-medium text-neutral-800 dark:text-neutral-100">Create new</p>
+                  <p class="text-xs text-neutral-400">Build your own reach</p>
+                </div>
+              </button>
+              <div class="border-t border-neutral-100 dark:border-neutral-800" />
+              <button
+                class="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                @click="reachPickerOpen = false; importModalOpen = true"
+              >
+                <svg class="w-4 h-4 text-neutral-500 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 16v1a1 1 0 001 1h10a1 1 0 001-1v-1M7 10l3 3 3-3M10 3v10"/>
+                </svg>
+                <div>
+                  <p class="font-medium text-neutral-800 dark:text-neutral-100">Import shared…</p>
+                  <p class="text-xs text-neutral-400">Paste a share code from another user</p>
+                </div>
+              </button>
+            </div>
+          </div>
         </div>
+
+        <ReachImportModal v-model:open="importModalOpen" @imported="load" />
 
         <!-- Loading -->
         <div v-if="loading" class="space-y-2">
@@ -75,7 +109,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { flowBandLabel } from '~/utils/flowBand'
 
 const { bandBadgeClass } = useFlowBandPalette()
@@ -87,6 +121,14 @@ const router = useRouter()
 const authReady = ref(false)
 const loading   = ref(false)
 const error     = ref('')
+
+const reachPickerOpen = ref(false)
+const importModalOpen = ref(false)
+
+function onDocClick(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (reachPickerOpen.value && !target.closest('.reach-picker-anchor')) reachPickerOpen.value = false
+}
 
 interface UserReach {
   id:          string
@@ -120,7 +162,10 @@ async function load() {
 
 onMounted(async () => {
   authReady.value = true
+  document.addEventListener('click', onDocClick)
   if (isAuthenticated.value) await load()
 })
+
+onUnmounted(() => document.removeEventListener('click', onDocClick))
 
 </script>

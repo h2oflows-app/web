@@ -51,6 +51,7 @@
               :network="networkData"
               :watched-gauge-ids="watchedGaugeIds"
               :fetch-done="fetchDone"
+              :network-loading="networkLoading"
               @select="selectedSlug = $event"
             />
           </ClientOnly>
@@ -131,6 +132,7 @@ const { apiBase } = useRuntimeConfig().public
 
 const mapData      = ref<BasinReach[]>([])
 const networkData  = ref<BasinNetwork | null>(null)
+const networkLoading = ref(false)
 const nldiError    = ref<string | null>(null)
 const selectedSlug = ref<string | null>(null)
 const basinMapRef  = ref<{ flyToReach: (s: string) => void } | null>(null)
@@ -191,12 +193,17 @@ async function fetchMapData(params: URLSearchParams) {
 }
 
 async function fetchNetworkData(params: URLSearchParams) {
-  const res = await fetch(`${apiBase}/api/v1/reaches/basin/${slug}/network?${params}`)
-  if (!res.ok) return
-  const body = await res.json()
-  networkData.value = { tributaries: body.tributaries, gauges: body.gauges }
-  if (!body.nldi_available && body.nldi_error) {
-    nldiError.value = body.nldi_error
+  networkLoading.value = true
+  try {
+    const res = await fetch(`${apiBase}/api/v1/reaches/basin/${slug}/network?${params}`)
+    if (!res.ok) return
+    const body = await res.json()
+    networkData.value = { tributaries: body.tributaries, gauges: body.gauges }
+    if (!body.nldi_available && body.nldi_error) {
+      nldiError.value = body.nldi_error
+    }
+  } finally {
+    networkLoading.value = false
   }
 }
 
