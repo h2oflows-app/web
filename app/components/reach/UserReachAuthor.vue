@@ -33,16 +33,16 @@
       <span class="text-neutral-500 shrink-0">Click for:</span>
       <button
         class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors"
-        :class="comIDSlot === 'up' && !gaugeSelectMode ? 'border-green-500 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 font-medium' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
-        @click="comIDSlot = 'up'; gaugeSelectMode = false"
+        :class="comIDSlot === 'up' && !comIDPairLocked && !gaugeSelectMode ? 'border-green-500 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 font-medium' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
+        @click="comIDSlot = 'up'; comIDPairLocked = false; gaugeSelectMode = false"
       >
         <span class="w-2 h-2 rounded-full bg-green-500 shrink-0" />
         Put-in<template v-if="upComID"> · <span class="font-mono">{{ upComID }}</span></template>
       </button>
       <button
         class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors"
-        :class="comIDSlot === 'down' && !gaugeSelectMode ? 'border-red-500 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 font-medium' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
-        @click="comIDSlot = 'down'; gaugeSelectMode = false"
+        :class="comIDSlot === 'down' && !comIDPairLocked && !gaugeSelectMode ? 'border-red-500 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 font-medium' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
+        @click="comIDSlot = 'down'; comIDPairLocked = false; gaugeSelectMode = false"
       >
         <span class="w-2 h-2 rounded-full bg-red-500 shrink-0" />
         Take-out<template v-if="downComID"> · <span class="font-mono">{{ downComID }}</span></template>
@@ -74,7 +74,7 @@
         :downstream-flowlines="downstreamFlowlines"
         :upstream-gauges="nearbyGauges"
         :pick-mode="pickMode"
-        :comid-select-mode="!!anchorSnap && !pickMode && !gaugeSelectMode"
+        :comid-select-mode="!!anchorSnap && !pickMode && !gaugeSelectMode && !comIDPairLocked"
         :comid-select-slot="comIDSlot"
         :selected-up-comid="upComID"
         :selected-down-comid="downComID"
@@ -132,6 +132,18 @@
           class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm resize-y"
           placeholder="Beta, access notes, hazards…"
         />
+      </div>
+
+      <!-- Class / Difficulty -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-neutral-500 mb-1">Class min <span class="text-neutral-300">(optional)</span></label>
+          <input v-model.number="form.classMin" type="number" min="1" max="6" step="0.5" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="3" />
+        </div>
+        <div>
+          <label class="block text-xs text-neutral-500 mb-1">Class max <span class="text-neutral-300">(optional)</span></label>
+          <input v-model.number="form.classMax" type="number" min="1" max="6" step="0.5" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="5" />
+        </div>
       </div>
 
       <!-- Flow bands -->
@@ -206,6 +218,8 @@ const previewCenterline   = ref<object | null>(null)
 const previewLoading      = ref(false)
 const previewGeoJSON      = ref<object | null>(null)
 
+const comIDPairLocked = ref(false)
+
 // Gauge selection
 const gaugeSelectMode = ref(false)
 const nearbyGauges    = ref<object | null>(null)
@@ -219,6 +233,8 @@ const form = ref({
   name:      '',
   riverName: '',
   note:      '',
+  classMin:  null as number | null,
+  classMax:  null as number | null,
   flowRanges: {
     low:     { min: null as number | null, max: null as number | null },
     running: { min: null as number | null, max: null as number | null },
@@ -259,6 +275,7 @@ function resetToPickMode() {
   previewCenterline.value = null
   previewGeoJSON.value    = null
   comIDSlot.value = 'up'
+  comIDPairLocked.value = false
 }
 
 function reset() {
@@ -273,6 +290,7 @@ function reset() {
   previewLoading.value = false
   form.value = {
     name: '', riverName: '', note: '',
+    classMin: null, classMax: null,
     flowRanges: {
       low:     { min: null, max: null },
       running: { min: null, max: null },
@@ -353,6 +371,8 @@ function onComIDSelect(comid: string, lat: number, lng: number) {
   } else {
     downComID.value = comid
     endLat.value = lat; endLng.value = lng
+    // Lock to prevent accidental flowline clicks while user hunts for gauge.
+    comIDPairLocked.value = true
   }
 }
 
@@ -422,6 +442,8 @@ async function submit() {
     if (form.value.riverName.trim()) body.river_name = form.value.riverName.trim()
     if (gnisId.value)                body.gnis_id    = gnisId.value
     if (form.value.note.trim())      body.note       = form.value.note.trim()
+    if (form.value.classMin != null) body.class_min  = form.value.classMin
+    if (form.value.classMax != null) body.class_max  = form.value.classMax
     if (hasRanges) {
       body.flow_ranges = {
         low:     { min_value: null,               max_value: ranges.low.max      },

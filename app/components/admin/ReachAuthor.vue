@@ -3,7 +3,7 @@
     <!-- Step 1: anchor not yet set -->
     <template v-if="!authorAnchorSnap && !authorAnchorSnapping">
       <div class="mb-3 rounded-lg bg-primary-50 dark:bg-primary-950/60 border border-primary-200 dark:border-primary-800 px-3 py-2.5 text-xs text-primary-800 dark:text-primary-200">
-        <span class="font-medium">Tap the river on the map</span> near the reach start point. We'll snap to the nearest NHD flowline.
+        <span class="font-medium">Click river closest to put-in.</span> We'll snap to the nearest NHD flowline.
       </div>
     </template>
     <template v-else-if="authorAnchorSnapping">
@@ -24,12 +24,9 @@
       </div>
     </template>
 
-    <!-- Step 2: anchor snapped, prompt for ComID selection -->
-    <div v-if="authorAnchorSnap && !authorUpComID" class="mb-3 rounded-lg bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700 px-3 py-2 text-xs text-neutral-600 dark:text-neutral-300">
-      Click the upstream (put-in) flowline segment on the map. Try satellite view to find the boat ramp.
-    </div>
-    <div v-else-if="authorUpComID && !authorDownComID" class="mb-3 rounded-lg bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700 px-3 py-2 text-xs text-neutral-600 dark:text-neutral-300">
-      Now click the downstream (take-out) flowline segment.
+    <!-- Step 2: guide text for take-out selection -->
+    <div v-if="authorUpComID && !authorDownComID && !authorGaugeSelectMode" class="mb-3 rounded-lg bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700 px-3 py-2 text-xs text-neutral-600 dark:text-neutral-300">
+      Put-in set — now click the <strong>take-out</strong> flowline segment on the map.
     </div>
 
     <!-- ComID slot selector -->
@@ -37,19 +34,19 @@
       <span class="text-neutral-500 shrink-0">Click flowline for:</span>
       <button
         class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors"
-        :class="authorComIDSlot === 'up' ? 'border-green-500 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 font-medium' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
-        @click="authorComIDSlot = 'up'; authorGaugeSelectMode = false"
+        :class="authorComIDSlot === 'up' && !authorComIDPairLocked && !authorGaugeSelectMode ? 'border-green-500 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 font-medium' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
+        @click="authorComIDSlot = 'up'; authorComIDPairLocked = false; authorGaugeSelectMode = false"
       >
         <span class="w-2 h-2 rounded-full bg-green-500 shrink-0" />
-        Upstream<template v-if="authorUpComID"> · <span class="font-mono">{{ authorUpComID }}</span></template>
+        Put-in<template v-if="authorUpComID"> · <span class="font-mono">{{ authorUpComID }}</span></template>
       </button>
       <button
         class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors"
-        :class="authorComIDSlot === 'down' ? 'border-red-500 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 font-medium' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
-        @click="authorComIDSlot = 'down'; authorGaugeSelectMode = false"
+        :class="authorComIDSlot === 'down' && !authorComIDPairLocked && !authorGaugeSelectMode ? 'border-red-500 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 font-medium' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
+        @click="authorComIDSlot = 'down'; authorComIDPairLocked = false; authorGaugeSelectMode = false"
       >
         <span class="w-2 h-2 rounded-full bg-red-500 shrink-0" />
-        Downstream<template v-if="authorDownComID"> · <span class="font-mono">{{ authorDownComID }}</span></template>
+        Take-out<template v-if="authorDownComID"> · <span class="font-mono">{{ authorDownComID }}</span></template>
       </button>
       <button
         class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -80,7 +77,7 @@
       :snap-lat="null"
       :snap-lng="null"
       :pick-mode="authorPickMode"
-      :comid-select-mode="!!authorAnchorSnap && !authorPickMode && !authorGaugeSelectMode"
+      :comid-select-mode="!!authorAnchorSnap && !authorPickMode && !authorGaugeSelectMode && !authorComIDPairLocked"
       :comid-select-slot="authorComIDSlot"
       :selected-up-comid="authorUpComID"
       :selected-down-comid="authorDownComID"
@@ -88,6 +85,7 @@
       :take-out-pin="authorTakeOutPin"
       :preview-centerline="authorPreviewCenterline"
       :gauge-select-mode="authorGaugeSelectMode"
+      :disable-auto-fit="authorDisableAutoFit"
       @pick="onAnchorPick"
       @comid-select="onComIDSelect"
       @gauge-select="onGaugeSelect"
@@ -116,14 +114,14 @@
         <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800">
           <span class="w-2 h-2 rounded-full bg-green-600 shrink-0" />
           <div>
-            <div class="font-medium text-green-800 dark:text-green-200">Upstream (put-in) ComID</div>
+            <div class="font-medium text-green-800 dark:text-green-200">Put-in ComID</div>
             <div class="text-green-600 dark:text-green-400 font-mono">{{ authorUpComID }}</div>
           </div>
         </div>
         <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800">
           <span class="w-2 h-2 rounded-full bg-red-600 shrink-0" />
           <div>
-            <div class="font-medium text-red-800 dark:text-red-200">Downstream (take-out) ComID</div>
+            <div class="font-medium text-red-800 dark:text-red-200">Take-out ComID</div>
             <div class="text-red-600 dark:text-red-400 font-mono">{{ authorDownComID }}</div>
           </div>
         </div>
@@ -315,6 +313,7 @@ const authorSlugAvailable       = ref<boolean | null>(null)
 const authorSlugChecking        = ref(false)
 let   authorSlugTimer: ReturnType<typeof setTimeout> | null = null
 
+const authorComIDPairLocked     = ref(false)
 const authorGaugeSelectMode     = ref(false)
 const authorGauges              = ref<NHDFC | null>(null)
 const authorPendingGauge        = ref<{ externalId: string; source: string; name: string; lat: number; lng: number } | null>(null)
@@ -352,6 +351,10 @@ const authorTakeOutPin = computed(() =>
   authorEndLat.value != null && authorEndLng.value != null
     ? { lat: authorEndLat.value, lng: authorEndLng.value, label: 'End' }
     : null
+)
+
+const authorDisableAutoFit = computed(() =>
+  !!authorAnchorSnap.value && !(authorUpComID.value && authorDownComID.value)
 )
 
 const authorComputedSlug = computed(() => {
@@ -418,6 +421,7 @@ function resetToPickMode() {
   authorEndLat.value = null; authorEndLng.value = null
   authorPreviewCenterline.value = null
   authorComIDSlot.value = 'up'
+  authorComIDPairLocked.value = false
   authorGnisConfirm.value = false
 }
 
@@ -451,6 +455,7 @@ function reset() {
   }
   authorSlugManual.value = false
   authorSlugAvailable.value = null
+  authorComIDPairLocked.value = false
   authorGaugeSelectMode.value = false
   authorGauges.value = null
   authorPendingGauge.value = null
@@ -523,6 +528,11 @@ async function onAnchorPick(lat: number, lng: number) {
     if (!authorRiverNameOverride.value && data.snap.name) {
       authorForm.value.riverName = data.snap.name
     }
+    // One-click put-in: anchor snap IS the put-in point
+    authorUpComID.value    = data.snap.comid
+    authorStartLat.value   = lat
+    authorStartLng.value   = lng
+    authorComIDSlot.value  = 'down'
     await fetchNearbyGauges(lat, lng, data.snap.comid)
   } catch (e: any) {
     authorError.value = e.message ?? 'Snap failed'
@@ -539,6 +549,9 @@ function onComIDSelect(comid: string, lat: number, lng: number) {
   } else {
     authorDownComID.value = comid
     authorEndLat.value = lat; authorEndLng.value = lng
+    // Both ComIDs now set — lock to prevent accidental flowline clicks
+    // while user hunts for gauge.
+    authorComIDPairLocked.value = true
   }
 }
 

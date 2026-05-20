@@ -7,6 +7,16 @@
         <span class="text-neutral-300 dark:text-neutral-700 shrink-0">/</span>
         <h2 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100 truncate">New Reach</h2>
       </div>
+      <button
+        type="button"
+        class="shrink-0 flex items-center justify-center w-8 h-8 rounded-full text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+        aria-label="Cancel and close"
+        @click="router.push('/my/reaches')"
+      >
+        <svg class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/>
+        </svg>
+      </button>
     </div>
 
     <!-- Auth gate -->

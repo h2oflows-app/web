@@ -48,6 +48,8 @@
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import { THEMES } from '../../../app.config'
+import { useThemeStore } from '~/stores/theme'
 
 export interface ReachListItem {
   slug:        string
@@ -517,16 +519,32 @@ watch(() => props.hoveredSlug, slug => {
   map.setFilter('reach-highlight', ['==', ['get', 'slug'], slug ?? ''])
 })
 
-// Line colors: user reaches default blue; curated: I-II green, III blue, IV near-black, V red
+// Line colors: user reach w/ no class → theme primary; otherwise step by class.
+// Reads the active theme's primarySwatch (hex) so MapLibre paint accepts it —
+// the Tailwind v4 --color-primary-500 CSS var resolves to oklch() which MapLibre
+// rejects. Theme switches mid-session won't re-color lines (map layer evaluated
+// at addLayer time only).
+function readPrimaryHex(): string {
+  try {
+    const themeStore = useThemeStore()
+    const theme = THEMES.find(t => t.id === themeStore.themeId)
+    if (theme?.primarySwatch) return theme.primarySwatch
+  } catch { /* SSR or store not ready */ }
+  return '#3b82f6'
+}
+
 function difficultyColorExpr(): maplibregl.ExpressionSpecification {
+  const primary = readPrimaryHex()
+  // Single-level case: user reach → theme primary; otherwise step by class.
+  // (Class-colored user reaches deferred — nested case was breaking line render.)
   return ['case',
     ['boolean', ['coalesce', ['get', 'is_user_reach'], false], false],
-    '#3b82f6',  // user reach (no class rating) → blue-500
+    primary,
     ['step', ['coalesce', ['get', 'class_max'], 0],
-      '#16a34a',       // 0–2.9  I–II+  green
-      3.0, '#3b82f6',  // 3.0–3.9 III   blue
-      4.0, '#1f2937',  // 4.0–4.9 IV    near-black
-      5.0, '#dc2626',  // 5.0+    V     red
+      '#16a34a',
+      3.0, '#3b82f6',
+      4.0, '#1f2937',
+      5.0, '#dc2626',
     ],
   ] as any
 }
