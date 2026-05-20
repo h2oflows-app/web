@@ -33,7 +33,7 @@
         :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(reach), displayFlowStatus(reach))]"
       >{{ flowBandLabel(displayFlowBandLabel(reach), displayFlowStatus(reach)) }}</span>
       <span class="shrink-0 whitespace-nowrap text-right text-base font-bold tabular-nums" :style="{ color: bandSolid(displayFlowBandLabel(reach)) }">
-        {{ displayCfs(reach) != null ? displayCfs(reach)!.toLocaleString() : '—' }}
+        {{ displayCfs(reach) != null ? Math.round(displayCfs(reach)!).toLocaleString() : '—' }}
         <span class="text-xs font-normal text-neutral-400">cfs</span>
       </span>
       <TrashButton label="Remove" @click="$emit('remove', reach)" />
@@ -73,7 +73,7 @@
             :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(reach), displayFlowStatus(reach))]"
           >{{ flowBandLabel(displayFlowBandLabel(reach), displayFlowStatus(reach)) }}</span>
           <span class="text-lg font-bold tabular-nums shrink-0 leading-none" :style="{ color: bandSolid(displayFlowBandLabel(reach)) }">
-            {{ displayCfs(reach) != null ? displayCfs(reach)!.toLocaleString() : '—' }}
+            {{ displayCfs(reach) != null ? Math.round(displayCfs(reach)!).toLocaleString() : '—' }}
           </span>
           <span class="text-xs text-neutral-400 shrink-0">cfs</span>
           <TrashButton label="Remove" @click="$emit('remove', reach)" />
@@ -112,7 +112,7 @@
           <div class="flex items-start gap-1 shrink-0">
             <div class="text-right">
               <div class="font-bold tabular-nums leading-none text-3xl" :style="{ color: bandSolid(displayFlowBandLabel(reach)) }">
-                {{ displayCfs(reach) != null ? displayCfs(reach)!.toLocaleString() : '—' }}
+                {{ displayCfs(reach) != null ? Math.round(displayCfs(reach)!).toLocaleString() : '—' }}
               </div>
               <div class="text-xs text-neutral-400 mt-0.5">cfs</div>
             </div>

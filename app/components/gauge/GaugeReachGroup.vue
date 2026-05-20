@@ -32,7 +32,7 @@
           />
         </div>
         <span class="shrink-0 whitespace-nowrap text-right text-base font-bold tabular-nums text-neutral-900 dark:text-white">
-          {{ currentCfs != null ? currentCfs.toLocaleString() : '—' }} <span class="text-xs font-normal text-neutral-400 dark:text-neutral-500">cfs</span>
+          {{ currentCfs != null ? Math.round(currentCfs).toLocaleString() : '—' }} <span class="text-xs font-normal text-neutral-400 dark:text-neutral-500">cfs</span>
         </span>
         <TrashButton label="Remove gauge group" @click="$emit('remove-group')" />
       </div>
@@ -94,7 +94,7 @@
         </div>
         <div class="flex items-baseline gap-2 mb-2">
           <span class="text-xl font-bold tabular-nums leading-none text-neutral-900 dark:text-white">
-            {{ currentCfs != null ? currentCfs.toLocaleString() : '—' }}
+            {{ currentCfs != null ? Math.round(currentCfs).toLocaleString() : '—' }}
           </span>
           <span class="text-xs text-neutral-500">cfs</span>
         </div>
@@ -128,7 +128,7 @@
           <!-- Right: CFS -->
           <div class="text-right shrink-0">
             <div class="font-bold tabular-nums leading-none text-neutral-900 dark:text-white text-3xl">
-              {{ currentCfs != null ? currentCfs.toLocaleString() : '—' }}
+              {{ currentCfs != null ? Math.round(currentCfs).toLocaleString() : '—' }}
             </div>
             <div class="text-xs text-neutral-400 mt-0.5">cfs</div>
             <TrendArrow v-if="currentCfs != null" :gauge-id="leadGauge.id" class="text-base justify-end mt-0.5" />

@@ -1,5 +1,5 @@
 <template>
-  <nav class="fixed bottom-0 inset-x-0 z-30 sm:hidden bg-white dark:bg-neutral-950 border-t border-neutral-200 dark:border-neutral-800 flex overflow-x-hidden w-full">
+  <nav class="fixed bottom-0 inset-x-0 z-30 sm:hidden bg-white dark:bg-neutral-950 border-t border-neutral-200 dark:border-neutral-800 flex overflow-x-hidden w-full pb-[env(safe-area-inset-bottom)]">
     <NuxtLink
       to="/dashboard"
       class="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors"

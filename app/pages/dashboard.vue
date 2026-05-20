@@ -16,7 +16,6 @@
         @delete="onDeleteDashboard"
         @rename="(slug, name) => db.rename(slug, name)"
         @share="shareOpen = true"
-        @view-basin-map="basinMapScope = null; basinMapStateScope = null; basinMapOpen = true"
       />
 
       <!-- Controls bar -->
@@ -44,18 +43,9 @@
 
           <div class="h-4 w-px bg-neutral-200 dark:bg-neutral-700 mx-0.5" />
 
-          <!-- Group by gauge -->
-          <ToolbarButton v-if="hasSharedGauges" :active="groupByGauge" title="Group by gauge" @click="groupByGauge = !groupByGauge">
-            <svg class="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="1" y="5" width="5" height="6" rx="1"/>
-              <rect x="10" y="5" width="5" height="6" rx="1"/>
-              <line x1="6" y1="8" x2="10" y2="8"/>
-            </svg>
-          </ToolbarButton>
-
           <!-- Expand / Collapse all -->
           <ToolbarButton
-            v-if="byStateTree.length > 0"
+            v-if="displaySections.length > 0 && (groupByState || groupByBasin)"
             :label="allExpanded ? 'Collapse' : 'Expand'"
             :title="allExpanded ? 'Collapse all sections' : 'Expand all sections'"
             @click="toggleAllSections"
@@ -109,6 +99,37 @@
           </div>
         </div>
 
+        <!-- Grouping dropdown — pinned right, outside scroll group -->
+        <div v-if="hasAnyContent" class="relative shrink-0" ref="groupingWrap">
+          <ToolbarButton :active="!groupByState || !groupByBasin || groupByGauge" title="Group sections" @click="groupingOpen = !groupingOpen">
+            <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="1.5" y="2" width="13" height="3" rx="0.5"/>
+              <rect x="1.5" y="6.5" width="13" height="3" rx="0.5"/>
+              <rect x="1.5" y="11" width="13" height="3" rx="0.5"/>
+            </svg>
+          </ToolbarButton>
+          <div
+            v-if="groupingOpen"
+            class="absolute right-0 top-full mt-1 z-50 w-44 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg overflow-hidden py-1"
+          >
+            <button
+              v-for="opt in groupingOptions"
+              :key="opt.key"
+              class="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+              @click="opt.toggle()"
+            >
+              <svg
+                class="w-3.5 h-3.5 shrink-0"
+                :class="opt.active ? 'text-primary-500' : 'text-neutral-200 dark:text-neutral-700'"
+                viewBox="0 0 20 20" fill="currentColor"
+              >
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              {{ opt.label }}
+            </button>
+          </div>
+        </div>
+
         <!-- Add gauge — pinned right, outside scroll group -->
         <ToolbarButton label="Add gauge" title="Add gauge" class="shrink-0 ml-1" @click="searchOpen = true">
           <svg class="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
@@ -134,74 +155,43 @@
       <!-- Reaches grouped by basin → river -->
       <template v-if="hasAnyContent">
 
-        <template v-for="stateGroup in byStateTree" :key="stateGroup.name">
-        <section v-if="stateHasVisibleContent(stateGroup)" class="mb-4">
-          <!-- State header: large, collapsible, h1+hr style -->
-          <div class="flex items-center gap-2 w-full mb-3">
-            <button class="flex items-center gap-2 shrink-0" @click="toggleState(stateGroup.name)">
+        <template v-for="section in displaySections" :key="section.key">
+        <section v-if="sectionHasVisibleContent(section)" class="mb-4">
+          <!-- Outer (state) header: only when grouping by state -->
+          <div v-if="section.name" class="flex items-center gap-2 w-full mb-3">
+            <button class="flex items-center gap-2 shrink-0" @click="toggleSection(section.key)">
               <svg
                 class="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500 shrink-0 transition-transform duration-200"
-                :class="{ 'rotate-90': !collapsedStates.has(stateGroup.name) }"
+                :class="{ 'rotate-90': !collapsedSections.has(section.key) }"
                 viewBox="0 0 20 20" fill="currentColor"
               >
                 <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
               </svg>
-              <h1 class="text-2xl font-bold text-neutral-900 dark:text-white">{{ stateGroup.name === '—' ? 'No State' : stateGroup.name }}</h1>
-            </button>
-            <!-- Basin map icon for this state -->
-            <button
-              v-if="stateGroup.name !== '—'"
-              class="p-0.5 rounded text-primary-500 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors shrink-0"
-              title="View state basin map"
-              @click="openBasinMapForState(stateGroup.name)"
-            >
-              <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="8" cy="3" r="1.5"/>
-                <circle cx="4" cy="13" r="1.5"/>
-                <circle cx="12" cy="13" r="1.5"/>
-                <line x1="8" y1="4.5" x2="8" y2="7"/>
-                <path d="M8 7 Q4 9 4 11.5"/>
-                <path d="M8 7 Q12 9 12 11.5"/>
-              </svg>
+              <h1 class="text-2xl font-bold text-neutral-900 dark:text-white">{{ section.name === '—' ? 'No State' : section.name }}</h1>
             </button>
             <div class="flex-1 h-px bg-neutral-300 dark:bg-neutral-700" />
-            <span class="text-sm text-neutral-400 shrink-0">({{ stateGroup.reachCount }})</span>
+            <span class="text-sm text-neutral-400 shrink-0">({{ section.reachCount }})</span>
           </div>
 
-          <template v-if="!collapsedStates.has(stateGroup.name)">
-            <template v-for="basin in stateGroup.basins" :key="basin.name">
-            <div v-if="basinHasVisibleContent(basin)" class="mb-4">
-              <!-- Basin header: collapsible -->
-              <div class="flex items-center gap-2 w-full mb-3">
-                <button class="flex items-center gap-2 text-left shrink-0" @click="toggleBasin(stateGroup.name, basin.name)">
+          <template v-if="!section.name || !collapsedSections.has(section.key)">
+            <template v-for="sub in section.subSections" :key="sub.key">
+            <div v-if="subSectionHasVisibleContent(sub)" :class="sub.name ? 'mb-4' : 'mb-2'">
+              <!-- Inner (basin) header: only when grouping by basin -->
+              <div v-if="sub.name" class="flex items-center gap-2 w-full mb-3">
+                <button class="flex items-center gap-2 text-left shrink-0" @click="toggleSection(sub.key)">
                   <svg
                     class="w-3 h-3 text-neutral-400 dark:text-neutral-500 shrink-0 transition-transform duration-150"
-                    :class="{ 'rotate-90': !collapsedBasins.has(basinKey(stateGroup.name, basin.name)) }"
+                    :class="{ 'rotate-90': !collapsedSections.has(sub.key) }"
                     viewBox="0 0 20 20" fill="currentColor"
                   >
                     <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
                   </svg>
-                  <h2 class="text-sm font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide">{{ basin.name }} Basin</h2>
-                  <span class="text-xs text-neutral-400">({{ basin.reachCount }})</span>
-                </button>
-                <!-- Open basin map modal scoped to this basin -->
-                <button
-                  class="p-0.5 rounded text-primary-500 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors shrink-0"
-                  title="View basin map"
-                  @click="openBasinMapForBasin(basin.name)"
-                >
-                  <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="8" cy="3" r="1.5"/>
-                    <circle cx="4" cy="13" r="1.5"/>
-                    <circle cx="12" cy="13" r="1.5"/>
-                    <line x1="8" y1="4.5" x2="8" y2="7"/>
-                    <path d="M8 7 Q4 9 4 11.5"/>
-                    <path d="M8 7 Q12 9 12 11.5"/>
-                  </svg>
+                  <h2 class="text-sm font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide">{{ sub.name }} Basin</h2>
+                  <span class="text-xs text-neutral-400">({{ sub.reachCount }})</span>
                 </button>
                 <!-- Map-pin link to full basin page -->
                 <NuxtLink
-                  :to="`/basin/${slugifyBasin(basin.name)}`"
+                  :to="`/basin/${slugifyBasin(sub.name)}`"
                   class="p-0.5 rounded text-primary-500 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors shrink-0"
                   title="Open basin page"
                 >
@@ -213,10 +203,10 @@
                 <div class="flex-1 h-px bg-neutral-200 dark:bg-neutral-700/60" />
               </div>
 
-              <template v-if="!collapsedBasins.has(basinKey(stateGroup.name, basin.name))">
+              <template v-if="!sub.name || !collapsedSections.has(sub.key)">
               <!-- Reaches grouped by river -->
               <div class="mb-2">
-                <template v-for="river in basin.rivers" :key="river.name">
+                <template v-for="river in sub.rivers" :key="river.name">
                 <template v-if="riverHasVisibleContent(river)">
                   <!-- River section divider -->
                   <div class="flex items-center gap-2 mt-4 first:mt-0 mb-2">
@@ -312,9 +302,9 @@
                         <div v-else-if="r.custom_gauge_slug" class="w-32 shrink-0 hidden sm:block">
                           <CustomGaugeSparkline :gauge-slug="r.custom_gauge_slug" compact :color="bandSolid(r.flow_band, r.flow_status)" class="h-full w-full" />
                         </div>
-                        <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['hidden sm:inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium shrink-0', reachBadgeClass(r)]">{{ reachStatusLabel(r) }}</span>
+                        <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', reachBadgeClass(r)]">{{ reachStatusLabel(r) }}</span>
                         <span class="text-base font-bold tabular-nums min-w-14 text-right" :style="{ color: bandSolid(r.flow_band, r.flow_status) }">
-                          {{ r.current_cfs != null ? r.current_cfs.toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-400 dark:text-neutral-500 ml-0.5">cfs</span>
+                          {{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-400 dark:text-neutral-500 ml-0.5">cfs</span>
                         </span>
                       </div>
                       <TrashButton label="Remove from dashboard" @click="hideReach(r.id)" />
@@ -332,12 +322,12 @@
                           <div class="flex items-center gap-1.5 min-w-0">
                             <svg class="w-4 h-4 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
                             <span class="text-base font-semibold truncate">{{ r.name }}</span>
-                            <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['shrink-0 inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium', reachBadgeClass(r)]">{{ reachStatusLabel(r) }}</span>
+                            <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', reachBadgeClass(r)]">{{ reachStatusLabel(r) }}</span>
                           </div>
                         </div>
                         <div class="shrink-0 flex items-center gap-1">
                           <span class="font-bold tabular-nums leading-none text-3xl" :style="{ color: bandSolid(r.flow_band, r.flow_status) }">
-                            {{ r.current_cfs != null ? r.current_cfs.toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-500 dark:text-neutral-400 ml-0.5">cfs</span>
+                            {{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-500 dark:text-neutral-400 ml-0.5">cfs</span>
                           </span>
                           <NuxtLink :to="`/my/reaches/${r.slug}`" class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit reach" @click.stop>
                             <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
@@ -356,7 +346,7 @@
               </div>
 
               <!-- Standalone gauges (no reach context) -->
-              <div v-if="filterGauges && basin.standaloneGauges.length > 0" class="mb-2 mt-1">
+              <div v-if="filterGauges && sub.standaloneGauges.length > 0" class="mb-2 mt-1">
                 <div class="flex items-center gap-2 py-1">
                   <svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
@@ -367,7 +357,7 @@
                 </div>
                 <div :class="reachContainerClass">
                   <div
-                    v-for="g in basin.standaloneGauges"
+                    v-for="g in sub.standaloneGauges"
                     :key="g.id"
                     class="rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors"
                     :class="viewMode === 'list' ? 'px-3 py-1.5' : 'px-4 py-3'"
@@ -386,7 +376,7 @@
                         <GaugeSparkline :gauge-id="g.id" flow-status="unknown" color="#3b82f6" compact />
                       </div>
                       <span class="font-bold tabular-nums text-neutral-900 dark:text-white leading-none" :class="viewMode === 'list' ? 'text-sm' : 'text-3xl'">
-                        {{ g.currentCfs != null ? g.currentCfs.toLocaleString() : '—' }}
+                        {{ g.currentCfs != null ? Math.round(g.currentCfs).toLocaleString() : '—' }}
                       </span>
                       <span class="text-xs text-neutral-400">cfs</span>
                       <TrashButton label="Remove from dashboard" @click="removeAndSync(g.id)" />
@@ -394,12 +384,12 @@
                   </div>
                 </div>
               </div>
-              </template><!-- end basin v-if -->
+              </template><!-- end sub v-if -->
             </div>
-            </template><!-- end v-for basin -->
+            </template><!-- end v-for sub -->
           </template>
         </section>
-        </template><!-- end v-for state -->
+        </template><!-- end v-for section -->
 
         <section v-if="aggregateGauges.length >= 2" class="border border-neutral-300 dark:border-neutral-700 rounded-xl p-4">
           <div class="flex items-center justify-between mb-4">
@@ -451,7 +441,7 @@
                 <CustomGaugeSparkline :gauge-slug="cg.slug" compact class="h-full w-full" />
               </div>
               <span class="text-base font-bold tabular-nums text-neutral-900 dark:text-white shrink-0">
-                {{ cg.last_value_cfs != null ? cg.last_value_cfs.toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-400 ml-0.5">{{ cg.unit }}</span>
+                {{ cg.last_value_cfs != null ? Math.round(cg.last_value_cfs).toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-400 ml-0.5">{{ cg.unit }}</span>
               </span>
               <TrashButton label="Remove from dashboard" @click="hideCustomGauge(cg.id)" />
             </div>
@@ -477,7 +467,7 @@
                 </div>
                 <div class="shrink-0 flex items-center gap-1.5">
                   <span class="text-xl font-bold tabular-nums leading-none text-neutral-900 dark:text-white">
-                    {{ cg.last_value_cfs != null ? cg.last_value_cfs.toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-500 dark:text-neutral-400 ml-0.5">{{ cg.unit }}</span>
+                    {{ cg.last_value_cfs != null ? Math.round(cg.last_value_cfs).toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-500 dark:text-neutral-400 ml-0.5">{{ cg.unit }}</span>
                   </span>
                   <TrashButton label="Remove from dashboard" @click="hideCustomGauge(cg.id)" />
                 </div>
@@ -527,18 +517,6 @@
       v-bind="customGaugeModalProps"
     />
 
-    <!-- Basin map modal -->
-    <UModal v-model:open="basinMapOpen" :title="basinMapTitle" :ui="{ content: 'max-w-4xl' }">
-      <template #body>
-        <DashboardBasinMap
-          :leaves="dashboardLeaves"
-          :scope-basin="basinMapScope"
-          :scope-state="basinMapStateScope"
-          @select="onBasinMapSelect"
-        />
-      </template>
-    </UModal>
-
     <!-- New dashboard modal -->
     <Teleport to="body">
       <div v-if="newDashboardOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="newDashboardOpen = false">
@@ -574,7 +552,6 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useWatchlistStore, type WatchedGauge } from '~/stores/watchlist'
 import { cleanBasinName, slugifyBasin } from '~/utils/basin'
 import { flowBandLabel } from '~/utils/flowBand'
-import type { DashboardLeaf } from '~/components/dashboard/DashboardBasinMap.vue'
 
 definePageMeta({ ssr: false })
 
@@ -785,6 +762,7 @@ if (import.meta.client) {
   document.addEventListener('click', (e) => {
     if (gaugeAddWrap.value && !gaugeAddWrap.value.contains(e.target as Node)) gaugeAddOpen.value = false
     if (filterWrap.value && !filterWrap.value.contains(e.target as Node)) filterOpen.value = false
+    if (groupingWrap.value && !groupingWrap.value.contains(e.target as Node)) groupingOpen.value = false
   })
 }
 
@@ -921,6 +899,125 @@ const byStateTree = computed<StateGroup[]>(() => {
     })
 })
 
+// ── Display sections — derived from byStateTree based on grouping flags ─────
+
+interface DisplaySubSection {
+  name: string | null
+  key: string
+  rivers: RiverGroup[]
+  standaloneGauges: WatchedGauge[]
+  reachCount: number
+}
+interface DisplaySection {
+  name: string | null
+  key: string
+  reachCount: number
+  subSections: DisplaySubSection[]
+}
+
+function sortReaches(reaches: WatchedGauge[]): WatchedGauge[] {
+  return [...reaches].sort((a, b) => {
+    const ao = a.contextReachRiverOrder
+    const bo = b.contextReachRiverOrder
+    if (ao != null && bo != null) return ao - bo
+    if (ao != null) return -1
+    if (bo != null) return 1
+    const al = a.contextReachCenterLng ?? a.lng
+    const bl = b.contextReachCenterLng ?? b.lng
+    if (al == null && bl == null) return 0
+    if (al == null) return 1
+    if (bl == null) return -1
+    return al - bl
+  })
+}
+
+function mergeRivers(allRivers: RiverGroup[]): RiverGroup[] {
+  const map = new Map<string, RiverGroup>()
+  for (const r of allRivers) {
+    if (!map.has(r.name)) map.set(r.name, { name: r.name, reaches: [], userReaches: [] })
+    const m = map.get(r.name)!
+    m.reaches.push(...r.reaches)
+    m.userReaches.push(...r.userReaches)
+  }
+  for (const m of map.values()) m.reaches = sortReaches(m.reaches)
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
+}
+
+const displaySections = computed<DisplaySection[]>(() => {
+  const tree = byStateTree.value
+
+  // (S, B) — current shape
+  if (groupByState.value && groupByBasin.value) {
+    return tree.map(state => ({
+      name: state.name,
+      key: `state:${state.name}`,
+      reachCount: state.reachCount,
+      subSections: state.basins.map(basin => ({
+        name: basin.name,
+        key: `state:${state.name}|basin:${basin.name}`,
+        rivers: basin.rivers,
+        standaloneGauges: basin.standaloneGauges,
+        reachCount: basin.reachCount,
+      })),
+    }))
+  }
+
+  // (S, !B) — state headers, basins flattened
+  if (groupByState.value && !groupByBasin.value) {
+    return tree.map(state => {
+      const allRivers = state.basins.flatMap(b => b.rivers)
+      const allStandalone = state.basins.flatMap(b => b.standaloneGauges)
+      const merged = mergeRivers(allRivers)
+      return {
+        name: state.name,
+        key: `state:${state.name}`,
+        reachCount: state.reachCount,
+        subSections: [{
+          name: null,
+          key: `state:${state.name}|flat`,
+          rivers: merged,
+          standaloneGauges: allStandalone,
+          reachCount: state.reachCount,
+        }],
+      }
+    })
+  }
+
+  // (!S, B) — basins merged across states
+  if (!groupByState.value && groupByBasin.value) {
+    const basinMap = new Map<string, { rivers: RiverGroup[]; standalone: WatchedGauge[] }>()
+    for (const state of tree) {
+      for (const basin of state.basins) {
+        if (!basinMap.has(basin.name)) basinMap.set(basin.name, { rivers: [], standalone: [] })
+        const m = basinMap.get(basin.name)!
+        m.rivers.push(...basin.rivers)
+        m.standalone.push(...basin.standaloneGauges)
+      }
+    }
+    const subs: DisplaySubSection[] = [...basinMap.entries()]
+      .sort(([a], [b]) => a === 'Other' ? 1 : b === 'Other' ? -1 : a.localeCompare(b))
+      .map(([bName, { rivers, standalone }]) => {
+        const merged = mergeRivers(rivers)
+        const reachCount = merged.reduce((s, r) => s + r.reaches.length + r.userReaches.length, 0) + standalone.length
+        return { name: bName, key: `basin:${bName}`, rivers: merged, standaloneGauges: standalone, reachCount }
+      })
+    const totalCount = subs.reduce((s, b) => s + b.reachCount, 0)
+    return [{ name: null, key: 'all', reachCount: totalCount, subSections: subs }]
+  }
+
+  // (!S, !B) — flat
+  const allRivers = tree.flatMap(s => s.basins.flatMap(b => b.rivers))
+  const allStandalone = tree.flatMap(s => s.basins.flatMap(b => b.standaloneGauges))
+  const merged = mergeRivers(allRivers)
+  const totalCount = merged.reduce((s, r) => s + r.reaches.length + r.userReaches.length, 0) + allStandalone.length
+  return [{
+    name: null,
+    key: 'all',
+    reachCount: totalCount,
+    subSections: [{ name: null, key: 'all|flat', rivers: merged, standaloneGauges: allStandalone, reachCount: totalCount }],
+  }]
+})
+
 // ── Content visibility helpers ────────────────────────────────────────────────
 
 function riverHasVisibleContent(river: RiverGroup): boolean {
@@ -928,146 +1025,51 @@ function riverHasVisibleContent(river: RiverGroup): boolean {
          (filterUserReaches.value && river.userReaches.length > 0)
 }
 
-function basinHasVisibleContent(basin: BasinGroup): boolean {
-  return (filterGauges.value && basin.standaloneGauges.length > 0) ||
-         basin.rivers.some(r => riverHasVisibleContent(r))
+function subSectionHasVisibleContent(sub: DisplaySubSection): boolean {
+  return (filterGauges.value && sub.standaloneGauges.length > 0) ||
+         sub.rivers.some(r => riverHasVisibleContent(r))
 }
 
-function stateHasVisibleContent(state: StateGroup): boolean {
-  return state.basins.some(b => basinHasVisibleContent(b))
-}
-
-// ── Dashboard basin map ───────────────────────────────────────────────────────
-
-const dashboardLeaves = computed<DashboardLeaf[]>(() => {
-  const out: DashboardLeaf[] = []
-  const seen = new Set<string>()
-
-  // Real gauges with reach context
-  for (const g of store.gauges) {
-    const key = `gauge:${g.id}:${g.contextReachSlug ?? ''}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    out.push({
-      id: key,
-      type: 'gauge',
-      slug: g.contextReachSlug ?? g.id,
-      label: g.externalId ?? g.contextReachSlug ?? g.id,
-      name: g.contextReachCommonName ?? g.contextReachFullName ?? g.name ?? g.id,
-      stateAbbr: g.stateAbbr ?? null,
-      basinGroup: cleanBasinName(g.contextReachBasinGroup)
-        ?? cleanBasinName(g.watershedName)
-        ?? cleanBasinName(g.basinName)
-        ?? cleanBasinName(g.contextReachRiverName)
-        ?? cleanBasinName(g.riverName)
-        ?? 'Other',
-      riverName: g.contextReachRiverName ?? g.riverName ?? (g.contextReachSlug ? 'Unknown River' : 'Standalone'),
-      riverOrder: g.contextReachRiverOrder,
-      centerLng: g.contextReachCenterLng ?? g.lng,
-    })
-  }
-
-  // Visible user reaches
-  for (const r of visibleUserReaches.value) {
-    out.push({
-      id: `ur:${r.id}`,
-      type: 'user_reach',
-      slug: r.slug,
-      label: r.slug,
-      name: r.name,
-      stateAbbr: r.state_abbr ?? null,
-      basinGroup: cleanBasinName(r.basin_group) ?? 'Other',
-      riverName: r.river_name ?? 'My Reaches',
-      riverOrder: null,
-      centerLng: null,
-    })
-  }
-
-  // Visible custom gauges — shown as single leaves (input gauge detail not in listing payload)
-  for (const cg of visibleCustomGauges.value) {
-    const key = `cg:${cg.id}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    out.push({
-      id: key,
-      type: 'custom_gauge',
-      slug: cg.slug,
-      label: cg.slug,
-      name: cg.name,
-      stateAbbr: null,
-      basinGroup: 'Calculated',
-      riverName: 'Custom Gauges',
-      riverOrder: null,
-      centerLng: null,
-    })
-  }
-
-  return out
-})
-
-function onBasinMapSelect(leaf: DashboardLeaf) {
-  basinMapOpen.value = false
-  if (leaf.type === 'user_reach') {
-    router.push(`/my/reaches/${leaf.slug}`)
-    return
-  }
-  if (leaf.type === 'custom_gauge') {
-    const cg = customGauges.value.find(c => c.slug === leaf.slug)
-    if (cg) openStandaloneCustomGauge(cg)
-    return
-  }
-  // gauge — find by contextReachSlug if available, else by gauge id embedded in leaf.id
-  const gauge = leaf.slug !== leaf.id
-    ? store.gauges.find(g => g.contextReachSlug === leaf.slug)
-    : store.gauges.find(g => g.id === leaf.slug)
-  if (gauge) openGauge(gauge, 'gauge')
+function sectionHasVisibleContent(sec: DisplaySection): boolean {
+  return sec.subSections.some(s => subSectionHasVisibleContent(s))
 }
 
 // ── Collapsible sections ────────────────────────────────────────────────────
-const COLLAPSED_STATES_KEY = 'h2oflow_dashboard_collapsed_states'
-const COLLAPSED_BASINS_KEY = 'h2oflow_dashboard_collapsed_basins'
-const collapsedStates = ref<Set<string>>(new Set())
-const collapsedBasins = ref<Set<string>>(new Set())
+const COLLAPSED_KEY = 'h2oflow_dashboard_collapsed_sections'
+const collapsedSections = ref<Set<string>>(new Set())
 
 onMounted(() => {
   try {
-    const s = localStorage.getItem(COLLAPSED_STATES_KEY)
-    if (s) collapsedStates.value = new Set(JSON.parse(s))
-    const b = localStorage.getItem(COLLAPSED_BASINS_KEY)
-    if (b) collapsedBasins.value = new Set(JSON.parse(b))
+    const s = localStorage.getItem(COLLAPSED_KEY)
+    if (s) collapsedSections.value = new Set(JSON.parse(s))
   } catch {}
 })
 
-function toggleState(state: string) {
-  const s = new Set(collapsedStates.value)
-  if (s.has(state)) s.delete(state); else s.add(state)
-  collapsedStates.value = s
-  localStorage.setItem(COLLAPSED_STATES_KEY, JSON.stringify([...s]))
-}
-
-function basinKey(stateName: string, basinName: string) { return `${stateName}::${basinName}` }
-
-function toggleBasin(stateName: string, basinName: string) {
-  const key = basinKey(stateName, basinName)
-  const s = new Set(collapsedBasins.value)
+function toggleSection(key: string) {
+  const s = new Set(collapsedSections.value)
   if (s.has(key)) s.delete(key); else s.add(key)
-  collapsedBasins.value = s
-  localStorage.setItem(COLLAPSED_BASINS_KEY, JSON.stringify([...s]))
+  collapsedSections.value = s
+  localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...s]))
 }
 
 // ── Expand / collapse all ────────────────────────────────────────────────────
-const allExpanded = computed(() => collapsedStates.value.size === 0 && collapsedBasins.value.size === 0)
+const allExpanded = computed(() => collapsedSections.value.size === 0)
 
 function toggleAllSections() {
   if (allExpanded.value) {
-    const states = new Set(byStateTree.value.map(s => s.name))
-    collapsedStates.value = states
-    localStorage.setItem(COLLAPSED_STATES_KEY, JSON.stringify([...states]))
+    // Collapse all named outer sections + named subsections
+    const keys = new Set<string>()
+    for (const sec of displaySections.value) {
+      if (sec.name) keys.add(sec.key)
+      for (const sub of sec.subSections) {
+        if (sub.name) keys.add(sub.key)
+      }
+    }
+    collapsedSections.value = keys
+    localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...keys]))
   } else {
-    collapsedStates.value = new Set()
-    collapsedBasins.value = new Set()
-    localStorage.setItem(COLLAPSED_STATES_KEY, '[]')
-    localStorage.setItem(COLLAPSED_BASINS_KEY, '[]')
+    collapsedSections.value = new Set()
+    localStorage.setItem(COLLAPSED_KEY, '[]')
   }
 }
 
@@ -1096,14 +1098,27 @@ function setViewMode(m: ViewMode) {
 }
 
 
-// ── Group by gauge ────────────────────────────────────────────────────────────
-const GROUP_KEY = 'h2oflow_dashboard_group_by_gauge'
+// ── Grouping options ──────────────────────────────────────────────────────────
+const GROUP_GAUGE_KEY = 'h2oflow_dashboard_group_by_gauge'
+const GROUP_STATE_KEY = 'h2oflow_dashboard_group_by_state'
+const GROUP_BASIN_KEY = 'h2oflow_dashboard_group_by_basin'
 const groupByGauge = ref(false)
+const groupByState = ref(true)
+const groupByBasin = ref(true)
 onMounted(() => {
-  const saved = localStorage.getItem(GROUP_KEY)
-  if (saved !== null) groupByGauge.value = saved === 'true'
+  const g = localStorage.getItem(GROUP_GAUGE_KEY); if (g !== null) groupByGauge.value = g === 'true'
+  const s = localStorage.getItem(GROUP_STATE_KEY); if (s !== null) groupByState.value = s === 'true'
+  const b = localStorage.getItem(GROUP_BASIN_KEY); if (b !== null) groupByBasin.value = b === 'true'
 })
-watch(groupByGauge, val => localStorage.setItem(GROUP_KEY, String(val)))
+watch(groupByGauge, val => localStorage.setItem(GROUP_GAUGE_KEY, String(val)))
+watch(groupByState, val => localStorage.setItem(GROUP_STATE_KEY, String(val)))
+watch(groupByBasin, val => localStorage.setItem(GROUP_BASIN_KEY, String(val)))
+
+const groupingOptions = computed(() => [
+  { key: 'state', label: 'By state', active: groupByState.value, toggle: () => { groupByState.value = !groupByState.value } },
+  { key: 'basin', label: 'By basin', active: groupByBasin.value, toggle: () => { groupByBasin.value = !groupByBasin.value } },
+  { key: 'gauge', label: 'By gauge', active: groupByGauge.value, toggle: () => { groupByGauge.value = !groupByGauge.value } },
+])
 
 // ── Content filters ───────────────────────────────────────────────────────────
 const filterCurated     = ref(true)
@@ -1115,13 +1130,6 @@ const filterOptions = computed(() => [
   { key: 'myReaches', label: 'My reaches',       active: filterUserReaches.value, toggle: () => { filterUserReaches.value = !filterUserReaches.value } },
   { key: 'gauges',    label: 'Gauges',            active: filterGauges.value,      toggle: () => { filterGauges.value = !filterGauges.value } },
 ])
-
-// True when at least one gauge ID appears on multiple reaches (toggle is meaningful).
-const hasSharedGauges = computed(() => {
-  const counts = new Map<string, number>()
-  for (const g of store.gauges) counts.set(g.id, (counts.get(g.id) ?? 0) + 1)
-  return [...counts.values()].some(c => c > 1)
-})
 
 interface GaugeGroup { lead: WatchedGauge; all: WatchedGauge[] }
 interface SplitGroups { gaugeGroups: GaugeGroup[]; ungrouped: WatchedGauge[] }
@@ -1151,29 +1159,9 @@ const reachContainerClass = computed(() =>
 
 // ── UI state ─────────────────────────────────────────────────────────────────
 const searchOpen   = ref(false)
-const basinMapOpen       = ref(false)
-const basinMapScope      = ref<string | null>(null)
-const basinMapStateScope = ref<string | null>(null)
-const basinMapTitle = computed(() => {
-  if (basinMapStateScope.value) return `${basinMapStateScope.value}`
-  if (basinMapScope.value) return `${basinMapScope.value} Basin`
-  return 'Basin Map'
-})
-function openBasinMapForBasin(name: string) {
-  basinMapScope.value = name
-  basinMapStateScope.value = null
-  basinMapOpen.value = true
-}
-function openBasinMapForState(state: string) {
-  basinMapStateScope.value = state
-  basinMapScope.value = null
-  basinMapOpen.value = true
-}
-// Reset scopes when modal closes
-watch(basinMapOpen, (open) => {
-  if (!open) { basinMapScope.value = null; basinMapStateScope.value = null }
-})
 const filterOpen   = ref(false)
+const groupingOpen = ref(false)
+const groupingWrap = ref<HTMLElement | null>(null)
 const filterWrap   = ref<HTMLElement | null>(null)
 const MAP_VIS_KEY = 'h2oflow_dashboard_map_visible'
 const mapVisible  = ref(true)
