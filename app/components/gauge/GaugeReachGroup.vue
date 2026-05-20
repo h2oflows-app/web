@@ -101,7 +101,7 @@
         </div>
       </template>
 
-      <!-- Comfortable / Full: two-column — name+sparkline left, CFS right -->
+      <!-- Comfortable: two-column — name+sparkline left, CFS right -->
       <template v-else>
         <div class="flex items-start gap-3">
           <!-- Left -->
@@ -111,23 +111,24 @@
                 <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M12 12 16 8"/><path d="M3 12a9 9 0 0 1 18 0"/>
               </svg>
               <div class="min-w-0">
-                <span class="text-sm font-medium text-neutral-600 dark:text-neutral-400 truncate block leading-tight">{{ gaugeName }}</span>
+                <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate block leading-tight">{{ gaugeName }}</span>
+                <span class="text-xs text-neutral-400 dark:text-neutral-500 font-mono truncate block leading-tight">{{ gaugeShortLabel }}</span>
                 <span v-if="riverDisplayName && !hideRiverName" class="text-xs text-neutral-400 dark:text-neutral-500 truncate block leading-tight">{{ riverDisplayName }}</span>
               </div>
             </div>
-            <div class="opacity-60" :class="density === 'full' ? 'h-14' : 'h-6'">
+            <div class="opacity-70 h-14">
               <GaugeSparkline
                 :gauge-id="leadGauge.id"
                 flow-status="unknown"
                 color="#3b82f6"
-                :compact="density !== 'full'"
+                :compact="false"
                 @latest-cfs="liveCfs = $event"
               />
             </div>
           </div>
           <!-- Right: CFS -->
           <div class="text-right shrink-0">
-            <div class="font-bold tabular-nums leading-none text-neutral-900 dark:text-white" :class="density === 'comfortable' ? 'text-2xl' : 'text-3xl'">
+            <div class="font-bold tabular-nums leading-none text-neutral-900 dark:text-white text-3xl">
               {{ currentCfs != null ? currentCfs.toLocaleString() : '—' }}
             </div>
             <div class="text-xs text-neutral-400 mt-0.5">cfs</div>
@@ -226,12 +227,7 @@ const gaugeShortLabel = computed(() =>
   `${props.leadGauge.source.toUpperCase()}-${props.leadGauge.externalId}`
 )
 
-// Full card: show the human-readable gauge name. All other densities: show the short ID label.
-const gaugeName = computed(() =>
-  props.density === 'full'
-    ? (props.leadGauge.name ?? gaugeShortLabel.value)
-    : gaugeShortLabel.value
-)
+const gaugeName = computed(() => props.leadGauge.name ?? gaugeShortLabel.value)
 
 const riverDisplayName = computed(() =>
   props.leadGauge.contextReachRiverName ?? props.leadGauge.riverName ?? null

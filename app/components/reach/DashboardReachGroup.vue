@@ -104,14 +104,14 @@
                 :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(reach), displayFlowStatus(reach))]"
               >{{ flowBandLabel(displayFlowBandLabel(reach), displayFlowStatus(reach)) }}</span>
             </div>
-            <div class="mt-1.5 opacity-60" :class="density === 'full' ? 'h-14' : 'h-6 pointer-events-none'">
-              <GaugeSparkline :gauge-id="reach.id" flow-status="unknown" :color="sparklineColor(reach)" :compact="density !== 'full'" @latest-cfs="(v) => setLiveCfs(reach, v)" />
+            <div class="mt-1.5 opacity-70 h-14">
+              <GaugeSparkline :gauge-id="reach.id" flow-status="unknown" :color="sparklineColor(reach)" :compact="false" @latest-cfs="(v) => setLiveCfs(reach, v)" />
             </div>
           </div>
           <!-- Right: CFS + remove -->
           <div class="flex items-start gap-1 shrink-0">
             <div class="text-right">
-              <div class="font-bold tabular-nums leading-none" :class="density === 'comfortable' ? 'text-2xl' : 'text-3xl'" :style="{ color: bandSolid(displayFlowBandLabel(reach)) }">
+              <div class="font-bold tabular-nums leading-none text-3xl" :style="{ color: bandSolid(displayFlowBandLabel(reach)) }">
                 {{ displayCfs(reach) != null ? displayCfs(reach)!.toLocaleString() : '—' }}
               </div>
               <div class="text-xs text-neutral-400 mt-0.5">cfs</div>

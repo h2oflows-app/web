@@ -22,15 +22,13 @@
           </div>
 
           <div>
-            <label class="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">
-              Handle <span class="font-normal text-neutral-400">(3–32 chars, a–z 0–9 _)</span>
-            </label>
+            <label class="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">Name</label>
             <div class="flex gap-2">
               <input
                 v-model="handleInput"
                 type="text"
-                placeholder="your_handle"
-                maxlength="32"
+                placeholder="Ian K"
+                maxlength="50"
                 class="flex-1 min-w-0 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
               />
               <button
@@ -63,6 +61,27 @@
               ]"
               @click="setFontSize(opt.value)"
             >{{ opt.label }}</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Font scheme -->
+      <section class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-5 space-y-3">
+        <h2 class="text-sm font-semibold text-neutral-900 dark:text-white uppercase tracking-wide">Font Style</h2>
+        <select
+          :value="fontSchemeId"
+          class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+          @change="setScheme(($event.target as HTMLSelectElement).value)"
+        >
+          <option v-for="s in FONT_SCHEMES" :key="s.id" :value="s.id">{{ s.name }}</option>
+        </select>
+        <div v-if="selectedFontScheme" class="px-3 py-2.5 rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700">
+          <span class="text-sm font-semibold text-neutral-900 dark:text-white block leading-tight" :style="{ fontFamily: selectedFontScheme.displayFont, fontStyle: selectedFontScheme.fontStyle ?? 'normal' }">{{ selectedFontScheme.name }}</span>
+          <span class="text-xs text-neutral-400 dark:text-neutral-500 block mt-0.5">{{ selectedFontScheme.description }}</span>
+          <div class="flex items-center gap-2 mt-1.5">
+            <span class="text-xs text-neutral-500 dark:text-neutral-400" :style="{ fontFamily: selectedFontScheme.bodyFont }">Body text</span>
+            <span class="text-xs text-neutral-300 dark:text-neutral-700">·</span>
+            <span class="text-xs text-neutral-500 dark:text-neutral-400" :style="{ fontFamily: selectedFontScheme.monoFont }">845 cfs</span>
           </div>
         </div>
       </section>
@@ -125,9 +144,16 @@
             target="_blank"
             rel="noopener"
             class="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-            style="background-color:#5F7FFF; font-family:'Cookie', cursive;"
+            style="background-color:#FFDD00; color:#000; font-family:'Cookie', cursive;"
           >
-            🍕 Send me pizza!
+            <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
+              <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+              <line x1="6" y1="1" x2="6" y2="4"/>
+              <line x1="10" y1="1" x2="10" y2="4"/>
+              <line x1="14" y1="1" x2="14" y2="4"/>
+            </svg>
+            Buy me a coffee!
           </a>
         </div>
       </section>
@@ -138,6 +164,7 @@
 
 <script setup lang="ts">
 import { useFontSize, type FontSize } from '~/composables/useFontSize'
+import { useFontScheme, FONT_SCHEMES } from '~/composables/useFontScheme'
 import { THEMES } from '../../app.config'
 import type { ThemeId } from '../../app.config'
 import { useThemeStore } from '~/stores/theme'
@@ -227,6 +254,8 @@ function applyTheme(id: ThemeId) {
 // ── Font size ─────────────────────────────────────────────────────────────────
 
 const { fontSize, setFontSize, load: loadFontSize } = useFontSize()
+const { schemeId: fontSchemeId, setScheme, load: loadFontScheme } = useFontScheme()
+const selectedFontScheme = computed(() => FONT_SCHEMES.find(s => s.id === fontSchemeId.value))
 
 const fontSizeOpts: { value: FontSize; label: string }[] = [
   { value: 'default', label: 'Default' },
@@ -236,6 +265,7 @@ const fontSizeOpts: { value: FontSize; label: string }[] = [
 
 onMounted(() => {
   loadFontSize()
+  loadFontScheme()
   loadProfile()
 })
 </script>

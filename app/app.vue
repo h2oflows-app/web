@@ -10,7 +10,9 @@
 </template>
 
 <script setup lang="ts">
-import { useFontSize } from '~/composables/useFontSize'
-const { load } = useFontSize()
-onMounted(load)
+import { useFontSize }   from '~/composables/useFontSize'
+import { useFontScheme } from '~/composables/useFontScheme'
+const { load: loadFontSize   } = useFontSize()
+const { load: loadFontScheme } = useFontScheme()
+onMounted(() => { loadFontSize(); loadFontScheme() })
 </script>
