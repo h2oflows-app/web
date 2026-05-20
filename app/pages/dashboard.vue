@@ -221,9 +221,9 @@
               <!-- Reaches grouped by river -->
               <div class="mb-2">
                 <template v-for="river in sub.rivers" :key="river.name">
-                <template v-if="riverHasVisibleContent(river)">
+                <div v-if="riverHasVisibleContent(river)" class="first:mt-0" :class="showRivers ? 'mt-4' : 'mt-1.5'">
                   <!-- River section divider -->
-                  <div v-if="showRivers" class="flex items-center gap-2 mt-4 first:mt-0 mb-2">
+                  <div v-if="showRivers" class="flex items-center gap-2 mb-2">
                     <svg class="w-4 h-4 text-primary-500/70 dark:text-primary-400/70 shrink-0" viewBox="0 0 32 32" fill="none" aria-hidden="true">
                       <path d="M4 14c3-6 6-9 8-9s5 9 8 9 5-9 8-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
                       <path d="M4 22c3-6 6-9 8-9s5 9 8 9 5-9 8-9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
@@ -355,7 +355,7 @@
                     </div>
                   </div>
                 </template>
-                </template><!-- end riverHasVisibleContent -->
+                </div><!-- end riverHasVisibleContent -->
                 </template><!-- end v-for river -->
               </div>
 
