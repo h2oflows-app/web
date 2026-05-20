@@ -45,7 +45,7 @@
 
           <!-- Expand / Collapse all -->
           <ToolbarButton
-            v-if="displaySections.length > 0"
+            v-if="displaySections.length > 0 && (groupByState || groupByBasin)"
             :label="allExpanded ? 'Collapse' : 'Expand'"
             :title="allExpanded ? 'Collapse all sections' : 'Expand all sections'"
             @click="toggleAllSections"
