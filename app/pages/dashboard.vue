@@ -74,39 +74,40 @@
             </svg>
           </ToolbarButton>
 
-          <!-- Filter dropdown -->
-          <div class="relative" ref="filterWrap">
-            <ToolbarButton :active="!filterCurated || !filterUserReaches || !filterGauges" title="Filter content" @click="filterOpen = !filterOpen">
-              <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-                <path d="M1.5 4h13M4 8h8M6.5 12h3"/>
-              </svg>
-            </ToolbarButton>
-            <div
-              v-if="filterOpen"
-              class="absolute left-0 top-full mt-1 z-50 w-44 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg overflow-hidden py-1"
-            >
-              <button
-                v-for="opt in filterOptions"
-                :key="opt.key"
-                class="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-                @click="opt.toggle()"
-              >
-                <svg
-                  class="w-3.5 h-3.5 shrink-0"
-                  :class="opt.active ? 'text-primary-500' : 'text-neutral-200 dark:text-neutral-700'"
-                  viewBox="0 0 20 20" fill="currentColor"
-                >
-                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                </svg>
-                <IconWave v-if="opt.key === 'curated'" class="w-3.5 h-3.5 shrink-0 text-primary-400 dark:text-primary-500" />
-                <IconUser v-else-if="opt.key === 'myReaches'" class="w-3.5 h-3.5 shrink-0 text-primary-400 dark:text-primary-500" />
-                <IconGauge v-else-if="opt.key === 'gauges'" class="w-3.5 h-3.5 shrink-0 text-neutral-400 dark:text-neutral-500" />
-                {{ opt.label }}
-              </button>
-            </div>
-          </div>
         </template>
       </div>
+
+        <!-- Filter dropdown — pinned right, outside scroll group so dropdown isn't clipped by overflow-x-auto -->
+        <div v-if="hasAnyContent" class="relative shrink-0" ref="filterWrap">
+          <ToolbarButton :active="!filterCurated || !filterUserReaches || !filterGauges" title="Filter content" @click="filterOpen = !filterOpen">
+            <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+              <path d="M1.5 4h13M4 8h8M6.5 12h3"/>
+            </svg>
+          </ToolbarButton>
+          <div
+            v-if="filterOpen"
+            class="absolute right-0 top-full mt-1 z-50 w-44 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg overflow-hidden py-1"
+          >
+            <button
+              v-for="opt in filterOptions"
+              :key="opt.key"
+              class="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+              @click="opt.toggle()"
+            >
+              <svg
+                class="w-3.5 h-3.5 shrink-0"
+                :class="opt.active ? 'text-primary-500' : 'text-neutral-200 dark:text-neutral-700'"
+                viewBox="0 0 20 20" fill="currentColor"
+              >
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+              </svg>
+              <IconWave v-if="opt.key === 'curated'" class="w-3.5 h-3.5 shrink-0 text-primary-400 dark:text-primary-500" />
+              <IconUser v-else-if="opt.key === 'myReaches'" class="w-3.5 h-3.5 shrink-0 text-primary-400 dark:text-primary-500" />
+              <IconGauge v-else-if="opt.key === 'gauges'" class="w-3.5 h-3.5 shrink-0 text-neutral-400 dark:text-neutral-500" />
+              {{ opt.label }}
+            </button>
+          </div>
+        </div>
 
         <!-- Add gauge — pinned right, outside scroll group -->
         <ToolbarButton label="Add gauge" title="Add gauge" class="shrink-0 ml-1" @click="searchOpen = true">
@@ -1110,7 +1111,7 @@ const filterUserReaches = ref(true)
 const filterGauges      = ref(true)
 
 const filterOptions = computed(() => [
-  { key: 'curated',   label: 'Curated reaches', active: filterCurated.value,     toggle: () => { filterCurated.value = !filterCurated.value } },
+  { key: 'curated',   label: 'H2OFlows',        active: filterCurated.value,     toggle: () => { filterCurated.value = !filterCurated.value } },
   { key: 'myReaches', label: 'My reaches',       active: filterUserReaches.value, toggle: () => { filterUserReaches.value = !filterUserReaches.value } },
   { key: 'gauges',    label: 'Gauges',            active: filterGauges.value,      toggle: () => { filterGauges.value = !filterGauges.value } },
 ])
