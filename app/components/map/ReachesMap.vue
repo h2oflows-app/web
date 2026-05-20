@@ -6,7 +6,8 @@
       Loading map…
     </div>
 
-    <div v-if="mapReady" :class="['absolute left-2 z-10 flex items-center gap-1.5', props.embedded ? 'bottom-2' : 'bottom-24 sm:bottom-8']">
+    <!-- Basemap toggle (bottom-left) -->
+    <div v-if="mapReady" :class="['absolute left-2 z-10', props.embedded ? 'bottom-2' : 'bottom-24 sm:bottom-8']">
       <div class="flex rounded-md shadow overflow-hidden border border-neutral-200 dark:border-neutral-600 text-xs font-medium">
         <button
           v-for="opt in BASEMAP_OPTIONS" :key="opt.value"
@@ -17,28 +18,36 @@
           @click="setBasemap(opt.value)"
         >{{ opt.label }}</button>
       </div>
+    </div>
+
+    <!-- My location + difficulty legend (bottom-right column) -->
+    <div v-if="mapReady" :class="['absolute right-2 z-10 flex flex-col items-end gap-1.5', props.embedded ? 'bottom-2' : 'bottom-24 sm:bottom-8']">
       <button
-        class="flex items-center gap-1 px-2 py-1 rounded-md shadow border text-xs font-medium transition-colors"
+        class="p-1.5 rounded-md shadow border transition-colors"
         :class="locating
           ? 'bg-primary-50 dark:bg-primary-950 border-primary-300 dark:border-primary-700 text-primary-600 dark:text-primary-400'
           : locateError
             ? 'bg-red-50 dark:bg-red-950 border-red-300 dark:border-red-700 text-red-600 dark:text-red-400'
             : 'bg-white/90 dark:bg-neutral-800/90 border-neutral-200 dark:border-neutral-600 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-700'"
         :disabled="locating"
-        :title="locateError || 'Zoom to my location'"
+        :title="locateError || (locating ? 'Locating…' : 'My location')"
         @click="locateMe"
       >
-        <svg class="w-3 h-3 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="3"/><circle cx="10" cy="10" r="7.5" stroke-dasharray="2 2"/><line x1="10" y1="1" x2="10" y2="3.5"/><line x1="10" y1="16.5" x2="10" y2="19"/><line x1="1" y1="10" x2="3.5" y2="10"/><line x1="16.5" y1="10" x2="19" y2="10"/></svg>
-        <span>{{ locateError || (locating ? 'Locating…' : 'My location') }}</span>
+        <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <circle cx="10" cy="10" r="3" fill="currentColor" stroke="none"/>
+          <circle cx="10" cy="10" r="6.5"/>
+          <line x1="10" y1="1" x2="10" y2="3.5"/>
+          <line x1="10" y1="16.5" x2="10" y2="19"/>
+          <line x1="1" y1="10" x2="3.5" y2="10"/>
+          <line x1="16.5" y1="10" x2="19" y2="10"/>
+        </svg>
       </button>
-    </div>
-
-    <!-- Difficulty legend -->
-    <div v-if="mapReady" :class="['absolute right-2 z-10 bg-white/90 dark:bg-neutral-900/90 backdrop-blur rounded-lg border border-neutral-200 dark:border-neutral-700 px-3 py-2 text-xs space-y-1.5 shadow', props.embedded ? 'bottom-2' : 'bottom-24 sm:bottom-8']">
-      <p class="font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wide text-[10px] mb-1">Difficulty</p>
-      <div v-for="d in DIFFICULTY_LEGEND" :key="d.label" class="flex items-center gap-2">
-        <span class="shrink-0" v-html="d.symbol" />
-        <span class="text-neutral-700 dark:text-neutral-300">{{ d.label }}</span>
+      <div class="bg-white/90 dark:bg-neutral-900/90 backdrop-blur rounded-lg border border-neutral-200 dark:border-neutral-700 px-3 py-2 text-xs space-y-1.5 shadow">
+        <p class="font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wide text-[10px] mb-1">Difficulty</p>
+        <div v-for="d in DIFFICULTY_LEGEND" :key="d.label" class="flex items-center gap-2">
+          <span class="shrink-0" v-html="d.symbol" />
+          <span class="text-neutral-700 dark:text-neutral-300">{{ d.label }}</span>
+        </div>
       </div>
     </div>
   </div>

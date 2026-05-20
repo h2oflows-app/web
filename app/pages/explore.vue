@@ -1,6 +1,9 @@
 <template>
   <div class="h-dvh flex flex-col overflow-hidden bg-white dark:bg-neutral-950">
 
+    <!-- Backdrop: consumes the click that closes the dashboard dropdown so it doesn't hit reach rows -->
+    <div v-if="dropdownSlug !== null" class="fixed inset-0 z-30" @click.stop="dropdownSlug = null" />
+
     <!-- Demo banner -->
     <div v-if="showDemoBanner" class="shrink-0 bg-amber-50 dark:bg-amber-950 border-b border-amber-200 dark:border-amber-800 px-4 py-2 flex items-center justify-between gap-4 text-sm">
       <p class="text-amber-800 dark:text-amber-200 text-center flex-1">
@@ -864,7 +867,6 @@ async function toggleDashboardForUserReach(r: UserReachSummary, dashboardId: str
     membershipDashboardIds.value = new Set([...membershipDashboardIds.value, dashboardId])
     await addReachToWatchlist(r.slug, dashboardId)
   }
-  dropdownSlug.value = null
 }
 
 async function toggleDashboardForId(reach: ReachListItem, dashboardId: string) {
@@ -889,7 +891,6 @@ async function toggleDashboardForId(reach: ReachListItem, dashboardId: string) {
     membershipDashboardIds.value = new Set([...membershipDashboardIds.value, dashboardId])
     addAndSync(buildWatchedGauge(reach), dashboardId)
   }
-  dropdownSlug.value = null
 }
 
 function addAllRiverReaches(reaches: ReachListItem[]) {
@@ -911,3 +912,10 @@ function openGaugeModal(reach: ReachListItem) {
 }
 
 </script>
+
+<style scoped>
+/* Push MapLibre zoom controls below the H2OFlows/My Reaches mode toggle pill */
+:deep(.maplibregl-ctrl-top-right) {
+  top: 44px;
+}
+</style>
