@@ -28,6 +28,8 @@
             flow-status="unknown"
             color="#3b82f6"
             compact
+            :poll-health="leadGauge.pollHealth"
+            :last-reading-at="leadGauge.lastReadingAt"
             @latest-cfs="liveCfs = $event"
           />
         </div>
@@ -125,6 +127,8 @@
             flow-status="unknown"
             color="#3b82f6"
             :compact="false"
+            :poll-health="leadGauge.pollHealth"
+            :last-reading-at="leadGauge.lastReadingAt"
             @latest-cfs="liveCfs = $event"
           />
         </div>
@@ -157,6 +161,8 @@
             flow-status="unknown"
             color="#3b82f6"
             :compact="false"
+            :poll-health="leadGauge.pollHealth"
+            :last-reading-at="leadGauge.lastReadingAt"
             @latest-cfs="liveCfs = $event"
           />
         </div>
