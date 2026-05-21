@@ -26,7 +26,7 @@
         </NuxtLink>
       </div>
       <div class="w-36 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
-        <GaugeSparkline :gauge-id="reach.id" flow-status="unknown" :color="sparklineColor(reach)" compact @latest-cfs="(v) => setLiveCfs(reach, v)" />
+        <GaugeSparkline :gauge-id="reach.id" flow-status="unknown" :color="sparklineColor(reach)" compact :poll-health="reach.pollHealth" :last-reading-at="reach.lastReadingAt" @latest-cfs="(v) => setLiveCfs(reach, v)" />
       </div>
       <span
         v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)"
@@ -99,7 +99,7 @@
           <TrashButton label="Remove" @click="$emit('remove', reach)" />
         </div>
         <div class="opacity-70">
-          <GaugeSparkline :gauge-id="reach.id" flow-status="unknown" :color="sparklineColor(reach)" :compact="false" @latest-cfs="(v) => setLiveCfs(reach, v)" />
+          <GaugeSparkline :gauge-id="reach.id" flow-status="unknown" :color="sparklineColor(reach)" :compact="false" :poll-health="reach.pollHealth" :last-reading-at="reach.lastReadingAt" @latest-cfs="(v) => setLiveCfs(reach, v)" />
         </div>
       </template>
 
@@ -122,7 +122,7 @@
           <TrashButton label="Remove" @click="$emit('remove', reach)" />
         </div>
         <div class="opacity-70">
-          <GaugeSparkline :gauge-id="reach.id" flow-status="unknown" :color="sparklineColor(reach)" :compact="false" @latest-cfs="(v) => setLiveCfs(reach, v)" />
+          <GaugeSparkline :gauge-id="reach.id" flow-status="unknown" :color="sparklineColor(reach)" :compact="false" :poll-health="reach.pollHealth" :last-reading-at="reach.lastReadingAt" @latest-cfs="(v) => setLiveCfs(reach, v)" />
         </div>
       </template>
     </div>

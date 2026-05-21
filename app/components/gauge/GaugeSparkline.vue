@@ -1,7 +1,7 @@
 <template>
   <div class="w-full" @click.stop>
-    <!-- Window toggle — hidden in compact mode -->
-    <div v-if="!compact" class="flex justify-start mb-1.5 -mt-0.5">
+    <!-- Window toggle + poll status — hidden in compact mode -->
+    <div v-if="!compact" class="flex items-center justify-between mb-1.5 -mt-0.5">
       <div class="flex text-xs rounded overflow-hidden border border-neutral-200 dark:border-neutral-700">
         <button
           class="px-1.5 py-0.5 transition-colors"
@@ -19,6 +19,14 @@
           @click="hours = 720"
         >30d</button>
       </div>
+      <GaugePollStatus
+        :gauge-id="gaugeId"
+        :poll-health="pollHealth"
+        :last-reading-at="lastReadingAt"
+        :status="status"
+        :history-loading="historyLoading"
+        @refreshed="fetchReadings"
+      />
     </div>
 
     <!-- Chart area -->
@@ -55,6 +63,10 @@ const props = defineProps<{
   reachSlug?: string | null
   compact?: boolean
   color?: string  // override stroke color (e.g. '#3b82f6' for neutral blue)
+  pollHealth?: 'healthy' | 'degraded' | 'stale' | 'unreachable' | null
+  lastReadingAt?: string | null
+  status?: string | null
+  historyLoading?: boolean
 }>()
 
 const emit = defineEmits<{
