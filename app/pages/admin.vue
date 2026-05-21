@@ -32,7 +32,7 @@
             :class="activeTab === tab.key
               ? 'border-primary-500 text-primary-600 dark:text-primary-400'
               : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
-            @click="activeTab = tab.key; if (tab.key === 'corrections') loadCorrections()"
+            @click="activeTab = tab.key; if (tab.key === 'corrections') loadCorrections(); if (tab.key === 'gauges' && adminGauges.length === 0) loadAdminGauges()"
           >{{ tab.label }}</button>
         </div>
 
@@ -256,6 +256,106 @@
           </div>
         </div>
 
+        <!-- Gauges tab -->
+        <div v-if="activeTab === 'gauges'">
+          <!-- Summary row -->
+          <div v-if="gaugeSummary" class="flex flex-wrap gap-3 mb-3 text-sm">
+            <span class="text-neutral-500">{{ gaugeSummary.total }} gauges</span>
+            <span v-if="gaugeSummary.unreachable" class="text-red-500 font-medium">{{ gaugeSummary.unreachable }} offline</span>
+            <span v-if="gaugeSummary.stale" class="text-amber-500 font-medium">{{ gaugeSummary.stale }} stale</span>
+            <span v-if="gaugeSummary.degraded" class="text-neutral-400">{{ gaugeSummary.degraded }} degraded</span>
+            <span class="text-neutral-400">{{ gaugeSummary.healthy }} healthy</span>
+          </div>
+
+          <!-- Filters -->
+          <div class="flex flex-wrap items-center gap-2 mb-3">
+            <UInput v-model="gaugeSearch" icon="i-heroicons-magnifying-glass" placeholder="Search name or ID…" size="sm" class="w-48" @input="debounceGaugeLoad" />
+            <div class="flex rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-700 text-xs">
+              <button v-for="f in gaugeHealthFilters" :key="f.value"
+                class="px-2.5 py-1.5 transition-colors"
+                :class="gaugeHealthFilter === f.value ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 hover:text-neutral-600'"
+                @click="gaugeHealthFilter = f.value; loadAdminGauges()"
+              >{{ f.label }}</button>
+            </div>
+            <label class="flex items-center gap-1.5 text-xs text-neutral-500 cursor-pointer select-none">
+              <input type="checkbox" v-model="gaugeShowRetired" class="rounded" @change="loadAdminGauges()" />
+              Show retired
+            </label>
+          </div>
+
+          <!-- Table -->
+          <div v-if="gaugesLoading" class="space-y-1.5">
+            <div v-for="i in 8" :key="i" class="h-10 rounded-lg bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+          </div>
+          <div v-else-if="adminGauges.length === 0" class="px-4 py-10 text-center text-sm text-neutral-400">
+            No gauges match filters
+          </div>
+          <div v-else class="rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+            <table class="w-full text-xs">
+              <thead class="bg-neutral-50 dark:bg-neutral-800/60 text-neutral-500 dark:text-neutral-400">
+                <tr>
+                  <th class="text-left px-3 py-2 font-medium">Gauge</th>
+                  <th class="text-left px-3 py-2 font-medium hidden sm:table-cell">Source</th>
+                  <th class="text-left px-3 py-2 font-medium">Health</th>
+                  <th class="text-right px-3 py-2 font-medium hidden md:table-cell">Last reading</th>
+                  <th class="text-right px-3 py-2 font-medium hidden md:table-cell">Fails</th>
+                  <th class="text-right px-3 py-2 font-medium hidden sm:table-cell">Reaches</th>
+                  <th class="px-3 py-2"></th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-neutral-100 dark:divide-neutral-800 bg-white dark:bg-neutral-900">
+                <tr v-for="g in adminGauges" :key="g.id" class="hover:bg-neutral-50 dark:hover:bg-neutral-800/40">
+                  <td class="px-3 py-2">
+                    <p class="font-medium text-neutral-800 dark:text-neutral-100 truncate max-w-50">{{ g.name || g.external_id }}</p>
+                    <p class="text-neutral-400 font-mono">{{ g.external_id }}</p>
+                  </td>
+                  <td class="px-3 py-2 hidden sm:table-cell text-neutral-500 uppercase font-mono">{{ g.source }}</td>
+                  <td class="px-3 py-2">
+                    <span :class="['inline-flex items-center rounded-full px-1.5 py-0.5 font-medium', gaugeHealthClass(g.poll_health)]">
+                      {{ g.poll_health }}
+                    </span>
+                    <p v-if="g.status !== 'active'" class="text-neutral-400 mt-0.5">{{ g.status }}</p>
+                  </td>
+                  <td class="px-3 py-2 text-right hidden md:table-cell text-neutral-500">
+                    {{ g.last_reading_at ? relativeDate(g.last_reading_at) : '—' }}
+                  </td>
+                  <td class="px-3 py-2 text-right hidden md:table-cell" :class="g.consecutive_poll_failures > 0 ? 'text-amber-500' : 'text-neutral-400'">
+                    {{ g.consecutive_poll_failures || '—' }}
+                  </td>
+                  <td class="px-3 py-2 text-right hidden sm:table-cell text-neutral-500">{{ g.reach_count }}</td>
+                  <td class="px-3 py-2">
+                    <div class="flex items-center justify-end gap-1">
+                      <UButton size="xs" variant="ghost" color="neutral" :loading="gaugePollId === g.id" title="Force poll" @click="adminPollGauge(g.id)">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M13.5 8A5.5 5.5 0 1 1 10 3.07"/><path d="M10 2v3h3"/>
+                        </svg>
+                      </UButton>
+                      <UButton v-if="g.status !== 'retired'" size="xs" variant="ghost" color="neutral" title="Retire gauge" @click="adminRetireGauge(g.id)">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M2 8h12M8 2l6 6-6 6"/>
+                        </svg>
+                      </UButton>
+                      <UButton v-if="g.status === 'retired' || g.status === 'inactive'" size="xs" variant="ghost" color="primary" title="Reactivate" @click="adminReactivateGauge(g.id)">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-8.68"/>
+                        </svg>
+                      </UButton>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <!-- Pagination -->
+            <div v-if="gaugeTotal > gaugeLimit" class="flex items-center justify-between px-3 py-2 border-t border-neutral-100 dark:border-neutral-800 text-xs text-neutral-500">
+              <span>{{ gaugeOffset + 1 }}–{{ Math.min(gaugeOffset + gaugeLimit, gaugeTotal) }} of {{ gaugeTotal }}</span>
+              <div class="flex gap-1">
+                <UButton size="xs" variant="outline" color="neutral" :disabled="gaugeOffset === 0" @click="gaugeOffset -= gaugeLimit; loadAdminGauges()">Prev</UButton>
+                <UButton size="xs" variant="outline" color="neutral" :disabled="gaugeOffset + gaugeLimit >= gaugeTotal" @click="gaugeOffset += gaugeLimit; loadAdminGauges()">Next</UButton>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Users tab (site admin only) -->
         <div v-if="activeTab === 'users'">
           <div class="flex items-center justify-between mb-4">
@@ -465,6 +565,7 @@ const activeTab = ref('rivers')
 const visibleTabs = computed(() => {
   const tabs: { key: string; label: string }[] = [{ key: 'rivers', label: 'Rivers' }]
   tabs.push({ key: 'corrections', label: pendingCorrectionsCount.value > 0 ? `Needs Review (${pendingCorrectionsCount.value})` : 'Needs Review' })
+  tabs.push({ key: 'gauges', label: 'Gauges' })
   if (isAdmin.value) tabs.push({ key: 'users', label: 'Users' })
   return tabs
 })
@@ -859,5 +960,119 @@ async function assignRole() {
   }
 }
 
+// ── Admin gauges ──────────────────────────────────────────────────────────────
+
+interface AdminGauge {
+  id: string
+  external_id: string
+  source: string
+  name: string
+  status: string
+  auto_managed: boolean
+  poll_health: string
+  consecutive_poll_failures: number
+  last_reading_at: string | null
+  last_poll_success_at: string | null
+  last_poll_failure_at: string | null
+  seasonal_start_mmdd: string | null
+  seasonal_end_mmdd: string | null
+  state_abbr: string | null
+  reach_count: number
+}
+
+interface GaugeSummary { healthy: number; degraded: number; stale: number; unreachable: number; total: number }
+
+const adminGauges    = ref<AdminGauge[]>([])
+const gaugeSummary   = ref<GaugeSummary | null>(null)
+const gaugesLoading  = ref(false)
+const gaugeTotal     = ref(0)
+const gaugeLimit     = ref(50)
+const gaugeOffset    = ref(0)
+const gaugeSearch    = ref('')
+const gaugeShowRetired  = ref(false)
+const gaugeHealthFilter = ref('')
+const gaugePollId    = ref<string | null>(null)
+
+const gaugeHealthFilters = [
+  { label: 'All',         value: '' },
+  { label: 'Stale',       value: 'stale' },
+  { label: 'Offline',     value: 'unreachable' },
+  { label: 'Healthy',     value: 'healthy' },
+]
+
+let gaugeSearchTimer: ReturnType<typeof setTimeout> | null = null
+function debounceGaugeLoad() {
+  if (gaugeSearchTimer) clearTimeout(gaugeSearchTimer)
+  gaugeSearchTimer = setTimeout(() => { gaugeOffset.value = 0; loadAdminGauges() }, 300)
+}
+
+async function loadAdminGauges() {
+  gaugesLoading.value = true
+  try {
+    const token = await getToken()
+    const params = new URLSearchParams({
+      limit: String(gaugeLimit.value),
+      offset: String(gaugeOffset.value),
+    })
+    if (gaugeSearch.value) params.set('q', gaugeSearch.value)
+    if (gaugeHealthFilter.value) params.set('poll_health', gaugeHealthFilter.value)
+    if (gaugeShowRetired.value) params.set('show_retired', 'true')
+    const res = await fetch(`${apiBase}/api/v1/admin/gauges?${params}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (res.ok) {
+      const data = await res.json()
+      adminGauges.value  = data.gauges ?? []
+      gaugeTotal.value   = data.total ?? 0
+      gaugeSummary.value = data.summary ?? null
+    }
+  } finally {
+    gaugesLoading.value = false
+  }
+}
+
+async function adminPollGauge(id: string) {
+  gaugePollId.value = id
+  try {
+    const token = await getToken()
+    await fetch(`${apiBase}/api/v1/admin/gauges/${id}/poll`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    await loadAdminGauges()
+  } finally {
+    gaugePollId.value = null
+  }
+}
+
+async function adminRetireGauge(id: string) {
+  const token = await getToken()
+  await fetch(`${apiBase}/api/v1/admin/gauges/${id}/retire`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  await loadAdminGauges()
+}
+
+async function adminReactivateGauge(id: string) {
+  const token = await getToken()
+  await fetch(`${apiBase}/api/v1/admin/gauges/${id}/reactivate`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  await loadAdminGauges()
+}
+
+function gaugeHealthClass(h: string): string {
+  if (h === 'unreachable') return 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+  if (h === 'stale')       return 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400'
+  if (h === 'degraded')    return 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500'
+  return 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
+}
+
+// Load gauges when tab activates
+watch(activeTab, (tab) => {
+  if (tab === 'gauges' && adminGauges.value.length === 0) loadAdminGauges()
+})
 
 </script>
