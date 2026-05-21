@@ -5,7 +5,7 @@
       {{ badgeText }}
     </span>
 
-    <!-- Refresh button — only when not rate-limited and not offline/retired -->
+    <!-- Refresh button — always shown unless retired -->
     <button
       v-if="showRefresh"
       :disabled="refreshing || justRefreshed"
@@ -33,7 +33,7 @@ const props = defineProps<{
   pollHealth?: 'healthy' | 'degraded' | 'stale' | 'unreachable' | null
   lastReadingAt?: string | null
   status?: string | null
-  historyLoading?: boolean  // true when gauge was just added and has <2h of readings
+  historyLoading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -41,15 +41,18 @@ const emit = defineEmits<{
 }>()
 
 const { apiBase } = useRuntimeConfig().public
-const refreshing   = ref(false)
+const refreshing    = ref(false)
 const justRefreshed = ref(false)
+const localReadingAt = ref<string | null>(null)  // set after successful refresh
+
+const effectiveReadingAt = computed(() => localReadingAt.value ?? props.lastReadingAt ?? null)
 
 function ageMinutes(isoStr: string): number {
   return Math.floor((Date.now() - new Date(isoStr).getTime()) / 60_000)
 }
 
 function fmtAge(mins: number): string {
-  if (mins < 60)  return `${mins}m ago`
+  if (mins < 60) return `${mins}m ago`
   const h = Math.floor(mins / 60)
   if (h < 24) return `${h}h ago`
   return `${Math.floor(h / 24)}d ago`
@@ -59,32 +62,35 @@ const badgeText = computed((): string | null => {
   if (props.status === 'retired') return 'Decommissioned'
   if (props.status === 'seasonal' && props.pollHealth !== 'healthy') return 'Seasonal · off-season'
   if (props.historyLoading) return 'History loading…'
-  if (!props.lastReadingAt) return null
-  const mins = ageMinutes(props.lastReadingAt)
-  if (props.pollHealth === 'unreachable') return `Offline · ${fmtAge(mins)}`
-  if (props.pollHealth === 'stale')       return `Stale · ${fmtAge(mins)}`
-  if (props.pollHealth === 'degraded')    return `Updated ${fmtAge(mins)}`
+  if (justRefreshed.value) return `Updated just now`
+  const at = effectiveReadingAt.value
+  if (props.pollHealth === 'unreachable') return at ? `Offline · ${fmtAge(ageMinutes(at))}` : 'Offline'
+  if (!at) return null
+  const mins = ageMinutes(at)
+  if (props.pollHealth === 'stale')    return `Stale · ${fmtAge(mins)}`
+  if (props.pollHealth === 'degraded') return `Updated ${fmtAge(mins)}`
   if (mins > 60) return `Updated ${fmtAge(mins)}`
-  return null  // healthy + recent — no badge needed
+  return null
 })
 
 const badgeClass = computed((): string => {
-  if (props.status === 'retired')   return 'text-neutral-400 dark:text-neutral-500'
-  if (props.pollHealth === 'unreachable') return 'text-red-500 dark:text-red-400'
-  if (props.pollHealth === 'stale')       return 'text-amber-500 dark:text-amber-400'
+  if (props.status === 'retired')              return 'text-neutral-400 dark:text-neutral-500'
+  if (props.pollHealth === 'unreachable')      return 'text-red-500 dark:text-red-400'
+  if (props.pollHealth === 'stale')            return 'text-amber-500 dark:text-amber-400'
+  if (justRefreshed.value)                     return 'text-green-500 dark:text-green-400'
   return 'text-neutral-400 dark:text-neutral-500'
 })
 
-const showRefresh = computed(() =>
-  props.status !== 'retired' &&
-  props.pollHealth !== 'unreachable'
-)
+// Show for everything except explicitly retired gauges.
+// Unreachable gauges especially need the ability to force a retry.
+const showRefresh = computed(() => props.status !== 'retired')
 
 async function doRefresh() {
   if (refreshing.value || justRefreshed.value) return
   refreshing.value = true
   try {
     await fetch(`${apiBase}/api/v1/gauges/${props.gaugeId}/refresh`, { method: 'POST' })
+    localReadingAt.value = new Date().toISOString()
     justRefreshed.value = true
     emit('refreshed')
     setTimeout(() => { justRefreshed.value = false }, 60_000)

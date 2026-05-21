@@ -20,7 +20,6 @@
         >30d</button>
       </div>
       <GaugePollStatus
-        v-if="pollHealth || status"
         :gauge-id="gaugeId"
         :poll-health="pollHealth"
         :last-reading-at="lastReadingAt"
