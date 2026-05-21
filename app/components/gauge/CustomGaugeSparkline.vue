@@ -13,10 +13,15 @@
           :class="hours === 24 ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
           @click.stop="hours = 24"
         >24h</button>
+        <button
+          class="px-1.5 py-0.5 transition-colors"
+          :class="hours === 720 ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
+          @click.stop="hours = 720"
+        >30d</button>
       </div>
     </div>
     <div class="relative w-full" :class="compact ? 'h-6' : 'h-10'">
-      <button v-if="compact" class="absolute top-0 right-0 text-[9px] leading-none text-neutral-400 dark:text-neutral-500 hover:text-primary-500 dark:hover:text-primary-400 font-mono z-10 transition-colors" @click.stop="toggleHours">{{ hours }}h</button>
+      <button v-if="compact" class="absolute top-0 right-0 text-[9px] leading-none text-neutral-400 dark:text-neutral-500 hover:text-primary-500 dark:hover:text-primary-400 font-mono z-10 transition-colors" @click.stop="toggleHours">{{ hours === 720 ? '30d' : `${hours}h` }}</button>
       <div v-if="loading" class="w-full h-full rounded animate-pulse bg-neutral-100 dark:bg-neutral-800" />
       <template v-else-if="points.length >= 2">
         <svg viewBox="0 0 100 40" preserveAspectRatio="none" class="w-full h-full overflow-visible">
@@ -47,10 +52,10 @@ const { getToken } = useAuth()
 
 const loading  = ref(true)
 const readings = ref<{ cfs: number; timestamp: string }[]>([])
-const hours    = ref<12 | 24>(24)
+const hours    = ref<12 | 24 | 720>(24)
 
 function toggleHours() {
-  hours.value = hours.value === 24 ? 12 : 24
+  hours.value = hours.value === 12 ? 24 : hours.value === 24 ? 720 : 12
 }
 
 watch(hours, fetchReadings)
@@ -60,8 +65,9 @@ async function fetchReadings() {
   try {
     const token = await getToken()
     const since = new Date(Date.now() - hours.value * 3_600_000).toISOString()
+    const limit = hours.value === 720 ? 3000 : 500
     const res = await fetch(
-      `${apiBase}/api/v1/me/custom-gauges/${props.gaugeSlug}/readings?since=${since}&limit=500`,
+      `${apiBase}/api/v1/me/custom-gauges/${props.gaugeSlug}/readings?since=${since}&limit=${limit}`,
       { headers: token ? { Authorization: `Bearer ${token}` } : {} },
     )
     if (res.ok) readings.value = ([...(await res.json())]).reverse()
