@@ -976,7 +976,6 @@ interface AdminGauge {
   last_poll_failure_at: string | null
   seasonal_start_mmdd: string | null
   seasonal_end_mmdd: string | null
-  river_name: string | null
   state_abbr: string | null
   reach_count: number
 }
