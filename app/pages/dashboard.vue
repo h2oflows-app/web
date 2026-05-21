@@ -28,6 +28,7 @@
           <ToolbarButton
             v-for="m in VIEW_MODES"
             :key="m.key"
+            :class="m.key === 'full' ? 'hidden sm:flex' : ''"
             :active="viewMode === m.key"
             :title="m.label"
             @click="setViewMode(m.key)"
@@ -1159,7 +1160,8 @@ const showRivers        = ref(DEFAULT_PREFS.showRivers)
 const hydrating = ref(false)
 function applyPrefs(prefs: DashboardPrefs) {
   hydrating.value = true
-  viewMode.value          = prefs.viewMode
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
+  viewMode.value          = (isMobile && prefs.viewMode === 'full') ? 'comfortable' : prefs.viewMode
   groupByGauge.value      = prefs.groupByGauge
   groupByState.value      = prefs.groupByState
   groupByBasin.value      = prefs.groupByBasin
