@@ -421,7 +421,7 @@
       </template>
     </UModal>
 
-    <!-- Edit river modal — basin only editable -->
+    <!-- Edit river modal -->
     <UModal v-model:open="editRiverOpen" title="Edit river">
       <template #body>
         <div v-if="editingRiver" class="space-y-3">
@@ -429,13 +429,42 @@
             <p class="font-semibold text-neutral-900 dark:text-white">{{ editingRiver.name }}</p>
             <p class="text-xs text-neutral-400 font-mono">
               GNIS {{ editingRiver.gnis_id || '—' }}
-              <span v-if="editingRiver.state_abbr"> · {{ editingRiver.state_abbr }}</span>
               <span v-if="editingRiver.huc8"> · HUC8 {{ editingRiver.huc8 }}</span>
             </p>
           </div>
-          <UFormField label="Basin" hint="Only editable field — all other values are GNIS-canonical">
+
+          <UFormField label="State (2-letter)">
+            <UInput v-model="editingRiver.state_abbr" placeholder="CO" class="max-w-24" :maxlength="2" />
+          </UFormField>
+
+          <UFormField label="Basin">
             <UInput v-model="editingRiver.basin" placeholder="South Platte" class="flex-1" />
           </UFormField>
+
+          <div class="flex items-center gap-2 pt-1">
+            <UButton
+              size="xs"
+              variant="outline"
+              color="neutral"
+              :loading="editGnisPreviewLoading"
+              :disabled="!editingRiver.gnis_id"
+              @click="previewEditRiverGNIS"
+            >Lookup from NLDI</UButton>
+            <span v-if="editGnisPreviewLoading" class="text-xs text-neutral-400 animate-pulse">Looking up…</span>
+          </div>
+
+          <div v-if="editGnisPreview" class="rounded-lg border border-neutral-200 dark:border-neutral-700 p-3 bg-neutral-50 dark:bg-neutral-900 space-y-2 text-sm">
+            <div>
+              <p class="font-semibold text-neutral-900 dark:text-white">{{ editGnisPreview.name }}</p>
+              <p class="text-xs text-neutral-400">
+                <span v-if="editGnisPreview.state_abbr">{{ editGnisPreview.state_abbr }}</span>
+                <span v-if="editGnisPreview.basin"> · {{ editGnisPreview.basin }}</span>
+                <span v-if="editGnisPreview.huc8"> · HUC8 {{ editGnisPreview.huc8 }}</span>
+              </p>
+            </div>
+            <UButton size="xs" color="primary" @click="applyEditGnisPreview">Apply</UButton>
+          </div>
+          <p v-if="editGnisPreviewError" class="text-xs text-red-500">{{ editGnisPreviewError }}</p>
         </div>
       </template>
       <template #footer>
@@ -820,10 +849,50 @@ async function createRiver() {
   }
 }
 
-// Edit river — basin only
+// Edit river — basin + state_abbr + NLDI lookup
 const editRiverOpen = ref(false)
 const editRiverLoading = ref(false)
 const editingRiver = ref<{ slug: string; name: string; basin: string; state_abbr: string; gnis_id: string; huc8: string } | null>(null)
+
+const editGnisPreview = ref<{ name: string; state_abbr: string; basin: string; huc8: string } | null>(null)
+const editGnisPreviewLoading = ref(false)
+const editGnisPreviewError = ref('')
+
+watch(editRiverOpen, v => {
+  if (!v) {
+    editGnisPreview.value = null
+    editGnisPreviewError.value = ''
+    editGnisPreviewLoading.value = false
+  }
+})
+
+async function previewEditRiverGNIS() {
+  const id = (editingRiver.value?.gnis_id || '').trim()
+  if (!id) { editGnisPreviewError.value = 'No GNIS ID on this river'; return }
+  editGnisPreviewLoading.value = true
+  editGnisPreviewError.value = ''
+  editGnisPreview.value = null
+  try {
+    const token = await getToken()
+    const res = await fetch(`${apiBase}/api/v1/admin/rivers/gnis-lookup?gnis_id=${encodeURIComponent(id)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const data = await res.json()
+    if (!res.ok) { editGnisPreviewError.value = data.error ?? `Error ${res.status}`; return }
+    if (!data.name) { editGnisPreviewError.value = 'NHD returned no name for this GNIS ID'; return }
+    editGnisPreview.value = { name: data.name, state_abbr: data.state_abbr ?? '', basin: data.basin ?? '', huc8: data.huc8 ?? '' }
+  } catch {
+    editGnisPreviewError.value = 'Lookup failed'
+  } finally {
+    editGnisPreviewLoading.value = false
+  }
+}
+
+function applyEditGnisPreview() {
+  if (!editGnisPreview.value || !editingRiver.value) return
+  if (editGnisPreview.value.basin)      editingRiver.value.basin = editGnisPreview.value.basin
+  if (editGnisPreview.value.state_abbr) editingRiver.value.state_abbr = editGnisPreview.value.state_abbr
+}
 
 function openEditRiver(river: RiverDetail) {
   editingRiver.value = {
@@ -845,7 +914,10 @@ async function saveEditRiver() {
     const res = await fetch(`${apiBase}/api/v1/admin/rivers/${editingRiver.value.slug}`, {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ basin: editingRiver.value.basin || null }),
+      body: JSON.stringify({
+        basin: editingRiver.value.basin || null,
+        state_abbr: editingRiver.value.state_abbr || null,
+      }),
     })
     if (res.ok) { editRiverOpen.value = false; loadRivers() }
   } finally {
