@@ -307,7 +307,15 @@
                 <tr v-for="g in adminGauges" :key="g.id" class="hover:bg-neutral-50 dark:hover:bg-neutral-800/40">
                   <td class="px-3 py-2">
                     <p class="font-medium text-neutral-800 dark:text-neutral-100 truncate max-w-50">{{ g.name || g.external_id }}</p>
-                    <p class="text-neutral-400 font-mono">{{ g.external_id }}</p>
+                    <a
+                      v-if="gaugeSourceUrl(g.source, g.external_id)"
+                      :href="gaugeSourceUrl(g.source, g.external_id)!"
+                      target="_blank"
+                      rel="noopener"
+                      class="text-neutral-400 font-mono hover:underline hover:text-primary-500 transition-colors"
+                      @click.stop
+                    >{{ g.external_id }}</a>
+                    <p v-else class="text-neutral-400 font-mono">{{ g.external_id }}</p>
                   </td>
                   <td class="px-3 py-2 hidden sm:table-cell text-neutral-500 uppercase font-mono">{{ g.source }}</td>
                   <td class="px-3 py-2">
@@ -892,6 +900,13 @@ async function reviewCorrection(id: string, action: 'accept' | 'reject') {
   } finally {
     reviewingId.value = null
   }
+}
+
+function gaugeSourceUrl(source: string, externalId: string): string | null {
+  const s = (source || '').toLowerCase()
+  if (s === 'usgs') return `https://waterdata.usgs.gov/monitoring-location/${externalId}/`
+  if (s === 'dwr')  return `https://dwr.state.co.us/Tools/Stations/${externalId}`
+  return null
 }
 
 function relativeDate(iso: string): string {
