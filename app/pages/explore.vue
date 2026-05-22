@@ -94,6 +94,14 @@
           </div>
         </div>
 
+        <!-- Admin: show decommissioned toggle (curated mode only) -->
+        <div v-if="mode === 'curated' && isDataAdmin && !loading" class="px-3 pb-1 flex items-center gap-1.5">
+          <label class="flex items-center gap-1.5 text-xs text-neutral-400 cursor-pointer select-none">
+            <input type="checkbox" v-model="showRetiredGauges" class="rounded" />
+            Show decommissioned
+          </label>
+        </div>
+
         <!-- ── Curated reaches states ──────────────────────────────────────── -->
         <template v-if="mode === 'curated'">
           <div v-if="loading" class="flex-1 flex items-center justify-center text-sm text-neutral-400">Loading…</div>
@@ -669,20 +677,30 @@ function buildTree(items: ReachListItem[]): StateGroup[] {
     })
 }
 
-const allStates = computed(() => buildTree(reaches.value))
+// Admin toggle: show reaches whose primary gauge is retired (decommissioned).
+// Default false — retired-gauge reaches are hidden for all users.
+const showRetiredGauges = ref(false)
+
+const visibleReaches = computed(() =>
+  showRetiredGauges.value
+    ? reaches.value
+    : reaches.value.filter(r => r.gauge_status !== 'retired')
+)
+
+const allStates = computed(() => buildTree(visibleReaches.value))
 
 // Viewport-filtered tree: only reaches currently visible on the map
 const viewportStates = computed(() => {
   if (mapReaches.value.length === 0) return allStates.value
   const visibleSlugs = new Set(mapReaches.value.map(r => r.slug))
-  return buildTree(reaches.value.filter(r => visibleSlugs.has(r.slug)))
+  return buildTree(visibleReaches.value.filter(r => visibleSlugs.has(r.slug)))
 })
 
 const filteredStates = computed(() => {
   const q = query.value.trim().toLowerCase()
   if (q.length < 2) return viewportStates.value
   // Search spans ALL reaches, not just viewport
-  const filtered = reaches.value.filter(r =>
+  const filtered = visibleReaches.value.filter(r =>
     (r.common_name?.toLowerCase().includes(q)) ||
     (r.put_in_name?.toLowerCase().includes(q)) ||
     (r.take_out_name?.toLowerCase().includes(q)) ||
