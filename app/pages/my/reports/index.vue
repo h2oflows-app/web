@@ -87,6 +87,13 @@
               class="text-xs text-primary-600 dark:text-primary-400 hover:underline"
             >View</NuxtLink>
             <button
+              class="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+              @click="openShare(rep)"
+            >
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+              Share
+            </button>
+            <button
               v-if="canEdit(rep.created_at)"
               class="text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
               @click="editReport(rep)"
@@ -130,6 +137,13 @@
       </Teleport>
 
     </main>
+
+    <ShareReportModal
+      v-if="shareTarget"
+      :report="shareTarget"
+      :open="shareOpen"
+      @close="shareOpen = false; shareTarget = null"
+    />
   </div>
 </template>
 
@@ -156,6 +170,8 @@ interface MyReport {
   reach_name?: string
   reach_slug?: string
   url?: string
+  handle?: string
+  aw_synced_at?: string
 }
 
 const reports = ref<MyReport[]>([])
@@ -216,6 +232,14 @@ function canEdit(createdAt: string): boolean {
 
 function editReport(rep: MyReport) {
   router.push(`/my/reports/${rep.slug}`)
+}
+
+const shareTarget = ref<MyReport | null>(null)
+const shareOpen = ref(false)
+
+function openShare(rep: MyReport) {
+  shareTarget.value = rep
+  shareOpen.value = true
 }
 
 const deleteTarget = ref<MyReport | null>(null)

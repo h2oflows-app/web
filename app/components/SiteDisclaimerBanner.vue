@@ -16,17 +16,11 @@
         <div class="flex-1 text-sm text-amber-900 dark:text-amber-100">
           <p class="font-semibold mb-1">Preview release — verify before you paddle</p>
           <p class="text-xs leading-relaxed">
-            H2OFlows is in early development. Reach descriptions, rapid lists, access points, and
-            flow ranges are largely AI-generated drafts and may be incomplete or wrong. Always
-            cross-check against
-            <a
-              href="https://www.americanwhitewater.org/"
-              target="_blank"
-              rel="noopener"
-              class="underline hover:no-underline"
-            >American Whitewater</a>,
-            local guidebooks, and people who have actually run the river. Real-time gauge data
-            from USGS and Colorado DWR is unmodified.
+            H2OFlows is in early development. Reach data (descriptions, rapid lists, access points,
+            flow ranges) is manually curated for Colorado rivers by a paddler familiar with the
+            region. Coverage outside Colorado is limited. Real-time gauge data from USGS and
+            Colorado DWR is unmodified. Always verify conditions with local knowledge, guidebooks,
+            and recent trip reports before paddling.
           </p>
         </div>
         <button

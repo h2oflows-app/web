@@ -24,9 +24,18 @@
             <h1 class="text-lg font-bold text-neutral-900 dark:text-white">{{ report.name }}</h1>
             <p v-if="report.handle" class="text-xs text-neutral-400 mt-0.5">@{{ report.handle }}</p>
           </div>
-          <div class="text-right shrink-0">
-            <div class="text-sm font-medium text-neutral-700 dark:text-neutral-300">{{ formatDate(report.report_date) }}</div>
-            <div v-if="report.report_time" class="text-xs text-neutral-400">{{ report.report_time }}</div>
+          <div class="flex items-center gap-3 shrink-0">
+            <button
+              class="inline-flex items-center gap-1.5 rounded-lg bg-primary-50 dark:bg-primary-950/50 hover:bg-primary-100 dark:hover:bg-primary-950 px-3 py-1.5 text-sm font-medium text-primary-600 dark:text-primary-400 transition-colors"
+              @click="shareOpen = true"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+              Share
+            </button>
+            <div class="text-right">
+              <div class="text-sm font-medium text-neutral-700 dark:text-neutral-300">{{ formatDate(report.report_date) }}</div>
+              <div v-if="report.report_time" class="text-xs text-neutral-400">{{ report.report_time }}</div>
+            </div>
           </div>
         </div>
 
@@ -61,17 +70,6 @@
       <!-- Content -->
       <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 px-5 py-4">
         <div class="report-prose" v-html="renderedContent" />
-      </div>
-
-      <!-- Share row -->
-      <div class="flex justify-end">
-        <button
-          class="inline-flex items-center gap-1.5 text-sm text-neutral-500 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-          @click="shareOpen = true"
-        >
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-          Share
-        </button>
       </div>
 
     </main>

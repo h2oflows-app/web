@@ -5,7 +5,7 @@
     <div v-if="showDemoBanner" class="bg-amber-50 dark:bg-amber-950 border-b border-amber-200 dark:border-amber-800 px-4 py-2.5 flex items-center justify-between gap-4 text-sm">
       <p class="text-amber-800 dark:text-amber-200 text-center flex-1">
         <span class="font-semibold">Demo only.</span>
-        River data is AI-seeded and unverified — do not use for trip planning or safety decisions.
+        River data is manually curated for Colorado by a paddler familiar with the region. Coverage outside Colorado is limited. Always verify conditions before paddling.
       </p>
       <button @click="dismissBanner" class="shrink-0 text-amber-600 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-100 font-medium transition-colors">Dismiss</button>
     </div>
@@ -44,9 +44,9 @@
 
         <!-- Feature pills — plain text -->
         <div class="flex items-center gap-2 sm:gap-3 mb-6 text-sm font-medium text-neutral-500 dark:text-neutral-400">
-          <span>Live Streamflows</span>
+          <span>Live CFS</span>
           <span class="text-neutral-300 dark:text-neutral-700">·</span>
-          <span>Shared Beta</span>
+          <span>Community Beta</span>
           <span class="text-neutral-300 dark:text-neutral-700">·</span>
           <span>Flow Insights</span>
         </div>
@@ -62,13 +62,6 @@
             <span class="font-semibold text-neutral-800 dark:text-neutral-200">{{ dbStats.rivers.toLocaleString() }}</span>
             rivers
           </span>
-          <template v-if="dbStats.reports && dbStats.reports > 0">
-            <span class="text-neutral-300 dark:text-neutral-700">·</span>
-            <span class="flex items-center gap-1.5">
-              <span class="font-semibold text-neutral-800 dark:text-neutral-200">{{ dbStats.reports.toLocaleString() }}</span>
-              reports
-            </span>
-          </template>
         </div>
 
         <!-- Primary nav buttons -->
