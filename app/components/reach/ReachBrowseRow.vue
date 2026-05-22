@@ -76,6 +76,7 @@ export interface ReachListItem {
   gauge_external_id: string | null
   gauge_source: string | null
   gauge_name: string | null
+  gauge_status: string | null
 }
 
 const { bandBadgeClass } = useFlowBandPalette()
