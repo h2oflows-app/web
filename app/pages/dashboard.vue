@@ -420,7 +420,18 @@
         <!-- Custom Gauges section — shows active-dashboard gauges on all tabs -->
         <section v-if="filterGauges && visibleCustomGauges.length > 0">
           <div class="flex items-center gap-2 mb-3">
-            <h2 class="text-sm font-semibold text-neutral-500 uppercase tracking-wide">Custom Gauges</h2>
+            <button
+              type="button"
+              class="flex items-center gap-1.5 text-sm font-semibold text-neutral-500 uppercase tracking-wide hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
+              @click="customGaugesCollapsed = !customGaugesCollapsed"
+            >
+              <svg
+                class="w-3 h-3 transition-transform"
+                :class="customGaugesCollapsed ? '-rotate-90' : ''"
+                viewBox="0 0 20 20" fill="currentColor"
+              ><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              Custom Gauges
+            </button>
             <div class="flex-1 h-px bg-neutral-200 dark:bg-neutral-800" />
             <div v-if="activeCustomGauges.some(g => hiddenCustomGauges.has(g.id))" class="relative" ref="gaugeAddWrap">
               <button
@@ -441,6 +452,8 @@
             </div>
             <NuxtLink to="/my/gauges" class="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors">Manage</NuxtLink>
           </div>
+          <!-- Collapsible content -->
+          <div v-if="!customGaugesCollapsed">
           <!-- List view -->
           <div v-if="viewMode === 'list'" class="space-y-1.5">
             <div
@@ -501,6 +514,7 @@
               </div>
             </div>
           </div>
+          </div><!-- end collapsible -->
         </section>
 
         <!-- Dashboard map -->
@@ -739,10 +753,11 @@ function saveSet(key: string, s: Set<string>) {
 const hiddenReachesKey = computed(() => `h2oflow_hidden_reaches_${db.activeDashboard.value?.id ?? 'default'}`)
 const hiddenGaugesKey  = computed(() => `h2oflow_hidden_custom_gauges_${db.activeDashboard.value?.id ?? 'default'}`)
 
-const hiddenReaches      = ref<Set<string>>(new Set())
-const hiddenCustomGauges = ref<Set<string>>(new Set())
-const gaugeAddOpen       = ref(false)
-const gaugeAddWrap       = ref<HTMLElement | null>(null)
+const hiddenReaches        = ref<Set<string>>(new Set())
+const hiddenCustomGauges   = ref<Set<string>>(new Set())
+const gaugeAddOpen         = ref(false)
+const gaugeAddWrap         = ref<HTMLElement | null>(null)
+const customGaugesCollapsed = ref(false)
 
 onMounted(() => {
   hiddenReaches.value      = loadSet(hiddenReachesKey.value)

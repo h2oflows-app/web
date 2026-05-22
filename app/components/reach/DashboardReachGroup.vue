@@ -25,17 +25,19 @@
           </svg>
         </NuxtLink>
       </div>
-      <div class="w-36 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
+      <div class="w-44 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
         <GaugeSparkline :gauge-id="reach.id" flow-status="unknown" :color="sparklineColor(reach)" compact :poll-health="reach.pollHealth" :last-reading-at="reach.lastReadingAt" @latest-cfs="(v) => setLiveCfs(reach, v)" />
       </div>
       <span
         v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)"
         :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(reach), displayFlowStatus(reach))]"
       >{{ flowBandLabel(displayFlowBandLabel(reach), displayFlowStatus(reach)) }}</span>
-      <span class="shrink-0 whitespace-nowrap text-right text-base font-bold tabular-nums" :style="{ color: bandSolid(displayFlowBandLabel(reach)) }">
-        {{ displayCfs(reach) != null ? Math.round(displayCfs(reach)!).toLocaleString() : '—' }}
-        <span class="text-xs font-normal text-neutral-400">cfs</span>
-      </span>
+      <div class="w-20 shrink-0 text-right">
+        <span class="whitespace-nowrap text-base font-bold tabular-nums" :style="{ color: bandSolid(displayFlowBandLabel(reach)) }">
+          {{ displayCfs(reach) != null ? Math.round(displayCfs(reach)!).toLocaleString() : '—' }}
+          <span class="text-xs font-normal text-neutral-400">cfs</span>
+        </span>
+      </div>
       <TrashButton label="Remove" @click="$emit('remove', reach)" />
     </div>
   </div>

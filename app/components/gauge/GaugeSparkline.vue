@@ -12,12 +12,17 @@
           class="px-1.5 py-0.5 transition-colors"
           :class="hours === 24 ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
           @click="hours = 24"
-        >24h</button>
+        >1d</button>
+        <button
+          class="px-1.5 py-0.5 transition-colors"
+          :class="hours === 168 ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
+          @click="hours = 168"
+        >1w</button>
         <button
           class="px-1.5 py-0.5 transition-colors"
           :class="hours === 720 ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
           @click="hours = 720"
-        >30d</button>
+        >1m</button>
       </div>
       <GaugePollStatus
         :gauge-id="gaugeId"
@@ -31,7 +36,7 @@
 
     <!-- Chart area -->
     <div class="relative w-full" :class="compact ? 'h-6' : 'h-10'">
-      <span v-if="compact" class="absolute top-0 right-0 text-[9px] leading-none text-neutral-400 dark:text-neutral-500 font-mono z-10 pointer-events-none">{{ hours === 720 ? '30d' : `${hours}h` }}</span>
+      <span v-if="compact" class="absolute top-0 right-0 text-[9px] leading-none text-neutral-400 dark:text-neutral-500 font-mono z-10 pointer-events-none">{{ hours === 12 ? '12h' : hours === 24 ? '1d' : hours === 168 ? '1w' : '1m' }}</span>
       <div v-if="loading" class="w-full h-full rounded animate-pulse bg-neutral-100 dark:bg-neutral-800" />
 
       <template v-else-if="points.length >= 2">
@@ -77,7 +82,7 @@ const emit = defineEmits<{
 const { apiBase } = useRuntimeConfig().public
 const PREF_KEY = 'h2oflow_sparkline_hours'
 
-const hours   = ref<12 | 24 | 720>(12)
+const hours   = ref<12 | 24 | 168 | 720>(12)
 const loading = ref(true)
 const readings = ref<{ cfs: number; timestamp: string }[]>([])
 // Flow ranges are fetched once per mount so we can compute the live band
@@ -103,7 +108,7 @@ async function fetchReadings() {
   try {
     await loadFlowRanges()
     const since = new Date(Date.now() - hours.value * 3_600_000).toISOString()
-    const limit = hours.value === 720 ? 3000 : 500
+    const limit = hours.value === 720 ? 3000 : hours.value === 168 ? 1500 : 500
     const res = await fetch(`${apiBase}/api/v1/gauges/${props.gaugeId}/readings?since=${since}&limit=${limit}`)
     if (res.ok) {
       readings.value = ([...(await res.json())]).reverse()
@@ -133,9 +138,11 @@ onMounted(() => {
   // Read localStorage after mount (guaranteed client-side, avoids SSR mismatch)
   const saved = localStorage.getItem(PREF_KEY)
   if (saved === '24') {
-    hours.value = 24   // triggers the watcher above → fetchReadings()
+    hours.value = 24
+  } else if (saved === '168') {
+    hours.value = 168
   } else if (saved === '720') {
-    hours.value = 720  // triggers the watcher above → fetchReadings()
+    hours.value = 720
   } else {
     fetchReadings()    // default 12h, no watcher change needed
   }
