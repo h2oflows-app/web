@@ -7,7 +7,7 @@ interface FlowRange {
   max_value: number | null
 }
 
-export function useReachFlowBand() {
+export function useRunFlowBand() {
   const { apiBase } = useRuntimeConfig().public
   const rangesCache = reactive<Record<string, FlowRange[]>>({})
 

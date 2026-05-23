@@ -18,7 +18,7 @@
     </div>
 
     <main v-else class="max-w-2xl mx-auto px-4 py-8 pb-24 sm:pb-8 space-y-6">
-      <h1 class="text-xl font-bold text-neutral-900 dark:text-white">New Reach Report</h1>
+      <h1 class="text-xl font-bold text-neutral-900 dark:text-white">New Run Report</h1>
 
       <!-- Public notice -->
       <div class="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
@@ -35,7 +35,7 @@
             <input
               v-model="reachQuery"
               type="text"
-              placeholder="Search for a reach…"
+              placeholder="Search for a run…"
               class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
               autocomplete="off"
               @input="selectedReach = null"
@@ -126,7 +126,7 @@
               :class="form.paddled ? 'translate-x-4' : 'translate-x-0'"
             />
           </button>
-          <span class="text-sm text-neutral-700 dark:text-neutral-300">I paddled this reach</span>
+          <span class="text-sm text-neutral-700 dark:text-neutral-300">I paddled this run</span>
         </div>
 
         <!-- Photo stub -->
@@ -147,7 +147,7 @@
         <div class="flex items-center justify-end gap-3 pt-2 flex-wrap">
           <NuxtLink
             v-if="prefillSlug"
-            :to="`/reaches/${prefillSlug}`"
+            :to="`/runs/${prefillSlug}`"
             class="text-sm text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
           >
             Cancel

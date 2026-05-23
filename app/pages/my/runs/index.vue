@@ -9,7 +9,7 @@
         <svg class="w-10 h-10 text-neutral-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
         </svg>
-        <h2 class="text-lg font-semibold">Sign in to view your reaches</h2>
+        <h2 class="text-lg font-semibold">Sign in to view your runes</h2>
         <NuxtLink to="/login" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">Sign in</NuxtLink>
       </div>
 
@@ -19,23 +19,23 @@
 
       <template v-else>
         <div class="flex items-center justify-between">
-          <h1 class="text-xl font-bold text-neutral-900 dark:text-white">My Reaches</h1>
+          <h1 class="text-xl font-bold text-neutral-900 dark:text-white">My Runs</h1>
           <div class="reach-picker-anchor relative">
-            <UButton icon="i-heroicons-plus" size="sm" @click="reachPickerOpen = !reachPickerOpen">New reach</UButton>
+            <UButton icon="i-heroicons-plus" size="sm" @click="reachPickerOpen = !reachPickerOpen">New Run</UButton>
             <div
               v-if="reachPickerOpen"
               class="absolute right-0 top-full mt-1 z-40 w-64 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden"
             >
               <button
                 class="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-                @click="reachPickerOpen = false; router.push('/my/reaches/new')"
+                @click="reachPickerOpen = false; router.push('/my/runs/new')"
               >
                 <svg class="w-4 h-4 text-primary-500 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/>
                 </svg>
                 <div>
                   <p class="font-medium text-neutral-800 dark:text-neutral-100">Create new</p>
-                  <p class="text-xs text-neutral-400">Build your own reach</p>
+                  <p class="text-xs text-neutral-400">Build your own run</p>
                 </div>
               </button>
               <div class="border-t border-neutral-100 dark:border-neutral-800" />
@@ -55,7 +55,7 @@
           </div>
         </div>
 
-        <ReachImportModal v-model:open="importModalOpen" @imported="load" />
+        <RunImportModal v-model:open="importModalOpen" @imported="load" />
 
         <!-- Loading -->
         <div v-if="loading" class="space-y-2">
@@ -72,7 +72,7 @@
           <svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M3 6h18M3 12h18M3 18h18" stroke-linecap="round"/>
           </svg>
-          <p class="text-sm">No reaches yet. Create your first custom reach.</p>
+          <p class="text-sm">No runs yet. Create your first custom run.</p>
         </div>
 
         <!-- Reach list -->
@@ -80,7 +80,7 @@
           <NuxtLink
             v-for="reach in reaches"
             :key="reach.id"
-            :to="`/my/reaches/${reach.slug}`"
+            :to="`/my/runs/${reach.slug}`"
             class="block rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:border-primary-300 dark:hover:border-primary-700 transition-colors p-4"
           >
             <div class="flex items-start justify-between gap-3">
@@ -150,7 +150,7 @@ async function load() {
     const res = await fetch(`${apiBase}/api/v1/me/reaches`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
-    if (res.status === 401) { error.value = 'Sign in to view your reaches.'; return }
+    if (res.status === 401) { error.value = 'Sign in to view your runes.'; return }
     if (!res.ok) throw new Error(`${res.status}`)
     reaches.value = await res.json()
   } catch (e: any) {

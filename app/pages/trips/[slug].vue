@@ -22,7 +22,7 @@
 
         <!-- Reach link -->
         <NuxtLink
-          :to="`/reaches/${report.reach_slug}`"
+          :to="`/runs/${report.reach_slug}`"
           class="inline-flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 transition-colors font-medium"
         >
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
@@ -64,9 +64,9 @@
 
         <!-- CTA -->
         <div class="border-t border-neutral-100 dark:border-neutral-800 pt-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-between">
-          <p class="text-xs text-neutral-400">Know this reach? Share conditions with the community.</p>
+          <p class="text-xs text-neutral-400">Know this run? Share conditions with the community.</p>
           <NuxtLink
-            :to="`/reaches/${report.reach_slug}`"
+            :to="`/runs/${report.reach_slug}`"
             class="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white px-3 py-1.5 text-xs font-semibold transition-colors"
           >
             View {{ report.reach_name }}

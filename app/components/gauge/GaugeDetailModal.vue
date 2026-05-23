@@ -7,7 +7,7 @@
           <template v-if="mode === 'reach' && reachTitle">
             <NuxtLink
               v-if="reachSlugForLink"
-              :to="`/reaches/${reachSlugForLink}`"
+              :to="`/runs/${reachSlugForLink}`"
               class="text-lg font-bold text-neutral-900 dark:text-white truncate leading-tight hover:text-primary-600 dark:hover:text-primary-400 transition-colors block"
               @click="open = false"
             >{{ reachTitle }}</NuxtLink>
@@ -34,9 +34,9 @@
         <div class="flex items-center gap-1 shrink-0">
           <NuxtLink
             v-if="mode === 'reach' && reachSlugForLink"
-            :to="`/reaches/${reachSlugForLink}`"
+            :to="`/runs/${reachSlugForLink}`"
             class="p-1.5 rounded-md text-neutral-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
-            :title="`View ${reachTitle ?? 'reach'} details`"
+            :title="`View ${reachTitle ?? 'run'} details`"
             @click="open = false"
           >
             <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

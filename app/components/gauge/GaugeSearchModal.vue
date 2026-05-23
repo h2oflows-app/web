@@ -1,5 +1,5 @@
 <template>
-  <UModal v-model:open="open" title="Add a reach or gauge" :ui="{ width: 'max-w-2xl' }">
+  <UModal v-model:open="open" title="Add a run or gauge" :ui="{ width: 'max-w-2xl' }">
     <template #body>
       <div class="space-y-4">
 
@@ -136,7 +136,7 @@
 
             <!-- Reaches sub-section -->
             <div>
-              <p class="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500 mb-2">My Reaches</p>
+              <p class="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500 mb-2">My Runs</p>
               <div v-if="reachesLoading" class="space-y-2">
                 <div v-for="i in 3" :key="i" class="flex items-center gap-3 px-2 py-2">
                   <div class="flex-1 h-4 rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
@@ -145,7 +145,7 @@
               </div>
               <div v-else-if="myReaches.length === 0" class="px-2 py-3 text-sm text-neutral-400">
                 No personal reaches yet.
-                <NuxtLink to="/my/reaches/new" class="ml-1 text-primary-500 hover:text-primary-700 transition-colors font-medium" @click="open = false">Create one →</NuxtLink>
+                <NuxtLink to="/my/runs/new" class="ml-1 text-primary-500 hover:text-primary-700 transition-colors font-medium" @click="open = false">Create one →</NuxtLink>
               </div>
               <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div
@@ -172,14 +172,14 @@
                       @click="addUserReach(r)"
                     >Add</UButton>
                     <NuxtLink
-                      :to="`/my/reaches/${r.slug}`"
+                      :to="`/my/runs/${r.slug}`"
                       class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                       @click="open = false"
                     >Open</NuxtLink>
                   </div>
                 </div>
               </div>
-              <NuxtLink to="/my/reaches/new" class="flex items-center gap-1.5 px-2 py-1.5 mt-2 text-xs text-primary-500 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 transition-colors font-medium" @click="open = false">
+              <NuxtLink to="/my/runs/new" class="flex items-center gap-1.5 px-2 py-1.5 mt-2 text-xs text-primary-500 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 transition-colors font-medium" @click="open = false">
                 <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
                 New reach
               </NuxtLink>
@@ -251,7 +251,7 @@
   <UModal v-model:open="importOpen" title="Import from share code">
     <template #body>
       <div class="space-y-3">
-        <p class="text-sm text-neutral-500 dark:text-neutral-400">Paste a share code to import a reach someone shared with you.</p>
+        <p class="text-sm text-neutral-500 dark:text-neutral-400">Paste a share code to import a run someone shared with you.</p>
         <UTextarea v-model="importPayload" placeholder="Paste share code here…" :rows="6" autofocus />
         <p v-if="importError" class="text-xs text-red-500">{{ importError }}</p>
       </div>
@@ -303,7 +303,7 @@ watch(() => db.activeDashboardId.value, (id) => {
 type TabKey = 'curated' | 'mine'
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'curated', label: 'H2OFlows'          },
-  { key: 'mine',    label: 'My Reaches & Gauges' },
+  { key: 'mine',    label: 'My Runs & Gauges' },
 ]
 const activeTab = ref<TabKey>('curated')
 
@@ -456,8 +456,8 @@ async function doImport() {
   try {
     const payload = JSON.parse(importPayload.value.trim())
     const token = await getToken()
-    if (!token) { importError.value = 'Sign in to import reaches.'; return }
-    const res = await fetch(`${apiBase}/api/v1/me/reaches/import`, {
+    if (!token) { importError.value = 'Sign in to import runes.'; return }
+    const res = await fetch(`${apiBase}/api/v1/me/runs/import`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

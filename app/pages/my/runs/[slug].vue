@@ -2,7 +2,7 @@
   <div class="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex flex-col">
     <AppHeader>
       <span class="text-neutral-300 dark:text-neutral-700 shrink-0">/</span>
-      <NuxtLink to="/my/reaches" class="text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors">My Reaches</NuxtLink>
+      <NuxtLink to="/my/runs" class="text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors">My Runs</NuxtLink>
       <span class="text-neutral-300 dark:text-neutral-700 shrink-0">/</span>
       <span class="text-sm font-medium text-neutral-700 dark:text-neutral-200 truncate">{{ reach?.name ?? 'Edit' }}</span>
     </AppHeader>
@@ -10,12 +10,12 @@
     <!-- Sticky action bar (below AppHeader) — Save, Cancel, X, Add-to-dashboard, etc. -->
     <div v-if="reach" class="sticky top-[51px] z-10 flex items-center justify-between gap-2 px-4 py-2 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
       <div class="flex items-center gap-1.5 min-w-0">
-        <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-x-mark" :to="'/my/reaches'" title="Close"><span class="hidden sm:inline">Close</span></UButton>
+        <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-x-mark" :to="'/my/runs'" title="Close"><span class="hidden sm:inline">Close</span></UButton>
       </div>
       <div class="flex items-center gap-1.5 shrink-0">
         <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-share" title="Share" @click="openShare()"><span class="hidden sm:inline">Share</span></UButton>
         <UButton size="xs" variant="ghost" color="error" icon="i-heroicons-trash" title="Delete" @click="confirmDelete"><span class="hidden sm:inline">Delete</span></UButton>
-        <UButton size="xs" variant="outline" color="neutral" icon="i-heroicons-x-circle" :to="'/my/reaches'" title="Cancel"><span class="hidden sm:inline">Cancel</span></UButton>
+        <UButton size="xs" variant="outline" color="neutral" icon="i-heroicons-x-circle" :to="'/my/runs'" title="Cancel"><span class="hidden sm:inline">Cancel</span></UButton>
         <UButton size="xs" :disabled="!form.name.trim()" :loading="saving" icon="i-heroicons-check" title="Save" @click="save"><span class="hidden sm:inline">Save</span></UButton>
       </div>
     </div>
@@ -295,7 +295,7 @@
 
         <!-- Edit form + gauge display -->
         <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-3">
-          <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Reach details</p>
+          <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Run details</p>
 
           <div>
             <label class="block text-xs text-neutral-500 mb-1">Reach name <span class="text-red-400">*</span></label>
@@ -412,7 +412,7 @@
 
   <ShareLinkModal
     :open="shareOpen"
-    title="Share reach"
+    title="Share run"
     :link="reachShareLink"
     :json="sharePayload"
     :loading="shareLoading"
@@ -557,7 +557,7 @@ const flowBandDefs = [
   { key: 'high',    label: 'High',     labelClass: 'text-sky-400',     showMin: true,  showMax: false },
 ] as const
 
-// ── Repin state (mirrors admin ReachEditor) ───────────────────────────────────
+// ── Repin state (mirrors admin RunEditor) ───────────────────────────────────
 
 const repinPickMode        = ref(false)
 const repinAnchorSnap      = ref<AnchorSnap | null>(null)
@@ -905,7 +905,7 @@ async function saveGauge() {
   const { externalId, source, name, lat, lng } = repinPendingGauge.value
   try {
     const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) }
-    const res = await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}/gauge`, {
+    const res = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}/gauge`, {
       method: 'PUT', headers,
       body:   JSON.stringify({ external_id: externalId, source, name, lat, lng }),
     })
@@ -924,7 +924,7 @@ async function clearGauge() {
   repinGaugeSaving.value = true
   try {
     const headers = await authHeaders()
-    await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}/gauge`, { method: 'DELETE', headers })
+    await fetch(`${apiBase}/api/v1/me/runs/${slug.value}/gauge`, { method: 'DELETE', headers })
     await load()
   } catch { /* non-fatal */ }
   finally { repinGaugeSaving.value = false }
@@ -943,7 +943,7 @@ async function linkCustomGauge(cg: CustomGaugeSummary) {
   customGaugePickerOpen.value = false
   try {
     const headers = await authHeaders()
-    const res = await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}/gauge`, {
+    const res = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}/gauge`, {
       method: 'PUT',
       headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({ custom_gauge_id: cg.id }),
@@ -977,8 +977,8 @@ async function load() {
   error.value   = ''
   try {
     const headers = await authHeaders()
-    const res = await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}`, { headers })
-    if (res.status === 404) { error.value = 'Reach not found.'; return }
+    const res = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}`, { headers })
+    if (res.status === 404) { error.value = 'Run not found.'; return }
     if (!res.ok) throw new Error(`${res.status}`)
     const data: UserReachDetail = await res.json()
     reach.value = data
@@ -1051,7 +1051,7 @@ async function save() {
       patchBody.down_comid = repinDownComID.value
     }
 
-    const patchRes = await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}`, {
+    const patchRes = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}`, {
       method: 'PATCH', headers,
       body: JSON.stringify(patchBody),
     })
@@ -1059,7 +1059,7 @@ async function save() {
 
     // Persist centerline if dirty
     if (repinFlowlinesDirty.value && repinPreviewCenterline.value) {
-      const clRes = await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}/centerline`, {
+      const clRes = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}/centerline`, {
         method: 'POST', headers,
         body: JSON.stringify({ geojson: repinPreviewCenterline.value }),
       })
@@ -1070,7 +1070,7 @@ async function save() {
     }
 
     const r = form.value.ranges
-    await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}/flow-ranges`, {
+    await fetch(`${apiBase}/api/v1/me/runs/${slug.value}/flow-ranges`, {
       method: 'PUT', headers,
       body: JSON.stringify({
         low:     { min_value: null,           max_value: r.low.max     },
@@ -1104,7 +1104,7 @@ async function save() {
 async function confirmDelete() {
   if (!confirm(`Delete "${reach.value?.name}"? This cannot be undone.`)) return
   const headers = await authHeaders()
-  const res = await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}`, { method: 'DELETE', headers })
-  if (res.ok) router.push('/my/reaches')
+  const res = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}`, { method: 'DELETE', headers })
+  if (res.ok) router.push('/my/runs')
 }
 </script>

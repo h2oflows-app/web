@@ -93,7 +93,7 @@
     <!-- Centerline status -->
     <div v-if="upComID && downComID" class="flex items-center gap-2 mt-1">
       <span v-if="previewLoading" class="text-xs text-primary-500 animate-pulse">Computing centerline…</span>
-      <span v-else-if="previewCenterline" class="text-xs text-primary-600 dark:text-primary-400">Dashed line shows trimmed reach</span>
+      <span v-else-if="previewCenterline" class="text-xs text-primary-600 dark:text-primary-400">Dashed line shows trimmed run</span>
       <span v-if="riverNameFetching" class="text-xs text-neutral-400 animate-pulse">Looking up river…</span>
     </div>
 
@@ -105,7 +105,7 @@
 
     <!-- Reach form — shown once both ComIDs selected -->
     <div v-if="upComID && downComID" class="mt-4 space-y-3 rounded-xl border border-neutral-200 dark:border-neutral-700 p-4 bg-white dark:bg-neutral-900">
-      <h3 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Reach details</h3>
+      <h3 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Run details</h3>
 
       <!-- River name (read-only, GNIS-canonical) -->
       <div v-if="form.riverName">
@@ -119,7 +119,7 @@
 
       <!-- Reach name -->
       <div>
-        <label class="block text-xs text-neutral-500 mb-1">Reach name <span class="text-red-400">*</span></label>
+        <label class="block text-xs text-neutral-500 mb-1">Run name <span class="text-red-400">*</span></label>
         <input v-model="form.name" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="e.g. Upper Canyon" />
       </div>
 
@@ -176,7 +176,7 @@
 
       <div class="flex gap-2 justify-end pt-1">
         <UButton size="sm" variant="ghost" color="neutral" @click="emit('cancel')">Cancel</UButton>
-        <UButton size="sm" :disabled="!form.name.trim()" :loading="saving" @click="submit">Save reach</UButton>
+        <UButton size="sm" :disabled="!form.name.trim()" :loading="saving" @click="submit">Save Run</UButton>
       </div>
     </div>
 
@@ -461,7 +461,7 @@ async function submit() {
 
     // Store centerline.
     if (previewGeoJSON.value) {
-      await fetch(`${apiBase}/api/v1/me/reaches/${slug}/centerline`, {
+      await fetch(`${apiBase}/api/v1/me/runs/${slug}/centerline`, {
         method: 'POST', headers,
         body: JSON.stringify({ geojson: previewGeoJSON.value }),
       }).catch(() => { /* non-fatal */ })
@@ -476,7 +476,7 @@ async function submit() {
         (f: any) => f.properties.external_id === externalId && f.properties.source === source
       )
       if (feature) {
-        await fetch(`${apiBase}/api/v1/me/reaches/${slug}/gauge`, {
+        await fetch(`${apiBase}/api/v1/me/runs/${slug}/gauge`, {
           method: 'PUT', headers,
           body: JSON.stringify({ gauge_id: feature.properties.id }),
         }).catch(() => { /* non-fatal */ })

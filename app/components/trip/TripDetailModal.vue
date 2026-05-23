@@ -128,7 +128,7 @@
         <!-- Reach link -->
         <div v-if="detail.reach_slug" class="border-t border-neutral-100 dark:border-neutral-800 pt-4">
           <NuxtLink
-            :to="`/reaches/${detail.reach_slug}`"
+            :to="`/runs/${detail.reach_slug}`"
             class="flex items-center justify-between gap-2 rounded-lg px-3 py-2 bg-neutral-50 dark:bg-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
             @click="open = false"
           >

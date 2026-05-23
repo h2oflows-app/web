@@ -3,14 +3,14 @@
     class="flex items-center gap-2 sm:gap-3 px-3 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors group"
   >
     <!-- River icon -->
-    <svg class="w-3.5 h-3.5 text-primary-500/70 dark:text-primary-400/70 shrink-0" viewBox="0 0 32 32" fill="none" aria-label="Reach">
+    <svg class="w-3.5 h-3.5 text-primary-500/70 dark:text-primary-400/70 shrink-0" viewBox="0 0 32 32" fill="none" aria-label="Run">
       <path d="M4 14c3-6 6-9 8-9s5 9 8 9 5-9 8-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
       <path d="M4 22c3-6 6-9 8-9s5 9 8 9 5-9 8-9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
     </svg>
 
     <!-- Reach name — click navigates to detail page -->
     <NuxtLink
-      :to="`/reaches/${reach.slug}`"
+      :to="`/runs/${reach.slug}`"
       class="flex-1 min-w-0 text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
     >{{ displayName }}</NuxtLink>
 

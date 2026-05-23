@@ -301,7 +301,7 @@ onMounted(async () => {
     filterVisible()   // no network call — filter already-loaded features
     saveMapPos()
   })
-  map.on('error', e => console.warn('[ReachesMap]', e.error?.message ?? e))
+  map.on('error', e => console.warn('[RunsMap]', e.error?.message ?? e))
 })
 
 onUnmounted(() => {
@@ -338,7 +338,7 @@ async function loadAllReaches() {
     loadedFeatures = allServerFeatures
     filterVisible()
   } catch (e) {
-    console.warn('[ReachesMap] fetch:', e)
+    console.warn('[RunsMap] fetch:', e)
   }
 }
 

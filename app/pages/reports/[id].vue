@@ -41,7 +41,7 @@
 
         <!-- Reach link -->
         <NuxtLink
-          :to="`/reaches/${report.reach_slug}`"
+          :to="`/runs/${report.reach_slug}`"
           class="inline-flex items-center gap-1.5 text-sm text-primary-600 dark:text-primary-400 hover:underline"
         >
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14c3-6 6-9 8-9s5 9 8 9 5-9 8-9"/></svg>
@@ -62,7 +62,7 @@
             class="inline-flex items-center gap-1 rounded-md bg-primary-50 dark:bg-primary-950/50 px-2 py-0.5 text-xs font-medium text-primary-600 dark:text-primary-400"
           >
             <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12c2-4 4-6 6-6s4 6 6 6 4-6 6-6"/></svg>
-            Paddled this reach
+            Paddled this run
           </span>
         </div>
       </div>

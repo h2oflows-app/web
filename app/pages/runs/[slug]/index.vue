@@ -14,7 +14,7 @@
         <!-- Upstream (left) -->
         <NuxtLink
           v-if="upstreamReach"
-          :to="`/reaches/${upstreamReach.slug}`"
+          :to="`/runs/${upstreamReach.slug}`"
           class="flex items-center gap-1.5 min-w-0 text-neutral-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors group"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 shrink-0 text-neutral-400 group-hover:text-primary-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
@@ -28,7 +28,7 @@
         <!-- Downstream (right) -->
         <NuxtLink
           v-if="downstreamReach"
-          :to="`/reaches/${downstreamReach.slug}`"
+          :to="`/runs/${downstreamReach.slug}`"
           class="flex items-center gap-1.5 min-w-0 text-neutral-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors group text-right"
         >
           <div class="min-w-0">
@@ -46,7 +46,7 @@
     </div>
 
     <div v-else-if="!reach" class="max-w-5xl mx-auto px-3 py-12 text-center text-neutral-400">
-      Reach not found.
+      Run not found.
     </div>
 
     <main v-else class="max-w-5xl mx-auto px-3 py-6 pb-20 sm:pb-6 space-y-8">
@@ -83,9 +83,9 @@
             <!-- Edit (admin only) -->
             <NuxtLink
               v-if="isDataAdmin"
-              :to="`/reaches/${route.params.slug}/edit`"
+              :to="`/runs/${route.params.slug}/edit`"
               class="flex items-center justify-center p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-              title="Edit reach"
+              title="Edit run"
             >
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -272,7 +272,7 @@
       <!-- Reach map -->
       <section data-reach-map>
         <ClientOnly>
-          <ReachMap
+          <RunMap
             ref="reachMapRef"
             :name="reach.name"
             :class-max="reach.class_max"
@@ -403,7 +403,7 @@
           <NuxtLink
             v-for="rel in tributaryReaches"
             :key="rel.slug"
-            :to="`/reaches/${rel.slug}`"
+            :to="`/runs/${rel.slug}`"
             class="flex items-center gap-2 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800 px-3 py-2 transition-colors"
           >
             <span class="text-xs text-neutral-400">
@@ -909,7 +909,7 @@ function featureTypeLabel(feat: RiverFeature): string {
   }
 }
 
-// Icon circle color — mirrors the pin colors used in ReachMap.vue
+// Icon circle color — mirrors the pin colors used in RunMap.vue
 function featureIconColor(feat: RiverFeature): string {
   if (feat.is_permanent_hazard) return '#ef4444'
   switch (feat.type) {
@@ -1099,11 +1099,11 @@ const metaDesc = computed(() => {
 const apiBase = config.public.apiBase
 const reachOgImage = computed(() => {
   if (!reach.value) return undefined
-  return `${apiBase}/og/reaches/${(reach.value as any).slug}.png`
+  return `${apiBase}/og/runs/${(reach.value as any).slug}.png`
 })
 const reachCanonical = computed(() => {
   if (!reach.value) return undefined
-  return `https://h2oflows.app/reaches/${(reach.value as any).slug}`
+  return `https://h2oflows.app/runs/${(reach.value as any).slug}`
 })
 
 useSeoMeta({
