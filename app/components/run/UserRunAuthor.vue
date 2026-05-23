@@ -103,6 +103,21 @@
       <span>Looks like <strong>{{ form.riverName }}</strong><template v-if="gnisId"> · GNIS {{ gnisId }}</template></span>
     </div>
 
+    <!-- Dupe warning — shown when similar runs found and not dismissed -->
+    <div v-if="dupeRuns.length > 0 && !dupeDismissed" class="mt-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-4 py-3 space-y-2">
+      <div class="flex items-start justify-between gap-2">
+        <p class="text-xs font-medium text-amber-800 dark:text-amber-200">Similar run{{ dupeRuns.length !== 1 ? 's' : '' }} already exist on this section:</p>
+        <button class="text-amber-400 hover:text-amber-600 shrink-0 text-xs" @click="dupeDismissed = true">Dismiss</button>
+      </div>
+      <div v-for="run in dupeRuns.slice(0, 3)" :key="run.id" class="flex items-center gap-2 text-xs">
+        <svg v-if="run.is_official" class="w-3 h-3 text-primary-500 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <span class="w-2 h-2 rounded-full bg-neutral-400 shrink-0" v-else />
+        <NuxtLink :to="run.source === 'curated' ? `/runs/${run.slug}` : `/my/runs/${run.slug}`" target="_blank" class="font-medium text-amber-800 dark:text-amber-200 hover:underline truncate">{{ run.name }}</NuxtLink>
+        <span class="text-amber-600 dark:text-amber-400 shrink-0">{{ run.source === 'curated' ? 'Official' : (run.author_handle ? `@${run.author_handle}` : 'Community') }}</span>
+      </div>
+      <p class="text-xs text-amber-700 dark:text-amber-300">Consider adding a report or forking instead of creating a duplicate.</p>
+    </div>
+
     <!-- Reach form — shown once both ComIDs selected -->
     <div v-if="upComID && downComID" class="mt-4 space-y-3 rounded-xl border border-neutral-200 dark:border-neutral-700 p-4 bg-white dark:bg-neutral-900">
       <h3 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Run details</h3>
@@ -219,6 +234,32 @@ const previewLoading      = ref(false)
 const previewGeoJSON      = ref<object | null>(null)
 
 const comIDPairLocked = ref(false)
+
+// Dupe detection
+interface ClusterRun { id: string; slug: string; name: string; source: string; author_handle: string | null; is_official: boolean; class_min: number | null; class_max: number | null; rank_score: number }
+const dupeRuns        = ref<ClusterRun[]>([])
+const dupeDismissed   = ref(false)
+
+async function checkDupes() {
+  if (!startLat.value || !startLng.value || !endLat.value || !endLng.value) return
+  dupeDismissed.value = false
+  dupeRuns.value = []
+  try {
+    const res = await fetch(`${apiBase}/api/v1/user-runs/dupe-check`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        put_in_lat: startLat.value, put_in_lng: startLng.value,
+        take_out_lat: endLat.value, take_out_lng: endLng.value,
+        up_comid: upComID.value ?? '',
+      }),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      dupeRuns.value = data.runs ?? []
+    }
+  } catch { /* non-fatal */ }
+}
 
 // Gauge selection
 const gaugeSelectMode = ref(false)
@@ -373,6 +414,7 @@ function onComIDSelect(comid: string, lat: number, lng: number) {
     endLat.value = lat; endLng.value = lng
     // Lock to prevent accidental flowline clicks while user hunts for gauge.
     comIDPairLocked.value = true
+    checkDupes()
   }
 }
 

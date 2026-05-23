@@ -458,6 +458,22 @@
           </div>
         </div>
 
+        <!-- Similar runs (cluster) -->
+        <div v-if="clusterRuns.length > 0" class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-2">
+          <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Similar Runs <span class="font-normal normal-case">(same section)</span></p>
+          <div v-for="run in clusterRuns" :key="run.id" class="flex items-center gap-2 py-0.5 text-xs">
+            <svg v-if="run.is_official" class="w-3 h-3 text-primary-500 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <span class="w-2 h-2 rounded-full bg-neutral-300 dark:bg-neutral-600 shrink-0" v-else />
+            <NuxtLink
+              :to="run.source === 'curated' ? `/runs/${run.slug}` : `/my/runs/${run.slug}`"
+              class="font-medium text-neutral-700 dark:text-neutral-300 hover:text-primary-600 dark:hover:text-primary-400 hover:underline truncate flex-1"
+            >{{ run.name }}</NuxtLink>
+            <span class="text-neutral-400 shrink-0">{{ run.report_count }} report{{ run.report_count !== 1 ? 's' : '' }}</span>
+            <span v-if="run.author_handle" class="text-neutral-400 shrink-0">@{{ run.author_handle }}</span>
+            <span v-else-if="run.is_official" class="text-primary-500 shrink-0">Official</span>
+          </div>
+        </div>
+
         <!-- Community flow proposals -->
         <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-3">
           <div class="flex items-center justify-between gap-2">
@@ -899,6 +915,23 @@ async function toggleVote(proposalId: string) {
   } catch {}
 }
 
+// ── Similar runs (cluster) ────────────────────────────────────────────────────
+
+interface ClusterRun { id: string; slug: string; name: string; source: string; author_handle: string | null; is_official: boolean; class_min: number | null; class_max: number | null; report_count: number; rank_score: number }
+
+const clusterRuns = ref<ClusterRun[]>([])
+
+async function loadCluster() {
+  if (!reach.value) return
+  try {
+    const headers = await authHeaders()
+    const res = await fetch(`${apiBase}/api/v1/user-runs/${reach.value.id}/cluster`, { headers })
+    if (!res.ok) return
+    const data = await res.json()
+    clusterRuns.value = data.runs ?? []
+  } catch {}
+}
+
 function confirmRiver() {
   if (!reach.value) return
   localStorage.setItem(`river-confirmed-${reach.value.id}`, '1')
@@ -1302,7 +1335,7 @@ watch([repinUpComID, repinDownComID], async ([up, down]) => {
   await previewCenterline()
 })
 
-onMounted(async () => { await load(); loadCustomGauges(); loadReachDashboards(); loadProposals() })
+onMounted(async () => { await load(); loadCustomGauges(); loadReachDashboards(); loadProposals(); loadCluster() })
 
 // ── Save metadata + flow bands ────────────────────────────────────────────────
 
