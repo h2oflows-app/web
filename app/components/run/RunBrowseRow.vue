@@ -8,11 +8,18 @@
       <path d="M4 22c3-6 6-9 8-9s5 9 8 9 5-9 8-9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
     </svg>
 
-    <!-- Reach name — click navigates to detail page -->
-    <NuxtLink
-      :to="`/runs/${reach.slug}`"
-      class="flex-1 min-w-0 text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-    >{{ displayName }}</NuxtLink>
+    <!-- Reach name + author badge -->
+    <div class="flex-1 min-w-0">
+      <NuxtLink
+        :to="`/runs/${reach.slug}`"
+        class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors block"
+      >{{ displayName }}</NuxtLink>
+      <RunAuthorBadge
+        v-if="reach.is_official !== undefined || reach.author_handle"
+        :is-official="reach.is_official ?? true"
+        :author-handle="reach.author_handle"
+      />
+    </div>
 
     <!-- Class rating -->
     <span v-if="classDisplay" class="text-xs font-medium text-neutral-500 dark:text-neutral-400 tabular-nums shrink-0">
@@ -77,6 +84,8 @@ export interface ReachListItem {
   gauge_source: string | null
   gauge_name: string | null
   gauge_status: string | null
+  is_official?: boolean
+  author_handle?: string | null
 }
 
 const { bandBadgeClass } = useFlowBandPalette()

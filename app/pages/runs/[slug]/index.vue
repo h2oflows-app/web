@@ -97,6 +97,14 @@
         <!-- Description row below title -->
         <p class="text-neutral-500 text-sm mt-1">{{ reach.region }}</p>
 
+        <!-- Author badge -->
+        <div class="mt-1">
+          <RunAuthorBadge
+            :is-official="(reach as any).is_official ?? true"
+            :author-handle="(reach as any).author_handle"
+          />
+        </div>
+
         <!-- Permit / multi-day badges -->
         <div v-if="(reach as any).permit_required || (reach as any).multi_day_days > 1" class="flex items-center gap-2 mt-2 flex-wrap">
           <span
