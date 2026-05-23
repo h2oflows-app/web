@@ -6,7 +6,7 @@
       <div class="text-5xl">🛶</div>
       <h1 class="text-xl font-bold">Trip Reports</h1>
       <p class="text-sm text-neutral-500 max-w-xs leading-relaxed">
-        Share your run, confirm flow conditions, and help build the data that makes every reach smarter.
+        Share your run, confirm flow conditions, and help build the data that makes every run smarter.
         Trip reports are coming soon.
       </p>
       <NuxtLink

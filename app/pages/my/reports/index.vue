@@ -63,7 +63,7 @@
               </div>
               <NuxtLink
                 v-if="rep.reach_slug"
-                :to="`/reaches/${rep.reach_slug}`"
+                :to="`/runs/${rep.reach_slug}`"
                 class="text-xs text-primary-500 dark:text-primary-400 hover:underline"
               >{{ rep.reach_name ?? rep.reach_slug }}</NuxtLink>
             </div>

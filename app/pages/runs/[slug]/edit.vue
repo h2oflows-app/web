@@ -4,7 +4,7 @@
       <template #default>
         <span class="text-neutral-300 dark:text-neutral-700 shrink-0">/</span>
         <NuxtLink
-          :to="`/reaches/${slug}`"
+          :to="`/runs/${slug}`"
           class="text-sm font-medium truncate text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 transition-colors"
         >{{ slug }}</NuxtLink>
         <span class="text-neutral-300 dark:text-neutral-700 shrink-0">/</span>
@@ -19,7 +19,7 @@
       </svg>
       <h2 class="text-lg font-semibold">Access restricted</h2>
       <p class="text-sm text-neutral-500">You need data admin permissions to edit reaches.</p>
-      <NuxtLink :to="`/reaches/${slug}`" class="text-sm text-primary-500 hover:text-primary-400">Back to reach</NuxtLink>
+      <NuxtLink :to="`/runs/${slug}`" class="text-sm text-primary-500 hover:text-primary-400">Back to run</NuxtLink>
     </div>
 
     <!-- Loading auth -->
@@ -30,15 +30,15 @@
     <main v-else class="max-w-5xl mx-auto px-4 py-6 space-y-6">
       <div class="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h1 class="text-xl font-bold text-neutral-900 dark:text-white">Edit reach</h1>
+          <h1 class="text-xl font-bold text-neutral-900 dark:text-white">Edit Run</h1>
           <p class="text-xs text-neutral-400 font-mono mt-0.5">{{ slug }}</p>
         </div>
-        <NuxtLink :to="`/reaches/${slug}`" class="text-sm text-primary-500 hover:text-primary-400 transition-colors">
-          View reach
+        <NuxtLink :to="`/runs/${slug}`" class="text-sm text-primary-500 hover:text-primary-400 transition-colors">
+          View run
         </NuxtLink>
       </div>
 
-      <ReachEditor
+      <RunEditor
         :slug="slug"
         :rivers="rivers"
         @slug-changed="onSlugChanged"
@@ -75,7 +75,7 @@ watch(isDataAdmin, (val) => {
   if (val && authReady.value && rivers.value.length === 0) loadRivers()
 })
 
-// ── Rivers (needed by ReachEditor river selector) ────────────────────────────
+// ── Rivers (needed by RunEditor river selector) ────────────────────────────
 interface River { id: string; slug: string; name: string; gnis_id: string | null; basin: string | null; basin_locked: boolean; state_abbr: string | null; reach_count: number }
 
 const rivers = ref<River[]>([])
@@ -93,6 +93,6 @@ async function loadRivers() {
 
 // ── Slug rename handler ───────────────────────────────────────────────────────
 async function onSlugChanged(newSlug: string) {
-  await router.replace(`/reaches/${newSlug}/edit`)
+  await router.replace(`/runs/${newSlug}/edit`)
 }
 </script>

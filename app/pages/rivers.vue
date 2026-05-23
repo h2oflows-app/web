@@ -16,7 +16,7 @@
       <div>
         <UInput
           v-model="query"
-          placeholder="Search reaches, rivers, or basins…"
+          placeholder="Search runs, rivers, or basins…"
           icon="i-heroicons-magnifying-glass"
           size="sm"
           class="max-w-md"
@@ -24,7 +24,7 @@
       </div>
 
       <!-- Loading state -->
-      <div v-if="loading" class="py-12 text-center text-sm text-neutral-400">Loading reaches…</div>
+      <div v-if="loading" class="py-12 text-center text-sm text-neutral-400">Loading runs…</div>
 
       <!-- Error state -->
       <div v-else-if="error" class="py-12 text-center text-sm text-red-400">{{ error }}</div>
@@ -77,7 +77,7 @@
                 v-if="!collapsed.rivers.has(`${basin.name}::${river.name}`)"
                 class="ml-3 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden divide-y divide-neutral-100 dark:divide-neutral-800"
               >
-                <ReachBrowseRow
+                <RunBrowseRow
                   v-for="reach in river.reaches"
                   :key="reach.slug"
                   :reach="reach"
@@ -102,7 +102,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import type { ReachListItem } from '~/components/reach/ReachBrowseRow.vue'
+import type { ReachListItem } from '~/components/reach/RunBrowseRow.vue'
 import type { WatchedGauge } from '~/stores/watchlist'
 
 definePageMeta({ ssr: false })

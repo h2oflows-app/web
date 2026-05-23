@@ -15,9 +15,9 @@
           {{ reachLabel(reach) }}
         </span>
         <NuxtLink
-          :to="`/reaches/${reach.contextReachSlug}`"
+          :to="`/runs/${reach.contextReachSlug}`"
           class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
-          aria-label="View reach page"
+          aria-label="View run page"
           @click.stop
         >
           <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -60,9 +60,9 @@
           <div class="flex items-center gap-1 min-w-0 flex-1">
             <span class="min-w-0 text-sm font-semibold text-neutral-800 dark:text-neutral-100 truncate">{{ reachLabel(reach) }}</span>
             <NuxtLink
-              :to="`/reaches/${reach.contextReachSlug}`"
+              :to="`/runs/${reach.contextReachSlug}`"
               class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
-              aria-label="View reach page"
+              aria-label="View run page"
               @click.stop
             >
               <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -87,7 +87,7 @@
         <div class="flex items-center gap-2 mb-2">
           <div class="flex-1 min-w-0 flex items-center gap-1">
             <span class="min-w-0 text-base font-semibold text-neutral-800 dark:text-neutral-100 truncate">{{ reachLabel(reach) }}</span>
-            <NuxtLink :to="`/reaches/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View reach page" @click.stop>
+            <NuxtLink :to="`/runs/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View run page" @click.stop>
               <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
             </NuxtLink>
             <span v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(reach), displayFlowStatus(reach))]">{{ flowBandLabel(displayFlowBandLabel(reach), displayFlowStatus(reach)) }}</span>
@@ -110,7 +110,7 @@
         <div class="flex items-center gap-2 mb-2">
           <div class="flex-1 min-w-0 flex items-center gap-1">
             <span class="min-w-0 text-base font-semibold text-neutral-800 dark:text-neutral-100 truncate">{{ reachLabel(reach) }}</span>
-            <NuxtLink :to="`/reaches/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View reach page" @click.stop>
+            <NuxtLink :to="`/runs/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View run page" @click.stop>
               <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
             </NuxtLink>
             <span v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(reach), displayFlowStatus(reach))]">{{ flowBandLabel(displayFlowBandLabel(reach), displayFlowStatus(reach)) }}</span>
@@ -148,7 +148,7 @@ const emit = defineEmits<{
 
 const { bandBadgeClass, bandSolid } = useFlowBandPalette()
 const liveCfsMap = reactive<Record<string, number>>({})
-const { prefetch, bandForCfs, statusForBand } = useReachFlowBand()
+const { prefetch, bandForCfs, statusForBand } = useRunFlowBand()
 
 function reachKey(reach: WatchedGauge): string {
   return `${reach.id}::${reach.contextReachSlug}`

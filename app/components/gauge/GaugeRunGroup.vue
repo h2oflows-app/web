@@ -54,10 +54,10 @@
             {{ item.contextReachCommonName ?? item.contextReachFullName ?? item.name }}
           </span>
           <NuxtLink
-            :to="`/reaches/${item.contextReachSlug}`"
+            :to="`/runs/${item.contextReachSlug}`"
             class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
-            aria-label="View reach page"
-            title="View reach page"
+            aria-label="View run page"
+            title="View run page"
             @click.stop
           >
             <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
@@ -183,10 +183,10 @@
             {{ item.contextReachCommonName ?? item.contextReachFullName ?? item.name }}
           </span>
           <NuxtLink
-            :to="`/reaches/${item.contextReachSlug}`"
+            :to="`/runs/${item.contextReachSlug}`"
             class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
-            aria-label="View reach page"
-            title="View reach page"
+            aria-label="View run page"
+            title="View run page"
             @click.stop
           >
             <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
@@ -230,7 +230,7 @@ const { removeAndSync } = useWatchlistSync()
 
 const liveCfs = ref<number | null>(null)
 
-const { prefetch, bandForCfs, statusForBand } = useReachFlowBand()
+const { prefetch, bandForCfs, statusForBand } = useRunFlowBand()
 
 function displayFlowBandLabel(reach: WatchedGauge): string | null {
   // All reaches in a group share one gauge — use live CFS from the gauge sparkline.

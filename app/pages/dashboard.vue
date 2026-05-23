@@ -165,7 +165,7 @@
         <div class="text-5xl">🌊</div>
         <h2 class="text-xl font-semibold">No reaches yet</h2>
         <p class="text-neutral-500 max-w-sm text-sm">
-          Search for a reach or gauge and add it to your dashboard.
+          Search for a run or gauge and add it to your dashboard.
         </p>
         <UButton color="primary" @click="searchOpen = true">Find a gauge</UButton>
       </div>
@@ -240,7 +240,7 @@
                   <template v-if="groupByGauge">
                     <template v-for="split in [splitReachGroups(river.reaches)]" :key="'split'">
                       <div v-if="split.gaugeGroups.length > 0" :class="viewMode === 'list' ? 'space-y-1.5' : cardGridClass">
-                        <GaugeReachGroup
+                        <GaugeRunGroup
                           v-for="group in split.gaugeGroups"
                           :key="group.lead.id"
                           :lead-gauge="group.lead"
@@ -253,7 +253,7 @@
                       </div>
                       <!-- Ungrouped: list = one card; card modes = individual cards in grid -->
                       <template v-if="split.ungrouped.length > 0">
-                        <DashboardReachGroup
+                        <DashboardRunGroup
                           v-if="viewMode === 'list'"
                           :reaches="split.ungrouped"
                           density="list"
@@ -262,7 +262,7 @@
                           @remove="(g) => removeAndSync(g.id, g.contextReachSlug)"
                         />
                         <div v-else :class="[cardGridClass, split.gaugeGroups.length > 0 ? 'mt-1.5' : '']">
-                          <DashboardReachGroup
+                          <DashboardRunGroup
                             v-for="reach in split.ungrouped"
                             :key="`${reach.id}::${reach.contextReachSlug}`"
                             :reaches="[reach]"
@@ -276,7 +276,7 @@
                   </template>
                   <template v-else>
                     <!-- List: all reaches in one grouped card -->
-                    <DashboardReachGroup
+                    <DashboardRunGroup
                       v-if="viewMode === 'list'"
                       :reaches="river.reaches"
                       density="list"
@@ -285,7 +285,7 @@
                     />
                     <!-- Card modes: each reach = own card in grid -->
                     <div v-else :class="cardGridClass">
-                      <DashboardReachGroup
+                      <DashboardRunGroup
                         v-for="reach in river.reaches"
                         :key="`${reach.id}::${reach.contextReachSlug}`"
                         :reaches="[reach]"
@@ -309,7 +309,7 @@
                       <div class="min-w-0 flex-1 flex items-center gap-1.5">
                         <svg class="w-4 h-4 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
                         <span class="text-sm font-medium truncate">{{ r.name }}</span>
-                        <NuxtLink :to="`/my/reaches/${r.slug}`" class="shrink-0 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit reach" @click.stop>
+                        <NuxtLink :to="`/my/runs/${r.slug}`" class="shrink-0 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
                           <svg class="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
                         </NuxtLink>
                       </div>
@@ -347,7 +347,7 @@
                           <span class="font-bold tabular-nums leading-none text-3xl" :style="{ color: bandSolid(r.flow_band, r.flow_status) }">
                             {{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-500 dark:text-neutral-400 ml-0.5">cfs</span>
                           </span>
-                          <NuxtLink :to="`/my/reaches/${r.slug}`" class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit reach" @click.stop>
+                          <NuxtLink :to="`/my/runs/${r.slug}`" class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
                             <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
                           </NuxtLink>
                           <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
@@ -540,7 +540,7 @@
 
     <GaugeSearchModal v-model:open="searchOpen" @add="handleAdd" @added-external="onAddedExternal" />
     <GaugeDetailModal v-if="detailGauge" v-model:open="detailOpen" :gauge="detailGauge" :mode="detailMode" />
-    <UserReachCustomGaugeModal
+    <UserRunCustomGaugeModal
       v-if="customGaugeModalProps"
       v-model:open="customGaugeModalOpen"
       v-bind="customGaugeModalProps"
@@ -728,7 +728,7 @@ function openUserReach(r: UserReachSummary) {
     const gauge = store.gauges.find(g => g.id === r.gauge_id)
     if (gauge) { openGauge(gauge, 'gauge'); return }
   }
-  router.push(`/my/reaches/${r.slug}`)
+  router.push(`/my/runs/${r.slug}`)
 }
 const userReaches = ref<UserReachSummary[]>([])
 async function loadUserReaches() {
@@ -909,7 +909,7 @@ const byStateTree = computed<StateGroup[]>(() => {
   for (const ur of activeUserReaches.value.filter(r => !hiddenReaches.value.has(r.id))) {
     const state = ur.state_abbr ?? '—'
     const basin = cleanBasinName(ur.basin_group) ?? 'Other'
-    const river = ur.river_name ?? 'My Reaches'
+    const river = ur.river_name ?? 'My Runs'
     if (!stateMap.has(state)) stateMap.set(state, new Map())
     const basinMap = stateMap.get(state)!
     if (!basinMap.has(basin)) basinMap.set(basin, { rivers: new Map(), standalone: [] })
@@ -1242,7 +1242,7 @@ const groupingOptions = computed(() => [
 
 const filterOptions = computed(() => [
   { key: 'curated',   label: 'H2OFlows',        active: filterCurated.value,     toggle: () => { filterCurated.value = !filterCurated.value } },
-  { key: 'myReaches', label: 'My reaches',       active: filterUserReaches.value, toggle: () => { filterUserReaches.value = !filterUserReaches.value } },
+  { key: 'myReaches', label: 'My Runs',       active: filterUserReaches.value, toggle: () => { filterUserReaches.value = !filterUserReaches.value } },
   { key: 'gauges',    label: 'Gauges',            active: filterGauges.value,      toggle: () => { filterGauges.value = !filterGauges.value } },
 ])
 

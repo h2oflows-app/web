@@ -5,14 +5,14 @@
     <div class="flex justify-center px-4 mt-16">
       <div class="w-full max-w-md space-y-5">
         <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-6 space-y-4">
-          <h1 class="text-lg font-bold text-neutral-900 dark:text-white">Import User Reach</h1>
+          <h1 class="text-lg font-bold text-neutral-900 dark:text-white">Import User Run</h1>
 
           <div v-if="!authReady" class="flex justify-center py-4">
             <div class="w-6 h-6 rounded-full border-2 border-primary-500 border-t-transparent animate-spin" />
           </div>
 
           <div v-else-if="!isAuthenticated" class="space-y-3">
-            <p class="text-sm text-neutral-500 dark:text-neutral-400">Sign in to import this reach to your account.</p>
+            <p class="text-sm text-neutral-500 dark:text-neutral-400">Sign in to import this run to your account.</p>
             <UButton block @click="router.push('/login')">Sign in to import</UButton>
           </div>
 
@@ -21,8 +21,8 @@
           </div>
 
           <div v-else-if="importedSlug" class="space-y-3">
-            <p class="text-sm text-green-600 dark:text-green-400 font-medium">Reach imported successfully.</p>
-            <UButton block @click="router.push(`/my/reaches/${importedSlug}`)">View reach</UButton>
+            <p class="text-sm text-green-600 dark:text-green-400 font-medium">Run imported successfully.</p>
+            <UButton block @click="router.push(`/my/runs/${importedSlug}`)">View Run</UButton>
           </div>
 
           <div v-else class="space-y-4">
@@ -44,7 +44,7 @@
               {{ importError }}
             </div>
 
-            <UButton block :loading="importing" @click="doImport">Import reach</UButton>
+            <UButton block :loading="importing" @click="doImport">Import run</UButton>
             <UButton block variant="ghost" color="neutral" @click="router.push('/')">Cancel</UButton>
           </div>
         </div>
@@ -97,7 +97,7 @@ async function doImport() {
   importError.value = null
   try {
     const jwt = await getToken()
-    const res = await fetch(`${apiBase}/api/v1/me/reaches/import`, {
+    const res = await fetch(`${apiBase}/api/v1/me/runs/import`, {
       method:  'POST',
       headers: {
         'Content-Type': 'application/json',

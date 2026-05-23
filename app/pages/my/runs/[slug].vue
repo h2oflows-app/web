@@ -2,7 +2,7 @@
   <div class="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex flex-col">
     <AppHeader>
       <span class="text-neutral-300 dark:text-neutral-700 shrink-0">/</span>
-      <NuxtLink to="/my/reaches" class="text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors">My Reaches</NuxtLink>
+      <NuxtLink to="/my/runs" class="text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors">My Runs</NuxtLink>
       <span class="text-neutral-300 dark:text-neutral-700 shrink-0">/</span>
       <span class="text-sm font-medium text-neutral-700 dark:text-neutral-200 truncate">{{ reach?.name ?? 'Edit' }}</span>
     </AppHeader>
@@ -10,13 +10,28 @@
     <!-- Sticky action bar (below AppHeader) — Save, Cancel, X, Add-to-dashboard, etc. -->
     <div v-if="reach" class="sticky top-[51px] z-10 flex items-center justify-between gap-2 px-4 py-2 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
       <div class="flex items-center gap-1.5 min-w-0">
-        <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-x-mark" :to="'/my/reaches'" title="Close"><span class="hidden sm:inline">Close</span></UButton>
+        <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-x-mark" :to="'/my/runs'" title="Close"><span class="hidden sm:inline">Close</span></UButton>
       </div>
       <div class="flex items-center gap-1.5 shrink-0">
         <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-share" title="Share" @click="openShare()"><span class="hidden sm:inline">Share</span></UButton>
         <UButton size="xs" variant="ghost" color="error" icon="i-heroicons-trash" title="Delete" @click="confirmDelete"><span class="hidden sm:inline">Delete</span></UButton>
-        <UButton size="xs" variant="outline" color="neutral" icon="i-heroicons-x-circle" :to="'/my/reaches'" title="Cancel"><span class="hidden sm:inline">Cancel</span></UButton>
+        <UButton size="xs" variant="outline" color="neutral" icon="i-heroicons-x-circle" :to="'/my/runs'" title="Cancel"><span class="hidden sm:inline">Cancel</span></UButton>
         <UButton size="xs" :disabled="!form.name.trim()" :loading="saving" icon="i-heroicons-check" title="Save" @click="save"><span class="hidden sm:inline">Save</span></UButton>
+      </div>
+    </div>
+
+    <!-- Fork lineage banner -->
+    <div v-if="reach?.forked_from_slug" class="px-4 pt-2">
+      <div class="rounded-md bg-neutral-100 dark:bg-neutral-800/60 px-3 py-1.5 flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
+        <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/>
+          <path d="M12 7v3m0 0c0 2-2 3-4 3H7m5 0c0 2 2 3 4 3h1"/>
+        </svg>
+        Forked from
+        <NuxtLink
+          :to="`/runs/${reach.forked_from_slug}`"
+          class="font-medium text-primary-500 hover:text-primary-400 transition-colors"
+        >{{ reach.forked_from_name ?? reach.forked_from_slug }}</NuxtLink>
       </div>
     </div>
 
@@ -27,6 +42,17 @@
           <h1 class="text-base font-bold text-neutral-900 dark:text-neutral-100 truncate">{{ reach.name }}</h1>
           <p v-if="reach.river_name" class="text-xs text-neutral-500 truncate">{{ reach.river_name }}</p>
         </div>
+        <button
+          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors shrink-0"
+          :class="userUpvoted
+            ? 'bg-primary-50 dark:bg-primary-950 border-primary-300 dark:border-primary-700 text-primary-600 dark:text-primary-400'
+            : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:border-primary-300 hover:text-primary-600'"
+          :disabled="upvoteLoading"
+          @click="toggleUpvote"
+        >
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/><path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/></svg>
+          {{ upvoteCount }}
+        </button>
         <template v-if="reach.gauge_name || reach.current_cfs != null">
           <div class="flex items-end gap-3 shrink-0">
             <div class="text-right">
@@ -295,7 +321,7 @@
 
         <!-- Edit form + gauge display -->
         <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-3">
-          <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Reach details</p>
+          <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Run details</p>
 
           <div>
             <label class="block text-xs text-neutral-500 mb-1">Reach name <span class="text-red-400">*</span></label>
@@ -314,11 +340,38 @@
               >{{ riverNameLooking ? 'Looking up…' : 'Lookup from NLDI' }}</button>
             </div>
             <input v-model="form.riverName" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="e.g. South Platte River" />
+            <p
+              v-if="reach?.river_basin || reach?.river_state_abbr"
+              class="mt-1 text-xs text-neutral-400"
+            >
+              {{ [reach.river_state_abbr, reach.river_basin].filter(Boolean).join(' · ') }}
+            </p>
           </div>
 
           <div>
             <label class="block text-xs text-neutral-500 mb-1">Notes</label>
             <textarea v-model="form.note" rows="3" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm resize-y" placeholder="Beta, access, permanent hazards…" />
+          </div>
+
+          <!-- Privacy toggle -->
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs font-medium text-neutral-700 dark:text-neutral-300">Private</p>
+              <p class="text-xs text-neutral-400">Only visible to you</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              :aria-checked="form.isPrivate"
+              class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
+              :class="form.isPrivate ? 'bg-primary-500' : 'bg-neutral-300 dark:bg-neutral-600'"
+              @click="form.isPrivate = !form.isPrivate"
+            >
+              <span
+                class="inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform"
+                :class="form.isPrivate ? 'translate-x-4.5' : 'translate-x-0.5'"
+              />
+            </button>
           </div>
 
           <div class="grid grid-cols-2 gap-3">
@@ -357,6 +410,132 @@
               />
               <span class="text-xs text-neutral-400">cfs</span>
             </div>
+          </div>
+        </div>
+
+        <!-- Features list -->
+        <div v-if="reach && (reach.rapids.length > 0 || reach.access_points.length > 0)" class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-2">
+          <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">
+            Features
+            <span class="normal-case font-normal">
+              ({{ reach.rapids.length }} rapid{{ reach.rapids.length !== 1 ? 's' : '' }} · {{ reach.access_points.length }} access pt{{ reach.access_points.length !== 1 ? 's' : '' }})
+            </span>
+          </p>
+          <div v-if="reach.rapids.length > 0" class="space-y-1">
+            <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400">Rapids &amp; hazards</p>
+            <div v-for="r in reach.rapids" :key="r.id" class="flex items-start gap-2 text-xs py-0.5">
+              <span
+                class="mt-0.5 shrink-0 inline-block w-2 h-2 rounded-full"
+                :class="r.is_permanent_hazard ? 'bg-red-500' : r.is_surf_wave ? 'bg-sky-400' : 'bg-amber-400'"
+              />
+              <span class="font-medium text-neutral-700 dark:text-neutral-300">{{ r.name }}</span>
+              <span v-if="r.class_rating" class="text-neutral-400">III+</span>
+              <span v-if="r.is_permanent_hazard" class="text-red-500">hazard</span>
+              <span v-if="r.is_surf_wave" class="text-sky-500">wave</span>
+            </div>
+          </div>
+          <div v-if="reach.access_points.length > 0" class="space-y-1">
+            <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400">Access points</p>
+            <div v-for="a in reach.access_points" :key="a.id" class="flex items-start gap-2 text-xs py-0.5">
+              <span class="mt-0.5 shrink-0 inline-block w-2 h-2 rounded-full bg-emerald-500" />
+              <span class="font-medium text-neutral-700 dark:text-neutral-300 capitalize">{{ a.access_type.replace('_', ' ') }}</span>
+              <span v-if="a.name" class="text-neutral-400">· {{ a.name }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- KML import -->
+        <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-3">
+          <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Import Pins</p>
+          <p class="text-xs text-neutral-500 dark:text-neutral-400">Upload a KML/KMZ file to import rapids, hazards, and access points. Existing imported pins are replaced on each upload.</p>
+          <div class="flex items-center gap-2">
+            <input
+              id="kml-file-input"
+              type="file"
+              accept=".kml,.kmz"
+              class="flex-1 text-xs text-neutral-600 dark:text-neutral-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-neutral-100 dark:file:bg-neutral-800 file:text-neutral-600 dark:file:text-neutral-300 file:cursor-pointer"
+              @change="onKmlFileChange"
+            />
+            <UButton
+              size="xs"
+              :disabled="!kmlFile || kmlUploading"
+              :loading="kmlUploading"
+              @click="uploadKml"
+            >Upload</UButton>
+          </div>
+          <p v-if="kmlError" class="text-xs text-red-500">{{ kmlError }}</p>
+          <div v-if="kmlLog.length > 0" class="rounded bg-neutral-50 dark:bg-neutral-800 px-3 py-2 max-h-40 overflow-y-auto">
+            <p v-for="(line, i) in kmlLog" :key="i" class="text-xs font-mono text-neutral-600 dark:text-neutral-300 leading-relaxed">{{ line }}</p>
+          </div>
+        </div>
+
+        <!-- Similar runs (cluster) -->
+        <div v-if="clusterRuns.length > 0" class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-2">
+          <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Similar Runs <span class="font-normal normal-case">(same section)</span></p>
+          <div v-for="run in clusterRuns" :key="run.id" class="flex items-center gap-2 py-0.5 text-xs">
+            <svg v-if="run.is_official" class="w-3 h-3 text-primary-500 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <span class="w-2 h-2 rounded-full bg-neutral-300 dark:bg-neutral-600 shrink-0" v-else />
+            <NuxtLink
+              :to="run.source === 'curated' ? `/runs/${run.slug}` : `/my/runs/${run.slug}`"
+              class="font-medium text-neutral-700 dark:text-neutral-300 hover:text-primary-600 dark:hover:text-primary-400 hover:underline truncate flex-1"
+            >{{ run.name }}</NuxtLink>
+            <span class="text-neutral-400 shrink-0">{{ run.report_count }} report{{ run.report_count !== 1 ? 's' : '' }}</span>
+            <span v-if="run.author_handle" class="text-neutral-400 shrink-0">@{{ run.author_handle }}</span>
+            <span v-else-if="run.is_official" class="text-primary-500 shrink-0">Official</span>
+          </div>
+        </div>
+
+        <!-- Community flow proposals -->
+        <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Community Flow Proposals</p>
+            <span v-if="proposals.length > 0 && proposalMedianMin != null" class="text-xs text-neutral-400">
+              median {{ proposalMedianMin }}–{{ proposalMedianMax }} cfs
+            </span>
+          </div>
+
+          <div v-if="proposals.length === 0" class="text-xs text-neutral-400">No proposals yet. Be the first to suggest flow thresholds.</div>
+
+          <div v-for="p in proposals" :key="p.id" class="flex items-start gap-2 py-1 border-b border-neutral-100 dark:border-neutral-800 last:border-0">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                  {{ p.running_min }}–{{ p.running_max }} cfs
+                </span>
+                <span v-if="p.low_max" class="text-xs text-neutral-400">low &lt;{{ p.low_max }}</span>
+                <span v-if="p.high_min" class="text-xs text-neutral-400">high &gt;{{ p.high_min }}</span>
+              </div>
+              <div class="flex items-center gap-1.5 mt-0.5">
+                <span class="text-xs text-neutral-400">@{{ p.author_handle ?? p.author_id.slice(0,8) }}</span>
+                <span v-if="p.note" class="text-xs text-neutral-400 truncate">· {{ p.note }}</span>
+              </div>
+            </div>
+            <button
+              class="flex items-center gap-1 text-xs px-2 py-1 rounded-md border transition-colors shrink-0"
+              :class="p.user_voted
+                ? 'bg-primary-50 dark:bg-primary-950 border-primary-300 dark:border-primary-700 text-primary-600 dark:text-primary-400'
+                : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-primary-500 hover:border-primary-300'"
+              @click="toggleVote(p.id)"
+            >
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/><path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/></svg>
+              {{ p.vote_count }}
+            </button>
+          </div>
+
+          <!-- Submit / update own proposal -->
+          <div class="pt-1 space-y-2 border-t border-neutral-100 dark:border-neutral-800">
+            <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400">{{ ownProposal ? 'Update your proposal' : 'Add your proposal' }}</p>
+            <div class="flex items-center gap-2 flex-wrap">
+              <div class="flex items-center gap-1">
+                <input v-model.number="propForm.runningMin" type="number" min="0" placeholder="min" class="w-20 rounded border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-1.5 py-1 text-xs" />
+                <span class="text-xs text-neutral-400">–</span>
+                <input v-model.number="propForm.runningMax" type="number" min="0" placeholder="max" class="w-20 rounded border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-1.5 py-1 text-xs" />
+                <span class="text-xs text-neutral-400 ml-1">cfs</span>
+              </div>
+              <UButton size="xs" :disabled="!propForm.runningMin || !propForm.runningMax || propSaving" :loading="propSaving" @click="submitProposal">{{ ownProposal ? 'Update' : 'Submit' }}</UButton>
+            </div>
+            <input v-model="propForm.note" type="text" maxlength="200" placeholder="Note (optional)" class="w-full rounded border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1 text-xs" />
+            <p v-if="propError" class="text-xs text-red-500">{{ propError }}</p>
           </div>
         </div>
 
@@ -412,7 +591,7 @@
 
   <ShareLinkModal
     :open="shareOpen"
-    title="Share reach"
+    title="Share run"
     :link="reachShareLink"
     :json="sharePayload"
     :loading="shareLoading"
@@ -501,6 +680,27 @@ interface FlowRange {
   label: string; min_value: number | null; max_value: number | null
 }
 
+interface RunRapid {
+  id: string
+  name: string
+  description: string | null
+  class_rating: number | null
+  is_surf_wave: boolean
+  is_permanent_hazard: boolean
+  hazard_type: string | null
+  lng: number | null
+  lat: number | null
+}
+
+interface RunAccessPoint {
+  id: string
+  access_type: string
+  name: string | null
+  notes: string | null
+  lng: number | null
+  lat: number | null
+}
+
 interface UserReachDetail {
   id:                string
   slug:              string
@@ -528,7 +728,14 @@ interface UserReachDetail {
   current_cfs:       number | null
   flow_band:         string | null
   note:              string | null
+  is_private:        boolean
+  forked_from_slug:  string | null
+  forked_from_name:  string | null
   flow_ranges:       FlowRange[]
+  rapids:            RunRapid[]
+  access_points:     RunAccessPoint[]
+  upvote_count:      number
+  user_upvoted:      boolean
   centerline:        object | null
 }
 
@@ -544,6 +751,7 @@ const form = ref({
   note:      '',
   classMin:  null as number | null,
   classMax:  null as number | null,
+  isPrivate: false,
   ranges: {
     low:     { min: null as number | null, max: null as number | null },
     running: { min: null as number | null, max: null as number | null },
@@ -557,7 +765,7 @@ const flowBandDefs = [
   { key: 'high',    label: 'High',     labelClass: 'text-sky-400',     showMin: true,  showMax: false },
 ] as const
 
-// ── Repin state (mirrors admin ReachEditor) ───────────────────────────────────
+// ── Repin state (mirrors admin RunEditor) ───────────────────────────────────
 
 const repinPickMode        = ref(false)
 const repinAnchorSnap      = ref<AnchorSnap | null>(null)
@@ -610,6 +818,154 @@ const correctionSubmitting = ref(false)
 
 const riverConfirmBannerVisible = computed(() =>
   !!(reach.value?.river_name && reach.value?.river_slug && !riverConfirmed.value))
+
+// ── KML import ────────────────────────────────────────────────────────────────
+
+const kmlFile        = ref<File | null>(null)
+const kmlUploading   = ref(false)
+const kmlLog         = ref<string[]>([])
+const kmlError       = ref('')
+
+function onKmlFileChange(e: Event) {
+  const f = (e.target as HTMLInputElement).files?.[0]
+  kmlFile.value  = f ?? null
+  kmlLog.value   = []
+  kmlError.value = ''
+}
+
+async function uploadKml() {
+  if (!kmlFile.value || !reach.value) return
+  kmlUploading.value = true
+  kmlError.value     = ''
+  kmlLog.value       = []
+  try {
+    const headers = await authHeaders()
+    const fd = new FormData()
+    fd.append('file', kmlFile.value)
+    const res = await fetch(`${apiBase}/api/v1/me/reaches/${reach.value.slug}/kml`, {
+      method: 'POST', headers, body: fd,
+    })
+    if (!res.ok) { kmlError.value = `Upload failed (${res.status})`; return }
+    const result = await res.json()
+    const rr: any = result.reaches ? Object.values(result.reaches)[0] : null
+    kmlLog.value = result.log ?? []
+    kmlFile.value = null
+    ;(document.getElementById('kml-file-input') as HTMLInputElement | null)?.value && ((document.getElementById('kml-file-input') as HTMLInputElement).value = '')
+    await load()
+    if (rr) toast.add({ title: `Imported: ${rr.rapids ?? 0} rapids, ${(rr.put_ins ?? 0) + (rr.take_outs ?? 0) + (rr.parking ?? 0)} access pts`, color: 'success' })
+  } catch (e: any) {
+    kmlError.value = e?.message ?? 'Upload failed'
+  } finally {
+    kmlUploading.value = false
+  }
+}
+
+// ── Flow range proposals ──────────────────────────────────────────────────────
+
+interface FlowRangeProposal {
+  id: string
+  author_id: string
+  author_handle: string | null
+  low_max: number | null
+  running_min: number
+  running_max: number
+  high_min: number | null
+  note: string | null
+  vote_count: number
+  user_voted: boolean
+}
+
+const proposals        = ref<FlowRangeProposal[]>([])
+const proposalMedianMin = ref<number | null>(null)
+const proposalMedianMax = ref<number | null>(null)
+const propSaving       = ref(false)
+const propError        = ref('')
+const propForm         = ref({ runningMin: null as number | null, runningMax: null as number | null, note: '' })
+const ownProposal      = computed(() => proposals.value.find(p => reach.value && p.author_id === reach.value.id))
+
+async function loadProposals() {
+  if (!reach.value) return
+  try {
+    const headers = await authHeaders()
+    const res = await fetch(`${apiBase}/api/v1/me/reaches/${reach.value.slug}/flow-proposals`, { headers })
+    if (!res.ok) return
+    const data = await res.json()
+    proposals.value = data.proposals ?? []
+    proposalMedianMin.value = data.median_running_min ?? null
+    proposalMedianMax.value = data.median_running_max ?? null
+    const own = proposals.value.find(p => reach.value && p.author_id === reach.value.id)
+    if (own) { propForm.value.runningMin = own.running_min; propForm.value.runningMax = own.running_max; propForm.value.note = own.note ?? '' }
+  } catch {}
+}
+
+async function submitProposal() {
+  if (!reach.value || !propForm.value.runningMin || !propForm.value.runningMax) return
+  propSaving.value = true; propError.value = ''
+  try {
+    const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) }
+    const res = await fetch(`${apiBase}/api/v1/me/reaches/${reach.value.slug}/flow-proposals`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ running_min: propForm.value.runningMin, running_max: propForm.value.runningMax, note: propForm.value.note || undefined }),
+    })
+    if (!res.ok) { propError.value = `Error ${res.status}`; return }
+    await loadProposals()
+    toast.add({ title: 'Proposal saved', color: 'success' })
+  } catch (e: any) {
+    propError.value = e?.message ?? 'Save failed'
+  } finally {
+    propSaving.value = false
+  }
+}
+
+async function toggleVote(proposalId: string) {
+  try {
+    const headers = { ...(await authHeaders()) }
+    const res = await fetch(`${apiBase}/api/v1/flow-proposals/${proposalId}/vote`, { method: 'POST', headers })
+    if (!res.ok) return
+    const data = await res.json()
+    const p = proposals.value.find(x => x.id === proposalId)
+    if (p) { p.vote_count = data.vote_count; p.user_voted = data.voted }
+  } catch {}
+}
+
+// ── Upvote ────────────────────────────────────────────────────────────────────
+
+const upvoteCount   = computed(() => reach.value?.upvote_count ?? 0)
+const userUpvoted   = ref(false)
+const upvoteLoading = ref(false)
+
+watch(() => reach.value?.user_upvoted, v => { if (v != null) userUpvoted.value = v }, { immediate: true })
+
+async function toggleUpvote() {
+  if (!reach.value) return
+  upvoteLoading.value = true
+  try {
+    const headers = await authHeaders()
+    const res = await fetch(`${apiBase}/api/v1/user-runs/${reach.value.id}/upvote`, { method: 'POST', headers })
+    if (!res.ok) return
+    const data = await res.json()
+    userUpvoted.value = data.upvoted
+    if (reach.value) reach.value.upvote_count = data.upvote_count
+  } catch {}
+  finally { upvoteLoading.value = false }
+}
+
+// ── Similar runs (cluster) ────────────────────────────────────────────────────
+
+interface ClusterRun { id: string; slug: string; name: string; source: string; author_handle: string | null; is_official: boolean; class_min: number | null; class_max: number | null; report_count: number; rank_score: number }
+
+const clusterRuns = ref<ClusterRun[]>([])
+
+async function loadCluster() {
+  if (!reach.value) return
+  try {
+    const headers = await authHeaders()
+    const res = await fetch(`${apiBase}/api/v1/user-runs/${reach.value.id}/cluster`, { headers })
+    if (!res.ok) return
+    const data = await res.json()
+    clusterRuns.value = data.runs ?? []
+  } catch {}
+}
 
 function confirmRiver() {
   if (!reach.value) return
@@ -905,7 +1261,7 @@ async function saveGauge() {
   const { externalId, source, name, lat, lng } = repinPendingGauge.value
   try {
     const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) }
-    const res = await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}/gauge`, {
+    const res = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}/gauge`, {
       method: 'PUT', headers,
       body:   JSON.stringify({ external_id: externalId, source, name, lat, lng }),
     })
@@ -924,7 +1280,7 @@ async function clearGauge() {
   repinGaugeSaving.value = true
   try {
     const headers = await authHeaders()
-    await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}/gauge`, { method: 'DELETE', headers })
+    await fetch(`${apiBase}/api/v1/me/runs/${slug.value}/gauge`, { method: 'DELETE', headers })
     await load()
   } catch { /* non-fatal */ }
   finally { repinGaugeSaving.value = false }
@@ -943,7 +1299,7 @@ async function linkCustomGauge(cg: CustomGaugeSummary) {
   customGaugePickerOpen.value = false
   try {
     const headers = await authHeaders()
-    const res = await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}/gauge`, {
+    const res = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}/gauge`, {
       method: 'PUT',
       headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({ custom_gauge_id: cg.id }),
@@ -961,6 +1317,7 @@ function populateForm(r: UserReachDetail) {
   form.value.note      = r.note ?? ''
   form.value.classMin  = r.class_min ?? null
   form.value.classMax  = r.class_max ?? null
+  form.value.isPrivate = r.is_private ?? false
   const low     = r.flow_ranges.find(x => x.label === 'low')
   const running = r.flow_ranges.find(x => x.label === 'running')
   const high    = r.flow_ranges.find(x => x.label === 'high')
@@ -977,8 +1334,8 @@ async function load() {
   error.value   = ''
   try {
     const headers = await authHeaders()
-    const res = await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}`, { headers })
-    if (res.status === 404) { error.value = 'Reach not found.'; return }
+    const res = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}`, { headers })
+    if (res.status === 404) { error.value = 'Run not found.'; return }
     if (!res.ok) throw new Error(`${res.status}`)
     const data: UserReachDetail = await res.json()
     reach.value = data
@@ -1013,7 +1370,7 @@ watch([repinUpComID, repinDownComID], async ([up, down]) => {
   await previewCenterline()
 })
 
-onMounted(() => { load(); loadCustomGauges(); loadReachDashboards() })
+onMounted(async () => { await load(); loadCustomGauges(); loadReachDashboards(); loadProposals(); loadCluster() })
 
 // ── Save metadata + flow bands ────────────────────────────────────────────────
 
@@ -1040,6 +1397,7 @@ async function save() {
       note:       form.value.note.trim()      || null,
       class_min:  form.value.classMin,
       class_max:  form.value.classMax,
+      is_private: form.value.isPrivate,
       gnis_id:    nldiGnisId.value ?? undefined,
     }
     if (repinFlowlinesDirty.value && repinUpComID.value && repinDownComID.value) {
@@ -1051,7 +1409,7 @@ async function save() {
       patchBody.down_comid = repinDownComID.value
     }
 
-    const patchRes = await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}`, {
+    const patchRes = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}`, {
       method: 'PATCH', headers,
       body: JSON.stringify(patchBody),
     })
@@ -1059,7 +1417,7 @@ async function save() {
 
     // Persist centerline if dirty
     if (repinFlowlinesDirty.value && repinPreviewCenterline.value) {
-      const clRes = await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}/centerline`, {
+      const clRes = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}/centerline`, {
         method: 'POST', headers,
         body: JSON.stringify({ geojson: repinPreviewCenterline.value }),
       })
@@ -1070,7 +1428,7 @@ async function save() {
     }
 
     const r = form.value.ranges
-    await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}/flow-ranges`, {
+    await fetch(`${apiBase}/api/v1/me/runs/${slug.value}/flow-ranges`, {
       method: 'PUT', headers,
       body: JSON.stringify({
         low:     { min_value: null,           max_value: r.low.max     },
@@ -1085,6 +1443,7 @@ async function save() {
         name:        form.value.name.trim(),
         river_name:  form.value.riverName.trim() || null,
         note:        form.value.note.trim()      || null,
+        is_private:  form.value.isPrivate,
         flow_ranges: [
           { label: 'low',     min_value: null,          max_value: r.low.max     },
           { label: 'running', min_value: r.running.min, max_value: r.running.max },
@@ -1104,7 +1463,7 @@ async function save() {
 async function confirmDelete() {
   if (!confirm(`Delete "${reach.value?.name}"? This cannot be undone.`)) return
   const headers = await authHeaders()
-  const res = await fetch(`${apiBase}/api/v1/me/reaches/${slug.value}`, { method: 'DELETE', headers })
-  if (res.ok) router.push('/my/reaches')
+  const res = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}`, { method: 'DELETE', headers })
+  if (res.ok) router.push('/my/runs')
 }
 </script>

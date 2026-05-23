@@ -20,7 +20,7 @@
       <div class="rounded-xl border border-neutral-200 dark:border-neutral-700 p-4 bg-white dark:bg-neutral-900 space-y-3">
         <p class="text-xs font-semibold text-neutral-500 uppercase tracking-wide">Metadata</p>
         <div>
-          <label class="block text-xs text-neutral-500 mb-1">Reach name <span class="text-red-400">*</span></label>
+          <label class="block text-xs text-neutral-500 mb-1">Run name <span class="text-red-400">*</span></label>
           <input v-model="repinForm.name" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" />
         </div>
         <div>
@@ -475,7 +475,7 @@ async function loadReach() {
   resetState()
   try {
     const token = await getToken()
-    const res = await fetch(`${apiBase}/api/v1/admin/reaches/${slug}`, {
+    const res = await fetch(`${apiBase}/api/v1/admin/runs/${slug}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
     if (!res.ok) {
@@ -642,7 +642,7 @@ async function saveGauge() {
   const { externalId, source, name, lat, lng } = repinPendingGauge.value
   try {
     const token = await getToken()
-    const res = await fetch(`${apiBase}/api/v1/admin/reaches/${repinReach.value.slug}/primary-gauge`, {
+    const res = await fetch(`${apiBase}/api/v1/admin/runs/${repinReach.value.slug}/primary-gauge`, {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ external_id: externalId, source, name, lat, lng }),
@@ -668,7 +668,7 @@ async function clearGauge() {
   repinGaugeError.value = ''
   try {
     const token = await getToken()
-    const res = await fetch(`${apiBase}/api/v1/admin/reaches/${repinReach.value.slug}/primary-gauge`, {
+    const res = await fetch(`${apiBase}/api/v1/admin/runs/${repinReach.value.slug}/primary-gauge`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -695,7 +695,7 @@ async function saveMeta() {
     const days = (f.multiDay ?? 1) < 1 ? 1 : (f.multiDay ?? 1)
     const newSlug = f.slug.trim() || repinReach.value.slug
     const token = await getToken()
-    const res = await fetch(`${apiBase}/api/v1/admin/reaches/${repinReach.value.slug}/meta`, {
+    const res = await fetch(`${apiBase}/api/v1/admin/runs/${repinReach.value.slug}/meta`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({
@@ -773,7 +773,7 @@ async function fetchRiverName() {
     if (!nameRes.ok) return
     const nameData = await nameRes.json()
     if (!nameData.river_name) return
-    const assignRes = await fetch(`${apiBase}/api/v1/admin/reaches/${repinReach.value.slug}/auto-river`, {
+    const assignRes = await fetch(`${apiBase}/api/v1/admin/runs/${repinReach.value.slug}/auto-river`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ river_name: nameData.river_name, gnis_id: nameData.gnis_id ?? '' }),
@@ -793,7 +793,7 @@ async function saveFlowLines() {
   repinError.value = ''; repinSuccess.value = ''
   try {
     const token = await getToken()
-    const res = await fetch(`${apiBase}/api/v1/admin/reaches/${repinReach.value.slug}/nldi-centerline-by-comid`, {
+    const res = await fetch(`${apiBase}/api/v1/admin/runs/${repinReach.value.slug}/nldi-centerline-by-comid`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({
@@ -830,7 +830,7 @@ async function generateDescription() {
   repinDescMsg.value = ''
   try {
     const token = await getToken()
-    const res = await fetch(`${apiBase}/api/v1/admin/reaches/${repinReach.value.slug}/generate-description`, {
+    const res = await fetch(`${apiBase}/api/v1/admin/runs/${repinReach.value.slug}/generate-description`, {
       method: 'POST',
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
@@ -850,7 +850,7 @@ async function saveDescription() {
   repinDescMsg.value = ''
   try {
     const token = await getToken()
-    const res = await fetch(`${apiBase}/api/v1/admin/reaches/${repinReach.value.slug}`, {
+    const res = await fetch(`${apiBase}/api/v1/admin/runs/${repinReach.value.slug}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({ description: repinDescEdit.value || null }),

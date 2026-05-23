@@ -32,7 +32,7 @@
             :class="activeTab === tab.key
               ? 'border-primary-500 text-primary-600 dark:text-primary-400'
               : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
-            @click="activeTab = tab.key; if (tab.key === 'corrections') loadCorrections(); if (tab.key === 'gauges' && adminGauges.length === 0) loadAdminGauges()"
+            @click="activeTab = tab.key; if (tab.key === 'corrections') loadCorrections(); if (tab.key === 'gauges' && adminGauges.length === 0) loadAdminGauges(); if (tab.key === 'flags') loadFlags()"
           >{{ tab.label }}</button>
         </div>
 
@@ -44,12 +44,11 @@
               <template v-if="unassignedReaches.length"> · <span class="text-amber-500">{{ unassignedReaches.length }} unassigned</span></template>
             </p>
             <div class="flex items-center gap-2">
-              <UButton size="xs" variant="outline" color="neutral" icon="i-heroicons-plus" @click="authorModalOpen = true">New reach</UButton>
               <UButton size="xs" icon="i-heroicons-plus" @click="createRiverOpen = true">New river</UButton>
             </div>
           </div>
 
-          <UInput v-model="riverSearch" icon="i-heroicons-magnifying-glass" placeholder="Search reaches…" class="mb-3" />
+          <UInput v-model="riverSearch" icon="i-heroicons-magnifying-glass" placeholder="Search runs…" class="mb-3" />
 
           <div v-if="riversLoading" class="space-y-2">
             <div v-for="i in 5" :key="i" class="h-12 rounded-lg bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
@@ -149,11 +148,10 @@
                             ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
                             : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400'"
                         >{{ reach.has_centerline ? 'Line ✓' : 'No line' }}</span>
-                        <UButton size="xs" variant="outline" color="error" @click.stop="deleteReachFromGroup(stateGroup.state, river.river_id, reach.slug, reach.common_name ?? reach.name)">Delete</UButton>
-                        <NuxtLink :to="`/reaches/${reach.slug}/edit`" class="text-xs text-primary-500 hover:underline">Edit</NuxtLink>
+                        <NuxtLink :to="`/runs/${reach.slug}`" class="text-xs text-primary-500 hover:underline">View</NuxtLink>
                       </div>
                     </div>
-                    <div v-if="river.reaches.length === 0" class="px-6 py-4 text-center text-sm text-neutral-400">No reaches in this state</div>
+                    <div v-if="river.reaches.length === 0" class="px-6 py-4 text-center text-sm text-neutral-400">No runs in this state</div>
                   </div>
                 </div>
               </template>
@@ -190,7 +188,7 @@
               >
                 <div class="flex-1 min-w-0">
                   <p class="text-sm font-medium text-amber-800 dark:text-amber-300">Unassigned</p>
-                  <p class="text-xs text-amber-600 dark:text-amber-500">No river association — assign via reach edit page</p>
+                  <p class="text-xs text-amber-600 dark:text-amber-500">No river association — assign via run edit page</p>
                 </div>
                 <span class="text-xs text-amber-600 dark:text-amber-400 shrink-0">{{ unassignedReaches.length }} reach{{ unassignedReaches.length !== 1 ? 'es' : '' }}</span>
                 <svg class="w-4 h-4 text-amber-400 shrink-0 transition-transform" :class="unassignedExpanded ? 'rotate-90' : ''" viewBox="0 0 20 20" fill="currentColor">
@@ -216,8 +214,7 @@
                         ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
                         : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400'"
                     >{{ reach.has_centerline ? 'Line ✓' : 'No line' }}</span>
-                    <UButton size="xs" variant="outline" color="error" @click="deleteReachFromGroup('', '', reach.slug, reach.common_name ?? reach.name)">Delete</UButton>
-                    <NuxtLink :to="`/reaches/${reach.slug}/edit`" class="text-xs text-primary-500 hover:underline">Edit</NuxtLink>
+                    <NuxtLink :to="`/runs/${reach.slug}`" class="text-xs text-primary-500 hover:underline">View</NuxtLink>
                   </div>
                 </div>
               </div>
@@ -395,6 +392,71 @@
             <div v-if="userRoles.length === 0" class="px-4 py-8 text-center text-sm text-neutral-400">No role assignments</div>
           </div>
         </div>
+
+        <!-- Flags tab -->
+        <div v-if="activeTab === 'flags'">
+          <div class="flex items-center justify-between mb-4">
+            <p class="text-sm text-neutral-500">Open abuse reports</p>
+            <button class="text-xs text-neutral-400 hover:text-neutral-600 transition-colors" @click="loadFlags">Refresh</button>
+          </div>
+
+          <div v-if="flagsLoading" class="space-y-2">
+            <div v-for="i in 3" :key="i" class="h-14 rounded-lg bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+          </div>
+
+          <div v-else-if="flags.length === 0" class="py-10 text-center text-sm text-neutral-400">
+            No open flags.
+          </div>
+
+          <div v-else class="divide-y divide-neutral-100 dark:divide-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+            <div
+              v-for="flag in flags"
+              :key="flag.id"
+              class="flex items-start gap-3 px-4 py-3 bg-white dark:bg-neutral-900"
+            >
+              <div class="flex-1 min-w-0 space-y-0.5">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-xs font-medium text-neutral-700 dark:text-neutral-300 truncate">
+                    {{ flag.target_name || flag.target_id.slice(0, 8) }}
+                  </span>
+                  <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide"
+                    :class="flag.target_type === 'run'
+                      ? 'bg-primary-100 dark:bg-primary-950 text-primary-600 dark:text-primary-400'
+                      : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500'"
+                  >{{ flag.target_type }}</span>
+                  <span class="text-[10px] text-neutral-400 uppercase tracking-wide">{{ flag.reason }}</span>
+                </div>
+                <p class="text-xs text-neutral-400">
+                  @{{ flag.reporter_handle }}
+                  <span class="text-neutral-300 dark:text-neutral-600 mx-1">·</span>
+                  {{ new Date(flag.created_at).toLocaleDateString() }}
+                </p>
+                <p v-if="flag.note" class="text-xs text-neutral-500 italic">{{ flag.note }}</p>
+              </div>
+              <div class="flex items-center gap-1 shrink-0">
+                <NuxtLink
+                  v-if="flag.target_slug"
+                  :to="flag.target_type === 'run' ? `/runs/u/${flag.target_id}` : `/reports/${flag.target_id}`"
+                  target="_blank"
+                  class="p-1.5 rounded text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
+                  title="View"
+                >
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                </NuxtLink>
+                <button
+                  class="px-2 py-1 rounded text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-200 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-400 transition-colors"
+                  title="Dismiss — no action needed"
+                  @click="resolveFlag(flag.id, 'dismiss')"
+                >Dismiss</button>
+                <button
+                  class="px-2 py-1 rounded text-xs text-red-500 hover:text-red-700 border border-red-200 dark:border-red-900 hover:border-red-400 transition-colors"
+                  title="Remove content"
+                  @click="resolveFlag(flag.id, 'action')"
+                >Remove</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </template>
     </main>
 
@@ -483,38 +545,6 @@
       </template>
     </UModal>
 
-    <!-- New reach modal -->
-    <Teleport to="body">
-      <Transition
-        enter-active-class="transition-opacity duration-150"
-        enter-from-class="opacity-0"
-        enter-to-class="opacity-100"
-        leave-active-class="transition-opacity duration-100"
-        leave-from-class="opacity-100"
-        leave-to-class="opacity-0"
-      >
-        <div
-          v-if="authorModalOpen"
-          class="fixed inset-0 z-50 flex flex-col bg-neutral-50 dark:bg-neutral-950 overflow-y-auto"
-        >
-          <div class="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-white/90 dark:bg-neutral-950/90 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
-            <h2 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">New reach</h2>
-            <button
-              class="p-1.5 rounded-md text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-              @click="authorModalOpen = false"
-            >
-              <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <path d="M6 6l8 8M14 6l-8 8"/>
-              </svg>
-            </button>
-          </div>
-          <div class="flex-1 max-w-5xl w-full mx-auto px-4 py-6">
-            <ReachAuthor @created="onAuthorCreated" @cancel="authorModalOpen = false" />
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
-
     <!-- Assign role modal -->
     <UModal v-model:open="assignRoleOpen" title="Assign role">
       <template #body>
@@ -553,15 +583,6 @@ definePageMeta({ ssr: false })
 
 const { isAdmin, isDataAdmin, loadAdminRoles, getToken } = useAuth()
 const { apiBase } = useRuntimeConfig().public
-const router = useRouter()
-
-// ── New reach modal ───────────────────────────────────────────────────────────
-const authorModalOpen = ref(false)
-
-function onAuthorCreated(slug: string) {
-  authorModalOpen.value = false
-  router.push(`/reaches/${slug}/edit`)
-}
 
 // Auth readiness — wait for roles to load before showing gated UI
 const authReady = ref(false)
@@ -604,6 +625,7 @@ const visibleTabs = computed(() => {
   tabs.push({ key: 'corrections', label: pendingCorrectionsCount.value > 0 ? `Needs Review (${pendingCorrectionsCount.value})` : 'Needs Review' })
   tabs.push({ key: 'gauges', label: 'Gauges' })
   if (isAdmin.value) tabs.push({ key: 'users', label: 'Users' })
+  tabs.push({ key: 'flags', label: openFlagCount.value > 0 ? `Flags (${openFlagCount.value})` : 'Flags' })
   return tabs
 })
 
@@ -703,8 +725,8 @@ async function loadRivers() {
   try {
     const [rRes, uRes, gRes] = await Promise.all([
       fetch(`${apiBase}/api/v1/admin/rivers`, { headers: { Authorization: `Bearer ${token}` } }),
-      fetch(`${apiBase}/api/v1/admin/reaches/unassigned`, { headers: { Authorization: `Bearer ${token}` } }),
-      fetch(`${apiBase}/api/v1/admin/reaches/grouped`, { headers: { Authorization: `Bearer ${token}` } }),
+      fetch(`${apiBase}/api/v1/admin/runs/unassigned`, { headers: { Authorization: `Bearer ${token}` } }),
+      fetch(`${apiBase}/api/v1/admin/runs/grouped`, { headers: { Authorization: `Bearer ${token}` } }),
     ])
     if (rRes.ok) rivers.value = await rRes.json()
     if (uRes.ok) unassignedReaches.value = await uRes.json()
@@ -743,12 +765,12 @@ async function moveReach(state: string, riverId: string, reachIdx: number, direc
 
   const token = await getToken()
   await Promise.all([
-    fetch(`${apiBase}/api/v1/admin/reaches/${a.slug}`, {
+    fetch(`${apiBase}/api/v1/admin/runs/${a.slug}`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ river_order: orderB }),
     }),
-    fetch(`${apiBase}/api/v1/admin/reaches/${b.slug}`, {
+    fetch(`${apiBase}/api/v1/admin/runs/${b.slug}`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ river_order: orderA }),
@@ -756,23 +778,6 @@ async function moveReach(state: string, riverId: string, reachIdx: number, direc
   ])
 }
 
-async function deleteReachFromGroup(state: string, riverId: string, reachSlug: string, displayName: string) {
-  if (!confirm(`Permanently delete "${displayName}"?\n\nThis removes all rapids, access points, and features. Gauges are unlinked but kept.`)) return
-  const token = await getToken()
-  const res = await fetch(`${apiBase}/api/v1/reaches/${reachSlug}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) { alert(`Delete failed: ${res.status}`); return }
-  // Remove optimistically from grouped state, then full refresh
-  const sg = groupedReaches.value.find(s => s.state === state)
-  if (sg) {
-    const rv = sg.rivers.find(r => r.river_id === riverId)
-    if (rv) rv.reaches = rv.reaches.filter(r => r.slug !== reachSlug)
-    groupedReaches.value = [...groupedReaches.value]
-  }
-  loadRivers()
-}
 
 const reorderingRiver = ref<string | null>(null)
 async function reorderReaches(riverSlug: string) {
@@ -1161,5 +1166,42 @@ function gaugeHealthClass(h: string): string {
 watch(activeTab, (tab) => {
   if (tab === 'gauges' && adminGauges.value.length === 0) loadAdminGauges()
 })
+
+// ── Abuse Flags ───────────────────────────────────────────────────────────────
+interface AbuseFlag {
+  id: string; target_type: string; target_id: string
+  reporter_id: string; reporter_handle: string
+  reason: string; note?: string; created_at: string
+  target_name?: string; target_slug?: string
+}
+
+const flags = ref<AbuseFlag[]>([])
+const flagsLoading = ref(false)
+const openFlagCount = computed(() => flags.value.length)
+
+async function loadFlags() {
+  flagsLoading.value = true
+  try {
+    const token = await getToken()
+    const res = await fetch(`${apiBase}/api/v1/admin/moderation/queue`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    flags.value = data.flags ?? []
+  } finally {
+    flagsLoading.value = false
+  }
+}
+
+async function resolveFlag(flagId: string, action: 'dismiss' | 'action') {
+  const token = await getToken()
+  const path = action === 'dismiss' ? 'dismiss' : 'action'
+  await fetch(`${apiBase}/api/v1/admin/moderation/flags/${flagId}/${path}`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  flags.value = flags.value.filter(f => f.id !== flagId)
+}
 
 </script>

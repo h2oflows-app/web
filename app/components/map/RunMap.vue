@@ -440,7 +440,7 @@ onMounted(async () => {
   })
 
 
-  map.on('error', (e) => { console.warn('[ReachMap]', e.error?.message ?? e) })
+  map.on('error', (e) => { console.warn('[RunMap]', e.error?.message ?? e) })
 
   // Scale rapid text labels with zoom level (larger when zoomed in on a rapid)
   map.on('zoom', () => {
@@ -508,7 +508,7 @@ function addLayers() {
   })
   map.on('click', 'other-reaches-hit', (e) => {
     const slug = e.features?.[0]?.properties?.slug
-    if (slug) router.push(`/reaches/${slug}`)
+    if (slug) router.push(`/runs/${slug}`)
   })
   map.on('mouseenter', 'other-reaches-hit', (e) => {
     if (!map) return
@@ -941,7 +941,7 @@ ${pts}
   </trk>`
   }
 
-  const canonical = props.slug ? `https://h2oflows.app/reaches/${props.slug}` : ''
+  const canonical = props.slug ? `https://h2oflows.app/runs/${props.slug}` : ''
   const gpx = `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="H2OFlows" xmlns="http://www.topografix.com/GPX/1/1">
   <metadata>
