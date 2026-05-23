@@ -32,7 +32,7 @@
             :class="activeTab === tab.key
               ? 'border-primary-500 text-primary-600 dark:text-primary-400'
               : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
-            @click="activeTab = tab.key; if (tab.key === 'corrections') loadCorrections(); if (tab.key === 'gauges' && adminGauges.length === 0) loadAdminGauges()"
+            @click="activeTab = tab.key; if (tab.key === 'corrections') loadCorrections(); if (tab.key === 'gauges' && adminGauges.length === 0) loadAdminGauges(); if (tab.key === 'flags') loadFlags()"
           >{{ tab.label }}</button>
         </div>
 
@@ -392,6 +392,71 @@
             <div v-if="userRoles.length === 0" class="px-4 py-8 text-center text-sm text-neutral-400">No role assignments</div>
           </div>
         </div>
+
+        <!-- Flags tab -->
+        <div v-if="activeTab === 'flags'">
+          <div class="flex items-center justify-between mb-4">
+            <p class="text-sm text-neutral-500">Open abuse reports</p>
+            <button class="text-xs text-neutral-400 hover:text-neutral-600 transition-colors" @click="loadFlags">Refresh</button>
+          </div>
+
+          <div v-if="flagsLoading" class="space-y-2">
+            <div v-for="i in 3" :key="i" class="h-14 rounded-lg bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+          </div>
+
+          <div v-else-if="flags.length === 0" class="py-10 text-center text-sm text-neutral-400">
+            No open flags.
+          </div>
+
+          <div v-else class="divide-y divide-neutral-100 dark:divide-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+            <div
+              v-for="flag in flags"
+              :key="flag.id"
+              class="flex items-start gap-3 px-4 py-3 bg-white dark:bg-neutral-900"
+            >
+              <div class="flex-1 min-w-0 space-y-0.5">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-xs font-medium text-neutral-700 dark:text-neutral-300 truncate">
+                    {{ flag.target_name || flag.target_id.slice(0, 8) }}
+                  </span>
+                  <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide"
+                    :class="flag.target_type === 'run'
+                      ? 'bg-primary-100 dark:bg-primary-950 text-primary-600 dark:text-primary-400'
+                      : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500'"
+                  >{{ flag.target_type }}</span>
+                  <span class="text-[10px] text-neutral-400 uppercase tracking-wide">{{ flag.reason }}</span>
+                </div>
+                <p class="text-xs text-neutral-400">
+                  @{{ flag.reporter_handle }}
+                  <span class="text-neutral-300 dark:text-neutral-600 mx-1">·</span>
+                  {{ new Date(flag.created_at).toLocaleDateString() }}
+                </p>
+                <p v-if="flag.note" class="text-xs text-neutral-500 italic">{{ flag.note }}</p>
+              </div>
+              <div class="flex items-center gap-1 shrink-0">
+                <NuxtLink
+                  v-if="flag.target_slug"
+                  :to="flag.target_type === 'run' ? `/runs/u/${flag.target_id}` : `/reports/${flag.target_id}`"
+                  target="_blank"
+                  class="p-1.5 rounded text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
+                  title="View"
+                >
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                </NuxtLink>
+                <button
+                  class="px-2 py-1 rounded text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-200 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-400 transition-colors"
+                  title="Dismiss — no action needed"
+                  @click="resolveFlag(flag.id, 'dismiss')"
+                >Dismiss</button>
+                <button
+                  class="px-2 py-1 rounded text-xs text-red-500 hover:text-red-700 border border-red-200 dark:border-red-900 hover:border-red-400 transition-colors"
+                  title="Remove content"
+                  @click="resolveFlag(flag.id, 'action')"
+                >Remove</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </template>
     </main>
 
@@ -560,6 +625,7 @@ const visibleTabs = computed(() => {
   tabs.push({ key: 'corrections', label: pendingCorrectionsCount.value > 0 ? `Needs Review (${pendingCorrectionsCount.value})` : 'Needs Review' })
   tabs.push({ key: 'gauges', label: 'Gauges' })
   if (isAdmin.value) tabs.push({ key: 'users', label: 'Users' })
+  tabs.push({ key: 'flags', label: openFlagCount.value > 0 ? `Flags (${openFlagCount.value})` : 'Flags' })
   return tabs
 })
 
@@ -1100,5 +1166,42 @@ function gaugeHealthClass(h: string): string {
 watch(activeTab, (tab) => {
   if (tab === 'gauges' && adminGauges.value.length === 0) loadAdminGauges()
 })
+
+// ── Abuse Flags ───────────────────────────────────────────────────────────────
+interface AbuseFlag {
+  id: string; target_type: string; target_id: string
+  reporter_id: string; reporter_handle: string
+  reason: string; note?: string; created_at: string
+  target_name?: string; target_slug?: string
+}
+
+const flags = ref<AbuseFlag[]>([])
+const flagsLoading = ref(false)
+const openFlagCount = computed(() => flags.value.length)
+
+async function loadFlags() {
+  flagsLoading.value = true
+  try {
+    const token = await getToken()
+    const res = await fetch(`${apiBase}/api/v1/admin/moderation/queue`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    flags.value = data.flags ?? []
+  } finally {
+    flagsLoading.value = false
+  }
+}
+
+async function resolveFlag(flagId: string, action: 'dismiss' | 'action') {
+  const token = await getToken()
+  const path = action === 'dismiss' ? 'dismiss' : 'action'
+  await fetch(`${apiBase}/api/v1/admin/moderation/flags/${flagId}/${path}`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  flags.value = flags.value.filter(f => f.id !== flagId)
+}
 
 </script>
