@@ -44,7 +44,6 @@
               <template v-if="unassignedReaches.length"> · <span class="text-amber-500">{{ unassignedReaches.length }} unassigned</span></template>
             </p>
             <div class="flex items-center gap-2">
-              <UButton size="xs" variant="outline" color="neutral" icon="i-heroicons-plus" @click="authorModalOpen = true">New Run</UButton>
               <UButton size="xs" icon="i-heroicons-plus" @click="createRiverOpen = true">New river</UButton>
             </div>
           </div>
@@ -149,8 +148,7 @@
                             ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
                             : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400'"
                         >{{ reach.has_centerline ? 'Line ✓' : 'No line' }}</span>
-                        <UButton size="xs" variant="outline" color="error" @click.stop="deleteReachFromGroup(stateGroup.state, river.river_id, reach.slug, reach.common_name ?? reach.name)">Delete</UButton>
-                        <NuxtLink :to="`/runs/${reach.slug}/edit`" class="text-xs text-primary-500 hover:underline">Edit</NuxtLink>
+                        <NuxtLink :to="`/runs/${reach.slug}`" class="text-xs text-primary-500 hover:underline">View</NuxtLink>
                       </div>
                     </div>
                     <div v-if="river.reaches.length === 0" class="px-6 py-4 text-center text-sm text-neutral-400">No runs in this state</div>
@@ -216,8 +214,7 @@
                         ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
                         : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400'"
                     >{{ reach.has_centerline ? 'Line ✓' : 'No line' }}</span>
-                    <UButton size="xs" variant="outline" color="error" @click="deleteReachFromGroup('', '', reach.slug, reach.common_name ?? reach.name)">Delete</UButton>
-                    <NuxtLink :to="`/runs/${reach.slug}/edit`" class="text-xs text-primary-500 hover:underline">Edit</NuxtLink>
+                    <NuxtLink :to="`/runs/${reach.slug}`" class="text-xs text-primary-500 hover:underline">View</NuxtLink>
                   </div>
                 </div>
               </div>
@@ -483,38 +480,6 @@
       </template>
     </UModal>
 
-    <!-- New reach modal -->
-    <Teleport to="body">
-      <Transition
-        enter-active-class="transition-opacity duration-150"
-        enter-from-class="opacity-0"
-        enter-to-class="opacity-100"
-        leave-active-class="transition-opacity duration-100"
-        leave-from-class="opacity-100"
-        leave-to-class="opacity-0"
-      >
-        <div
-          v-if="authorModalOpen"
-          class="fixed inset-0 z-50 flex flex-col bg-neutral-50 dark:bg-neutral-950 overflow-y-auto"
-        >
-          <div class="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-white/90 dark:bg-neutral-950/90 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
-            <h2 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">New Run</h2>
-            <button
-              class="p-1.5 rounded-md text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-              @click="authorModalOpen = false"
-            >
-              <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <path d="M6 6l8 8M14 6l-8 8"/>
-              </svg>
-            </button>
-          </div>
-          <div class="flex-1 max-w-5xl w-full mx-auto px-4 py-6">
-            <RunAuthor @created="onAuthorCreated" @cancel="authorModalOpen = false" />
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
-
     <!-- Assign role modal -->
     <UModal v-model:open="assignRoleOpen" title="Assign role">
       <template #body>
@@ -553,15 +518,6 @@ definePageMeta({ ssr: false })
 
 const { isAdmin, isDataAdmin, loadAdminRoles, getToken } = useAuth()
 const { apiBase } = useRuntimeConfig().public
-const router = useRouter()
-
-// ── New reach modal ───────────────────────────────────────────────────────────
-const authorModalOpen = ref(false)
-
-function onAuthorCreated(slug: string) {
-  authorModalOpen.value = false
-  router.push(`/runs/${slug}/edit`)
-}
 
 // Auth readiness — wait for roles to load before showing gated UI
 const authReady = ref(false)
@@ -756,23 +712,6 @@ async function moveReach(state: string, riverId: string, reachIdx: number, direc
   ])
 }
 
-async function deleteReachFromGroup(state: string, riverId: string, reachSlug: string, displayName: string) {
-  if (!confirm(`Permanently delete "${displayName}"?\n\nThis removes all rapids, access points, and features. Gauges are unlinked but kept.`)) return
-  const token = await getToken()
-  const res = await fetch(`${apiBase}/api/v1/reaches/${reachSlug}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) { alert(`Delete failed: ${res.status}`); return }
-  // Remove optimistically from grouped state, then full refresh
-  const sg = groupedReaches.value.find(s => s.state === state)
-  if (sg) {
-    const rv = sg.rivers.find(r => r.river_id === riverId)
-    if (rv) rv.reaches = rv.reaches.filter(r => r.slug !== reachSlug)
-    groupedReaches.value = [...groupedReaches.value]
-  }
-  loadRivers()
-}
 
 const reorderingRiver = ref<string | null>(null)
 async function reorderReaches(riverSlug: string) {

@@ -314,6 +314,12 @@
               >{{ riverNameLooking ? 'Looking up…' : 'Lookup from NLDI' }}</button>
             </div>
             <input v-model="form.riverName" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="e.g. South Platte River" />
+            <p
+              v-if="reach?.river_basin || reach?.river_state_abbr"
+              class="mt-1 text-xs text-neutral-400"
+            >
+              {{ [reach.river_state_abbr, reach.river_basin].filter(Boolean).join(' · ') }}
+            </p>
           </div>
 
           <div>
