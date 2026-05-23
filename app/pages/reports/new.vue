@@ -53,7 +53,10 @@
                 class="w-full text-left px-3 py-2 text-sm hover:bg-primary-50 dark:hover:bg-primary-950/30 flex flex-col gap-0.5"
                 @mousedown.prevent="selectReach(r)"
               >
-                <span class="font-medium text-neutral-800 dark:text-neutral-100">{{ reachDisplayName(r) }}</span>
+                <span class="font-medium text-neutral-800 dark:text-neutral-100 flex items-center gap-1.5">
+                  {{ reachDisplayName(r) }}
+                  <span v-if="r._isUserRun" class="text-[10px] font-normal px-1 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400">My Run</span>
+                </span>
                 <span v-if="r.river_name" class="text-xs text-neutral-400">{{ r.river_name }}</span>
               </button>
             </div>
@@ -228,6 +231,7 @@ onMounted(() => { authReady.value = true })
 const today = new Date().toISOString().slice(0, 10)
 
 const prefillSlug = computed(() => route.query.reach as string | undefined)
+const prefillRunSlug = computed(() => route.query.run as string | undefined)
 
 const profileHandle = ref('')
 
@@ -244,6 +248,7 @@ interface ReachItem {
   common_name?: string | null
   put_in_name?: string | null
   take_out_name?: string | null
+  _isUserRun?: boolean
 }
 
 const allReaches = ref<ReachItem[]>([])
@@ -278,18 +283,28 @@ function onReachBlur() {
 }
 
 onMounted(async () => {
-  const [reaches, profile] = await Promise.all([
+  const token = await getToken()
+  const authHeader = token ? { Authorization: `Bearer ${token}` } : {}
+
+  const [reaches, userRuns, profile] = await Promise.all([
     $fetch<ReachItem[]>(`${config.public.apiBase}/api/v1/reaches`).catch(() => [] as ReachItem[]),
-    getToken().then(token => fetch(`${config.public.apiBase}/api/v1/me/profile`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    }).then(r => r.ok ? r.json() : null).catch(() => null)),
+    token
+      ? fetch(`${config.public.apiBase}/api/v1/me/reaches`, { headers: authHeader })
+          .then(r => r.ok ? r.json() : []).catch(() => [])
+      : Promise.resolve([]),
+    fetch(`${config.public.apiBase}/api/v1/me/profile`, { headers: authHeader })
+      .then(r => r.ok ? r.json() : null).catch(() => null),
   ])
 
-  allReaches.value = reaches ?? []
+  const taggedUserRuns = ((userRuns as ReachItem[]) ?? []).map(r => ({ ...r, _isUserRun: true }))
+  allReaches.value = [...(reaches ?? []), ...taggedUserRuns]
   profileHandle.value = profile?.handle ?? ''
 
-  if (prefillSlug.value) {
-    const found = allReaches.value.find(r => r.slug === prefillSlug.value)
+  if (prefillRunSlug.value) {
+    const found = allReaches.value.find(r => r.slug === prefillRunSlug.value && r._isUserRun)
+    if (found) selectReach(found)
+  } else if (prefillSlug.value) {
+    const found = allReaches.value.find(r => r.slug === prefillSlug.value && !r._isUserRun)
     if (found) selectReach(found)
   }
 })
@@ -328,10 +343,10 @@ async function submit(shareAfter = false) {
     }
     if (form.value.report_time) body.report_time = form.value.report_time
 
-    const res = await fetch(
-      `${config.public.apiBase}/api/v1/reaches/${selectedReach.value.slug}/reports`,
-      { method: 'POST', headers, body: JSON.stringify(body) }
-    )
+    const endpoint = selectedReach.value._isUserRun
+      ? `${config.public.apiBase}/api/v1/me/reaches/${selectedReach.value.slug}/reports`
+      : `${config.public.apiBase}/api/v1/reaches/${selectedReach.value.slug}/reports`
+    const res = await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify(body) })
     const data = await res.json()
     if (!res.ok) {
       error.value = data.error ?? 'Failed to submit report'
