@@ -48,7 +48,7 @@ export default defineNuxtConfig({
     redirectOptions: {
       login:    '/login',
       callback: '/confirm',
-      exclude:  ['/', '/map', '/reaches/*', '/dashboard'],
+      exclude:  ['/', '/map', '/runs/*', '/dashboard'],
     },
     // Use implicit flow — tokens come back in the URL hash, no PKCE code
     // verifier needed. Required for static hosting (Netlify) where sessionStorage

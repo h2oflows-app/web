@@ -30,7 +30,7 @@
           <input
             v-model="query"
             type="search"
-            placeholder="Search reaches, rivers, basins…"
+            placeholder="Search runs, rivers, basins…"
             class="flex-1 text-sm bg-neutral-100 dark:bg-neutral-900 rounded-md px-3 py-1.5 text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
           <!-- Back to map (mobile only, shown when list is visible) -->
@@ -68,14 +68,14 @@
           >
             <button
               class="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-              @click="reachPickerOpen = false; navigateTo('/my/reaches/new')"
+              @click="reachPickerOpen = false; navigateTo('/my/runs/new')"
             >
               <svg class="w-4 h-4 text-primary-500 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/>
               </svg>
               <div>
                 <p class="font-medium text-neutral-800 dark:text-neutral-100">Create new</p>
-                <p class="text-xs text-neutral-400">Build your own reach</p>
+                <p class="text-xs text-neutral-400">Build your own run</p>
               </div>
             </button>
             <div class="border-t border-neutral-100 dark:border-neutral-800" />
@@ -116,8 +116,8 @@
           <div v-if="userReachesLoading" class="flex-1 flex items-center justify-center text-sm text-neutral-400">Loading…</div>
           <div v-else-if="userReachesError" class="flex-1 flex items-center justify-center text-sm text-red-400">{{ userReachesError }}</div>
           <div v-else-if="userReaches.length === 0" class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-neutral-400">
-            <span>No saved reaches yet.</span>
-            <NuxtLink to="/my/reaches/new" class="text-primary-500 hover:underline">Create your first reach →</NuxtLink>
+            <span>No saved runs yet.</span>
+            <NuxtLink to="/my/runs/new" class="text-primary-500 hover:underline">Create your first run →</NuxtLink>
           </div>
           <div v-else-if="query.length >= 2 && userRiverGroups.length === 0" class="flex-1 flex items-center justify-center text-sm text-neutral-400">
             No results for "{{ query }}"
@@ -182,7 +182,7 @@
                       <!-- Bulk add all reaches in this river -->
                       <button
                         class="shrink-0 px-2 py-1.5 opacity-60 sm:opacity-0 sm:group-hover/river:opacity-100 hover:opacity-100 transition-opacity text-neutral-400 hover:text-primary-500 dark:hover:text-primary-400"
-                        :aria-label="`Add all ${river.name} reaches to dashboard`"
+                        :aria-label="`Add all ${river.name} runs to dashboard`"
                         @click.stop="addAllRiverReaches(river.reaches)"
                       >
                         <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -269,9 +269,9 @@
                         </div>
                         <!-- Reach detail link -->
                         <NuxtLink
-                          :to="`/reaches/${reach.slug}`"
+                          :to="`/runs/${reach.slug}`"
                           class="shrink-0 p-1 rounded text-neutral-400 dark:text-neutral-500 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
-                          aria-label="View reach"
+                          aria-label="View run"
                           @click.stop
                         >
                           <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
@@ -362,9 +362,9 @@
                 </div>
               </div>
               <NuxtLink
-                :to="`/my/reaches/${reach.slug}`"
+                :to="`/my/runs/${reach.slug}`"
                 class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-opacity opacity-60 sm:opacity-0 sm:group-hover:opacity-100 hover:opacity-100"
-                aria-label="View reach"
+                aria-label="View run"
                 @click.stop
               >
                 <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
@@ -393,11 +393,11 @@
             class="px-3 py-1.5 transition-colors"
             :class="mode === 'user' ? 'bg-primary-500 text-white' : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'"
             @click="mode = 'user'"
-          >My Reaches</button>
+          >My Runs</button>
         </div>
 
         <ClientOnly>
-          <ReachesMap
+          <RunsMap
             ref="mapRef"
             :hovered-slug="hoveredSlug"
             :source-url="mapSourceUrl"
@@ -432,8 +432,8 @@
     mode="reach"
   />
 
-  <!-- Import reach modal -->
-  <ReachImportModal v-model:open="importModalOpen" @imported="onReachImported" />
+  <!-- Import run modal -->
+  <RunImportModal v-model:open="importModalOpen" @imported="onReachImported" />
 
   <!-- New reach modal (admin only) -->
   <Teleport to="body">
@@ -451,7 +451,7 @@
       >
         <!-- Modal header -->
         <div class="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-white/90 dark:bg-neutral-950/90 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
-          <h2 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">New reach</h2>
+          <h2 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">New Run</h2>
           <button
             class="p-1.5 rounded-md text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
             @click="authorModalOpen = false"
@@ -463,7 +463,7 @@
         </div>
         <!-- Author component -->
         <div class="flex-1 max-w-5xl w-full mx-auto px-4 py-6">
-          <ReachAuthor @created="onAuthorCreated" @cancel="authorModalOpen = false" />
+          <RunAuthor @created="onAuthorCreated" @cancel="authorModalOpen = false" />
         </div>
       </div>
     </Transition>
@@ -472,8 +472,8 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
-import type { ReachListItem as MapReachItem } from '~/components/map/ReachesMap.vue'
-import type { ReachListItem } from '~/components/reach/ReachBrowseRow.vue'
+import type { ReachListItem as MapReachItem } from '~/components/map/RunsMap.vue'
+import type { ReachListItem } from '~/components/reach/RunBrowseRow.vue'
 import type { WatchedGauge } from '~/stores/watchlist'
 import { useWatchlistStore } from '~/stores/watchlist'
 
@@ -505,7 +505,7 @@ const importModalOpen  = ref(false)
 
 function onAuthorCreated(slug: string) {
   authorModalOpen.value = false
-  router.push(`/reaches/${slug}/edit`)
+  router.push(`/runs/${slug}/edit`)
 }
 
 function onNewReachClick() {
@@ -610,8 +610,8 @@ async function loadUserReaches() {
   try {
     const token = await getToken()
     mapToken.value = token
-    if (!token) { userReachesError.value = 'Sign in to view your reaches.'; return }
-    mapSourceUrl.value = `${apiBase}/api/v1/me/reaches/map/all`
+    if (!token) { userReachesError.value = 'Sign in to view your runes.'; return }
+    mapSourceUrl.value = `${apiBase}/api/v1/me/runs/map/all`
     const res = await fetch(`${apiBase}/api/v1/me/reaches`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -790,7 +790,7 @@ function onMapHover(slug: string | null) {
 
 // Map reach click → navigate to reach page
 function onReachClick(slug: string) {
-  navigateTo(mode.value === 'user' ? `/my/reaches/${slug}` : `/reaches/${slug}`)
+  navigateTo(mode.value === 'user' ? `/my/runs/${slug}` : `/runs/${slug}`)
 }
 
 // List row click → fly map to reach, hide list on mobile

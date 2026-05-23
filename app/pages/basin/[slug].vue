@@ -83,7 +83,7 @@
             >{{ flowBandLabel(null, reach.flow_status) }}</span>
           </div>
           <div v-if="mapData.length === 0 && reachSlugs.length > 0" class="px-4 py-6 text-center text-sm text-neutral-400">
-            Loading reaches…
+            Loading runs…
           </div>
         </section>
 

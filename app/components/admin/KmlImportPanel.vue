@@ -2,7 +2,7 @@
   <div class="space-y-4">
     <div>
       <h2 class="text-sm font-semibold text-neutral-700 dark:text-neutral-200 mb-1">Import KMZ / KML</h2>
-      <p class="text-xs text-neutral-400 mb-3">Upload a KMZ or KML file to enrich existing reaches with access points, rapids, and hazards. Each folder must include a slug placemark matching a reach in the database. Note: this is a global import that may update any reach.</p>
+      <p class="text-xs text-neutral-400 mb-3">Upload a KMZ or KML file to enrich existing runs with access points, rapids, and hazards. Each folder must include a slug placemark matching a run in the database. Note: this is a global import that may update any run.</p>
       <div class="flex items-center gap-3">
         <UButton
           :loading="importing"
@@ -23,10 +23,10 @@
       <div>
         <p class="font-semibold text-neutral-700 dark:text-neutral-200 mb-1">Document / folder structure</p>
         <ul class="list-disc pl-4 space-y-0.5">
-          <li><strong>One folder per reach</strong> — folder name is informational; the <strong>slug placemark</strong> is what links it to the DB</li>
-          <li><strong>Slug placemark</strong> (required): a coordinate-less <code>&lt;Placemark&gt;&lt;name&gt;slug&lt;/name&gt;&lt;description&gt;reach-slug-here&lt;/description&gt;&lt;/Placemark&gt;</code> inside the folder</li>
-          <li>Folders missing a slug placemark are skipped with a warning — create the reach first</li>
-          <li>River name and basin are set from NHD data when the reach is created — no document-level overrides needed</li>
+          <li><strong>One folder per run</strong> — folder name is informational; the <strong>slug placemark</strong> is what links it to the DB</li>
+          <li><strong>Slug placemark</strong> (required): a coordinate-less <code>&lt;Placemark&gt;&lt;name&gt;slug&lt;/name&gt;&lt;description&gt;run-slug-here&lt;/description&gt;&lt;/Placemark&gt;</code> inside the folder</li>
+          <li>Folders missing a slug placemark are skipped with a warning — create the run first</li>
+          <li>River name and basin are set from NHD data when the run is created — no document-level overrides needed</li>
         </ul>
       </div>
       <div>

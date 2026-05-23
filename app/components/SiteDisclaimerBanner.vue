@@ -16,7 +16,7 @@
         <div class="flex-1 text-sm text-amber-900 dark:text-amber-100">
           <p class="font-semibold mb-1">Preview release — verify before you paddle</p>
           <p class="text-xs leading-relaxed">
-            H2OFlows is in early development. Reach data (descriptions, rapid lists, access points,
+            H2OFlows is in early development. Run data (descriptions, rapid lists, access points,
             flow ranges) is manually curated for Colorado rivers by a paddler familiar with the
             region. Coverage outside Colorado is limited. Real-time gauge data from USGS and
             Colorado DWR is unmodified. Always verify conditions with local knowledge, guidebooks,

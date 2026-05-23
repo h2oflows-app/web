@@ -365,7 +365,7 @@ onMounted(() => {
     })
     map!.on('click', 'dash-lines-hit', (e) => {
       const slug = e.features?.[0]?.properties?.slug
-      if (slug) router.push(`/reaches/${slug}`)
+      if (slug) router.push(`/runs/${slug}`)
     })
     map!.on('mouseenter', 'dash-lines-hit', (e) => {
       map!.getCanvas().style.cursor = 'pointer'

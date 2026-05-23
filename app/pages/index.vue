@@ -107,7 +107,7 @@
             >
               <div class="flex items-center justify-between mb-2">
                 <span class="text-xs font-semibold uppercase tracking-wide text-primary-500">{{ result.reach_name }}</span>
-                <NuxtLink :to="`/reaches/${result.reach_slug}`" class="text-xs text-primary-600 dark:text-primary-400 hover:underline font-medium shrink-0">View reach →</NuxtLink>
+                <NuxtLink :to="`/runs/${result.reach_slug}`" class="text-xs text-primary-600 dark:text-primary-400 hover:underline font-medium shrink-0">View reach →</NuxtLink>
               </div>
               <p class="text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed whitespace-pre-wrap mb-3">{{ result.answer }}</p>
               <div class="flex items-center gap-2 flex-wrap">
@@ -137,14 +137,14 @@
         <!-- Framed reach map -->
         <div ref="mapWrapRef" class="relative w-full rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-700 shadow-sm" style="height: 420px;">
           <ClientOnly>
-            <ReachesMap
+            <RunsMap
               ref="mapRef"
               embedded
               :hovered-slug="heroHoveredSlug"
               @reaches-updated="onReachesUpdated"
               @bounds-updated="onBoundsUpdated"
               @hover-changed="slug => heroHoveredSlug = slug"
-              @reach-click="slug => navigateTo(`/reaches/${slug}`)"
+              @reach-click="slug => navigateTo(`/runs/${slug}`)"
               @gauge-add="addGaugeById"
             />
           </ClientOnly>

@@ -95,7 +95,7 @@
       <UButton size="xs" variant="outline" color="neutral" :loading="authorPreviewLoading" @click="previewCenterline">
         {{ authorPreviewCenterline ? 'Refresh preview' : 'Preview centerline' }}
       </UButton>
-      <span v-if="authorPreviewCenterline" class="text-xs text-primary-600 dark:text-primary-400">Dashed line shows trimmed reach</span>
+      <span v-if="authorPreviewCenterline" class="text-xs text-primary-600 dark:text-primary-400">Dashed line shows trimmed run</span>
       <span v-if="authorRiverNameFetching" class="text-xs text-neutral-400 animate-pulse">Looking up river…</span>
     </div>
 
@@ -107,7 +107,7 @@
 
     <!-- Reach form — shown once both ComIDs selected -->
     <div v-if="authorUpComID && authorDownComID" class="mt-4 space-y-3 rounded-xl border border-neutral-200 dark:border-neutral-700 p-4 bg-white dark:bg-neutral-900">
-      <h3 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">New reach details</h3>
+      <h3 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">New run details</h3>
 
       <!-- ComID summary -->
       <div class="grid grid-cols-2 gap-2 text-xs">
@@ -153,7 +153,7 @@
       </div>
 
       <div>
-        <label class="block text-xs text-neutral-500 mb-1">Reach name <span class="text-red-400">*</span></label>
+        <label class="block text-xs text-neutral-500 mb-1">Run name <span class="text-red-400">*</span></label>
         <input v-model="authorForm.name" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="e.g. Lees Ferry to Diamond Creek" />
       </div>
 
@@ -163,7 +163,7 @@
           <input
             v-model="authorForm.slug"
             class="flex-1 rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-xs font-mono"
-            placeholder="auto-generated from river + reach name"
+            placeholder="auto-generated from river + run name"
             @input="authorSlugManual = true"
           />
           <span v-if="authorSlugChecking" class="text-xs text-neutral-400 shrink-0">checking…</span>
@@ -194,7 +194,7 @@
           v-model="authorForm.description"
           rows="4"
           class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm resize-y"
-          placeholder="Overview of the reach — character, season, access notes…"
+          placeholder="Overview of the run — character, season, access notes…"
         />
       </div>
 
@@ -270,7 +270,7 @@
 
       <div v-else class="flex gap-2 justify-end pt-1">
         <UButton size="sm" variant="ghost" color="neutral" @click="onCancel">Cancel</UButton>
-        <UButton size="sm" :disabled="!authorForm.name.trim()" @click="authorGnisConfirm = true">Save reach</UButton>
+        <UButton size="sm" :disabled="!authorForm.name.trim()" @click="authorGnisConfirm = true">Save Run</UButton>
       </div>
     </div>
   </div>
@@ -626,14 +626,14 @@ async function submit() {
     }
 
     if (f.riverName.trim()) {
-      await fetch(`${apiBase}/api/v1/admin/reaches/${slug}/auto-river`, {
+      await fetch(`${apiBase}/api/v1/admin/runs/${slug}/auto-river`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ river_name: f.riverName.trim(), gnis_id: authorGnisId.value }),
       }).catch(() => { /* non-fatal */ })
     }
 
-    await fetch(`${apiBase}/api/v1/admin/reaches/${slug}/nldi-centerline-by-comid`, {
+    await fetch(`${apiBase}/api/v1/admin/runs/${slug}/nldi-centerline-by-comid`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -649,7 +649,7 @@ async function submit() {
     if (authorPendingGauge.value) {
       const { externalId, source, name: gaugeName, lat: gLat, lng: gLng } = authorPendingGauge.value
       try {
-        await fetch(`${apiBase}/api/v1/admin/reaches/${slug}/primary-gauge`, {
+        await fetch(`${apiBase}/api/v1/admin/runs/${slug}/primary-gauge`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ external_id: externalId, source, name: gaugeName, lat: gLat, lng: gLng }),
