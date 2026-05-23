@@ -80,6 +80,20 @@
               </svg>
             </NuxtLink>
 
+            <!-- Fork run (logged-in users) -->
+            <button
+              v-if="isAuthenticated"
+              :disabled="forking"
+              class="flex items-center justify-center p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors disabled:opacity-40"
+              title="Fork this run — create your own copy"
+              @click="forkRun"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/>
+                <path d="M12 7v3m0 0c0 2-2 3-4 3H7m5 0c0 2 2 3 4 3h1"/>
+              </svg>
+            </button>
+
             <!-- Edit (admin only) -->
             <NuxtLink
               v-if="isDataAdmin"
@@ -560,8 +574,9 @@ import { flowBandLabel as flowBandLabelFn } from '~/utils/flowBand'
 const { bandBadgeClass, bandSolid } = useFlowBandPalette()
 
 const route  = useRoute()
+const router = useRouter()
 const config = useRuntimeConfig()
-const { isAuthenticated, isDataAdmin } = useAuth()
+const { isAuthenticated, isDataAdmin, getToken } = useAuth()
 const store  = useWatchlistStore()
 const { addAndSync, removeAndSync } = useWatchlistSync()
 const dashboardsAdd = useDashboards()
@@ -717,6 +732,27 @@ async function loadMoreReports() {
 onMounted(() => fetchReports())
 
 // ---- AI ask -----------------------------------------------------------------
+
+// ── Fork ─────────────────────────────────────────────────────────────────────
+const forking = ref(false)
+async function forkRun() {
+  if (forking.value || !(reach.value as any)?.slug) return
+  forking.value = true
+  try {
+    const token = await getToken()
+    const res = await fetch(
+      `${config.public.apiBase}/api/v1/me/reaches/fork-reach/${(reach.value as any).slug}`,
+      { method: 'POST', headers: { Authorization: `Bearer ${token}` } }
+    )
+    if (!res.ok) throw new Error(`Fork failed: ${res.status}`)
+    const data = await res.json()
+    router.push(`/my/runs/${data.slug}`)
+  } catch (e: any) {
+    alert(e.message ?? 'Fork failed')
+  } finally {
+    forking.value = false
+  }
+}
 
 const askMd        = new MarkdownIt({ html: false, linkify: false, breaks: true })
 const askQuery     = ref('')
