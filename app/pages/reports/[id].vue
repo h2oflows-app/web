@@ -32,6 +32,17 @@
               <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
               Share
             </button>
+            <button
+              v-if="isAuthenticated && !flagDone"
+              class="p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-400 hover:text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+              title="Flag as inappropriate"
+              @click="flagOpen = true"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
+              </svg>
+            </button>
+            <span v-else-if="flagDone" class="text-xs text-red-400">Flagged</span>
             <div class="text-right">
               <div class="text-sm font-medium text-neutral-700 dark:text-neutral-300">{{ formatDate(report.report_date) }}</div>
               <div v-if="report.report_time" class="text-xs text-neutral-400">{{ report.report_time }}</div>
@@ -75,6 +86,35 @@
     </main>
 
     <ShareReportModal v-if="report" :report="report" :open="shareOpen" @close="shareOpen = false" />
+
+    <!-- Flag modal -->
+    <UModal v-model:open="flagOpen" title="Flag this report">
+      <template #body>
+        <div class="space-y-3">
+          <p class="text-sm text-neutral-600 dark:text-neutral-400">Why are you flagging this report?</p>
+          <div class="space-y-1.5">
+            <label v-for="opt in flagReasons" :key="opt.value" class="flex items-center gap-2.5 cursor-pointer">
+              <input type="radio" v-model="flagReason" :value="opt.value" class="accent-primary-500" />
+              <span class="text-sm text-neutral-700 dark:text-neutral-300">{{ opt.label }}</span>
+            </label>
+          </div>
+          <textarea
+            v-model="flagNote"
+            rows="2"
+            maxlength="300"
+            placeholder="Additional context (optional)"
+            class="w-full rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+          <p v-if="flagError" class="text-xs text-red-500">{{ flagError }}</p>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton variant="ghost" color="neutral" @click="flagOpen = false">Cancel</UButton>
+          <UButton color="error" :loading="flagSaving" @click="submitFlag">Submit report</UButton>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
@@ -83,6 +123,8 @@ import MarkdownIt from 'markdown-it'
 
 const route = useRoute()
 const config = useRuntimeConfig()
+const { isAuthenticated, getToken } = useAuth()
+const { apiBase } = config.public
 
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 
@@ -125,6 +167,43 @@ function bandBadgeClass(band: string): string {
   if (band === 'running') return 'text-emerald-600 dark:text-emerald-400'
   if (band === 'high') return 'text-amber-600 dark:text-amber-400'
   return 'text-neutral-500'
+}
+
+// ── Flag ──────────────────────────────────────────────────────────────────────
+
+const flagOpen   = ref(false)
+const flagReason = ref('inappropriate')
+const flagNote   = ref('')
+const flagSaving = ref(false)
+const flagError  = ref('')
+const flagDone   = ref(false)
+
+const flagReasons = [
+  { value: 'inappropriate', label: 'Inappropriate or offensive content' },
+  { value: 'inaccurate',    label: 'Seriously inaccurate / dangerous info' },
+  { value: 'spam',          label: 'Spam or self-promotion' },
+  { value: 'other',         label: 'Other' },
+]
+
+async function submitFlag() {
+  if (!report.value) return
+  flagSaving.value = true; flagError.value = ''
+  try {
+    const token = await getToken()
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (token) headers.Authorization = `Bearer ${token}`
+    const res = await fetch(`${apiBase}/api/v1/reports/${report.value.id}/flag`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ reason: flagReason.value, note: flagNote.value || undefined }),
+    })
+    if (!res.ok) { flagError.value = `Error ${res.status}`; return }
+    flagDone.value = true
+    flagOpen.value = false
+  } catch (e: any) {
+    flagError.value = e?.message ?? 'Submit failed'
+  } finally {
+    flagSaving.value = false
+  }
 }
 
 const reportTitle = computed(() =>

@@ -61,6 +61,19 @@
                 <path d="M12 7v3m0 0c0 2-2 3-4 3H7m5 0c0 2 2 3 4 3h1"/>
               </svg>
             </button>
+
+            <!-- Flag (auth only) -->
+            <button
+              v-if="isAuthenticated && !flagDone"
+              class="flex items-center justify-center p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-400 hover:text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+              title="Flag as inappropriate"
+              @click="flagOpen = true"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
+              </svg>
+            </button>
+            <span v-else-if="flagDone" class="text-xs text-red-400 px-1">Flagged</span>
           </div>
         </div>
 
@@ -262,6 +275,35 @@
       </section>
 
     </main>
+
+    <!-- Flag modal -->
+    <UModal v-model:open="flagOpen" title="Flag this run">
+      <template #body>
+        <div class="space-y-3">
+          <p class="text-sm text-neutral-600 dark:text-neutral-400">Why are you flagging this run?</p>
+          <div class="space-y-1.5">
+            <label v-for="opt in flagReasons" :key="opt.value" class="flex items-center gap-2.5 cursor-pointer">
+              <input type="radio" v-model="flagReason" :value="opt.value" class="accent-primary-500" />
+              <span class="text-sm text-neutral-700 dark:text-neutral-300">{{ opt.label }}</span>
+            </label>
+          </div>
+          <textarea
+            v-model="flagNote"
+            rows="2"
+            maxlength="300"
+            placeholder="Additional context (optional)"
+            class="w-full rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+          <p v-if="flagError" class="text-xs text-red-500">{{ flagError }}</p>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton variant="ghost" color="neutral" @click="flagOpen = false">Cancel</UButton>
+          <UButton color="error" :loading="flagSaving" @click="submitFlag">Submit report</UButton>
+        </div>
+      </template>
+    </UModal>
 
     <!-- First-run CTA sticky banner (anon only) -->
     <ClientOnly>
@@ -578,6 +620,41 @@ const mapAccess = computed(() => {
     lat:         a.lat,
   }))
 })
+
+// ── Flag ──────────────────────────────────────────────────────────────────────
+
+const flagOpen   = ref(false)
+const flagReason = ref('inappropriate')
+const flagNote   = ref('')
+const flagSaving = ref(false)
+const flagError  = ref('')
+const flagDone   = ref(false)
+
+const flagReasons = [
+  { value: 'inappropriate', label: 'Inappropriate or offensive content' },
+  { value: 'inaccurate',    label: 'Seriously inaccurate / dangerous info' },
+  { value: 'spam',          label: 'Spam or self-promotion' },
+  { value: 'other',         label: 'Other' },
+]
+
+async function submitFlag() {
+  if (!run.value) return
+  flagSaving.value = true; flagError.value = ''
+  try {
+    const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) }
+    const res = await fetch(`${apiBase}/api/v1/user-runs/${run.value.id}/flag`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ reason: flagReason.value, note: flagNote.value || undefined }),
+    })
+    if (!res.ok) { flagError.value = `Error ${res.status}`; return }
+    flagDone.value = true
+    flagOpen.value = false
+  } catch (e: any) {
+    flagError.value = e?.message ?? 'Submit failed'
+  } finally {
+    flagSaving.value = false
+  }
+}
 
 // ── CTA dismiss ───────────────────────────────────────────────────────────────
 
