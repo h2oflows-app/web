@@ -402,6 +402,62 @@
           </div>
         </div>
 
+        <!-- Features list -->
+        <div v-if="reach && (reach.rapids.length > 0 || reach.access_points.length > 0)" class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-2">
+          <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">
+            Features
+            <span class="normal-case font-normal">
+              ({{ reach.rapids.length }} rapid{{ reach.rapids.length !== 1 ? 's' : '' }} · {{ reach.access_points.length }} access pt{{ reach.access_points.length !== 1 ? 's' : '' }})
+            </span>
+          </p>
+          <div v-if="reach.rapids.length > 0" class="space-y-1">
+            <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400">Rapids &amp; hazards</p>
+            <div v-for="r in reach.rapids" :key="r.id" class="flex items-start gap-2 text-xs py-0.5">
+              <span
+                class="mt-0.5 shrink-0 inline-block w-2 h-2 rounded-full"
+                :class="r.is_permanent_hazard ? 'bg-red-500' : r.is_surf_wave ? 'bg-sky-400' : 'bg-amber-400'"
+              />
+              <span class="font-medium text-neutral-700 dark:text-neutral-300">{{ r.name }}</span>
+              <span v-if="r.class_rating" class="text-neutral-400">III+</span>
+              <span v-if="r.is_permanent_hazard" class="text-red-500">hazard</span>
+              <span v-if="r.is_surf_wave" class="text-sky-500">wave</span>
+            </div>
+          </div>
+          <div v-if="reach.access_points.length > 0" class="space-y-1">
+            <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400">Access points</p>
+            <div v-for="a in reach.access_points" :key="a.id" class="flex items-start gap-2 text-xs py-0.5">
+              <span class="mt-0.5 shrink-0 inline-block w-2 h-2 rounded-full bg-emerald-500" />
+              <span class="font-medium text-neutral-700 dark:text-neutral-300 capitalize">{{ a.access_type.replace('_', ' ') }}</span>
+              <span v-if="a.name" class="text-neutral-400">· {{ a.name }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- KML import -->
+        <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-3">
+          <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Import Pins</p>
+          <p class="text-xs text-neutral-500 dark:text-neutral-400">Upload a KML/KMZ file to import rapids, hazards, and access points. Existing imported pins are replaced on each upload.</p>
+          <div class="flex items-center gap-2">
+            <input
+              id="kml-file-input"
+              type="file"
+              accept=".kml,.kmz"
+              class="flex-1 text-xs text-neutral-600 dark:text-neutral-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-neutral-100 dark:file:bg-neutral-800 file:text-neutral-600 dark:file:text-neutral-300 file:cursor-pointer"
+              @change="onKmlFileChange"
+            />
+            <UButton
+              size="xs"
+              :disabled="!kmlFile || kmlUploading"
+              :loading="kmlUploading"
+              @click="uploadKml"
+            >Upload</UButton>
+          </div>
+          <p v-if="kmlError" class="text-xs text-red-500">{{ kmlError }}</p>
+          <div v-if="kmlLog.length > 0" class="rounded bg-neutral-50 dark:bg-neutral-800 px-3 py-2 max-h-40 overflow-y-auto">
+            <p v-for="(line, i) in kmlLog" :key="i" class="text-xs font-mono text-neutral-600 dark:text-neutral-300 leading-relaxed">{{ line }}</p>
+          </div>
+        </div>
+
         <!-- Save metadata -->
         <div v-if="saveError" class="text-xs text-red-500 px-1">{{ saveError }}</div>
 
@@ -543,6 +599,27 @@ interface FlowRange {
   label: string; min_value: number | null; max_value: number | null
 }
 
+interface RunRapid {
+  id: string
+  name: string
+  description: string | null
+  class_rating: number | null
+  is_surf_wave: boolean
+  is_permanent_hazard: boolean
+  hazard_type: string | null
+  lng: number | null
+  lat: number | null
+}
+
+interface RunAccessPoint {
+  id: string
+  access_type: string
+  name: string | null
+  notes: string | null
+  lng: number | null
+  lat: number | null
+}
+
 interface UserReachDetail {
   id:                string
   slug:              string
@@ -574,6 +651,8 @@ interface UserReachDetail {
   forked_from_slug:  string | null
   forked_from_name:  string | null
   flow_ranges:       FlowRange[]
+  rapids:            RunRapid[]
+  access_points:     RunAccessPoint[]
   centerline:        object | null
 }
 
@@ -656,6 +735,47 @@ const correctionSubmitting = ref(false)
 
 const riverConfirmBannerVisible = computed(() =>
   !!(reach.value?.river_name && reach.value?.river_slug && !riverConfirmed.value))
+
+// ── KML import ────────────────────────────────────────────────────────────────
+
+const kmlFile        = ref<File | null>(null)
+const kmlUploading   = ref(false)
+const kmlLog         = ref<string[]>([])
+const kmlError       = ref('')
+
+function onKmlFileChange(e: Event) {
+  const f = (e.target as HTMLInputElement).files?.[0]
+  kmlFile.value  = f ?? null
+  kmlLog.value   = []
+  kmlError.value = ''
+}
+
+async function uploadKml() {
+  if (!kmlFile.value || !reach.value) return
+  kmlUploading.value = true
+  kmlError.value     = ''
+  kmlLog.value       = []
+  try {
+    const headers = await authHeaders()
+    const fd = new FormData()
+    fd.append('file', kmlFile.value)
+    const res = await fetch(`${apiBase}/api/v1/me/reaches/${reach.value.slug}/kml`, {
+      method: 'POST', headers, body: fd,
+    })
+    if (!res.ok) { kmlError.value = `Upload failed (${res.status})`; return }
+    const result = await res.json()
+    const rr: any = result.reaches ? Object.values(result.reaches)[0] : null
+    kmlLog.value = result.log ?? []
+    kmlFile.value = null
+    ;(document.getElementById('kml-file-input') as HTMLInputElement | null)?.value && ((document.getElementById('kml-file-input') as HTMLInputElement).value = '')
+    await load()
+    if (rr) toast.add({ title: `Imported: ${rr.rapids ?? 0} rapids, ${(rr.put_ins ?? 0) + (rr.take_outs ?? 0) + (rr.parking ?? 0)} access pts`, color: 'success' })
+  } catch (e: any) {
+    kmlError.value = e?.message ?? 'Upload failed'
+  } finally {
+    kmlUploading.value = false
+  }
+}
 
 function confirmRiver() {
   if (!reach.value) return
