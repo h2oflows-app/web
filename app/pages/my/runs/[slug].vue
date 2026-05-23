@@ -458,6 +458,60 @@
           </div>
         </div>
 
+        <!-- Community flow proposals -->
+        <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Community Flow Proposals</p>
+            <span v-if="proposals.length > 0 && proposalMedianMin != null" class="text-xs text-neutral-400">
+              median {{ proposalMedianMin }}–{{ proposalMedianMax }} cfs
+            </span>
+          </div>
+
+          <div v-if="proposals.length === 0" class="text-xs text-neutral-400">No proposals yet. Be the first to suggest flow thresholds.</div>
+
+          <div v-for="p in proposals" :key="p.id" class="flex items-start gap-2 py-1 border-b border-neutral-100 dark:border-neutral-800 last:border-0">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                  {{ p.running_min }}–{{ p.running_max }} cfs
+                </span>
+                <span v-if="p.low_max" class="text-xs text-neutral-400">low &lt;{{ p.low_max }}</span>
+                <span v-if="p.high_min" class="text-xs text-neutral-400">high &gt;{{ p.high_min }}</span>
+              </div>
+              <div class="flex items-center gap-1.5 mt-0.5">
+                <span class="text-xs text-neutral-400">@{{ p.author_handle ?? p.author_id.slice(0,8) }}</span>
+                <span v-if="p.note" class="text-xs text-neutral-400 truncate">· {{ p.note }}</span>
+              </div>
+            </div>
+            <button
+              class="flex items-center gap-1 text-xs px-2 py-1 rounded-md border transition-colors shrink-0"
+              :class="p.user_voted
+                ? 'bg-primary-50 dark:bg-primary-950 border-primary-300 dark:border-primary-700 text-primary-600 dark:text-primary-400'
+                : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-primary-500 hover:border-primary-300'"
+              @click="toggleVote(p.id)"
+            >
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/><path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/></svg>
+              {{ p.vote_count }}
+            </button>
+          </div>
+
+          <!-- Submit / update own proposal -->
+          <div class="pt-1 space-y-2 border-t border-neutral-100 dark:border-neutral-800">
+            <p class="text-xs font-medium text-neutral-500 dark:text-neutral-400">{{ ownProposal ? 'Update your proposal' : 'Add your proposal' }}</p>
+            <div class="flex items-center gap-2 flex-wrap">
+              <div class="flex items-center gap-1">
+                <input v-model.number="propForm.runningMin" type="number" min="0" placeholder="min" class="w-20 rounded border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-1.5 py-1 text-xs" />
+                <span class="text-xs text-neutral-400">–</span>
+                <input v-model.number="propForm.runningMax" type="number" min="0" placeholder="max" class="w-20 rounded border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-1.5 py-1 text-xs" />
+                <span class="text-xs text-neutral-400 ml-1">cfs</span>
+              </div>
+              <UButton size="xs" :disabled="!propForm.runningMin || !propForm.runningMax || propSaving" :loading="propSaving" @click="submitProposal">{{ ownProposal ? 'Update' : 'Submit' }}</UButton>
+            </div>
+            <input v-model="propForm.note" type="text" maxlength="200" placeholder="Note (optional)" class="w-full rounded border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1 text-xs" />
+            <p v-if="propError" class="text-xs text-red-500">{{ propError }}</p>
+          </div>
+        </div>
+
         <!-- Save metadata -->
         <div v-if="saveError" class="text-xs text-red-500 px-1">{{ saveError }}</div>
 
@@ -775,6 +829,74 @@ async function uploadKml() {
   } finally {
     kmlUploading.value = false
   }
+}
+
+// ── Flow range proposals ──────────────────────────────────────────────────────
+
+interface FlowRangeProposal {
+  id: string
+  author_id: string
+  author_handle: string | null
+  low_max: number | null
+  running_min: number
+  running_max: number
+  high_min: number | null
+  note: string | null
+  vote_count: number
+  user_voted: boolean
+}
+
+const proposals        = ref<FlowRangeProposal[]>([])
+const proposalMedianMin = ref<number | null>(null)
+const proposalMedianMax = ref<number | null>(null)
+const propSaving       = ref(false)
+const propError        = ref('')
+const propForm         = ref({ runningMin: null as number | null, runningMax: null as number | null, note: '' })
+const ownProposal      = computed(() => proposals.value.find(p => reach.value && p.author_id === reach.value.id))
+
+async function loadProposals() {
+  if (!reach.value) return
+  try {
+    const headers = await authHeaders()
+    const res = await fetch(`${apiBase}/api/v1/me/reaches/${reach.value.slug}/flow-proposals`, { headers })
+    if (!res.ok) return
+    const data = await res.json()
+    proposals.value = data.proposals ?? []
+    proposalMedianMin.value = data.median_running_min ?? null
+    proposalMedianMax.value = data.median_running_max ?? null
+    const own = proposals.value.find(p => reach.value && p.author_id === reach.value.id)
+    if (own) { propForm.value.runningMin = own.running_min; propForm.value.runningMax = own.running_max; propForm.value.note = own.note ?? '' }
+  } catch {}
+}
+
+async function submitProposal() {
+  if (!reach.value || !propForm.value.runningMin || !propForm.value.runningMax) return
+  propSaving.value = true; propError.value = ''
+  try {
+    const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) }
+    const res = await fetch(`${apiBase}/api/v1/me/reaches/${reach.value.slug}/flow-proposals`, {
+      method: 'POST', headers,
+      body: JSON.stringify({ running_min: propForm.value.runningMin, running_max: propForm.value.runningMax, note: propForm.value.note || undefined }),
+    })
+    if (!res.ok) { propError.value = `Error ${res.status}`; return }
+    await loadProposals()
+    toast.add({ title: 'Proposal saved', color: 'success' })
+  } catch (e: any) {
+    propError.value = e?.message ?? 'Save failed'
+  } finally {
+    propSaving.value = false
+  }
+}
+
+async function toggleVote(proposalId: string) {
+  try {
+    const headers = { ...(await authHeaders()) }
+    const res = await fetch(`${apiBase}/api/v1/flow-proposals/${proposalId}/vote`, { method: 'POST', headers })
+    if (!res.ok) return
+    const data = await res.json()
+    const p = proposals.value.find(x => x.id === proposalId)
+    if (p) { p.vote_count = data.vote_count; p.user_voted = data.voted }
+  } catch {}
 }
 
 function confirmRiver() {
@@ -1180,7 +1302,7 @@ watch([repinUpComID, repinDownComID], async ([up, down]) => {
   await previewCenterline()
 })
 
-onMounted(() => { load(); loadCustomGauges(); loadReachDashboards() })
+onMounted(async () => { await load(); loadCustomGauges(); loadReachDashboards(); loadProposals() })
 
 // ── Save metadata + flow bands ────────────────────────────────────────────────
 
