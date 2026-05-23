@@ -321,6 +321,27 @@
             <textarea v-model="form.note" rows="3" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm resize-y" placeholder="Beta, access, permanent hazards…" />
           </div>
 
+          <!-- Privacy toggle -->
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs font-medium text-neutral-700 dark:text-neutral-300">Private</p>
+              <p class="text-xs text-neutral-400">Only visible to you</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              :aria-checked="form.isPrivate"
+              class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
+              :class="form.isPrivate ? 'bg-primary-500' : 'bg-neutral-300 dark:bg-neutral-600'"
+              @click="form.isPrivate = !form.isPrivate"
+            >
+              <span
+                class="inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform"
+                :class="form.isPrivate ? 'translate-x-4.5' : 'translate-x-0.5'"
+              />
+            </button>
+          </div>
+
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-xs text-neutral-500 mb-1">Class min</label>
@@ -528,6 +549,7 @@ interface UserReachDetail {
   current_cfs:       number | null
   flow_band:         string | null
   note:              string | null
+  is_private:        boolean
   flow_ranges:       FlowRange[]
   centerline:        object | null
 }
@@ -544,6 +566,7 @@ const form = ref({
   note:      '',
   classMin:  null as number | null,
   classMax:  null as number | null,
+  isPrivate: false,
   ranges: {
     low:     { min: null as number | null, max: null as number | null },
     running: { min: null as number | null, max: null as number | null },
@@ -961,6 +984,7 @@ function populateForm(r: UserReachDetail) {
   form.value.note      = r.note ?? ''
   form.value.classMin  = r.class_min ?? null
   form.value.classMax  = r.class_max ?? null
+  form.value.isPrivate = r.is_private ?? false
   const low     = r.flow_ranges.find(x => x.label === 'low')
   const running = r.flow_ranges.find(x => x.label === 'running')
   const high    = r.flow_ranges.find(x => x.label === 'high')
@@ -1040,6 +1064,7 @@ async function save() {
       note:       form.value.note.trim()      || null,
       class_min:  form.value.classMin,
       class_max:  form.value.classMax,
+      is_private: form.value.isPrivate,
       gnis_id:    nldiGnisId.value ?? undefined,
     }
     if (repinFlowlinesDirty.value && repinUpComID.value && repinDownComID.value) {
@@ -1085,6 +1110,7 @@ async function save() {
         name:        form.value.name.trim(),
         river_name:  form.value.riverName.trim() || null,
         note:        form.value.note.trim()      || null,
+        is_private:  form.value.isPrivate,
         flow_ranges: [
           { label: 'low',     min_value: null,          max_value: r.low.max     },
           { label: 'running', min_value: r.running.min, max_value: r.running.max },
