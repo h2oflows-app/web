@@ -465,12 +465,12 @@ function updateLayers(features: ReachFeature[]) {
       map.getCanvas().style.cursor = 'pointer'
       const p = e.features[0].properties as any
       emit('hover-changed', p.slug)
-      const commonName = p.common_name ?? p.name
-      const subtitle = p.common_name && p.common_name !== p.name
-        ? `<br><span style="opacity:0.6;font-size:0.7rem;font-weight:400">${p.name}</span>`
+      const displayName = p.common_name ?? p.name
+      const subtitle = p.river_name
+        ? `<br><span style="opacity:0.6;font-size:0.7rem;font-weight:400">${p.river_name}</span>`
         : ''
       reachTooltip.setLngLat(e.lngLat).setHTML(
-        `<strong>${commonName}</strong>${subtitle}`
+        `<strong>${displayName}</strong>${subtitle}`
       ).addTo(map!)
     })
     map.on('mousemove', 'reach-lines-hit', e => {
