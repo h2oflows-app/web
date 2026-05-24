@@ -284,6 +284,129 @@
         </div>
       </section>
 
+      <!-- Flow Band Override -->
+      <ClientOnly>
+        <section v-if="isAuthenticated">
+          <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+            <button
+              class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+              @click="overrideOpen = !overrideOpen"
+            >
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-semibold text-neutral-700 dark:text-neutral-300">My Flow Bands</span>
+                <span
+                  v-if="hasOverride"
+                  class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300"
+                >Active</span>
+              </div>
+              <svg
+                class="w-4 h-4 text-neutral-400 transition-transform"
+                :class="overrideOpen ? 'rotate-180' : ''"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              ><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+
+            <div v-if="overrideOpen" class="border-t border-neutral-100 dark:border-neutral-800 px-4 py-4 space-y-4">
+              <p class="text-xs text-neutral-500 dark:text-neutral-400">
+                Override the canonical flow bands for this run on your dashboard. Only visible to you.
+              </p>
+
+              <!-- Canonical reference -->
+              <div v-if="canonicalBands" class="grid grid-cols-3 gap-2 text-xs text-neutral-500 bg-neutral-50 dark:bg-neutral-800 rounded-lg px-3 py-2">
+                <div>
+                  <div class="text-[10px] uppercase tracking-wide mb-0.5 text-neutral-400">Too Low &lt;</div>
+                  <span class="font-mono">{{ canonicalBands.lowMax != null ? canonicalBands.lowMax : '—' }}</span>
+                </div>
+                <div>
+                  <div class="text-[10px] uppercase tracking-wide mb-0.5 text-neutral-400">Running</div>
+                  <span class="font-mono">{{ canonicalBands.runMin != null ? canonicalBands.runMin : '—' }} – {{ canonicalBands.runMax != null ? canonicalBands.runMax : '—' }}</span>
+                </div>
+                <div>
+                  <div class="text-[10px] uppercase tracking-wide mb-0.5 text-neutral-400">High &gt;</div>
+                  <span class="font-mono">{{ canonicalBands.highMin != null ? canonicalBands.highMin : '—' }}</span>
+                </div>
+              </div>
+
+              <!-- Override form -->
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div>
+                  <label class="block text-[10px] uppercase tracking-wide text-neutral-400 mb-1">Too Low max</label>
+                  <input
+                    v-model.number="overrideForm.low_max"
+                    type="number"
+                    step="any"
+                    placeholder="optional"
+                    class="w-full rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2.5 py-1.5 text-sm text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 placeholder-neutral-400"
+                  />
+                </div>
+                <div>
+                  <label class="block text-[10px] uppercase tracking-wide text-neutral-400 mb-1">Running min <span class="text-red-400">*</span></label>
+                  <input
+                    v-model.number="overrideForm.running_min"
+                    type="number"
+                    step="any"
+                    placeholder="required"
+                    class="w-full rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2.5 py-1.5 text-sm text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 placeholder-neutral-400"
+                  />
+                </div>
+                <div>
+                  <label class="block text-[10px] uppercase tracking-wide text-neutral-400 mb-1">Running max <span class="text-red-400">*</span></label>
+                  <input
+                    v-model.number="overrideForm.running_max"
+                    type="number"
+                    step="any"
+                    placeholder="required"
+                    class="w-full rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2.5 py-1.5 text-sm text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 placeholder-neutral-400"
+                  />
+                </div>
+                <div>
+                  <label class="block text-[10px] uppercase tracking-wide text-neutral-400 mb-1">High min</label>
+                  <input
+                    v-model.number="overrideForm.high_min"
+                    type="number"
+                    step="any"
+                    placeholder="optional"
+                    class="w-full rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2.5 py-1.5 text-sm text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 placeholder-neutral-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-[10px] uppercase tracking-wide text-neutral-400 mb-1">Note (optional)</label>
+                <input
+                  v-model="overrideForm.note"
+                  type="text"
+                  maxlength="255"
+                  placeholder="e.g. Low water year, shifted after big flood…"
+                  class="w-full rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2.5 py-1.5 text-sm text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 placeholder-neutral-400"
+                />
+              </div>
+
+              <p v-if="overrideError" class="text-xs text-red-500 dark:text-red-400">{{ overrideError }}</p>
+
+              <div class="flex items-center gap-2">
+                <button
+                  :disabled="overrideSaving"
+                  class="px-4 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white text-sm font-semibold transition-colors"
+                  @click="saveOverride"
+                >
+                  <span v-if="overrideSaving" class="flex items-center gap-1">
+                    <span class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  </span>
+                  <span v-else>Save</span>
+                </button>
+                <button
+                  v-if="hasOverride"
+                  :disabled="overrideSaving"
+                  class="px-4 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-600 text-sm text-neutral-600 dark:text-neutral-400 hover:text-red-600 dark:hover:text-red-400 hover:border-red-300 dark:hover:border-red-600 disabled:opacity-40 transition-colors"
+                  @click="clearOverride"
+                >Clear override</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </ClientOnly>
+
       <!-- Reach Description -->
       <section v-if="reach.description">
         <div class="prose prose-sm dark:prose-invert max-w-none text-neutral-700 dark:text-neutral-300 whitespace-pre-line leading-relaxed">
@@ -1382,6 +1505,132 @@ const shareModalOpen = ref(false)
 function openShareForm() {
   shareModalOpen.value = true
 }
+
+// ---- Flow band override -----------------------------------------------------
+
+interface FlowBandOverride {
+  id: string
+  low_max: number | null
+  running_min: number
+  running_max: number
+  high_min: number | null
+  note: string | null
+}
+
+const userOverride   = ref<FlowBandOverride | null>(null)
+const overrideForm   = ref({ low_max: null as number | null, running_min: null as number | null, running_max: null as number | null, high_min: null as number | null, note: '' })
+const overrideSaving = ref(false)
+const overrideError  = ref('')
+const overrideOpen   = ref(false)
+const hasOverride    = computed(() => userOverride.value !== null)
+
+const canonicalBands = computed(() => {
+  const bands = (flowRanges.value as any[]) ?? []
+  const low     = bands.find(b => b.label === 'low')
+  const running = bands.find(b => b.label === 'running')
+  const high    = bands.find(b => b.label === 'high')
+  if (!running) return null
+  return {
+    lowMax:  low?.max_value  ?? null,
+    runMin:  running.min_value,
+    runMax:  running.max_value,
+    highMin: high?.min_value ?? null,
+  }
+})
+
+async function loadOverride() {
+  const slug = (reach.value as any)?.slug
+  if (!slug || !isAuthenticated.value) return
+  try {
+    const token = await getToken()
+    const data = await $fetch<FlowBandOverride | null>(
+      `${config.public.apiBase}/api/v1/me/reaches/${slug}/flow-band-override`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    ).catch(() => null)
+    userOverride.value = data ?? null
+    if (data) {
+      overrideForm.value = {
+        low_max:     data.low_max,
+        running_min: data.running_min,
+        running_max: data.running_max,
+        high_min:    data.high_min,
+        note:        data.note ?? '',
+      }
+    } else {
+      const cb = canonicalBands.value
+      overrideForm.value = {
+        low_max:     cb?.lowMax  ?? null,
+        running_min: cb?.runMin  ?? null,
+        running_max: cb?.runMax  ?? null,
+        high_min:    cb?.highMin ?? null,
+        note:        '',
+      }
+    }
+  } catch { /* ignore */ }
+}
+
+async function saveOverride() {
+  const slug = (reach.value as any)?.slug
+  if (!slug) return
+  overrideError.value = ''
+  const { low_max, running_min, running_max, high_min, note } = overrideForm.value
+  if (running_min == null || running_max == null || running_min <= 0 || running_max <= 0) {
+    overrideError.value = 'Running min and max are required and must be positive.'
+    return
+  }
+  if (running_min >= running_max) {
+    overrideError.value = 'Running min must be less than running max.'
+    return
+  }
+  overrideSaving.value = true
+  try {
+    const token = await getToken()
+    await $fetch(`${config.public.apiBase}/api/v1/me/reaches/${slug}/flow-band-override`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: { low_max: low_max ?? undefined, running_min, running_max, high_min: high_min ?? undefined, note: note || undefined },
+    })
+    await loadOverride()
+    await refreshReach()
+  } catch (e: any) {
+    overrideError.value = e?.data?.error ?? e?.message ?? 'Save failed.'
+  } finally {
+    overrideSaving.value = false
+  }
+}
+
+async function clearOverride() {
+  const slug = (reach.value as any)?.slug
+  if (!slug) return
+  overrideSaving.value = true
+  try {
+    const token = await getToken()
+    await $fetch(`${config.public.apiBase}/api/v1/me/reaches/${slug}/flow-band-override`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    userOverride.value = null
+    const cb = canonicalBands.value
+    overrideForm.value = {
+      low_max:     cb?.lowMax  ?? null,
+      running_min: cb?.runMin  ?? null,
+      running_max: cb?.runMax  ?? null,
+      high_min:    cb?.highMin ?? null,
+      note:        '',
+    }
+    await refreshReach()
+  } catch (e: any) {
+    overrideError.value = e?.data?.error ?? e?.message ?? 'Delete failed.'
+  } finally {
+    overrideSaving.value = false
+  }
+}
+
+watch(
+  [isAuthenticated, () => (reach.value as any)?.slug, () => flowRanges.value],
+  () => loadOverride(),
+  { immediate: true }
+)
 
 </script>
 
