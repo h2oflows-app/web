@@ -4,12 +4,12 @@
     <div v-if="!props.controlledHours" class="flex justify-end">
       <div class="flex text-xs rounded overflow-hidden border border-neutral-200 dark:border-neutral-700">
         <button
-          v-for="h in ([12, 24, 48] as const)"
+          v-for="[h, label] in ([[12,'12h'],[24,'1d'],[168,'1w'],[720,'1m']] as const)"
           :key="h"
           class="px-2 py-1 transition-colors"
           :class="hours === h ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
           @click="hours = h"
-        >{{ h }}h</button>
+        >{{ label }}</button>
       </div>
     </div>
 
@@ -105,7 +105,7 @@ const props = defineProps<{
   noRanges?: boolean
   color?: string          // override line color
   height?: number         // chart height in px (default 200)
-  controlledHours?: 12 | 24 | 48  // parent-controlled time window; hides toggle
+  controlledHours?: 12 | 24 | 168 | 720  // parent-controlled time window; hides toggle
   hideDiurnal?: boolean   // suppress inline diurnal banner (parent renders it above graph)
 }>()
 
@@ -130,7 +130,7 @@ const { apiBase } = useRuntimeConfig().public
 
 // ---- Data fetching ----------------------------------------------------------
 
-const hours = ref<12 | 24 | 48>(props.controlledHours ?? 48)
+const hours = ref<12 | 24 | 168 | 720>(props.controlledHours ?? 24)
 watch(() => props.controlledHours, h => { if (h && h !== hours.value) { hours.value = h } })
 
 async function load() {
