@@ -257,7 +257,7 @@
               <div class="relative">
                 <UButton
                   v-if="!reach.custom_gauge_id && !reach.gauge_id"
-                  size="2xs" variant="outline" color="neutral"
+                  size="xs" variant="outline" color="neutral"
                   :loading="customGaugeSaving"
                   @click="customGaugePickerOpen = !customGaugePickerOpen"
                 >
