@@ -18,7 +18,7 @@
         <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
       </svg>
       <h2 class="text-lg font-semibold">Access restricted</h2>
-      <p class="text-sm text-neutral-500">You need data admin permissions to edit reaches.</p>
+      <p class="text-sm text-neutral-500">You need data admin permissions to edit runs.</p>
       <NuxtLink :to="`/runs/${slug}`" class="text-sm text-primary-500 hover:text-primary-400">Back to run</NuxtLink>
     </div>
 

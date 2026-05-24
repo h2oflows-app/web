@@ -576,7 +576,7 @@ onMounted(async () => {
     if (!res.ok) throw new Error(`${res.status}`)
     reaches.value = await res.json()
   } catch {
-    loadError.value = 'Failed to load reaches.'
+    loadError.value = 'Failed to load runs.'
   } finally {
     loading.value = false
   }
@@ -610,7 +610,7 @@ async function loadUserReaches() {
     if (!res.ok) throw new Error(`${res.status}`)
     userReaches.value = await res.json()
   } catch {
-    userReachesError.value = 'Failed to load your reaches.'
+    userReachesError.value = 'Failed to load your runs.'
   } finally {
     userReachesLoading.value = false
   }

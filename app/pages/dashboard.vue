@@ -163,7 +163,7 @@
       <!-- Empty state -->
       <div v-if="!hasAnyContent" class="mt-20 flex flex-col items-center gap-4 text-center">
         <div class="text-5xl">🌊</div>
-        <h2 class="text-xl font-semibold">No reaches yet</h2>
+        <h2 class="text-xl font-semibold">No runs yet</h2>
         <p class="text-neutral-500 max-w-sm text-sm">
           Search for a run or gauge and add it to your dashboard.
         </p>

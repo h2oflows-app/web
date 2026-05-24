@@ -324,7 +324,7 @@
           <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Run details</p>
 
           <div>
-            <label class="block text-xs text-neutral-500 mb-1">Reach name <span class="text-red-400">*</span></label>
+            <label class="block text-xs text-neutral-500 mb-1">Run name <span class="text-red-400">*</span></label>
             <input v-model="form.name" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" />
           </div>
 
