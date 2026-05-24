@@ -725,8 +725,8 @@ async function loadRivers() {
   try {
     const [rRes, uRes, gRes] = await Promise.all([
       fetch(`${apiBase}/api/v1/admin/rivers`, { headers: { Authorization: `Bearer ${token}` } }),
-      fetch(`${apiBase}/api/v1/admin/runs/unassigned`, { headers: { Authorization: `Bearer ${token}` } }),
-      fetch(`${apiBase}/api/v1/admin/runs/grouped`, { headers: { Authorization: `Bearer ${token}` } }),
+      fetch(`${apiBase}/api/v1/admin/reaches/unassigned`, { headers: { Authorization: `Bearer ${token}` } }),
+      fetch(`${apiBase}/api/v1/admin/reaches/grouped`, { headers: { Authorization: `Bearer ${token}` } }),
     ])
     if (rRes.ok) rivers.value = await rRes.json()
     if (uRes.ok) unassignedReaches.value = await uRes.json()
@@ -765,12 +765,12 @@ async function moveReach(state: string, riverId: string, reachIdx: number, direc
 
   const token = await getToken()
   await Promise.all([
-    fetch(`${apiBase}/api/v1/admin/runs/${a.slug}`, {
+    fetch(`${apiBase}/api/v1/admin/reaches/${a.slug}`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ river_order: orderB }),
     }),
-    fetch(`${apiBase}/api/v1/admin/runs/${b.slug}`, {
+    fetch(`${apiBase}/api/v1/admin/reaches/${b.slug}`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ river_order: orderA }),

@@ -626,14 +626,14 @@ async function submit() {
     }
 
     if (f.riverName.trim()) {
-      await fetch(`${apiBase}/api/v1/admin/runs/${slug}/auto-river`, {
+      await fetch(`${apiBase}/api/v1/admin/reaches/${slug}/auto-river`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ river_name: f.riverName.trim(), gnis_id: authorGnisId.value }),
       }).catch(() => { /* non-fatal */ })
     }
 
-    await fetch(`${apiBase}/api/v1/admin/runs/${slug}/nldi-centerline-by-comid`, {
+    await fetch(`${apiBase}/api/v1/admin/reaches/${slug}/nldi-centerline-by-comid`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -649,7 +649,7 @@ async function submit() {
     if (authorPendingGauge.value) {
       const { externalId, source, name: gaugeName, lat: gLat, lng: gLng } = authorPendingGauge.value
       try {
-        await fetch(`${apiBase}/api/v1/admin/runs/${slug}/primary-gauge`, {
+        await fetch(`${apiBase}/api/v1/admin/reaches/${slug}/primary-gauge`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ external_id: externalId, source, name: gaugeName, lat: gLat, lng: gLng }),
