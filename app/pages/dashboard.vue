@@ -299,30 +299,28 @@
 
                 <!-- User reaches inline — same river, marked with person icon -->
                 <template v-if="filterUserReaches && river.userReaches.length > 0">
-                  <div v-if="viewMode === 'list'" class="space-y-1.5 mt-1.5">
+                  <div v-if="viewMode === 'list'" class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden mt-1.5">
                     <div
                       v-for="r in river.userReaches"
                       :key="r.id"
-                      class="flex items-center gap-2 sm:gap-3 px-3 py-2 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 transition-all duration-200 cursor-pointer"
+                      class="flex items-center gap-2 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer"
                       @click="openUserReach(r)"
                     >
-                      <div class="min-w-0 flex-1 flex items-center gap-1.5">
-                        <svg class="w-4 h-4 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
-                        <span class="text-sm font-medium truncate">{{ r.name }}</span>
-                        <NuxtLink :to="`/my/runs/${r.slug}`" class="shrink-0 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
-                          <svg class="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
+                      <div class="flex items-center gap-1 min-w-0 flex-1">
+                        <svg class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
+                        <span class="min-w-0 text-sm text-neutral-700 dark:text-neutral-300 truncate">{{ r.name }}</span>
+                        <NuxtLink :to="`/my/runs/${r.slug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
+                          <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
                         </NuxtLink>
                       </div>
-                      <div class="flex items-center gap-2 shrink-0">
-                        <div v-if="r.gauge_id" class="w-32 shrink-0 hidden sm:block opacity-60">
-                          <GaugeSparkline :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :flow-band-label="r.flow_band ?? null" compact class="h-full w-full" />
-                        </div>
-                        <div v-else-if="r.custom_gauge_slug" class="w-32 shrink-0 hidden sm:block opacity-60">
-                          <CustomGaugeSparkline :gauge-slug="r.custom_gauge_slug" compact :color="bandSolid(r.flow_band, r.flow_status)" class="h-full w-full" />
-                        </div>
-                        <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', reachBadgeClass(r)]">{{ reachStatusLabel(r) }}</span>
-                        <span class="text-base font-bold tabular-nums min-w-14 text-right" :style="{ color: bandSolid(r.flow_band, r.flow_status) }">
-                          {{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-400 dark:text-neutral-500 ml-0.5">cfs</span>
+                      <div class="w-44 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
+                        <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="bandSolid(r.flow_band, r.flow_status)" compact />
+                        <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" compact :color="bandSolid(r.flow_band, r.flow_status)" />
+                      </div>
+                      <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', reachBadgeClass(r)]">{{ reachStatusLabel(r) }}</span>
+                      <div class="w-20 shrink-0 text-right">
+                        <span class="whitespace-nowrap text-base font-bold tabular-nums" :style="{ color: bandSolid(r.flow_band, r.flow_status) }">
+                          {{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-400 dark:text-neutral-500"> cfs</span>
                         </span>
                       </div>
                       <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
@@ -1112,15 +1110,15 @@ interface DashboardPrefs {
 }
 
 const DEFAULT_PREFS: DashboardPrefs = {
-  viewMode: 'comfortable',
+  viewMode: 'list',
   groupByGauge: false,
-  groupByState: true,
+  groupByState: false,
   groupByBasin: true,
   filterCurated: true,
   filterUserReaches: true,
   filterGauges: true,
   collapsedSections: [],
-  mapVisible: true,
+  mapVisible: false,
   showRivers: true,
 }
 

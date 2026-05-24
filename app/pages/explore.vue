@@ -59,7 +59,7 @@
             <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
               <line x1="10" y1="3" x2="10" y2="17"/><line x1="3" y1="10" x2="17" y2="10"/>
             </svg>
-            New Reach
+            New Run
           </button>
           <!-- Picker popover (user mode only) -->
           <div
@@ -92,14 +92,6 @@
               </div>
             </button>
           </div>
-        </div>
-
-        <!-- Admin: show decommissioned toggle (curated mode only) -->
-        <div v-if="mode === 'curated' && isDataAdmin && !loading" class="px-3 pb-1 flex items-center gap-1.5">
-          <label class="flex items-center gap-1.5 text-xs text-neutral-400 cursor-pointer select-none">
-            <input type="checkbox" v-model="showRetiredGauges" class="rounded" />
-            Show decommissioned
-          </label>
         </div>
 
         <!-- ── Curated reaches states ──────────────────────────────────────── -->
@@ -677,15 +669,7 @@ function buildTree(items: ReachListItem[]): StateGroup[] {
     })
 }
 
-// Admin toggle: show reaches whose primary gauge is retired (decommissioned).
-// Default false — retired-gauge reaches are hidden for all users.
-const showRetiredGauges = ref(false)
-
-const visibleReaches = computed(() =>
-  showRetiredGauges.value
-    ? reaches.value
-    : reaches.value.filter(r => r.gauge_status !== 'retired')
-)
+const visibleReaches = computed(() => reaches.value)
 
 const allStates = computed(() => buildTree(visibleReaches.value))
 

@@ -30,12 +30,12 @@
 
         <!-- Reach picker -->
         <div>
-          <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">Reach <span class="text-red-500">*</span></label>
+          <label class="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">River <span class="text-red-500">*</span></label>
           <div class="relative">
             <input
               v-model="reachQuery"
               type="text"
-              placeholder="Search for a run…"
+              placeholder="Search for a river or creek…"
               class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
               autocomplete="off"
               @input="selectedReach = null"

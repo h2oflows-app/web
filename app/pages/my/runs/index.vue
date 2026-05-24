@@ -161,6 +161,7 @@ async function load() {
 }
 
 onMounted(async () => {
+  if (isAuthenticated.value) loading.value = true
   authReady.value = true
   document.addEventListener('click', onDocClick)
   if (isAuthenticated.value) await load()
