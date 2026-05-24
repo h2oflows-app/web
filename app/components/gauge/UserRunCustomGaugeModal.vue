@@ -198,6 +198,8 @@ function buildChart() {
   const xs = new Float64Array(sorted.map(r => new Date(r.timestamp).getTime() / 1000))
   const ys = new Float64Array(sorted.map(r => r.cfs))
 
+  const nowSec   = Date.now() / 1000
+  const sinceSec = nowSec - hours.value * 3600
   const chartWidth = container.value.clientWidth || 400
   chart = new uPlot(
     {
@@ -206,6 +208,7 @@ function buildChart() {
       padding: [8, 0, 0, 0],
       cursor:  { show: true },
       legend:  { show: false },
+      scales:  { x: { min: sinceSec, max: nowSec } },
       axes: [
         { stroke: '#9ca3af', ticks: { stroke: '#374151' }, grid: { stroke: '#1f2937', width: 1 } },
         { stroke: '#9ca3af', ticks: { stroke: '#374151' }, grid: { stroke: '#1f2937', width: 1 } },
