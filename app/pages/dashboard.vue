@@ -420,7 +420,7 @@
           <div class="flex items-center gap-2 mb-3">
             <button
               type="button"
-              class="flex items-center gap-1.5 text-sm font-semibold text-neutral-500 uppercase tracking-wide hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
+              class="flex items-center gap-1.5 text-sm font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide hover:text-neutral-900 dark:hover:text-white transition-colors"
               @click="customGaugesCollapsed = !customGaugesCollapsed"
             >
               <svg
@@ -428,6 +428,18 @@
                 :class="customGaugesCollapsed ? '-rotate-90' : ''"
                 viewBox="0 0 20 20" fill="currentColor"
               ><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              <!-- Speedometer / gauge icon -->
+              <svg class="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a10 10 0 0 1 10 10"/>
+                <path d="M12 2a10 10 0 0 0-10 10"/>
+                <path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0-2 0"/>
+                <path d="M12 2v2"/>
+                <path d="M2 12h2"/>
+                <path d="M20 12h2"/>
+                <path d="M18.364 5.636-1.414 1.414"/>
+                <path d="M5.636 5.636l1.414 1.414"/>
+                <path d="M15.5 8.5 12 12"/>
+              </svg>
               Custom Gauges
             </button>
             <div class="flex-1 h-px bg-neutral-200 dark:bg-neutral-800" />
@@ -1211,7 +1223,7 @@ function toggleSection(key: string) {
   collapsedSections.value = s
 }
 
-const allExpanded = computed(() => collapsedSections.value.size === 0)
+const allExpanded = computed(() => collapsedSections.value.size === 0 && !customGaugesCollapsed.value)
 
 function toggleAllSections() {
   if (allExpanded.value) {
@@ -1223,8 +1235,10 @@ function toggleAllSections() {
       }
     }
     collapsedSections.value = keys
+    customGaugesCollapsed.value = true
   } else {
     collapsedSections.value = new Set()
+    customGaugesCollapsed.value = false
   }
 }
 
