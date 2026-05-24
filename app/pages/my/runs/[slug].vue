@@ -256,7 +256,15 @@
               <p class="text-xs text-neutral-500">Linked gauge</p>
               <div class="relative">
                 <UButton
-                  v-if="!reach.custom_gauge_id && !reach.gauge_id"
+                  v-if="reach.custom_gauge_id"
+                  size="xs" variant="outline" color="neutral"
+                  :loading="customGaugeSaving"
+                  @click="clearGauge"
+                >
+                  Unlink
+                </UButton>
+                <UButton
+                  v-else-if="!reach.gauge_id"
                   size="xs" variant="outline" color="neutral"
                   :loading="customGaugeSaving"
                   @click="customGaugePickerOpen = !customGaugePickerOpen"
