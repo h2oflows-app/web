@@ -723,8 +723,9 @@ function openUserReach(r: UserReachSummary) {
     return
   }
   if (r.gauge_id) {
-    const gauge = store.gauges.find(g => g.id === r.gauge_id)
-    if (gauge) { openGauge(gauge, 'gauge'); return }
+    const gauge = store.gauges.find(g => g.id === r.gauge_id && g.contextReachSlug === r.slug)
+              ?? store.gauges.find(g => g.id === r.gauge_id)
+    if (gauge) { openGauge(gauge, 'reach'); return }
   }
   router.push(`/my/runs/${r.slug}`)
 }
