@@ -121,7 +121,7 @@ onMounted(async () => {
     if (!res.ok) throw new Error(`${res.status}`)
     reaches.value = await res.json()
   } catch {
-    error.value = 'Failed to load reaches.'
+    error.value = 'Failed to load runs.'
   } finally {
     loading.value = false
   }

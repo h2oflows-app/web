@@ -154,7 +154,7 @@ async function load() {
     if (!res.ok) throw new Error(`${res.status}`)
     reaches.value = await res.json()
   } catch (e: any) {
-    error.value = e.message ?? 'Failed to load reaches.'
+    error.value = e.message ?? 'Failed to load runs.'
   } finally {
     loading.value = false
   }
