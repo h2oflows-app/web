@@ -1,5 +1,5 @@
 <template>
-  <UModal v-model:open="open" :ui="{ content: 'sm:max-w-xl max-sm:!inset-0 max-sm:!w-auto max-sm:!max-w-none max-sm:!rounded-none max-sm:!ring-0 max-sm:!translate-x-0 max-sm:!translate-y-0' }">
+  <UModal v-model:open="open" :ui="{ content: 'sm:max-w-xl max-sm:!inset-0 max-sm:!w-auto max-sm:!max-w-none max-sm:!rounded-none max-sm:!ring-0 max-sm:!translate-x-0 max-sm:!translate-y-0 focus:outline-none' }">
     <template #header>
       <div class="flex items-start justify-between gap-3 w-full">
         <div class="min-w-0 flex-1">
@@ -31,8 +31,9 @@
             <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
           </NuxtLink>
           <button
-            class="p-1 rounded-md text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+            class="p-1 rounded-md text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors focus:outline-none"
             aria-label="Close"
+            autofocus
             @click="open = false"
           >
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -61,12 +62,12 @@
         <div class="flex justify-end">
           <div class="flex text-xs rounded overflow-hidden border border-neutral-200 dark:border-neutral-700">
             <button
-              v-for="h in ([12, 24, 48] as const)"
+              v-for="[h, label] in ([[12,'12h'],[24,'1d'],[168,'1w'],[720,'1m']] as const)"
               :key="h"
               class="px-2 py-1 transition-colors"
               :class="hours === h ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
               @click="hours = h; load()"
-            >{{ h }}h</button>
+            >{{ label }}</button>
           </div>
         </div>
 
@@ -141,7 +142,7 @@ const { getToken } = useAuth()
 
 const loading   = ref(false)
 const readings  = ref<Array<{ timestamp: string; cfs: number }>>([])
-const hours     = ref<12 | 24 | 48>(48)
+const hours     = ref<12 | 24 | 168 | 720>(24)
 const container = ref<HTMLElement | null>(null)
 let chart: uPlot | null = null
 
