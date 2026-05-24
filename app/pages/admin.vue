@@ -32,7 +32,7 @@
             :class="activeTab === tab.key
               ? 'border-primary-500 text-primary-600 dark:text-primary-400'
               : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
-            @click="activeTab = tab.key; if (tab.key === 'corrections') loadCorrections(); if (tab.key === 'gauges' && adminGauges.length === 0) loadAdminGauges(); if (tab.key === 'flags') loadFlags()"
+            @click="activeTab = tab.key; if (tab.key === 'corrections') loadCorrections(); if (tab.key === 'gauges' && adminGauges.length === 0) loadAdminGauges(); if (tab.key === 'flags') loadFlags(); if (tab.key === 'overrides') loadOverrideQueue()"
           >{{ tab.label }}</button>
         </div>
 
@@ -457,6 +457,90 @@
             </div>
           </div>
         </div>
+
+        <!-- Override Queue tab -->
+        <div v-if="activeTab === 'overrides'">
+          <div class="flex items-center justify-between mb-4">
+            <p class="text-sm text-neutral-500">Reaches with 2+ user flow band overrides</p>
+            <button class="text-xs text-neutral-400 hover:text-neutral-600 transition-colors" @click="loadOverrideQueue">Refresh</button>
+          </div>
+
+          <div v-if="overrideQueueLoading" class="space-y-2">
+            <div v-for="i in 4" :key="i" class="h-14 rounded-lg bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+          </div>
+
+          <div v-else-if="overrideQueue.length === 0" class="py-10 text-center text-sm text-neutral-400">
+            No reaches with multiple overrides yet.
+          </div>
+
+          <div v-else class="divide-y divide-neutral-100 dark:divide-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+            <div
+              v-for="row in overrideQueue"
+              :key="row.reach_id"
+              class="px-4 py-3 bg-white dark:bg-neutral-900 space-y-2"
+            >
+              <!-- Header row -->
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <NuxtLink
+                      :to="`/runs/${row.slug}`"
+                      class="text-sm font-semibold text-primary-600 dark:text-primary-400 hover:underline"
+                      target="_blank"
+                    >{{ row.name }}</NuxtLink>
+                    <span class="text-xs text-neutral-400">{{ row.river_name }}</span>
+                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300">
+                      {{ row.override_count }} overrides
+                    </span>
+                  </div>
+                </div>
+                <button
+                  class="shrink-0 px-3 py-1 rounded-lg text-xs font-semibold bg-primary-600 hover:bg-primary-700 text-white disabled:opacity-40 transition-colors"
+                  :disabled="overrideApplyingSlug === row.slug"
+                  @click="applyOverrideMedian(row.slug)"
+                >
+                  <span v-if="overrideApplyingSlug === row.slug" class="flex items-center gap-1">
+                    <span class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  </span>
+                  <span v-else>Apply median</span>
+                </button>
+              </div>
+
+              <!-- Comparison grid -->
+              <div class="grid grid-cols-4 gap-2 text-xs">
+                <div>
+                  <div class="text-[10px] uppercase tracking-wide text-neutral-400 mb-0.5">Too Low max</div>
+                  <div class="font-mono">
+                    <span class="text-neutral-700 dark:text-neutral-200">{{ row.median_low_max != null ? row.median_low_max.toFixed(0) : '—' }}</span>
+                    <span class="text-neutral-400 ml-1">({{ row.canonical_low_max != null ? row.canonical_low_max.toFixed(0) : '—' }})</span>
+                  </div>
+                </div>
+                <div>
+                  <div class="text-[10px] uppercase tracking-wide text-neutral-400 mb-0.5">Running min</div>
+                  <div class="font-mono">
+                    <span class="text-neutral-700 dark:text-neutral-200">{{ row.median_running_min != null ? row.median_running_min.toFixed(0) : '—' }}</span>
+                    <span class="text-neutral-400 ml-1">({{ row.canonical_running_min != null ? row.canonical_running_min.toFixed(0) : '—' }})</span>
+                  </div>
+                </div>
+                <div>
+                  <div class="text-[10px] uppercase tracking-wide text-neutral-400 mb-0.5">Running max</div>
+                  <div class="font-mono">
+                    <span class="text-neutral-700 dark:text-neutral-200">{{ row.median_running_max != null ? row.median_running_max.toFixed(0) : '—' }}</span>
+                    <span class="text-neutral-400 ml-1">({{ row.canonical_running_max != null ? row.canonical_running_max.toFixed(0) : '—' }})</span>
+                  </div>
+                </div>
+                <div>
+                  <div class="text-[10px] uppercase tracking-wide text-neutral-400 mb-0.5">High min</div>
+                  <div class="font-mono">
+                    <span class="text-neutral-700 dark:text-neutral-200">{{ row.median_high_min != null ? row.median_high_min.toFixed(0) : '—' }}</span>
+                    <span class="text-neutral-400 ml-1">({{ row.canonical_high_min != null ? row.canonical_high_min.toFixed(0) : '—' }})</span>
+                  </div>
+                </div>
+              </div>
+              <p class="text-[10px] text-neutral-400">Median (canonical) — applying writes median values to canonical flow_ranges</p>
+            </div>
+          </div>
+        </div>
       </template>
     </main>
 
@@ -626,6 +710,7 @@ const visibleTabs = computed(() => {
   tabs.push({ key: 'gauges', label: 'Gauges' })
   if (isAdmin.value) tabs.push({ key: 'users', label: 'Users' })
   tabs.push({ key: 'flags', label: openFlagCount.value > 0 ? `Flags (${openFlagCount.value})` : 'Flags' })
+  tabs.push({ key: 'overrides', label: overrideQueue.value.length > 0 ? `Override Queue (${overrideQueue.value.length})` : 'Override Queue' })
   return tabs
 })
 
@@ -1202,6 +1287,61 @@ async function resolveFlag(flagId: string, action: 'dismiss' | 'action') {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
   flags.value = flags.value.filter(f => f.id !== flagId)
+}
+
+// ── Flow Band Override Queue ──────────────────────────────────────────────────
+
+interface OverrideQueueRow {
+  reach_id: string
+  slug: string
+  name: string
+  river_name: string | null
+  override_count: number
+  median_low_max: number | null
+  median_running_min: number | null
+  median_running_max: number | null
+  median_high_min: number | null
+  canonical_low_max: number | null
+  canonical_running_min: number | null
+  canonical_running_max: number | null
+  canonical_high_min: number | null
+}
+
+const overrideQueue = ref<OverrideQueueRow[]>([])
+const overrideQueueLoading = ref(false)
+const overrideApplyingSlug = ref<string | null>(null)
+
+async function loadOverrideQueue() {
+  overrideQueueLoading.value = true
+  try {
+    const token = await getToken()
+    const res = await fetch(`${apiBase}/api/v1/admin/reaches/flow-band-override-queue`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (res.ok) overrideQueue.value = await res.json()
+  } finally {
+    overrideQueueLoading.value = false
+  }
+}
+
+async function applyOverrideMedian(slug: string) {
+  if (!confirm(`Apply median of user overrides to canonical flow bands for "${slug}"? This will update flow_ranges.`)) return
+  overrideApplyingSlug.value = slug
+  try {
+    const token = await getToken()
+    const res = await fetch(`${apiBase}/api/v1/admin/reaches/${slug}/apply-override-median`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (res.ok) {
+      await loadOverrideQueue()
+    } else {
+      const d = await res.json().catch(() => ({}))
+      alert(d.error ?? `Failed: ${res.status}`)
+    }
+  } finally {
+    overrideApplyingSlug.value = null
+  }
 }
 
 </script>
