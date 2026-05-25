@@ -39,7 +39,7 @@
             @click="importOpen = true"
           >
             <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
-            Import
+            Import Run
           </button>
         </div>
 
@@ -238,6 +238,58 @@
           </div>
         </template>
 
+        <!-- ── Community tab ── -->
+        <template v-else-if="activeTab === 'community'">
+          <UInput
+            v-model="communityQuery"
+            placeholder="Search community runs by name or river…"
+            icon="i-heroicons-magnifying-glass"
+            size="lg"
+            autofocus
+            @input="onCommunitySearch"
+          />
+          <div class="max-h-[60vh] overflow-y-auto">
+            <div v-if="communityLoading" class="space-y-2 py-2">
+              <div v-for="i in 4" :key="i" class="flex items-center gap-3 px-2 py-2.5">
+                <div class="flex-1 space-y-2">
+                  <div class="h-4 w-3/4 rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+                  <div class="h-3 w-1/2 rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+                </div>
+                <div class="h-7 w-14 rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+              </div>
+            </div>
+            <div v-else-if="communityRuns.length === 0" class="text-center py-10 text-neutral-400 text-sm">
+              No community runs found.
+            </div>
+            <ul v-else class="divide-y divide-neutral-100 dark:divide-neutral-800">
+              <li
+                v-for="run in communityRuns"
+                :key="run.id"
+                class="flex items-center justify-between gap-3 py-2.5 px-2 hover:bg-primary-50 dark:hover:bg-primary-950/30 rounded-lg transition-colors"
+              >
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">{{ run.name }}</p>
+                  <div class="flex items-center gap-1.5 mt-0.5">
+                    <span v-if="run.river_name" class="text-xs text-neutral-500 dark:text-neutral-400 truncate">{{ run.river_name }}</span>
+                    <span v-if="run.river_name && run.author_handle" class="text-neutral-300 dark:text-neutral-600 text-xs">·</span>
+                    <span v-if="run.author_handle" class="text-xs text-neutral-400 truncate">by {{ run.author_handle }}</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <span v-if="run.current_cfs != null" class="text-sm font-semibold tabular-nums text-neutral-700 dark:text-neutral-300">
+                    {{ run.current_cfs.toLocaleString() }}<span class="text-xs font-normal text-neutral-400 ml-0.5">cfs</span>
+                  </span>
+                  <UButton
+                    size="xs" color="primary" variant="soft" icon="i-heroicons-plus"
+                    :loading="adding === run.id"
+                    @click="addCommunityRun(run)"
+                  >Add</UButton>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </template>
+
       </div>
     </template>
     <template #footer>
@@ -285,7 +337,7 @@ const emit = defineEmits<{
 const { apiBase } = useRuntimeConfig().public
 const { getToken } = useAuth()
 const db = useDashboards()
-const { addCustomGaugeToWatchlist, addUserReachToWatchlist } = useWatchlistSync()
+const { addCustomGaugeToWatchlist, addUserReachToWatchlist, addReachToWatchlist } = useWatchlistSync()
 
 // Make sure dashboards are loaded for the picker
 onMounted(() => { if (!db.loaded.value) db.load() })
@@ -300,10 +352,11 @@ watch(() => db.activeDashboardId.value, (id) => {
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
 
-type TabKey = 'curated' | 'mine'
+type TabKey = 'curated' | 'mine' | 'community'
 const TABS: { key: TabKey; label: string }[] = [
-  { key: 'curated', label: 'H2OFlows'          },
-  { key: 'mine',    label: 'My Runs & Gauges' },
+  { key: 'curated',   label: 'H2OFlows'         },
+  { key: 'mine',      label: 'My Runs & Gauges' },
+  { key: 'community', label: 'Community'        },
 ]
 const activeTab = ref<TabKey>('curated')
 
@@ -312,6 +365,8 @@ function setTab(key: TabKey) {
   if (key === 'mine') {
     if (myReaches.value.length === 0 && !reachesLoading.value) loadMyReaches()
     if (myGauges.value.length === 0  && !gaugesLoading.value)  loadMyGauges()
+  } else if (key === 'community') {
+    if (communityRuns.value.length === 0 && !communityLoading.value) loadCommunityRuns()
   }
 }
 
@@ -409,6 +464,58 @@ async function loadMyGauges() {
     if (res.ok) { const d = await res.json(); myGauges.value = d.items ?? [] }
   } catch { /* non-fatal */ } finally {
     gaugesLoading.value = false
+  }
+}
+
+// ── Community ─────────────────────────────────────────────────────────────────
+
+interface CommunityRun {
+  id: string; slug: string; name: string; river_name: string | null
+  current_cfs: number | null; flow_band: string | null
+  gauge_id: string | null; author_handle: string | null
+}
+const communityRuns    = ref<CommunityRun[]>([])
+const communityLoading = ref(false)
+const communityQuery   = ref('')
+
+async function loadCommunityRuns() {
+  communityLoading.value = true
+  try {
+    const params = new URLSearchParams({ limit: '40' })
+    if (communityQuery.value.trim()) params.set('q', communityQuery.value.trim())
+    const res = await fetch(`${apiBase}/api/v1/user-runs/community?${params}`)
+    if (res.ok) { const d = await res.json(); communityRuns.value = d.items ?? [] }
+  } catch { /* non-fatal */ } finally {
+    communityLoading.value = false
+  }
+}
+
+let communitySearchTimer: ReturnType<typeof setTimeout> | null = null
+function onCommunitySearch() {
+  if (communitySearchTimer) clearTimeout(communitySearchTimer)
+  communitySearchTimer = setTimeout(loadCommunityRuns, 300)
+}
+
+async function addCommunityRun(run: CommunityRun) {
+  adding.value = run.id
+  try {
+    const token = await getToken()
+    if (!token) return
+    const res = await fetch(`${apiBase}/api/v1/user-runs/${run.id}/fork`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return
+    const forked = await res.json()
+    if (forked.gauge_id) {
+      await addUserReachToWatchlist(forked.gauge_id, forked.slug, selectedDashboardId.value)
+    } else {
+      await addReachToWatchlist(forked.slug, selectedDashboardId.value)
+    }
+    emit('addedExternal', { kind: 'reach', reachId: forked.id, reachSlug: forked.slug })
+    open.value = false
+  } finally {
+    adding.value = null
   }
 }
 
