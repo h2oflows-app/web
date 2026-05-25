@@ -46,7 +46,7 @@
         >
           <div class="flex items-start gap-3">
             <!-- Info block -->
-            <NuxtLink :to="`/runs/${run.slug}`" class="flex-1 min-w-0 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+            <NuxtLink :to="`/runs/u/${run.id}`" class="flex-1 min-w-0 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
               <div class="flex items-center gap-2 flex-wrap">
                 <p class="text-sm font-semibold text-neutral-900 dark:text-white truncate">{{ run.name }}</p>
                 <span
