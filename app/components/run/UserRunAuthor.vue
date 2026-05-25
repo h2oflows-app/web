@@ -3,7 +3,7 @@
     <!-- Step 1: pick anchor -->
     <template v-if="!anchorSnap && !anchorSnapping">
       <div class="mb-3 rounded-lg bg-primary-50 dark:bg-primary-950/60 border border-primary-200 dark:border-primary-800 px-3 py-2.5 text-xs text-primary-800 dark:text-primary-200">
-        <span class="font-medium">Click river closest to put-in.</span> We'll snap to the nearest NHD flowline.
+        <span class="font-medium">Click river closest to put-in.</span> We'll snap to the nearest NHD flowline. Look at the river name — if it picks an incorrect nearby tributary or creek, try adjusting your click to a more accurate position along the river you're aiming for.
       </div>
     </template>
     <template v-else-if="anchorSnapping">
@@ -26,6 +26,7 @@
     <!-- Step 2: guide text for take-out selection -->
     <div v-if="upComID && !downComID && !gaugeSelectMode" class="mb-3 rounded-lg bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700 px-3 py-2 text-xs text-neutral-600 dark:text-neutral-300">
       Put-in set — now click the <strong>take-out</strong> flowline segment on the map.
+      <span class="block mt-1 text-neutral-400 dark:text-neutral-500">Look at the river name — if it picks an incorrect nearby tributary or creek, try adjusting your click to a more accurate position along the river you're aiming for. Don't worry if it's off, we're just drawing the line. The actual put-in access point can be added later via the map editor or KML upload.</span>
     </div>
 
     <!-- ComID + gauge slot selector -->
