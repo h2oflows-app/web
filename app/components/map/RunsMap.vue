@@ -75,12 +75,18 @@ const props = defineProps<{
   sourceUrl?: string | null
   sourceHeaders?: Record<string, string>
 }>()
+export interface ReachClickPayload {
+  slug:         string
+  id?:          string
+  isCommunity?: boolean
+}
+
 const emit  = defineEmits<{
   (e: 'reaches-updated', reaches: ReachListItem[]): void
   (e: 'bounds-updated', bbox: string): void
   (e: 'zoom-updated', zoom: number): void
   (e: 'hover-changed', slug: string | null): void
-  (e: 'reach-click', slug: string): void
+  (e: 'reach-click', payload: ReachClickPayload): void
   (e: 'gauge-add', gaugeId: string): void
 }>()
 
@@ -322,6 +328,7 @@ interface ReachFeature {
     river_name: string | null; gauge_id: string | null
     author_handle?: string | null
     is_official?: boolean
+    is_community?: boolean
   }
 }
 
@@ -471,8 +478,14 @@ function updateLayers(features: ReachFeature[]) {
     // Click → navigate (no popup)
     map.on('click', 'reach-lines-hit', e => {
       if (!map || !e.features?.length) return
-      const slug = (e.features[0].properties as any).slug as string
-      if (slug) emit('reach-click', slug)
+      const p = e.features[0].properties as any
+      const slug = p.slug as string
+      if (!slug) return
+      emit('reach-click', {
+        slug,
+        id: p.id ?? undefined,
+        isCommunity: !!p.is_community,
+      })
     })
 
     // Hover → sync sidebar + tooltip

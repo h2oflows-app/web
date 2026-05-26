@@ -822,8 +822,15 @@ function onMapHover(slug: string | null) {
   }
 }
 
-// Map reach click → navigate to reach page
-function onReachClick(slug: string) {
+// Map reach click → navigate to reach page.
+// Routing priority: payload.isCommunity flag wins over mode (handles overlaid sources).
+// Falls back to mode-based routing for curated + user maps where flag is absent.
+function onReachClick(payload: { slug: string; id?: string; isCommunity?: boolean }) {
+  const { slug, id, isCommunity } = payload
+  if (isCommunity && id) {
+    navigateTo(`/runs/u/${id}`)
+    return
+  }
   navigateTo(mode.value === 'user' ? `/my/runs/${slug}` : `/runs/${slug}`)
 }
 
