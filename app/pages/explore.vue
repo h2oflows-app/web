@@ -103,13 +103,16 @@
           </div>
         </template>
 
-        <!-- ── My Reaches states ───────────────────────────────────────────── -->
+        <!-- ── My Reaches / Community states ───────────────────────────────── -->
         <template v-else>
           <div v-if="userReachesLoading" class="flex-1 flex items-center justify-center text-sm text-neutral-400">Loading…</div>
           <div v-else-if="userReachesError" class="flex-1 flex items-center justify-center text-sm text-red-400">{{ userReachesError }}</div>
-          <div v-else-if="userReaches.length === 0" class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-neutral-400">
+          <div v-else-if="userReaches.length === 0 && mode === 'user'" class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-neutral-400">
             <span>No saved runs yet.</span>
             <NuxtLink to="/my/runs/new" class="text-primary-500 hover:underline">Create your first run →</NuxtLink>
+          </div>
+          <div v-else-if="userReaches.length === 0 && mode === 'community'" class="flex-1 flex items-center justify-center text-sm text-neutral-400">
+            No community runs yet.
           </div>
           <div v-else-if="query.length >= 2 && userRiverGroups.length === 0" class="flex-1 flex items-center justify-center text-sm text-neutral-400">
             No results for "{{ query }}"
@@ -279,9 +282,9 @@
           </div>
         </div>
 
-        <!-- My Reaches list (user mode) -->
+        <!-- My Reaches / Community list -->
         <div
-          v-if="mode === 'user' && !userReachesLoading && !userReachesError && userReaches.length > 0 && !(query.length >= 2 && userRiverGroups.length === 0)"
+          v-if="(mode === 'user' || mode === 'community') && !userReachesLoading && !userReachesError && userReaches.length > 0 && !(query.length >= 2 && userRiverGroups.length === 0)"
           class="flex-1 overflow-y-auto"
         >
           <div v-for="group in userRiverGroups" :key="group.name">
@@ -316,7 +319,7 @@
               <span v-else class="text-xs text-neutral-300 dark:text-neutral-600 shrink-0">—</span>
               <!-- Add to dashboard dropdown -->
               <div
-                v-if="isAuthenticated"
+                v-if="isAuthenticated && mode === 'user'"
                 class="dashboard-dropdown-anchor shrink-0 relative"
                 @click.stop
               >
@@ -354,7 +357,7 @@
                 </div>
               </div>
               <NuxtLink
-                :to="`/my/runs/${reach.slug}`"
+                :to="mode === 'community' ? `/runs/u/${reach.id}` : `/my/runs/${reach.slug}`"
                 class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-opacity opacity-60 sm:opacity-0 sm:group-hover:opacity-100 hover:opacity-100"
                 aria-label="View run"
                 @click.stop
@@ -371,21 +374,33 @@
       <!-- ── Right panel: map ──────────────────────────────────────────────── -->
       <div class="flex-1 min-w-0 relative">
 
-        <!-- Floating mode toggle pill (authenticated, map visible) -->
+        <!-- Floating mode dropdown (authenticated, map visible) -->
         <div
           v-if="isAuthenticated && !listVisible"
-          class="absolute top-2 right-2 z-20 flex rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-700 shadow-md bg-white/95 dark:bg-neutral-900/95 backdrop-blur-sm text-xs font-medium"
+          class="mode-dropdown-anchor absolute top-2 right-2 z-20"
         >
           <button
-            class="px-3 py-1.5 transition-colors"
-            :class="mode === 'curated' ? 'bg-primary-500 text-white' : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'"
-            @click="mode = 'curated'"
-          >H2OFlows</button>
-          <button
-            class="px-3 py-1.5 transition-colors"
-            :class="mode === 'user' ? 'bg-primary-500 text-white' : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'"
-            @click="mode = 'user'"
-          >My Runs</button>
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 shadow-md bg-white/95 dark:bg-neutral-900/95 backdrop-blur-sm text-xs font-medium text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+            @click="modeMenuOpen = !modeMenuOpen"
+          >
+            <span class="text-neutral-400 dark:text-neutral-500">Showing:</span>
+            <span class="text-primary-600 dark:text-primary-400">{{ MODE_LABELS[mode] }}</span>
+            <svg class="w-3 h-3 text-neutral-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+          </button>
+          <div
+            v-if="modeMenuOpen"
+            class="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden"
+          >
+            <button
+              v-for="(label, key) in MODE_LABELS"
+              :key="key"
+              class="w-full text-left px-3 py-2 text-xs font-medium transition-colors"
+              :class="mode === key
+                ? 'bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400'
+                : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800'"
+              @click="mode = key; modeMenuOpen = false"
+            >{{ label }}</button>
+          </div>
         </div>
 
         <ClientOnly>
@@ -482,8 +497,15 @@ const { isDataAdmin, isAuthenticated, getToken } = useAuth()
 const db = useDashboards()
 
 // ── Mode toggle ───────────────────────────────────────────────────────────────
-const mode = ref<'curated' | 'user'>('curated')
+type Mode = 'curated' | 'user' | 'community'
+const mode = ref<Mode>('curated')
 const mapToken = ref<string | null>(null)
+
+const MODE_LABELS: Record<Mode, string> = {
+  curated:   'H2OFlows',
+  user:      'My Runs',
+  community: 'Community',
+}
 
 const mapSourceUrl = ref<string | null>(null)
 const mapSourceHeaders = computed((): Record<string, string> =>
@@ -516,6 +538,9 @@ function onReachImported() {
 
 // ── Demo banner ───────────────────────────────────────────────────────────────
 const showDemoBanner = ref(false)
+
+// ── Mode dropdown ─────────────────────────────────────────────────────────────
+const modeMenuOpen = ref(false)
 
 // ── Dashboard dropdown per reach ──────────────────────────────────────────────
 const dropdownSlug         = ref<string | null>(null)
@@ -552,6 +577,7 @@ function onDocClick(e: MouseEvent) {
   const target = e.target as HTMLElement
   if (reachPickerOpen.value && !target.closest('.reach-picker-anchor')) reachPickerOpen.value = false
   if (dropdownSlug.value && !target.closest('.dashboard-dropdown-anchor')) dropdownSlug.value = null
+  if (modeMenuOpen.value && !target.closest('.mode-dropdown-anchor')) modeMenuOpen.value = false
 }
 
 onMounted(() => {
@@ -616,8 +642,32 @@ async function loadUserReaches() {
   }
 }
 
+async function loadCommunityReaches() {
+  userReachesLoading.value = true
+  userReachesError.value = ''
+  mapToken.value = null
+  mapSourceUrl.value = `${apiBase}/api/v1/user-runs/map/community`
+  try {
+    const res = await fetch(`${apiBase}/api/v1/user-runs/community?limit=50`)
+    if (!res.ok) throw new Error(`${res.status}`)
+    const data = await res.json()
+    userReaches.value = (data.items ?? []).map((r: any) => ({
+      id: r.id, slug: r.id, name: r.name,
+      river_name: r.river_name,
+      current_cfs: r.current_cfs,
+      flow_status: r.flow_status,
+      gauge_id: r.gauge_id,
+    }))
+  } catch {
+    userReachesError.value = 'Failed to load community runs.'
+  } finally {
+    userReachesLoading.value = false
+  }
+}
+
 watch(mode, m => {
   if (m === 'user') loadUserReaches()
+  else if (m === 'community') loadCommunityReaches()
   else { mapSourceUrl.value = null; mapToken.value = null }
 })
 
