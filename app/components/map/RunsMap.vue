@@ -329,29 +329,43 @@ let allServerFeatures: ReachFeature[] = []
 /** One-time load of the full cached dataset from the server. */
 async function loadAllReaches() {
   if (!map) return
+  const url = props.sourceUrl ?? `${apiBase}/api/v1/reaches/map/all`
+  const headers = props.sourceHeaders ?? {}
+  const hasHeaders = Object.keys(headers).length > 0
   try {
-    const url = props.sourceUrl ?? `${apiBase}/api/v1/reaches/map/all`
-    const res = await fetch(url, props.sourceHeaders ? { headers: props.sourceHeaders } : undefined)
-    if (!res.ok) return
+    const res = await fetch(url, hasHeaders ? { headers } : undefined)
+    if (!res.ok) {
+      console.warn(`[RunsMap] fetch ${url} → ${res.status}`)
+      // Surface empty FC so map clears + emits reaches-updated (instead of stale layers).
+      allServerFeatures = []
+      loadedFeatures = []
+      filterVisible()
+      return
+    }
     const fc = await res.json()
     allServerFeatures = fc.features ?? []
     loadedFeatures = allServerFeatures
     filterVisible()
   } catch (e) {
     console.warn('[RunsMap] fetch:', e)
+    allServerFeatures = []
+    loadedFeatures = []
+    filterVisible()
   }
 }
 
 /** Reload features from the current source (called when sourceUrl/sourceHeaders change). */
 async function reloadSource() {
+  // Clear immediately so map gives feedback during fetch; loadAllReaches re-populates.
   allServerFeatures = []
   loadedFeatures = []
+  filterVisible()
   await loadAllReaches()
 }
 
 /** Filter already-loaded features to the current viewport and update layers. */
 function filterVisible() {
-  if (!map || allServerFeatures.length === 0) return
+  if (!map) return
   const b = map.getBounds()
   emit('bounds-updated', `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`)
   emit('zoom-updated', map.getZoom())
@@ -517,10 +531,12 @@ function relativeTime(iso: string): string {
   return `${Math.floor(m / 60)}h ${m % 60}m ago`
 }
 
-// Reload features when the data source changes (e.g. toggling curated ↔ user mode)
-watch(() => props.sourceUrl, () => {
-  if (map) reloadSource()
-})
+// Reload features when the data source URL OR auth headers change
+// (toggling curated ↔ user ↔ community, or signing in mid-session).
+watch(
+  () => [props.sourceUrl, props.sourceHeaders?.Authorization ?? ''],
+  () => { if (map) reloadSource() },
+)
 
 // Sync hover highlight from parent (sidebar hovering a row)
 watch(() => props.hoveredSlug, slug => {
