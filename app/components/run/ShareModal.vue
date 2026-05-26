@@ -283,7 +283,7 @@ async function submitTripReport() {
     if (!res.ok) throw new Error(json.error ?? `Server error ${res.status}`)
 
     open.value = false
-    toast.add({ title: 'Trip report submitted!', description: formPublish.value ? `Public page: /trips/${json.public_slug}` : 'Saved privately.', color: 'success' })
+    toast.add({ title: 'Trip report submitted!', description: formPublish.value ? 'Shared publicly.' : 'Saved privately.', color: 'success' })
     resetForm()
   } catch (err: any) {
     submitError.value = err?.message ?? 'Something went wrong'
