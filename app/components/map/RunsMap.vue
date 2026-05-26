@@ -320,6 +320,8 @@ interface ReachFeature {
     class_max: number | null; flow_status: string; current_cfs: number | null
     put_in_name: string | null; take_out_name: string | null; common_name: string | null
     river_name: string | null; gauge_id: string | null
+    author_handle?: string | null
+    is_official?: boolean
   }
 }
 
@@ -469,8 +471,14 @@ function updateLayers(features: ReachFeature[]) {
       const subtitle = p.river_name
         ? `<br><span style="opacity:0.6;font-size:0.7rem;font-weight:400">${p.river_name}</span>`
         : ''
+      let attribution = ''
+      if (p.is_official) {
+        attribution = `<br><span style="opacity:0.7;font-size:0.7rem;font-weight:500">H2OFlows ⭐</span>`
+      } else if (p.author_handle) {
+        attribution = `<br><span style="opacity:0.7;font-size:0.7rem;font-weight:400">by @${p.author_handle}</span>`
+      }
       reachTooltip.setLngLat(e.lngLat).setHTML(
-        `<strong>${displayName}</strong>${subtitle}`
+        `<strong>${displayName}</strong>${subtitle}${attribution}`
       ).addTo(map!)
     })
     map.on('mousemove', 'reach-lines-hit', e => {
