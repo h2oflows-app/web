@@ -16,6 +16,109 @@
         {{ repinReach.name }}<span v-if="repinReach.river_name" class="text-neutral-400 font-normal"> · {{ repinReach.river_name }}</span>
       </h3>
 
+      <!-- Flow lines & gauge -->
+      <div class="rounded-xl border border-neutral-200 dark:border-neutral-700 p-4 bg-white dark:bg-neutral-900 space-y-3">
+        <p class="text-xs font-semibold text-neutral-500 uppercase tracking-wide">Flow Lines &amp; Gauge</p>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <UButton
+            size="xs"
+            :color="repinPickMode ? 'primary' : 'neutral'"
+            :variant="repinPickMode ? 'solid' : 'outline'"
+            @click="repinPickMode = !repinPickMode"
+          >{{ repinPickMode ? 'Cancel' : 'Re-anchor' }}</UButton>
+          <span v-if="repinAnchorSnapping" class="text-xs text-primary-600 dark:text-primary-400 animate-pulse">Snapping to NHD…</span>
+          <span v-if="repinAnchorError" class="text-xs text-red-500">{{ repinAnchorError }}</span>
+        </div>
+
+        <div v-if="repinAnchorSnap" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary-50 dark:bg-primary-950 border border-primary-200 dark:border-primary-800 text-xs">
+          <span class="w-2.5 h-2.5 rounded-full bg-primary-600 shrink-0" />
+          <span class="font-medium text-primary-800 dark:text-primary-200">Anchor ComID {{ repinAnchorSnap.comid }}</span>
+          <span v-if="repinAnchorSnap.name" class="text-primary-600 dark:text-primary-300">{{ repinAnchorSnap.name }}</span>
+        </div>
+
+        <div v-if="repinAnchorSnap || repinDownstream" class="flex items-center gap-2 text-xs flex-wrap">
+          <span class="text-neutral-500 shrink-0">Click map for:</span>
+          <button
+            class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors"
+            :class="repinComIDEditMode === 'up' && !repinGaugeSelectMode ? 'border-green-500 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 font-medium' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
+            @click="onToggleComID('up')"
+          >
+            <span class="w-2 h-2 rounded-full bg-green-500 shrink-0" />
+            Put-In<template v-if="repinUpComID"> · <span class="font-mono">{{ repinUpComID }}</span></template>
+          </button>
+          <button
+            class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors"
+            :class="repinComIDEditMode === 'down' && !repinGaugeSelectMode ? 'border-red-500 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 font-medium' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
+            @click="onToggleComID('down')"
+          >
+            <span class="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+            Take-Out<template v-if="repinDownComID"> · <span class="font-mono">{{ repinDownComID }}</span></template>
+          </button>
+          <button
+            class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            :class="repinGaugeSelectMode ? 'border-amber-500 bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 font-medium' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
+            :disabled="!repinGauges && !repinUpComID"
+            @click="repinGaugeSelectMode = !repinGaugeSelectMode; if (!repinGaugeSelectMode) repinPendingGauge = null"
+          >
+            <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+            <template v-if="repinGaugeSelectMode">Cancel</template>
+            <template v-else-if="repinPrimaryGauge">Gauge · <span class="font-mono">{{ repinPrimaryGauge.external_id }}</span></template>
+            <template v-else>Select gauge</template>
+          </button>
+          <button
+            v-if="repinPrimaryGauge && !repinGaugeSelectMode"
+            class="px-2 py-1 rounded-md border border-neutral-200 dark:border-neutral-700 text-neutral-400 hover:text-red-500 hover:border-red-400 transition-colors text-xs disabled:opacity-50"
+            :disabled="repinGaugeSaving"
+            title="Clear gauge"
+            @click="clearGauge"
+          >✕</button>
+        </div>
+
+        <!-- Pending gauge — awaiting save confirmation -->
+        <div v-if="repinPendingGauge" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs">
+          <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+          <span class="flex-1 truncate font-medium text-amber-800 dark:text-amber-200">{{ repinPendingGauge.name || repinPendingGauge.externalId }}</span>
+          <span class="font-mono text-amber-600 dark:text-amber-400 shrink-0">{{ repinPendingGauge.externalId }}</span>
+          <UButton size="xs" :loading="repinGaugeSaving" @click="saveGauge">Save gauge</UButton>
+          <button class="text-amber-400 hover:text-amber-600 dark:hover:text-amber-300 shrink-0 px-1" @click="repinPendingGauge = null">✕</button>
+        </div>
+
+        <p v-if="repinGaugeError" class="text-xs text-red-500">{{ repinGaugeError }}</p>
+        <p v-if="repinGaugeSelectMode" class="text-xs text-amber-600 dark:text-amber-400">Click an amber dot on the map to assign a primary gauge.</p>
+
+        <p v-if="repinFlowlinesLoading" class="text-xs text-primary-500 animate-pulse">Loading downstream mainstem…</p>
+
+        <NHDExplorerMap
+          :upstream-flowlines="repinTributaries"
+          :downstream-flowlines="repinDownstream"
+          :upstream-gauges="repinGauges"
+          :snap-lat="null"
+          :snap-lng="null"
+          :pick-mode="repinPickMode"
+          :put-in-pin="repinPutInPin"
+          :take-out-pin="repinTakeOutPin"
+          :comid-select-mode="!!repinAnchorSnap && !repinPickMode && !repinGaugeSelectMode"
+          :comid-select-slot="repinComIDEditMode"
+          :selected-up-comid="repinUpComID"
+          :selected-down-comid="repinDownComID"
+          :preview-centerline="repinPreviewCenterline"
+          :gauge-select-mode="repinGaugeSelectMode"
+          @pick="onAnchorPick"
+          @comid-select="onComIDSelect"
+          @gauge-select="onGaugeSelect"
+        />
+
+        <div class="flex items-center gap-3 pt-1">
+          <span v-if="repinPreviewLoading" class="text-xs text-primary-500 animate-pulse">Computing centerline…</span>
+          <span v-if="repinError" class="text-xs text-red-500">{{ repinError }}</span>
+          <span v-if="repinSuccess" class="text-xs text-green-600 dark:text-green-400">{{ repinSuccess }}</span>
+          <div class="flex-1" />
+          <UButton v-if="repinFlowlinesDirty" size="sm" variant="outline" color="neutral" @click="resetComIDs">Revert</UButton>
+          <UButton size="sm" :loading="repinSaving" :disabled="!repinUpComID || !repinDownComID" @click="saveFlowLines">Save flow lines</UButton>
+        </div>
+      </div>
+
       <!-- Metadata form -->
       <div class="rounded-xl border border-neutral-200 dark:border-neutral-700 p-4 bg-white dark:bg-neutral-900 space-y-3">
         <p class="text-xs font-semibold text-neutral-500 uppercase tracking-wide">Metadata</p>
@@ -36,6 +139,23 @@
         <div>
           <label class="block text-xs text-neutral-500 mb-1">Common name</label>
           <input v-model="repinForm.commonName" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" />
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-xs text-neutral-500">Description</label>
+            <UButton size="xs" variant="outline" color="neutral" :loading="repinDescGenerating" @click="generateDescription">Generate with AI</UButton>
+          </div>
+          <textarea
+            v-model="repinDescEdit"
+            rows="5"
+            class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm resize-y"
+            placeholder="No description yet — click Generate to create one with AI, or type directly."
+          />
+          <div class="flex items-center gap-3 mt-1">
+            <span v-if="repinDescMsg" class="text-xs" :class="repinDescMsg === 'Description saved' ? 'text-green-600 dark:text-green-400' : 'text-red-500'">{{ repinDescMsg }}</span>
+            <div class="flex-1" />
+            <UButton size="xs" :loading="repinDescSaving" @click="saveDescription">Save description</UButton>
+          </div>
         </div>
         <div>
           <label class="block text-xs text-neutral-500 mb-1">River</label>
@@ -105,25 +225,6 @@
         </div>
       </div>
 
-      <!-- Description editor -->
-      <div class="rounded-xl border border-neutral-200 dark:border-neutral-700 p-4 bg-white dark:bg-neutral-900 space-y-2">
-        <div class="flex items-center justify-between">
-          <p class="text-xs font-semibold text-neutral-500 uppercase tracking-wide">Description</p>
-          <UButton size="xs" variant="outline" color="neutral" :loading="repinDescGenerating" @click="generateDescription">Generate with AI</UButton>
-        </div>
-        <textarea
-          v-model="repinDescEdit"
-          rows="5"
-          class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm resize-y"
-          placeholder="No description yet — click Generate to create one with AI, or type directly."
-        />
-        <div class="flex items-center gap-3">
-          <span v-if="repinDescMsg" class="text-xs" :class="repinDescMsg === 'Description saved' ? 'text-green-600 dark:text-green-400' : 'text-red-500'">{{ repinDescMsg }}</span>
-          <div class="flex-1" />
-          <UButton size="xs" :loading="repinDescSaving" @click="saveDescription">Save description</UButton>
-        </div>
-      </div>
-
       <!-- Flow bands editor -->
       <div class="rounded-xl border border-neutral-200 dark:border-neutral-700 p-4 bg-white dark:bg-neutral-900 space-y-3">
         <p class="text-xs font-semibold text-neutral-500 uppercase tracking-wide">Flow bands</p>
@@ -157,108 +258,6 @@
         </div>
       </div>
 
-      <!-- Flow lines & gauge -->
-      <div class="rounded-xl border border-neutral-200 dark:border-neutral-700 p-4 bg-white dark:bg-neutral-900 space-y-3">
-        <p class="text-xs font-semibold text-neutral-500 uppercase tracking-wide">Flow Lines &amp; Gauge</p>
-
-        <div class="flex flex-wrap items-center gap-2">
-          <UButton
-            size="xs"
-            :color="repinPickMode ? 'primary' : 'neutral'"
-            :variant="repinPickMode ? 'solid' : 'outline'"
-            @click="repinPickMode = !repinPickMode"
-          >{{ repinPickMode ? 'Cancel' : 'Re-anchor' }}</UButton>
-          <span v-if="repinAnchorSnapping" class="text-xs text-primary-600 dark:text-primary-400 animate-pulse">Snapping to NHD…</span>
-          <span v-if="repinAnchorError" class="text-xs text-red-500">{{ repinAnchorError }}</span>
-        </div>
-
-        <div v-if="repinAnchorSnap" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary-50 dark:bg-primary-950 border border-primary-200 dark:border-primary-800 text-xs">
-          <span class="w-2.5 h-2.5 rounded-full bg-primary-600 shrink-0" />
-          <span class="font-medium text-primary-800 dark:text-primary-200">Anchor ComID {{ repinAnchorSnap.comid }}</span>
-          <span v-if="repinAnchorSnap.name" class="text-primary-600 dark:text-primary-300">{{ repinAnchorSnap.name }}</span>
-        </div>
-
-        <div v-if="repinAnchorSnap || repinDownstream" class="flex items-center gap-2 text-xs flex-wrap">
-          <span class="text-neutral-500 shrink-0">Click map for:</span>
-          <button
-            class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors"
-            :class="repinComIDEditMode === 'up' && !repinGaugeSelectMode ? 'border-green-500 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 font-medium' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
-            @click="repinGaugeSelectMode = false; repinComIDEditMode = 'up'"
-          >
-            <span class="w-2 h-2 rounded-full bg-green-500 shrink-0" />
-            Put-In<template v-if="repinUpComID"> · <span class="font-mono">{{ repinUpComID }}</span></template>
-          </button>
-          <button
-            class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors"
-            :class="repinComIDEditMode === 'down' && !repinGaugeSelectMode ? 'border-red-500 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 font-medium' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
-            @click="repinGaugeSelectMode = false; repinComIDEditMode = 'down'"
-          >
-            <span class="w-2 h-2 rounded-full bg-red-500 shrink-0" />
-            Take-Out<template v-if="repinDownComID"> · <span class="font-mono">{{ repinDownComID }}</span></template>
-          </button>
-          <button
-            class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            :class="repinGaugeSelectMode ? 'border-amber-500 bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 font-medium' : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
-            :disabled="!repinGauges && !repinUpComID"
-            @click="repinGaugeSelectMode = !repinGaugeSelectMode; if (!repinGaugeSelectMode) repinPendingGauge = null"
-          >
-            <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-            <template v-if="repinGaugeSelectMode">Cancel</template>
-            <template v-else-if="repinPrimaryGauge">Gauge · <span class="font-mono">{{ repinPrimaryGauge.external_id }}</span></template>
-            <template v-else>Select gauge</template>
-          </button>
-          <button
-            v-if="repinPrimaryGauge && !repinGaugeSelectMode"
-            class="px-2 py-1 rounded-md border border-neutral-200 dark:border-neutral-700 text-neutral-400 hover:text-red-500 hover:border-red-400 transition-colors text-xs disabled:opacity-50"
-            :disabled="repinGaugeSaving"
-            title="Clear gauge"
-            @click="clearGauge"
-          >✕</button>
-        </div>
-
-        <!-- Pending gauge — awaiting save confirmation -->
-        <div v-if="repinPendingGauge" class="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs">
-          <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-          <span class="flex-1 truncate font-medium text-amber-800 dark:text-amber-200">{{ repinPendingGauge.name || repinPendingGauge.externalId }}</span>
-          <span class="font-mono text-amber-600 dark:text-amber-400 shrink-0">{{ repinPendingGauge.externalId }}</span>
-          <UButton size="xs" :loading="repinGaugeSaving" @click="saveGauge">Save gauge</UButton>
-          <button class="text-amber-400 hover:text-amber-600 dark:hover:text-amber-300 shrink-0 px-1" @click="repinPendingGauge = null">✕</button>
-        </div>
-
-        <p v-if="repinGaugeError" class="text-xs text-red-500">{{ repinGaugeError }}</p>
-        <p v-if="repinGaugeSelectMode" class="text-xs text-amber-600 dark:text-amber-400">Click an amber dot on the map to assign a primary gauge.</p>
-
-        <p v-if="repinFlowlinesLoading" class="text-xs text-primary-500 animate-pulse">Loading downstream mainstem…</p>
-
-        <NHDExplorerMap
-          :upstream-flowlines="repinTributaries"
-          :downstream-flowlines="repinDownstream"
-          :upstream-gauges="repinGauges"
-          :snap-lat="null"
-          :snap-lng="null"
-          :pick-mode="repinPickMode"
-          :put-in-pin="repinPutInPin"
-          :take-out-pin="repinTakeOutPin"
-          :comid-select-mode="!!repinAnchorSnap && !repinPickMode && !repinGaugeSelectMode"
-          :comid-select-slot="repinComIDEditMode"
-          :selected-up-comid="repinUpComID"
-          :selected-down-comid="repinDownComID"
-          :preview-centerline="repinPreviewCenterline"
-          :gauge-select-mode="repinGaugeSelectMode"
-          @pick="onAnchorPick"
-          @comid-select="onComIDSelect"
-          @gauge-select="onGaugeSelect"
-        />
-
-        <div class="flex items-center gap-3 pt-1">
-          <span v-if="repinPreviewLoading" class="text-xs text-primary-500 animate-pulse">Computing centerline…</span>
-          <span v-if="repinError" class="text-xs text-red-500">{{ repinError }}</span>
-          <span v-if="repinSuccess" class="text-xs text-green-600 dark:text-green-400">{{ repinSuccess }}</span>
-          <div class="flex-1" />
-          <UButton v-if="repinFlowlinesDirty" size="sm" variant="outline" color="neutral" @click="resetComIDs">Revert</UButton>
-          <UButton size="sm" :loading="repinSaving" :disabled="!repinUpComID || !repinDownComID" @click="saveFlowLines">Save flow lines</UButton>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -620,13 +619,19 @@ function onComIDSelect(comid: string, lat: number, lng: number) {
   if (repinComIDEditMode.value === 'up') {
     repinUpComID.value = comid
     repinStartLat.value = lat; repinStartLng.value = lng
-    repinComIDEditMode.value = 'down'
+    repinComIDEditMode.value = 'down'  // auto-advance to take-out
   } else {
     repinDownComID.value = comid
     repinEndLat.value = lat; repinEndLng.value = lng
+    // no auto-advance after take-out — user toggles manually
   }
   repinFlowlinesDirty.value = true
   repinPreviewCenterline.value = null
+}
+
+function onToggleComID(slot: 'up' | 'down') {
+  repinGaugeSelectMode.value = false
+  repinComIDEditMode.value = repinComIDEditMode.value === slot ? null : slot
 }
 
 function onGaugeSelect(externalId: string, source: string, name: string, lat: number, lng: number) {

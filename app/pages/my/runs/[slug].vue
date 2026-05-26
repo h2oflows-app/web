@@ -20,6 +20,44 @@
       </div>
     </div>
 
+    <!-- KML import — top of page near save/cancel actions -->
+    <div v-if="reach" class="px-4 pt-2">
+      <details class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
+        <summary class="cursor-pointer select-none px-4 py-2 flex items-center justify-between gap-2">
+          <span class="text-xs text-neutral-500 dark:text-neutral-400 font-medium uppercase tracking-wide">Import KML / KMZ</span>
+          <a
+            href="https://github.com/h2oflows-app/api/blob/main/internal/kmlimport/README.md"
+            target="_blank"
+            rel="noopener"
+            class="text-xs text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 transition-colors"
+            @click.stop
+          >Format guide ↗</a>
+        </summary>
+        <div class="px-4 pb-4 pt-1 space-y-3">
+          <p class="text-xs text-neutral-500 dark:text-neutral-400">Upload a KML/KMZ file to import rapids, hazards, and access points. Existing imported pins are replaced on each upload.</p>
+          <div class="flex items-center gap-2">
+            <input
+              id="kml-file-input"
+              type="file"
+              accept=".kml,.kmz"
+              class="flex-1 text-xs text-neutral-600 dark:text-neutral-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-neutral-100 dark:file:bg-neutral-800 file:text-neutral-600 dark:file:text-neutral-300 file:cursor-pointer"
+              @change="onKmlFileChange"
+            />
+            <UButton
+              size="xs"
+              :disabled="!kmlFile || kmlUploading"
+              :loading="kmlUploading"
+              @click="uploadKml"
+            >Upload</UButton>
+          </div>
+          <p v-if="kmlError" class="text-xs text-red-500">{{ kmlError }}</p>
+          <div v-if="kmlLog.length > 0" class="rounded bg-neutral-50 dark:bg-neutral-800 px-3 py-2 max-h-40 overflow-y-auto">
+            <p v-for="(line, i) in kmlLog" :key="i" class="text-xs font-mono text-neutral-600 dark:text-neutral-300 leading-relaxed">{{ line }}</p>
+          </div>
+        </div>
+      </details>
+    </div>
+
     <!-- Fork lineage banner -->
     <div v-if="reach?.forked_from_slug" class="px-4 pt-2">
       <div class="rounded-md bg-neutral-100 dark:bg-neutral-800/60 px-3 py-1.5 flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
@@ -197,7 +235,7 @@
               :class="repinComIDEditMode === 'up' && !repinGaugeSelectMode
                 ? 'border-green-500 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 font-medium'
                 : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
-              @click="repinGaugeSelectMode = false; repinComIDEditMode = 'up'"
+              @click="onToggleComID('up')"
             >
               <span class="w-2 h-2 rounded-full bg-green-500 shrink-0" />
               Put-In<template v-if="repinUpComID"> · <span class="font-mono">{{ repinUpComID }}</span></template>
@@ -207,7 +245,7 @@
               :class="repinComIDEditMode === 'down' && !repinGaugeSelectMode
                 ? 'border-red-500 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 font-medium'
                 : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
-              @click="repinGaugeSelectMode = false; repinComIDEditMode = 'down'"
+              @click="onToggleComID('down')"
             >
               <span class="w-2 h-2 rounded-full bg-red-500 shrink-0" />
               Take-Out<template v-if="repinDownComID"> · <span class="font-mono">{{ repinDownComID }}</span></template>
@@ -449,31 +487,6 @@
               <span class="font-medium text-neutral-700 dark:text-neutral-300 capitalize">{{ a.access_type.replace('_', ' ') }}</span>
               <span v-if="a.name" class="text-neutral-400">· {{ a.name }}</span>
             </div>
-          </div>
-        </div>
-
-        <!-- KML import -->
-        <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-3">
-          <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Import Pins</p>
-          <p class="text-xs text-neutral-500 dark:text-neutral-400">Upload a KML/KMZ file to import rapids, hazards, and access points. Existing imported pins are replaced on each upload.</p>
-          <div class="flex items-center gap-2">
-            <input
-              id="kml-file-input"
-              type="file"
-              accept=".kml,.kmz"
-              class="flex-1 text-xs text-neutral-600 dark:text-neutral-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-neutral-100 dark:file:bg-neutral-800 file:text-neutral-600 dark:file:text-neutral-300 file:cursor-pointer"
-              @change="onKmlFileChange"
-            />
-            <UButton
-              size="xs"
-              :disabled="!kmlFile || kmlUploading"
-              :loading="kmlUploading"
-              @click="uploadKml"
-            >Upload</UButton>
-          </div>
-          <p v-if="kmlError" class="text-xs text-red-500">{{ kmlError }}</p>
-          <div v-if="kmlLog.length > 0" class="rounded bg-neutral-50 dark:bg-neutral-800 px-3 py-2 max-h-40 overflow-y-auto">
-            <p v-for="(line, i) in kmlLog" :key="i" class="text-xs font-mono text-neutral-600 dark:text-neutral-300 leading-relaxed">{{ line }}</p>
           </div>
         </div>
 
@@ -1102,14 +1115,20 @@ function onComIDSelect(comid: string, lat: number, lng: number) {
     repinUpComID.value      = comid
     repinStartLat.value     = lat
     repinStartLng.value     = lng
-    repinComIDEditMode.value = 'down'
+    repinComIDEditMode.value = 'down'  // auto-advance to take-out
   } else {
     repinDownComID.value = comid
     repinEndLat.value    = lat
     repinEndLng.value    = lng
+    // no auto-advance after take-out — user toggles manually
   }
   repinFlowlinesDirty.value    = true
   repinPreviewCenterline.value = null
+}
+
+function onToggleComID(slot: 'up' | 'down') {
+  repinGaugeSelectMode.value = false
+  repinComIDEditMode.value = repinComIDEditMode.value === slot ? null : slot
 }
 
 async function previewCenterline() {
