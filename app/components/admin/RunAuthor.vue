@@ -92,7 +92,7 @@
     />
     <p v-if="authorDownstreamLoading" class="text-xs text-primary-500 dark:text-primary-400 mt-1 animate-pulse">Loading downstream mainstem…</p>
     <div v-if="authorUpComID && authorDownComID" class="flex items-center gap-2 mt-1 flex-wrap">
-      <UButton size="xs" variant="outline" color="neutral" :loading="authorPreviewLoading" @click="previewCenterline">
+      <UButton size="xs" variant="outline" color="neutral" :loading="authorPreviewLoading" @click="fetchPreviewCenterline">
         {{ authorPreviewCenterline ? 'Refresh preview' : 'Preview centerline' }}
       </UButton>
       <span v-if="authorPreviewCenterline" class="text-xs text-primary-600 dark:text-primary-400">Dashed line shows trimmed run</span>
@@ -247,7 +247,7 @@
         </div>
       </div>
 
-      <div v-if="authorError" class="text-xs text-red-500">{{ authorError }}</div>
+      <div v-if="authorError || authorSnapError" class="text-xs text-red-500">{{ authorError || authorSnapError }}</div>
       <div v-if="authorSuccess" class="text-xs text-green-600 dark:text-green-400">{{ authorSuccess }}</div>
 
       <!-- GNIS confirm step — inline before final save -->
@@ -279,8 +279,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 
-interface NHDFC { type: string; features: any[] }
-
 const emit = defineEmits<{
   created: [slug: string]
   cancel:  []
@@ -289,39 +287,55 @@ const emit = defineEmits<{
 const { getToken } = useAuth()
 const { apiBase } = useRuntimeConfig().public
 
-const authorPickMode            = ref(false)
-const authorAnchorSnapping      = ref(false)
-const authorAnchorSnap          = ref<{ comid: string; name: string } | null>(null)
-const authorTributaries         = ref<NHDFC | null>(null)
-const authorDownstreamFlowlines = ref<NHDFC | null>(null)
-const authorDownstreamLoading   = ref(false)
-const authorComIDSlot           = ref<'up' | 'down'>('up')
-const authorUpComID             = ref<string | null>(null)
-const authorDownComID           = ref<string | null>(null)
-const authorStartLat            = ref<number | null>(null)
-const authorStartLng            = ref<number | null>(null)
-const authorEndLat              = ref<number | null>(null)
-const authorEndLng              = ref<number | null>(null)
-const authorRiverNameOverride   = ref(false)
-const authorError               = ref('')
-const authorSuccess             = ref('')
-const authorSaving              = ref(false)
-const authorPreviewCenterline   = ref<object | null>(null)
-const authorPreviewLoading      = ref(false)
-const authorSlugManual          = ref(false)
-const authorSlugAvailable       = ref<boolean | null>(null)
-const authorSlugChecking        = ref(false)
-let   authorSlugTimer: ReturnType<typeof setTimeout> | null = null
+// ── NHD snap composable ───────────────────────────────────────────────────────
 
-const authorComIDPairLocked     = ref(false)
-const authorGaugeSelectMode     = ref(false)
-const authorGauges              = ref<NHDFC | null>(null)
-const authorPendingGauge        = ref<{ externalId: string; source: string; name: string; lat: number; lng: number } | null>(null)
-const authorGaugeSaving         = ref(false)
-const authorGaugeError          = ref('')
-const authorRiverNameFetching   = ref(false)
-const authorGnisId              = ref('')
-const authorGnisConfirm         = ref(false)
+const {
+  pickMode:            authorPickMode,
+  anchorSnapping:      authorAnchorSnapping,
+  anchorSnap:          authorAnchorSnap,
+  tributaries:         authorTributaries,
+  downstreamFlowlines: authorDownstreamFlowlines,
+  downstreamLoading:   authorDownstreamLoading,
+  comidSlot:           authorComIDSlot,
+  upComID:             authorUpComID,
+  downComID:           authorDownComID,
+  startLat:            authorStartLat,
+  startLng:            authorStartLng,
+  endLat:              authorEndLat,
+  endLng:              authorEndLng,
+  comidPairLocked:     authorComIDPairLocked,
+  gaugeSelectMode:     authorGaugeSelectMode,
+  gauges:              authorGauges,
+  pendingGauge:        authorPendingGauge,
+  gaugeError:          authorGaugeError,
+  previewCenterline:   authorPreviewCenterline,
+  previewLoading:      authorPreviewLoading,
+  riverNameSuggestion,
+  gnisId:              authorGnisId,
+  riverNameFetching:   authorRiverNameFetching,
+  snapError:           authorSnapError,
+  putInPin:            authorPutInPin,
+  takeOutPin:          authorTakeOutPin,
+  disableAutoFit:      authorDisableAutoFit,
+  onAnchorPick, onComIDSelect, onGaugeSelect,
+  fetchNearbyGauges, fetchRiverName, fetchPreviewCenterline,
+  reset: nhdReset, resetToPickMode: nhdResetToPickMode,
+} = useNHDSnap({ nldiBase: `${apiBase}/api/v1/admin/nldi`, getToken })
+
+const authorRiverNameOverride = ref(false)
+const authorError             = ref('')
+const authorSuccess           = ref('')
+const authorSaving            = ref(false)
+const authorSlugManual        = ref(false)
+const authorSlugAvailable     = ref<boolean | null>(null)
+const authorSlugChecking      = ref(false)
+let   authorSlugTimer: ReturnType<typeof setTimeout> | null = null
+const authorGnisConfirm       = ref(false)
+
+// Sync river name suggestion → form when not overridden.
+watch(riverNameSuggestion, (name) => {
+  if (name && !authorRiverNameOverride.value) authorForm.value.riverName = name
+})
 
 const authorForm = ref({
   name: '', commonName: '', riverName: '', slug: '',
@@ -341,21 +355,6 @@ const authorFlowBands = [
   { key: 'running', label: 'Runnable', dot: '#34d399', showMin: true,  showMax: true  },
   { key: 'high',    label: 'High',     dot: '#38bdf8', showMin: true,  showMax: false },
 ] as const
-
-const authorPutInPin = computed(() =>
-  authorStartLat.value != null && authorStartLng.value != null
-    ? { lat: authorStartLat.value, lng: authorStartLng.value, label: 'Start' }
-    : null
-)
-const authorTakeOutPin = computed(() =>
-  authorEndLat.value != null && authorEndLng.value != null
-    ? { lat: authorEndLat.value, lng: authorEndLng.value, label: 'End' }
-    : null
-)
-
-const authorDisableAutoFit = computed(() =>
-  !!authorAnchorSnap.value && !(authorUpComID.value && authorDownComID.value)
-)
 
 const authorComputedSlug = computed(() => {
   const river = authorForm.value.riverName.trim()
@@ -383,64 +382,21 @@ watch(() => authorForm.value.slug, (val) => {
   }, 400)
 })
 
-watch(authorUpComID, async (comid) => {
-  authorDownstreamFlowlines.value = null
-  if (!comid) return
-  authorDownstreamLoading.value = true
-  try {
-    const token = await getToken()
-    const res = await fetch(`${apiBase}/api/v1/admin/nldi/downstream?comid=${comid}&distance=800`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (res.ok) {
-      const data = await res.json()
-      authorDownstreamFlowlines.value = data.downstream_flowlines
-    }
-  } catch { /* non-fatal */ }
-  finally { authorDownstreamLoading.value = false }
-})
-
-// Both ComIDs set → auto-preview centerline and look up river name.
-watch([authorUpComID, authorDownComID], async ([up, down]) => {
-  if (!up || !down) return
-  previewCenterline()
-  fetchRiverName()
-})
-
 onMounted(() => {
   authorPickMode.value = true
 })
 
 function resetToPickMode() {
-  authorPickMode.value = true
-  authorAnchorSnap.value = null
-  authorTributaries.value = null
-  authorDownstreamFlowlines.value = null
-  authorUpComID.value = null; authorDownComID.value = null
-  authorStartLat.value = null; authorStartLng.value = null
-  authorEndLat.value = null; authorEndLng.value = null
-  authorPreviewCenterline.value = null
-  authorComIDSlot.value = 'up'
-  authorComIDPairLocked.value = false
+  nhdResetToPickMode()
   authorGnisConfirm.value = false
 }
 
 function reset() {
-  authorPickMode.value = true  // auto-restart pick mode after clear
-  authorAnchorSnapping.value = false
-  authorAnchorSnap.value = null
-  authorTributaries.value = null
-  authorDownstreamFlowlines.value = null
-  authorDownstreamLoading.value = false
-  authorComIDSlot.value = 'up'
-  authorUpComID.value = null
-  authorDownComID.value = null
-  authorStartLat.value = null; authorStartLng.value = null
-  authorEndLat.value = null;   authorEndLng.value = null
+  nhdReset()
   authorRiverNameOverride.value = false
-  authorError.value = ''; authorSuccess.value = ''
-  authorSaving.value = false
-  authorPreviewCenterline.value = null
+  authorError.value   = ''
+  authorSuccess.value = ''
+  authorSaving.value  = false
   authorForm.value = {
     name: '', commonName: '', riverName: '', slug: '',
     classMin: null, classMax: null,
@@ -453,124 +409,14 @@ function reset() {
       high:    { min: null, max: null },
     },
   }
-  authorSlugManual.value = false
+  authorSlugManual.value    = false
   authorSlugAvailable.value = null
-  authorComIDPairLocked.value = false
-  authorGaugeSelectMode.value = false
-  authorGauges.value = null
-  authorPendingGauge.value = null
-  authorGaugeSaving.value = false
-  authorGaugeError.value = ''
-  authorRiverNameFetching.value = false
-  authorGnisId.value = ''
-  authorGnisConfirm.value = false
-}
-
-async function fetchNearbyGauges(lat: number, lng: number, comid?: string | null) {
-  try {
-    const token = await getToken()
-    const comidParam = comid ? `&comid=${comid}` : ''
-    const res = await fetch(`${apiBase}/api/v1/admin/nldi/nearby-gauges?lat=${lat}&lng=${lng}&distance=100${comidParam}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-    if (res.ok) authorGauges.value = await res.json()
-  } catch { /* non-fatal */ }
-}
-
-async function fetchRiverName() {
-  const comid = authorUpComID.value ?? authorAnchorSnap.value?.comid
-  if (!comid) return
-  authorRiverNameFetching.value = true
-  try {
-    const token = await getToken()
-    if (!token) return
-    const lat = authorStartLat.value
-    const lng = authorStartLng.value
-    const coordParams = lat != null && lng != null ? `&lat=${lat}&lng=${lng}` : ''
-    const res = await fetch(`${apiBase}/api/v1/admin/nldi/river-name?comid=${comid}${coordParams}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (!res.ok) return
-    const data = await res.json()
-    if (data.river_name && !authorRiverNameOverride.value) {
-      authorForm.value.riverName = data.river_name
-    }
-    if (data.gnis_id) authorGnisId.value = data.gnis_id
-  } catch { /* non-fatal */ }
-  finally { authorRiverNameFetching.value = false }
-}
-
-function onGaugeSelect(externalId: string, source: string, name: string, lat: number, lng: number) {
-  authorGaugeSelectMode.value = false
-  authorPendingGauge.value = { externalId, source, name, lat, lng }
+  authorGnisConfirm.value   = false
 }
 
 function onCancel() {
   reset()
   emit('cancel')
-}
-
-async function onAnchorPick(lat: number, lng: number) {
-  authorPickMode.value = false
-  authorAnchorSnapping.value = true
-  authorAnchorSnap.value = null
-  authorTributaries.value = null
-  authorError.value = ''
-  try {
-    const token = await getToken()
-    if (!token) return
-    const url = `${apiBase}/api/v1/admin/nldi/upstream-tributaries?lat=${lat}&lng=${lng}&distance=50`
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-    if (!res.ok) { authorError.value = `Snap failed: HTTP ${res.status}`; return }
-    const data = await res.json()
-    authorAnchorSnap.value = { comid: data.snap.comid, name: data.snap.name ?? '' }
-    authorTributaries.value = data.tributaries
-    if (!authorRiverNameOverride.value && data.snap.name) {
-      authorForm.value.riverName = data.snap.name
-    }
-    // One-click put-in: anchor snap IS the put-in point
-    authorUpComID.value    = data.snap.comid
-    authorStartLat.value   = lat
-    authorStartLng.value   = lng
-    authorComIDSlot.value  = 'down'
-    await fetchNearbyGauges(lat, lng, data.snap.comid)
-  } catch (e: any) {
-    authorError.value = e.message ?? 'Snap failed'
-  } finally {
-    authorAnchorSnapping.value = false
-  }
-}
-
-function onComIDSelect(comid: string, lat: number, lng: number) {
-  if (authorComIDSlot.value === 'up') {
-    authorUpComID.value = comid
-    authorStartLat.value = lat; authorStartLng.value = lng
-    authorComIDSlot.value = 'down'
-  } else {
-    authorDownComID.value = comid
-    authorEndLat.value = lat; authorEndLng.value = lng
-    // Both ComIDs now set — lock to prevent accidental flowline clicks
-    // while user hunts for gauge.
-    authorComIDPairLocked.value = true
-  }
-}
-
-async function previewCenterline() {
-  if (!authorUpComID.value || !authorDownComID.value) return
-  authorPreviewLoading.value = true
-  authorPreviewCenterline.value = null
-  try {
-    const token = await getToken()
-    let url = `${apiBase}/api/v1/admin/nldi/preview-centerline?up_comid=${authorUpComID.value}&down_comid=${authorDownComID.value}`
-    if (authorStartLat.value != null && authorStartLng.value != null && authorEndLat.value != null && authorEndLng.value != null)
-      url += `&start_lat=${authorStartLat.value}&start_lng=${authorStartLng.value}&end_lat=${authorEndLat.value}&end_lng=${authorEndLng.value}`
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-    if (res.ok) {
-      const data = await res.json()
-      authorPreviewCenterline.value = data.geojson
-    }
-  } catch { /* non-fatal */ }
-  finally { authorPreviewLoading.value = false }
 }
 
 async function submit() {
