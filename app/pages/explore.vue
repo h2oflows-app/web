@@ -357,7 +357,9 @@
                 </div>
               </div>
               <NuxtLink
-                :to="mode === 'community' ? `/runs/u/${reach.id}` : `/my/runs/${reach.slug}`"
+                :to="mode === 'community'
+                ? (reach.author_handle ? `/runs/${reach.author_handle}/${reach.slug}` : `/runs/u/${reach.id}`)
+                : `/my/runs/${reach.slug}`"
                 class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-opacity opacity-60 sm:opacity-0 sm:group-hover:opacity-100 hover:opacity-100"
                 aria-label="View run"
                 @click.stop
@@ -615,6 +617,7 @@ interface UserReachSummary {
   current_cfs: number | null
   flow_status: string
   gauge_id?: string | null
+  author_handle?: string | null
 }
 interface UserRiverGroup { name: string; reaches: UserReachSummary[] }
 
@@ -652,11 +655,12 @@ async function loadCommunityReaches() {
     if (!res.ok) throw new Error(`${res.status}`)
     const data = await res.json()
     userReaches.value = (data.items ?? []).map((r: any) => ({
-      id: r.id, slug: r.id, name: r.name,
+      id: r.id, slug: r.slug, name: r.name,
       river_name: r.river_name,
       current_cfs: r.current_cfs,
       flow_status: r.flow_status,
       gauge_id: r.gauge_id,
+      author_handle: r.author_handle ?? null,
     }))
   } catch {
     userReachesError.value = 'Failed to load community runs.'
@@ -825,11 +829,11 @@ function onMapHover(slug: string | null) {
 // Map reach click → navigate to reach page.
 // Routing priority: payload.isCommunity flag wins over mode (handles overlaid sources).
 // Falls back to mode-based routing for curated + user maps where flag is absent.
-function onReachClick(payload: { slug: string; id?: string; isCommunity?: boolean }) {
-  const { slug, id, isCommunity } = payload
-  if (isCommunity && id) {
-    navigateTo(`/runs/u/${id}`)
-    return
+function onReachClick(payload: { slug: string; id?: string; isCommunity?: boolean; authorHandle?: string | null }) {
+  const { slug, id, isCommunity, authorHandle } = payload
+  if (isCommunity) {
+    if (authorHandle) { navigateTo(`/runs/${authorHandle}/${slug}`); return }
+    if (id)           { navigateTo(`/runs/u/${id}`); return }
   }
   navigateTo(mode.value === 'user' ? `/my/runs/${slug}` : `/runs/${slug}`)
 }

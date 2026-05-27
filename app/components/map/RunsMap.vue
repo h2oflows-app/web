@@ -76,9 +76,10 @@ const props = defineProps<{
   sourceHeaders?: Record<string, string>
 }>()
 export interface ReachClickPayload {
-  slug:         string
-  id?:          string
-  isCommunity?: boolean
+  slug:          string
+  id?:           string
+  isCommunity?:  boolean
+  authorHandle?: string | null
 }
 
 const emit  = defineEmits<{
@@ -483,8 +484,9 @@ function updateLayers(features: ReachFeature[]) {
       if (!slug) return
       emit('reach-click', {
         slug,
-        id: p.id ?? undefined,
-        isCommunity: !!p.is_community,
+        id:           p.id ?? undefined,
+        isCommunity:  !!p.is_community,
+        authorHandle: p.author_handle ?? null,
       })
     })
 
