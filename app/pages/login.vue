@@ -111,7 +111,7 @@ const authError = ref('')
 const signUpSent = ref(false)
 
 // Redirect destination — come from wherever they were trying to go
-const redirectTo = computed(() => (route.query.redirect as string) || '/trips')
+const redirectTo = computed(() => (route.query.redirect as string) || '/dashboard')
 
 async function signInWithProvider(provider: 'google') {
   loading.value   = true
