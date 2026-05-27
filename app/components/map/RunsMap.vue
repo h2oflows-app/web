@@ -54,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { THEMES } from '../../../app.config'
@@ -116,6 +116,9 @@ const mapReady    = ref(false)
 const locating    = ref(false)
 const locateError = ref('')
 const basemap = ref<'street' | 'topo' | 'satellite'>('street')
+const route = useRoute()
+const clusterMode = computed(() => route.query.cluster === '1')
+
 const BASEMAP_OPTIONS = [
   { value: 'street',    label: 'Street'    },
   { value: 'topo',      label: 'Topo'      },
@@ -353,6 +356,7 @@ async function loadAllReaches() {
     }
     const fc = await res.json()
     allServerFeatures = fc.features ?? []
+    if (clusterMode.value) allServerFeatures = augmentClusterProps(allServerFeatures)
     loadedFeatures = allServerFeatures
     filterVisible()
   } catch (e) {
@@ -417,10 +421,65 @@ function midpoint(f: ReachFeature): [number, number] | null {
   return coords[Math.floor(coords.length / 2)]
 }
 
+const EMPTY_FC = { type: 'FeatureCollection' as const, features: [] as any[] }
+
+// Compute cluster display props for all community features.
+// cluster_id is always present on community features (own id for unclustered).
+// Assigns: is_cluster_top, cluster_count, cluster_offset.
+function augmentClusterProps(features: ReachFeature[]): ReachFeature[] {
+  const groups = new Map<string, { id: string; rank: number }[]>()
+  for (const f of features) {
+    const p = f.properties as any
+    if (!p.is_community || !p.cluster_id) continue
+    if (!groups.has(p.cluster_id)) groups.set(p.cluster_id, [])
+    groups.get(p.cluster_id)!.push({ id: p.id, rank: p.rank_score ?? 0 })
+  }
+  return features.map(f => {
+    const p = f.properties as any
+    if (!p.is_community || !p.cluster_id) return f
+    const group = groups.get(p.cluster_id) ?? []
+    const sorted = [...group].sort((a, b) => b.rank - a.rank)
+    const idx = sorted.findIndex(x => x.id === p.id)
+    const isTop = idx === 0
+    const OFFSETS = [0, -1.5, 1.5, -3, 3]
+    const offset = OFFSETS[Math.min(idx, OFFSETS.length - 1)] ?? 0
+    return {
+      ...f,
+      properties: { ...f.properties, is_cluster_top: isTop, cluster_count: group.length, cluster_offset: offset },
+    }
+  })
+}
+
+// One GeoJSON point per unique cluster (at top-ranked run's put-in), for zoom < 10 count badges.
+function buildClusterPointsFC(features: ReachFeature[]) {
+  const seen = new Set<string>()
+  const pts: any[] = []
+  for (const f of features) {
+    const p = f.properties as any
+    if (!p.is_community || !p.cluster_id || !p.is_cluster_top) continue
+    if (seen.has(p.cluster_id)) continue
+    seen.add(p.cluster_id)
+    const coords: [number, number][] = f.geometry.type === 'LineString'
+      ? f.geometry.coordinates
+      : (f.geometry.coordinates as [number, number][][]).flat()
+    if (!coords.length) continue
+    pts.push({
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: coords[0] },
+      properties: { cluster_id: p.cluster_id, cluster_count: p.cluster_count, top_name: displayName(f.properties) },
+    })
+  }
+  return { type: 'FeatureCollection' as const, features: pts }
+}
+
 function updateLayers(features: ReachFeature[]) {
   if (!map) return
 
+  const cm = clusterMode.value
+  // Features are pre-augmented (is_cluster_top / cluster_count / cluster_offset) in loadAllReaches.
   const lineFC = { type: 'FeatureCollection' as const, features: features as any[] }
+  // Cluster count badges: one point per cluster visible in viewport.
+  const clusterPtsFC = cm ? buildClusterPointsFC(features) : EMPTY_FC
 
   const markerFeatures = features.flatMap(f => {
     const mid = midpoint(f)
@@ -440,23 +499,52 @@ function updateLayers(features: ReachFeature[]) {
   } else {
     map.addSource('reaches', { type: 'geojson', data: lineFC })
 
+    // cluster mode: exclude community variant runs from glow + main lines
+    // (community-variant-lines renders them separately at thin weight)
+    const noVariants: any = cm ? ['!', ['all',
+      ['boolean', ['coalesce', ['get', 'is_community'], false], false],
+      ['!', ['boolean', ['coalesce', ['get', 'is_cluster_top'], true], true]],
+    ]] : null
+
     // Glow — class V gets a red glow, others a softer color-matched glow
     map.addLayer({
       id: 'reach-glow', type: 'line', source: 'reaches',
+      ...(noVariants ? { filter: noVariants } : {}),
       paint: {
         'line-color': difficultyColorExpr(),
         'line-width': ['interpolate', ['linear'], ['zoom'], 6, 6, 12, 14],
         'line-opacity': 0.15, 'line-blur': 4,
-      },
+        ...(cm ? { 'line-offset': ['coalesce', ['get', 'cluster_offset'], 0] } : {}),
+      } as any,
     })
     map.addLayer({
       id: 'reach-lines', type: 'line', source: 'reaches',
+      ...(noVariants ? { filter: noVariants } : {}),
       paint: {
         'line-color': difficultyColorExpr(),
         'line-width': ['interpolate', ['linear'], ['zoom'], 6, 2.5, 12, 5],
         'line-opacity': 0.9,
-      },
+        ...(cm ? { 'line-offset': ['coalesce', ['get', 'cluster_offset'], 0] } : {}),
+      } as any,
     })
+
+    // cluster mode: thin variant lines, minzoom 10 (top-ranked bold at 10-13, variants thin)
+    if (cm) {
+      map.addLayer({
+        id: 'community-variant-lines', type: 'line', source: 'reaches',
+        minzoom: 10,
+        filter: ['all',
+          ['boolean', ['coalesce', ['get', 'is_community'], false], false],
+          ['!', ['boolean', ['coalesce', ['get', 'is_cluster_top'], true], true]],
+        ],
+        paint: {
+          'line-color': difficultyColorExpr(),
+          'line-width': 0.8,
+          'line-opacity': 0.55,
+          'line-offset': ['coalesce', ['get', 'cluster_offset'], 0],
+        } as any,
+      })
+    }
 
     // Hover / selected highlight layer — uses the reach's own difficulty color at higher opacity/width
     map.addLayer({
@@ -521,6 +609,9 @@ function updateLayers(features: ReachFeature[]) {
   // ── Update or create clustered difficulty marker layers ─────────────────────
   if (map.getSource('diff-markers')) {
     ;(map.getSource('diff-markers') as maplibregl.GeoJSONSource).setData(markerFC)
+    if (cm && map.getSource('cluster-count-pts')) {
+      ;(map.getSource('cluster-count-pts') as maplibregl.GeoJSONSource).setData(clusterPtsFC)
+    }
     return
   }
 
@@ -542,6 +633,28 @@ function updateLayers(features: ReachFeature[]) {
 
   map.on('mouseenter', 'diff-points',   () => { if (map) map.getCanvas().style.cursor = 'pointer' })
   map.on('mouseleave', 'diff-points',   () => { if (map) map.getCanvas().style.cursor = '' })
+
+  // cluster mode: count badges at zoom < 10, one per cluster group
+  if (cm) {
+    map.addSource('cluster-count-pts', { type: 'geojson', data: clusterPtsFC })
+    map.addLayer({
+      id: 'cluster-count', type: 'symbol', source: 'cluster-count-pts',
+      maxzoom: 10,
+      layout: {
+        'text-field': ['case',
+          ['>', ['coalesce', ['get', 'cluster_count'], 1], 1],
+          ['concat', ['get', 'top_name'], ' (', ['to-string', ['get', 'cluster_count']], ')'],
+          ['get', 'top_name'],
+        ],
+        'text-size': 11,
+        'text-anchor': 'top',
+        'text-offset': [0, 0.3],
+        'text-max-width': 12,
+        'text-allow-overlap': false,
+      },
+      paint: { 'text-color': '#111827', 'text-halo-color': '#ffffff', 'text-halo-width': 1.5 },
+    })
+  }
 }
 
 function relativeTime(iso: string): string {
