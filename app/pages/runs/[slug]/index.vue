@@ -45,6 +45,39 @@
       Loading…
     </div>
 
+    <!-- User profile view — when slug matches a handle, not a curated run -->
+    <div v-else-if="!reach && profileRuns !== null" class="max-w-3xl mx-auto px-3 py-8 space-y-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-600 dark:text-primary-400 font-semibold text-sm">
+          {{ (profileHandle ?? '?')[0].toUpperCase() }}
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-neutral-900 dark:text-white">@{{ profileHandle }}</h1>
+          <p class="text-xs text-neutral-400">{{ profileRuns.length }} public run{{ profileRuns.length !== 1 ? 's' : '' }}</p>
+        </div>
+      </div>
+      <div v-if="profileRuns.length === 0" class="text-sm text-neutral-400">No public runs yet.</div>
+      <div v-else class="space-y-2">
+        <NuxtLink
+          v-for="r in profileRuns" :key="r.id"
+          :to="`/runs/${profileHandle}/${r.slug}`"
+          class="block bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 px-4 py-3 hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <div class="min-w-0">
+              <p class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate">{{ r.name }}</p>
+              <p v-if="r.river_name" class="text-xs text-neutral-400 truncate">{{ r.river_name }}</p>
+            </div>
+            <div class="shrink-0 text-right">
+              <span v-if="r.class_min != null || r.class_max != null" class="text-xs font-medium text-neutral-500">
+                Class {{ r.class_min ?? r.class_max }}
+              </span>
+            </div>
+          </div>
+        </NuxtLink>
+      </div>
+    </div>
+
     <div v-else-if="!reach" class="max-w-5xl mx-auto px-3 py-12 text-center text-neutral-400">
       Run not found.
     </div>
@@ -1631,6 +1664,27 @@ watch(
   () => loadOverride(),
   { immediate: true }
 )
+
+// ── User profile fallback ──────────────────────────────────────────────────────
+// When the slug doesn't match a curated run, try it as a user handle (V1/B1).
+
+interface UserProfileRun {
+  id: string; slug: string; name: string; river_name: string | null
+  class_min: number | null; class_max: number | null
+  current_cfs: number | null; flow_status: string; created_at: string
+}
+const profileRuns   = ref<UserProfileRun[] | null>(null)
+const profileHandle = ref<string | null>(null)
+
+watch([pending, () => reach.value], async ([isPending, r]) => {
+  if (isPending || r) return
+  const slug = route.params.slug as string
+  const res = await fetch(`${config.public.apiBase}/api/v1/users/${slug}`).catch(() => null)
+  if (!res?.ok) return
+  const data = await res.json()
+  profileHandle.value = data.handle
+  profileRuns.value   = data.runs ?? []
+})
 
 </script>
 
