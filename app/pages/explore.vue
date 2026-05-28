@@ -333,7 +333,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import type { ReachListItem as MapReachItem } from '~/components/map/RunsMap.vue'
 import type { WatchedGauge } from '~/stores/watchlist'
 
@@ -379,6 +379,11 @@ onMounted(async () => {
     db.load()
     await loadUserReaches()
     await loadDashboardMembership()
+  }
+  // wizard paths: ?import=true opens import modal (V10); ?discover=true handled by T6
+  if (route.query.import === 'true') {
+    importModalOpen.value = true
+    router.replace({ query: {} })
   }
 })
 onUnmounted(() => document.removeEventListener('click', onDocClick))
