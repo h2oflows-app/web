@@ -56,6 +56,18 @@
         <span class="hidden sm:inline text-xs font-medium">Report</span>
       </NuxtLink>
 
+      <!-- + Add Run CTA — desktop (V6) -->
+      <button
+        v-if="isAuthenticated"
+        class="shrink-0 hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white transition-colors shadow-sm"
+        @click="wizardOpen = true"
+      >
+        <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="10" y1="3" x2="10" y2="17"/><line x1="3" y1="10" x2="17" y2="10"/>
+        </svg>
+        <span class="hidden sm:inline text-xs">Add Run</span>
+      </button>
+
       <!-- AI Ask button — left side (icon always visible, text desktop only) -->
       <button
         class="shrink-0 flex items-center gap-1 p-1.5 rounded-md text-neutral-500 dark:text-neutral-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors"
@@ -203,6 +215,17 @@
 
     <!-- Mobile menu dropdown -->
     <div v-if="menuOpen" class="sm:hidden border-t border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-950 px-4 py-3 flex flex-col gap-1">
+      <!-- + Add Run — top item (V6) -->
+      <button
+        v-if="isAuthenticated"
+        class="w-full text-left px-3 py-2.5 rounded-md text-sm font-semibold bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white transition-colors flex items-center gap-2 mb-1"
+        @click="menuOpen = false; wizardOpen = true"
+      >
+        <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="10" y1="3" x2="10" y2="17"/><line x1="3" y1="10" x2="17" y2="10"/>
+        </svg>
+        Add Run
+      </button>
       <!-- Dashboard + Map — mobile -->
       <NuxtLink
         to="/dashboard"
@@ -278,6 +301,15 @@
       </div>
     </div>
   </header>
+
+  <!-- Wizard entry modal (V7/V8/V9/V10/V11/V12) -->
+  <WizardEntryModal
+    :open="wizardOpen"
+    @cancel="wizardOpen = false"
+    @search-fork="handleWizardSearchFork"
+    @import="handleWizardImport"
+    @draw="handleWizardDraw"
+  />
 
   <!-- Global Ask modal (Teleport so it's above everything) -->
   <Teleport to="body">
@@ -367,6 +399,20 @@ const router = useRouter()
 const route = useRoute()
 const menuOpen = ref(false)
 const userMenuOpen = ref(false)
+const wizardOpen  = ref(false)
+
+function handleWizardSearchFork() {
+  wizardOpen.value = false
+  router.push({ path: '/explore', query: { discover: 'true' } })
+}
+function handleWizardImport() {
+  wizardOpen.value = false
+  router.push({ path: '/explore', query: { import: 'true' } })
+}
+function handleWizardDraw() {
+  wizardOpen.value = false
+  router.push('/my/runs/new')
+}
 
 const { apiBase } = useRuntimeConfig().public
 
