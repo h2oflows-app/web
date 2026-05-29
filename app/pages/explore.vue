@@ -299,6 +299,13 @@
   <!-- Import run modal -->
   <RunImportModal v-model:open="importModalOpen" @imported="loadUserReaches" />
 
+  <!-- Search / Discover modal — opened via ?discover=true or ?import=true query (V9) -->
+  <GaugeSearchModal
+    v-model:open="searchModalOpen"
+    :initial-tab="searchModalInitialTab"
+    @added-external="loadUserReaches"
+  />
+
   <!-- New reach modal (admin only — retained for admin reach authoring) -->
   <Teleport to="body">
     <Transition
@@ -347,10 +354,12 @@ let pendingFocusSlug: string | null = (route.query.focus as string) || null
 const { isAuthenticated, getToken } = useAuth()
 const db = useDashboards()
 
-// ── New reach / import modals ─────────────────────────────────────────────────
-const authorModalOpen  = ref(false)
-const reachPickerOpen  = ref(false)
-const importModalOpen  = ref(false)
+// ── New reach / import / search modals ────────────────────────────────────────
+const authorModalOpen      = ref(false)
+const reachPickerOpen      = ref(false)
+const importModalOpen      = ref(false)
+const searchModalOpen      = ref(false)
+const searchModalInitialTab = ref<'mine' | 'discover'>('mine')
 
 function onAuthorCreated(slug: string) {
   authorModalOpen.value = false
@@ -380,9 +389,13 @@ onMounted(async () => {
     await loadUserReaches()
     await loadDashboardMembership()
   }
-  // wizard paths: ?import=true opens import modal (V10); ?discover=true handled by T6
+  // wizard paths: ?import=true opens import modal (V10); ?discover=true opens search modal on Discover tab (V9)
   if (route.query.import === 'true') {
     importModalOpen.value = true
+    router.replace({ query: {} })
+  } else if (route.query.discover === 'true') {
+    searchModalInitialTab.value = 'discover'
+    searchModalOpen.value = true
     router.replace({ query: {} })
   }
 })
