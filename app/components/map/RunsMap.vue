@@ -156,6 +156,11 @@ const reachTooltip = new maplibregl.Popup({
   className: 'reach-map-tooltip',
 })
 
+const pickerPopup = new maplibregl.Popup({
+  closeButton: true, closeOnClick: false, offset: [0, -8],
+  className: 'reach-picker-popup',
+})
+
 // Initial viewport — western US (Colorado + surrounding states)
 const INITIAL_BBOX = { west: -116.0, south: 35.5, east: -101.5, north: 45.5 }
 const MAP_POS_KEY  = 'h2o-explore-map-pos'
@@ -313,6 +318,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   reachTooltip.remove()
+  pickerPopup.remove()
   map?.remove()
   map = null
 })
@@ -476,17 +482,36 @@ function updateLayers(features: ReachFeature[]) {
       paint: { 'line-color': 'transparent', 'line-width': 24, 'line-opacity': 0 },
     })
 
-    // Click → navigate (no popup)
+    // Click → navigate (single) or show picker (multiple overlapping)
     map.on('click', 'reach-lines-hit', e => {
       if (!map || !e.features?.length) return
-      const p = e.features[0].properties as any
-      const slug = p.slug as string
-      if (!slug) return
-      emit('reach-click', {
-        slug,
-        id:           p.id ?? undefined,
-        isCommunity:  !!p.is_community,
-        authorHandle: p.author_handle ?? null,
+      const allAtPoint = map.queryRenderedFeatures(e.point, { layers: ['reach-lines-hit'] })
+      const seen = new Set<string>()
+      const unique = allAtPoint.filter(f => {
+        const s = (f.properties as any).slug as string
+        if (!s || seen.has(s)) return false
+        seen.add(s)
+        return true
+      })
+      if (unique.length <= 1) {
+        const p = (unique[0] ?? e.features[0]).properties as any
+        if (!p.slug) return
+        emit('reach-click', { slug: p.slug, id: p.id ?? undefined, isCommunity: !!p.is_community, authorHandle: p.author_handle ?? null })
+        return
+      }
+      // Multiple overlapping — show picker
+      pickerPopup.remove()
+      const items = unique.map(f => {
+        const p = f.properties as any
+        return `<div class="rpp-item" data-slug="${p.slug}" data-id="${p.id ?? ''}" data-community="${!!p.is_community}" data-handle="${p.author_handle ?? ''}">${p.common_name ?? p.name}</div>`
+      }).join('')
+      pickerPopup.setLngLat(e.lngLat).setHTML(`<div class="rpp-header">${unique.length} runs here</div>${items}`).addTo(map!)
+      pickerPopup.getElement()?.querySelectorAll<HTMLElement>('.rpp-item').forEach(el => {
+        el.addEventListener('click', ev => {
+          ev.stopPropagation()
+          emit('reach-click', { slug: el.dataset.slug!, id: el.dataset.id || undefined, isCommunity: el.dataset.community === 'true', authorHandle: el.dataset.handle || null })
+          pickerPopup.remove()
+        })
       })
     })
 
@@ -496,19 +521,32 @@ function updateLayers(features: ReachFeature[]) {
       map.getCanvas().style.cursor = 'pointer'
       const p = e.features[0].properties as any
       emit('hover-changed', p.slug)
-      const displayName = p.common_name ?? p.name
-      const subtitle = p.river_name
-        ? `<br><span style="opacity:0.6;font-size:0.7rem;font-weight:400">${p.river_name}</span>`
-        : ''
-      let attribution = ''
-      if (p.is_official) {
-        attribution = `<br><span style="opacity:0.7;font-size:0.7rem;font-weight:500">H2OFlows ⭐</span>`
-      } else if (p.author_handle) {
-        attribution = `<br><span style="opacity:0.7;font-size:0.7rem;font-weight:400">by @${p.author_handle}</span>`
+      const allAtPoint = map.queryRenderedFeatures(e.point, { layers: ['reach-lines-hit'] })
+      const seen = new Set<string>()
+      const unique = allAtPoint.filter(f => {
+        const s = (f.properties as any).slug as string
+        if (!s || seen.has(s)) return false
+        seen.add(s)
+        return true
+      })
+      let html: string
+      if (unique.length > 1) {
+        const names = unique.map(f => `<div>${(f.properties as any).common_name ?? (f.properties as any).name}</div>`).join('')
+        html = `<div style="opacity:0.7;font-size:0.7rem;margin-bottom:3px">${unique.length} runs here — click to pick</div>${names}`
+      } else {
+        const displayName = p.common_name ?? p.name
+        const subtitle = p.river_name
+          ? `<br><span style="opacity:0.6;font-size:0.7rem;font-weight:400">${p.river_name}</span>`
+          : ''
+        let attribution = ''
+        if (p.is_official) {
+          attribution = `<br><span style="opacity:0.7;font-size:0.7rem;font-weight:500">H2OFlows ⭐</span>`
+        } else if (p.author_handle) {
+          attribution = `<br><span style="opacity:0.7;font-size:0.7rem;font-weight:400">by @${p.author_handle}</span>`
+        }
+        html = `<strong>${displayName}</strong>${subtitle}${attribution}`
       }
-      reachTooltip.setLngLat(e.lngLat).setHTML(
-        `<strong>${displayName}</strong>${subtitle}${attribution}`
-      ).addTo(map!)
+      reachTooltip.setLngLat(e.lngLat).setHTML(html).addTo(map!)
     })
     map.on('mousemove', 'reach-lines-hit', e => {
       reachTooltip.setLngLat(e.lngLat)
@@ -610,5 +648,30 @@ function difficultyColorExpr(): maplibregl.ExpressionSpecification {
 }
 .reach-map-tooltip .maplibregl-popup-tip {
   border-top-color: rgba(17, 24, 39, 0.92) !important;
+}
+.reach-picker-popup .maplibregl-popup-content {
+  padding: 8px 12px !important;
+  font-size: 0.8rem;
+  font-weight: 500;
+  background: rgba(17, 24, 39, 0.96) !important;
+  color: #f9fafb !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.35) !important;
+  min-width: 140px;
+}
+.reach-picker-popup .maplibregl-popup-tip {
+  border-top-color: rgba(17, 24, 39, 0.96) !important;
+}
+.rpp-header {
+  opacity: 0.6;
+  font-size: 0.7rem;
+  margin-bottom: 5px;
+}
+.rpp-item {
+  cursor: pointer;
+  padding: 3px 0;
+}
+.rpp-item:hover {
+  color: #93c5fd;
 }
 </style>
