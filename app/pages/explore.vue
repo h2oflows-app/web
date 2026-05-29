@@ -4,6 +4,15 @@
     <!-- Backdrop: consumes the click that closes the dashboard dropdown so it doesn't hit reach rows -->
     <div v-if="dropdownSlug !== null" class="fixed inset-0 z-30" @click.stop="dropdownSlug = null" />
 
+    <!-- Sharing banner (V22) — one-time, auth only, localStorage dismissed flag -->
+    <div v-if="showSharingBanner" class="shrink-0 bg-blue-50 dark:bg-blue-950 border-b border-blue-200 dark:border-blue-800 px-4 py-2 flex items-center justify-between gap-4 text-sm">
+      <p class="text-blue-800 dark:text-blue-200 text-center flex-1">
+        Your runs help others discover paddleable water.
+        <span class="font-medium">Mark any run private from its edit page.</span>
+      </p>
+      <button class="shrink-0 text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-100 font-medium transition-colors" @click="dismissSharingBanner">Dismiss</button>
+    </div>
+
     <!-- Demo banner -->
     <div v-if="showDemoBanner" class="shrink-0 bg-amber-50 dark:bg-amber-950 border-b border-amber-200 dark:border-amber-800 px-4 py-2 flex items-center justify-between gap-4 text-sm">
       <p class="text-amber-800 dark:text-amber-200 text-center flex-1">
@@ -369,6 +378,14 @@ function onAuthorCreated(slug: string) {
 // ── Demo banner ───────────────────────────────────────────────────────────────
 const showDemoBanner = ref(false)
 
+// ── Sharing banner (V22) ──────────────────────────────────────────────────────
+const showSharingBanner = ref(false)
+
+function dismissSharingBanner() {
+  showSharingBanner.value = false
+  localStorage.setItem('sharing-banner-dismissed', 'true')
+}
+
 // ── Dashboard dropdown per reach ──────────────────────────────────────────────
 const dropdownSlug           = ref<string | null>(null)
 const membershipDashboardIds = ref<Set<string>>(new Set())
@@ -388,6 +405,12 @@ onMounted(async () => {
     db.load()
     await loadUserReaches()
     await loadDashboardMembership()
+    if (
+      userReaches.value.length > 0 &&
+      localStorage.getItem('sharing-banner-dismissed') !== 'true'
+    ) {
+      showSharingBanner.value = true
+    }
   }
   // wizard paths: ?import=true opens import modal (V10); ?discover=true opens search modal on Discover tab (V9)
   if (route.query.import === 'true') {
