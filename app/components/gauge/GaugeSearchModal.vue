@@ -488,7 +488,12 @@ async function startFork(run: DiscoverRun) {
   try {
     const token = await getToken()
     if (!token) return
-    const res = await fetch(`${apiBase}/api/v1/user-runs/${run.id}/fork`, {
+    // curated runs live in reaches table — use slug-based fork endpoint
+    // community runs live in user_reaches — use id-based fork endpoint
+    const url = run.is_official
+      ? `${apiBase}/api/v1/me/runs/fork-reach/${run.slug}`
+      : `${apiBase}/api/v1/user-runs/${run.id}/fork`
+    const res = await fetch(url, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     })
