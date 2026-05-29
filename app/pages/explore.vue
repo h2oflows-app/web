@@ -4,6 +4,15 @@
     <!-- Backdrop: consumes the click that closes the dashboard dropdown so it doesn't hit reach rows -->
     <div v-if="dropdownSlug !== null" class="fixed inset-0 z-30" @click.stop="dropdownSlug = null" />
 
+    <!-- Sharing banner (V22) — one-time, auth only, localStorage dismissed flag -->
+    <div v-if="showSharingBanner" class="shrink-0 bg-blue-50 dark:bg-blue-950 border-b border-blue-200 dark:border-blue-800 px-4 py-2 flex items-center justify-between gap-4 text-sm">
+      <p class="text-blue-800 dark:text-blue-200 text-center flex-1">
+        Your runs help others discover paddleable water.
+        <span class="font-medium">Mark any run private from its edit page.</span>
+      </p>
+      <button class="shrink-0 text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-100 font-medium transition-colors" @click="dismissSharingBanner">Dismiss</button>
+    </div>
+
     <!-- Demo banner -->
     <div v-if="showDemoBanner" class="shrink-0 bg-amber-50 dark:bg-amber-950 border-b border-amber-200 dark:border-amber-800 px-4 py-2 flex items-center justify-between gap-4 text-sm">
       <p class="text-amber-800 dark:text-amber-200 text-center flex-1">
@@ -200,14 +209,63 @@
       <!-- ── Right panel: map ──────────────────────────────────────────────── -->
       <div class="flex-1 min-w-0 relative">
 
-        <!-- Floating mode label — T3 replaces with dashboard multi-select -->
+        <!-- Floating filter dropdown — multi-select dashboard checkboxes (V3/V4/V5) -->
         <div
           v-if="isAuthenticated && !listVisible"
           class="mode-dropdown-anchor absolute top-2 right-2 z-20"
         >
-          <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 shadow-md bg-white/95 dark:bg-neutral-900/95 backdrop-blur-sm text-xs font-medium text-neutral-700 dark:text-neutral-200">
+          <button
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 shadow-md bg-white/95 dark:bg-neutral-900/95 backdrop-blur-sm text-xs font-medium text-neutral-700 dark:text-neutral-200 hover:bg-white dark:hover:bg-neutral-900 transition-colors"
+            @click="filterDropdownOpen = !filterDropdownOpen"
+          >
             <span class="text-neutral-400 dark:text-neutral-500">Showing:</span>
-            <span class="text-primary-600 dark:text-primary-400">My Runs</span>
+            <span class="text-primary-600 dark:text-primary-400">{{ filterLabel }}</span>
+            <svg class="w-3 h-3 text-neutral-400 transition-transform" :class="filterDropdownOpen ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/>
+            </svg>
+          </button>
+          <div
+            v-if="filterDropdownOpen && db.dashboards.value.length > 0"
+            class="absolute right-0 top-full mt-1 min-w-44 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden"
+          >
+            <!-- All Runs row -->
+            <button
+              class="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+              @click="clickAllRuns"
+            >
+              <svg
+                class="w-3.5 h-3.5 shrink-0"
+                :class="allRunsMode ? 'text-primary-500' : 'text-neutral-300 dark:text-neutral-600'"
+                viewBox="0 0 20 20" fill="currentColor"
+              >
+                <path v-if="allRunsMode" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                <circle v-else cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+              <span class="font-medium text-neutral-700 dark:text-neutral-300">All Runs</span>
+            </button>
+            <div class="border-t border-neutral-100 dark:border-neutral-800"/>
+            <!-- Per-dashboard rows -->
+            <button
+              v-for="dashboard in db.dashboards.value"
+              :key="dashboard.id"
+              class="w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-colors"
+              :class="allRunsMode
+                ? 'opacity-50 cursor-not-allowed'
+                : 'hover:bg-neutral-50 dark:hover:bg-neutral-800'"
+              :disabled="allRunsMode"
+              :title="allRunsMode ? 'Uncheck All Runs to filter by dashboard.' : ''"
+              @click="!allRunsMode && toggleDashboardFilter(dashboard.id)"
+            >
+              <svg
+                class="w-3.5 h-3.5 shrink-0"
+                :class="!allRunsMode && selectedDashboardIds.has(dashboard.id) ? 'text-primary-500' : 'text-neutral-300 dark:text-neutral-600'"
+                viewBox="0 0 20 20" fill="currentColor"
+              >
+                <path v-if="!allRunsMode && selectedDashboardIds.has(dashboard.id)" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                <circle v-else cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              </svg>
+              <span class="truncate text-neutral-700 dark:text-neutral-300">{{ dashboard.name }}</span>
+            </button>
           </div>
         </div>
 
@@ -250,6 +308,13 @@
   <!-- Import run modal -->
   <RunImportModal v-model:open="importModalOpen" @imported="loadUserReaches" />
 
+  <!-- Search / Discover modal — opened via ?discover=true or ?import=true query (V9) -->
+  <GaugeSearchModal
+    v-model:open="searchModalOpen"
+    :initial-tab="searchModalInitialTab"
+    @added-external="loadUserReaches"
+  />
+
   <!-- New reach modal (admin only — retained for admin reach authoring) -->
   <Teleport to="body">
     <Transition
@@ -284,7 +349,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import type { ReachListItem as MapReachItem } from '~/components/map/RunsMap.vue'
 import type { WatchedGauge } from '~/stores/watchlist'
 
@@ -298,10 +363,12 @@ let pendingFocusSlug: string | null = (route.query.focus as string) || null
 const { isAuthenticated, getToken } = useAuth()
 const db = useDashboards()
 
-// ── New reach / import modals ─────────────────────────────────────────────────
-const authorModalOpen  = ref(false)
-const reachPickerOpen  = ref(false)
-const importModalOpen  = ref(false)
+// ── New reach / import / search modals ────────────────────────────────────────
+const authorModalOpen      = ref(false)
+const reachPickerOpen      = ref(false)
+const importModalOpen      = ref(false)
+const searchModalOpen      = ref(false)
+const searchModalInitialTab = ref<'mine' | 'discover'>('mine')
 
 function onAuthorCreated(slug: string) {
   authorModalOpen.value = false
@@ -310,6 +377,14 @@ function onAuthorCreated(slug: string) {
 
 // ── Demo banner ───────────────────────────────────────────────────────────────
 const showDemoBanner = ref(false)
+
+// ── Sharing banner (V22) ──────────────────────────────────────────────────────
+const showSharingBanner = ref(false)
+
+function dismissSharingBanner() {
+  showSharingBanner.value = false
+  localStorage.setItem('sharing-banner-dismissed', 'true')
+}
 
 // ── Dashboard dropdown per reach ──────────────────────────────────────────────
 const dropdownSlug           = ref<string | null>(null)
@@ -320,6 +395,7 @@ function onDocClick(e: MouseEvent) {
   const target = e.target as HTMLElement
   if (reachPickerOpen.value && !target.closest('.reach-picker-anchor')) reachPickerOpen.value = false
   if (dropdownSlug.value && !target.closest('.dashboard-dropdown-anchor')) dropdownSlug.value = null
+  if (filterDropdownOpen.value && !target.closest('.mode-dropdown-anchor')) filterDropdownOpen.value = false
 }
 
 onMounted(async () => {
@@ -328,6 +404,22 @@ onMounted(async () => {
   if (isAuthenticated.value) {
     db.load()
     await loadUserReaches()
+    await loadDashboardMembership()
+    if (
+      userReaches.value.length > 0 &&
+      localStorage.getItem('sharing-banner-dismissed') !== 'true'
+    ) {
+      showSharingBanner.value = true
+    }
+  }
+  // wizard paths: ?import=true opens import modal (V10); ?discover=true opens search modal on Discover tab (V9)
+  if (route.query.import === 'true') {
+    importModalOpen.value = true
+    router.replace({ query: {} })
+  } else if (route.query.discover === 'true') {
+    searchModalInitialTab.value = 'discover'
+    searchModalOpen.value = true
+    router.replace({ query: {} })
   }
 })
 onUnmounted(() => document.removeEventListener('click', onDocClick))
@@ -339,10 +431,72 @@ function dismissBanner() {
 
 // ── Map source ────────────────────────────────────────────────────────────────
 const mapToken = ref<string | null>(null)
-const mapSourceUrl = ref<string | null>(null)
 const mapSourceHeaders = computed((): Record<string, string> =>
   mapToken.value ? { Authorization: `Bearer ${mapToken.value}` } : {}
 )
+
+// ── Dashboard filter (V3/V4/V5) ───────────────────────────────────────────────
+const filterDropdownOpen  = ref(false)
+const allRunsMode         = ref(true)
+const selectedDashboardIds = ref(new Set<string>())
+const dashboardReachMap   = ref(new Map<string, Set<string>>())
+
+const filterLabel = computed(() => {
+  if (allRunsMode.value || selectedDashboardIds.value.size === 0) return 'All Runs'
+  if (selectedDashboardIds.value.size === 1) {
+    const id = [...selectedDashboardIds.value][0]
+    return db.dashboards.value.find(d => d.id === id)?.name ?? 'Dashboard'
+  }
+  return `${selectedDashboardIds.value.size} dashboards`
+})
+
+const mapSourceUrl = computed((): string | null => {
+  if (!mapToken.value) return null
+  const base = `${apiBase}/api/v1/me/runs/map/all`
+  if (allRunsMode.value || selectedDashboardIds.value.size === 0) return base
+  const slugs = new Set<string>()
+  for (const id of selectedDashboardIds.value) {
+    for (const slug of (dashboardReachMap.value.get(id) ?? new Set())) slugs.add(slug)
+  }
+  if (slugs.size === 0) return null
+  return `${base}?slugs=${[...slugs].join(',')}`
+})
+
+function clickAllRuns() {
+  if (allRunsMode.value) {
+    allRunsMode.value = false
+  } else {
+    allRunsMode.value = true
+    selectedDashboardIds.value = new Set()
+  }
+}
+
+function toggleDashboardFilter(id: string) {
+  const next = new Set(selectedDashboardIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  selectedDashboardIds.value = next
+}
+
+async function loadDashboardMembership() {
+  const token = await getToken()
+  if (!token) return
+  try {
+    const res = await fetch(`${apiBase}/api/v1/watchlist`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    const m = new Map<string, Set<string>>()
+    for (const item of (data.items ?? [])) {
+      if (item.reach_slug && item.dashboard_id && item.gauge_id == null) {
+        if (!m.has(item.dashboard_id)) m.set(item.dashboard_id, new Set())
+        m.get(item.dashboard_id)!.add(item.reach_slug)
+      }
+    }
+    dashboardReachMap.value = m
+  } catch { /* silent — filter just won't narrow */ }
+}
 
 // ── User reaches ──────────────────────────────────────────────────────────────
 interface UserReachSummary {
@@ -365,7 +519,6 @@ async function loadUserReaches() {
     const token = await getToken()
     mapToken.value = token
     if (!token) { userReachesError.value = 'Sign in to view your runs.'; return }
-    mapSourceUrl.value = `${apiBase}/api/v1/me/runs/map/all`
     const res = await fetch(`${apiBase}/api/v1/me/reaches`, {
       headers: { Authorization: `Bearer ${token}` },
     })
