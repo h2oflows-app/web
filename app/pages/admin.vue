@@ -25,10 +25,10 @@
         </div>
 
         <!-- Tabs -->
-        <div class="flex gap-1 border-b border-neutral-200 dark:border-neutral-800">
+        <div class="flex gap-1 border-b border-neutral-200 dark:border-neutral-800 overflow-x-auto">
           <button
             v-for="tab in visibleTabs" :key="tab.key"
-            class="px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors"
+            class="shrink-0 px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors"
             :class="activeTab === tab.key
               ? 'border-primary-500 text-primary-600 dark:text-primary-400'
               : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
