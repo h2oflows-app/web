@@ -1373,6 +1373,7 @@ async function save() {
         ],
       }
     }
+    void loadCluster()
   } catch (e: any) {
     saveError.value = e.message ?? 'Save failed.'
   } finally {
