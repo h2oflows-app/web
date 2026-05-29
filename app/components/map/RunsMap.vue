@@ -336,6 +336,7 @@ interface ReachFeature {
     author_handle?: string | null
     is_official?: boolean
     is_community?: boolean
+    upvote_count?: number
   }
 }
 
@@ -499,13 +500,25 @@ function updateLayers(features: ReachFeature[]) {
         emit('reach-click', { slug: p.slug, id: p.id ?? undefined, isCommunity: !!p.is_community, authorHandle: p.author_handle ?? null })
         return
       }
-      // Multiple overlapping — show picker
+      // Multiple overlapping — dismiss tooltip, show picker (top 5 by upvotes, official first on tie)
+      reachTooltip.remove()
       pickerPopup.remove()
-      const items = unique.map(f => {
+      const sorted = unique
+        .sort((a, b) => {
+          const aUp = (a.properties as any).upvote_count ?? 0
+          const bUp = (b.properties as any).upvote_count ?? 0
+          if (bUp !== aUp) return bUp - aUp
+          return ((b.properties as any).is_official ? 1 : 0) - ((a.properties as any).is_official ? 1 : 0)
+        })
+        .slice(0, 5)
+      const header = unique.length > 5
+        ? `<div class="rpp-header">top 5 of ${unique.length} runs here</div>`
+        : `<div class="rpp-header">${unique.length} runs here</div>`
+      const items = sorted.map(f => {
         const p = f.properties as any
         return `<div class="rpp-item" data-slug="${p.slug}" data-id="${p.id ?? ''}" data-community="${!!p.is_community}" data-handle="${p.author_handle ?? ''}">${p.common_name ?? p.name}</div>`
       }).join('')
-      pickerPopup.setLngLat(e.lngLat).setHTML(`<div class="rpp-header">${unique.length} runs here</div>${items}`).addTo(map!)
+      pickerPopup.setLngLat(e.lngLat).setHTML(`${header}${items}`).addTo(map!)
       pickerPopup.getElement()?.querySelectorAll<HTMLElement>('.rpp-item').forEach(el => {
         el.addEventListener('click', ev => {
           ev.stopPropagation()
@@ -661,6 +674,12 @@ function difficultyColorExpr(): maplibregl.ExpressionSpecification {
 }
 .reach-picker-popup .maplibregl-popup-tip {
   border-top-color: rgba(17, 24, 39, 0.96) !important;
+}
+.reach-picker-popup .maplibregl-popup-close-button {
+  padding: 6px 10px !important;
+  font-size: 1.1rem !important;
+  line-height: 1 !important;
+  color: #9ca3af !important;
 }
 .rpp-header {
   opacity: 0.6;
