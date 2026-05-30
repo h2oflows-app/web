@@ -51,6 +51,9 @@
               {{ upvoteCount }}
             </button>
 
+            <!-- Dashboard picker (auth only) -->
+            <RunDashboardMembershipPicker v-if="isAuthenticated && run" :slug="run.slug" :reach-id="run.id" />
+
             <!-- Fork (auth only) -->
             <button
               v-if="isAuthenticated"

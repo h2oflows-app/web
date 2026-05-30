@@ -13,6 +13,7 @@
         <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-x-mark" :to="'/my/runs'" title="Close"><span class="hidden sm:inline">Close</span></UButton>
       </div>
       <div class="flex items-center gap-1.5 shrink-0">
+        <RunDashboardMembershipPicker v-if="reach" :slug="slug" :reach-id="reach.id" />
         <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-arrow-up-tray" title="Import KML/KMZ" @click="kmlModalOpen = true"><span class="hidden sm:inline">KML</span></UButton>
         <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-share" title="Share" @click="openShare()"><span class="hidden sm:inline">Share</span></UButton>
         <UButton size="xs" variant="ghost" color="error" icon="i-heroicons-trash" title="Delete" @click="confirmDelete"><span class="hidden sm:inline">Delete</span></UButton>
@@ -66,28 +67,6 @@
           <span v-if="reach.gauge_last_poll_success_at" class="block opacity-80">
             Last update {{ new Date(reach.gauge_last_poll_success_at).toLocaleDateString() }}
           </span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Dashboard membership pills -->
-    <div v-if="reach && dashboardsAdd.dashboards.value.length > 0" class="px-4 pt-3">
-      <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-4 py-3">
-        <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium mb-2">Dashboards</p>
-        <div class="flex flex-wrap gap-2">
-          <button
-            v-for="d in dashboardsAdd.dashboards.value"
-            :key="d.id"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-            :class="reachDashboardIds.has(d.id)
-              ? 'bg-primary-500 text-white hover:bg-primary-600'
-              : 'border border-neutral-300 dark:border-neutral-600 text-neutral-600 dark:text-neutral-300 hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400'"
-            @click="toggleDashboard(d.id)"
-          >
-            <svg v-if="reachDashboardIds.has(d.id)" class="w-3 h-3 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-            <svg v-else class="w-3 h-3 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
-            {{ d.name }}
-          </button>
         </div>
       </div>
     </div>
@@ -561,56 +540,6 @@ const { getToken } = useAuth()
 const { apiBase }  = useRuntimeConfig().public
 
 const slug = computed(() => route.params.slug as string)
-
-// ── Dashboard membership pills ─────────────────────────────────────────────────
-const dashboardsAdd = useDashboards()
-const reachDashboardIds   = ref<Set<string>>(new Set())
-const { addUserReachToWatchlist, addCustomGaugeToWatchlist, addReachToWatchlist } = useWatchlistSync()
-
-async function loadReachDashboards() {
-  const token = await getToken()
-  if (!token) return
-  const res = await fetch(`${apiBase}/api/v1/watchlist`, {
-    headers: { Authorization: `Bearer ${token}` },
-  }).catch(() => null)
-  if (!res?.ok) return
-  const data = await res.json()
-  const ids = new Set<string>()
-  for (const item of data.items ?? []) {
-    if (item.reach_slug === slug.value && item.dashboard_id) ids.add(item.dashboard_id)
-  }
-  reachDashboardIds.value = ids
-}
-
-const toast = useToast()
-
-async function toggleDashboard(dashboardId: string) {
-  if (!reach.value) return
-  if (reachDashboardIds.value.has(dashboardId)) {
-    const token = await getToken()
-    if (!token) return
-    const db = encodeURIComponent(dashboardId)
-    await fetch(`${apiBase}/api/v1/watchlist/${encodeURIComponent(slug.value)}?kind=reach&dashboard_id=${db}`, {
-      method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
-    }).catch(() => {})
-    toast.add({ title: 'Removed from dashboard', color: 'neutral' })
-  } else {
-    await addReachToWatchlist(slug.value, dashboardId)
-    // Clear the per-dashboard localStorage hidden flag so a previously-trashed
-    // reach becomes visible again without needing a manual dashboard refresh.
-    if (import.meta.client && reach.value.id) {
-      const key = `h2oflow_hidden_reaches_${dashboardId}`
-      try {
-        const set = new Set<string>(JSON.parse(localStorage.getItem(key) ?? '[]'))
-        if (set.delete(reach.value.id)) localStorage.setItem(key, JSON.stringify([...set]))
-      } catch {}
-    }
-    toast.add({ title: 'Added to dashboard', color: 'success' })
-  }
-  loadReachDashboards()
-}
-
-onMounted(() => { if (!dashboardsAdd.loaded.value) dashboardsAdd.load() })
 
 const loading   = ref(false)
 const error     = ref('')
@@ -1250,7 +1179,7 @@ watch([repinUpComID, repinDownComID], async ([up, down]) => {
   await previewCenterline()
 })
 
-onMounted(async () => { await load(); loadCustomGauges(); loadReachDashboards(); loadCluster() })
+onMounted(async () => { await load(); loadCustomGauges(); loadCluster() })
 
 // ── Save metadata + flow bands ────────────────────────────────────────────────
 
