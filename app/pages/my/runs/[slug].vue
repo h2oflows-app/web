@@ -58,21 +58,9 @@
       </details>
     </div>
 
-    <!-- Fork attribution banner (V3: pure text, no link back; V4: modified date) -->
-    <div v-if="reach?.original_forked_at || reach?.forked_from_slug" class="px-4 pt-2">
-      <div class="rounded-md bg-neutral-100 dark:bg-neutral-800/60 px-3 py-1.5 flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
-        <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/>
-          <path d="M12 7v3m0 0c0 2-2 3-4 3H7m5 0c0 2 2 3 4 3h1"/>
-        </svg>
-        <span>
-          <template v-if="reach.original_author_handle">Original by @{{ reach.original_author_handle }} · </template>
-          <template v-else-if="reach.forked_from_name ?? reach.forked_from_slug">Forked from {{ reach.forked_from_name ?? reach.forked_from_slug }} · </template>
-          <template v-else>Forked · </template>
-          Forked {{ forkDate }}
-          <template v-if="reach.last_modified_after_fork_at"> · Modified {{ modifiedDate }}</template>
-        </span>
-      </div>
+    <!-- Fork attribution — single inline line -->
+    <div v-if="reach?.original_forked_at || reach?.forked_from_slug" class="px-4 pt-2 text-xs text-neutral-400 dark:text-neutral-500">
+      Forked from {{ reach.forked_from_name ?? reach.forked_from_slug ?? 'unknown' }}<template v-if="reach.original_author_handle"> · @{{ reach.original_author_handle }}</template><template v-if="forkDate"> {{ forkDate }}</template>
     </div>
 
     <!-- CFS strip (top, full width, modal-style summary) -->
