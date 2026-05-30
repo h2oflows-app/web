@@ -296,6 +296,7 @@
                   <th class="text-left px-3 py-2 font-medium">Health</th>
                   <th class="text-right px-3 py-2 font-medium hidden md:table-cell">Last reading</th>
                   <th class="text-right px-3 py-2 font-medium hidden md:table-cell">Fails</th>
+                  <th class="text-right px-3 py-2 font-medium hidden lg:table-cell">Last CFS</th>
                   <th class="text-right px-3 py-2 font-medium hidden sm:table-cell">Reaches</th>
                   <th class="px-3 py-2"></th>
                 </tr>
@@ -326,6 +327,13 @@
                   </td>
                   <td class="px-3 py-2 text-right hidden md:table-cell" :class="g.consecutive_poll_failures > 0 ? 'text-amber-500' : 'text-neutral-400'">
                     {{ g.consecutive_poll_failures || '—' }}
+                  </td>
+                  <td class="px-3 py-2 text-right hidden lg:table-cell tabular-nums">
+                    <span v-if="g.last_reading_cfs != null" class="text-neutral-700 dark:text-neutral-300">
+                      {{ g.last_reading_cfs.toLocaleString() }}
+                    </span>
+                    <span v-else-if="g.consecutive_poll_failures > 0" class="text-amber-500" title="Poll failures — no current reading">err</span>
+                    <em v-else class="text-neutral-400 not-italic">no data</em>
                   </td>
                   <td class="px-3 py-2 text-right hidden sm:table-cell text-neutral-500">{{ g.reach_count }}</td>
                   <td class="px-3 py-2">
@@ -1149,6 +1157,7 @@ interface AdminGauge {
   seasonal_end_mmdd: string | null
   state_abbr: string | null
   reach_count: number
+  last_reading_cfs: number | null
 }
 
 interface GaugeSummary { healthy: number; degraded: number; stale: number; unreachable: number; total: number }
