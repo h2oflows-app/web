@@ -160,7 +160,26 @@
       </aside>
 
       <!-- ── Right panel: map ──────────────────────────────────────────────── -->
-      <div class="flex-1 min-w-0 relative">
+      <div class="flex-1 min-w-0 relative flex flex-col">
+
+        <!-- Browsing banner -->
+        <div
+          v-if="browseHandle"
+          class="shrink-0 bg-primary-50 dark:bg-primary-950 border-b border-primary-200 dark:border-primary-800 px-3 py-1.5 flex items-center justify-between gap-3 text-xs z-10"
+        >
+          <span class="text-primary-700 dark:text-primary-300 font-medium truncate">
+            Browsing <span class="font-bold">@{{ browseHandle }}</span>'s runs
+          </span>
+          <button
+            class="shrink-0 flex items-center gap-1 text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 transition-colors font-medium"
+            @click="clearBrowse"
+          >
+            <svg class="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4 4 12M4 4l8 8"/></svg>
+            My Runs
+          </button>
+        </div>
+
+        <div class="flex-1 relative">
 
         <!-- Floating filter dropdown — multi-select dashboard checkboxes (V3/V4/V5) -->
         <div
@@ -219,6 +238,30 @@
               </svg>
               <span class="truncate text-neutral-700 dark:text-neutral-300">{{ dashboard.name }}</span>
             </button>
+
+            <!-- Browse User section -->
+            <div class="border-t border-neutral-100 dark:border-neutral-800 px-3 py-2 space-y-1.5">
+              <p class="text-[10px] font-semibold uppercase tracking-wide text-neutral-400">Browse User</p>
+              <div class="flex gap-1">
+                <input
+                  v-model="browseInput"
+                  type="text"
+                  placeholder="@h2oflows"
+                  class="flex-1 text-xs bg-neutral-100 dark:bg-neutral-800 rounded px-2 py-1 text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-primary-500 min-w-0"
+                  @keydown.enter.prevent="browseUser"
+                  @click.stop
+                />
+                <button
+                  class="shrink-0 px-2 py-1 rounded text-xs font-medium bg-primary-500 hover:bg-primary-600 text-white transition-colors disabled:opacity-50"
+                  :disabled="browseLoading"
+                  @click.stop="browseUser"
+                >
+                  <svg v-if="browseLoading" class="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="31.4" stroke-dashoffset="10" stroke-linecap="round"/></svg>
+                  <span v-else>Go</span>
+                </button>
+              </div>
+              <p v-if="browseError" class="text-[10px] text-red-500">{{ browseError }}</p>
+            </div>
           </div>
         </div>
 
@@ -246,6 +289,7 @@
           </svg>
           {{ mapReaches.length }} reaches
         </button>
+        </div><!-- /flex-1 relative inner -->
       </div>
     </div>
   </div>
@@ -382,9 +426,10 @@ function dismissBanner() {
 
 // ── Map source ────────────────────────────────────────────────────────────────
 const mapToken = ref<string | null>(null)
-const mapSourceHeaders = computed((): Record<string, string> =>
-  mapToken.value ? { Authorization: `Bearer ${mapToken.value}` } : {}
-)
+const mapSourceHeaders = computed((): Record<string, string> => {
+  if (browseHandle.value) return {}
+  return mapToken.value ? { Authorization: `Bearer ${mapToken.value}` } : {}
+})
 
 // ── Dashboard filter (V3/V4/V5) ───────────────────────────────────────────────
 const filterDropdownOpen  = ref(false)
@@ -393,6 +438,7 @@ const selectedDashboardIds = ref(new Set<string>())
 const dashboardReachMap   = ref(new Map<string, Set<string>>())
 
 const filterLabel = computed(() => {
+  if (browseHandle.value) return `@${browseHandle.value}`
   if (allRunsMode.value || selectedDashboardIds.value.size === 0) return 'All Runs'
   if (selectedDashboardIds.value.size === 1) {
     const id = [...selectedDashboardIds.value][0]
@@ -401,7 +447,39 @@ const filterLabel = computed(() => {
   return `${selectedDashboardIds.value.size} dashboards`
 })
 
+// ── Browse User mode ──────────────────────────────────────────────────────────
+const browseHandle  = ref<string | null>(null)
+const browseInput   = ref('@h2oflows')
+const browseLoading = ref(false)
+const browseError   = ref('')
+
+async function browseUser() {
+  const raw = browseInput.value.trim().replace(/^@/, '').toLowerCase()
+  if (!raw) return
+  browseLoading.value = true
+  browseError.value = ''
+  try {
+    const res = await fetch(`${apiBase}/api/v1/users/${encodeURIComponent(raw)}`)
+    if (!res.ok) { browseError.value = 'User not found'; return }
+    browseHandle.value = raw
+    filterDropdownOpen.value = false
+  } catch {
+    browseError.value = 'Failed to reach server'
+  } finally {
+    browseLoading.value = false
+  }
+}
+
+function clearBrowse() {
+  browseHandle.value = null
+  browseInput.value = '@h2oflows'
+  browseError.value = ''
+}
+
 const mapSourceUrl = computed((): string | null => {
+  if (browseHandle.value) {
+    return `${apiBase}/api/v1/users/${encodeURIComponent(browseHandle.value)}/runs/map/all`
+  }
   if (!mapToken.value) return null
   const base = `${apiBase}/api/v1/me/runs/map/all`
   if (allRunsMode.value || selectedDashboardIds.value.size === 0) return base
@@ -535,6 +613,10 @@ function onMapHover(slug: string | null) {
 }
 
 function onReachClick(payload: { slug: string; id?: string; isCommunity?: boolean }) {
+  if (browseHandle.value) {
+    navigateTo(`/runs/${browseHandle.value}/${payload.slug}`)
+    return
+  }
   navigateTo(`/my/runs/${payload.slug}`)
 }
 
