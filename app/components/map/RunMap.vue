@@ -191,6 +191,7 @@ const props = defineProps<{
   putInLng?: number | null
   takeOutLat?: number | null
   takeOutLng?: number | null
+  tributaries?: any
 }>()
 
 const emit = defineEmits<{
@@ -520,6 +521,26 @@ function addLayers() {
     if (!map) return
     map.getCanvas().style.cursor = ''
     map.setFilter('other-reaches-hover', ['==', ['get', 'slug'], ''])
+  })
+
+  // NLDI upstream tributary flowlines — rendered beneath the main centerline
+  map.addSource('nldi-tributaries', {
+    type: 'geojson',
+    data: props.tributaries ?? { type: 'FeatureCollection', features: [] },
+  })
+  map.addLayer({
+    id: 'nldi-tributaries-glow',
+    type: 'line',
+    source: 'nldi-tributaries',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': '#64748b', 'line-width': 6, 'line-opacity': 0.12, 'line-blur': 4 },
+  })
+  map.addLayer({
+    id: 'nldi-tributaries-line',
+    type: 'line',
+    source: 'nldi-tributaries',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': '#94a3b8', 'line-width': 1.2, 'line-opacity': 0.6, 'line-dasharray': [4, 3] },
   })
 
   // Centerline — colored by max rapid difficulty
@@ -1058,6 +1079,7 @@ function rebuildLayers() {
   if (!map || !mapReady.value) return
   for (const id of [
     'centerline-glow', 'centerline',
+    'nldi-tributaries-line', 'nldi-tributaries-glow', 'nldi-tributaries',
     'other-reaches-hit', 'other-reaches-hover', 'other-reaches-line', 'other-reaches-glow', 'other-reaches',
   ]) {
     if (map.getLayer(id)) map.removeLayer(id)
@@ -1075,6 +1097,13 @@ function rebuildLayers() {
 watch(allFeatures, rebuildLayers, { deep: true })
 watch(() => props.centerline, rebuildLayers, { deep: true })
 watch(() => props.gauges, rebuildLayers, { deep: true })
+
+// Update tributary source in-place when prop arrives (avoids full rebuild)
+watch(() => props.tributaries, (fc) => {
+  if (!map || !mapReady.value) return
+  const src = map.getSource('nldi-tributaries') as maplibregl.GeoJSONSource | undefined
+  src?.setData(fc ?? { type: 'FeatureCollection', features: [] })
+}, { deep: false })
 
 defineExpose({ selectFeature })
 </script>

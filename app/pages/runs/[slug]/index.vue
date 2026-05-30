@@ -300,9 +300,27 @@
             :put-in-lng="(reach as any).put_in_lng ?? undefined"
             :take-out-lat="(reach as any).take_out_lat ?? undefined"
             :take-out-lng="(reach as any).take_out_lng ?? undefined"
+            :tributaries="tributaryFC"
             @gauge-add="(id) => { const g = allGauges.find((x: any) => x.id === id); if (g) addToDashboard(g) }"
           />
         </ClientOnly>
+      </section>
+
+      <!-- NLDI tributary creek list -->
+      <section v-if="tributaryCreeks.length > 0">
+        <details class="group">
+          <summary class="flex items-center gap-2 cursor-pointer select-none text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200 list-none">
+            <svg class="w-4 h-4 shrink-0 transition-transform group-open:rotate-90" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
+            Tributaries ({{ tributaryCreeks.length }})
+          </summary>
+          <ul class="mt-2 ml-6 space-y-0.5">
+            <li
+              v-for="creek in tributaryCreeks"
+              :key="creek"
+              class="text-xs text-neutral-500 dark:text-neutral-400"
+            >{{ creek }}</li>
+          </ul>
+        </details>
       </section>
 
       <!-- Gauge detail modal — always reach mode on the reach page -->
@@ -1332,6 +1350,35 @@ function bandDisplayLabel(label: string): string {
 const displayCenterline = computed(() =>
   (reach.value as any)?.centerline ?? null
 )
+
+// ---- NLDI tributary overlay -------------------------------------------------
+
+const tributaryFC      = ref<any>(null)
+const tributaryCreeks  = ref<string[]>([])
+const tributaryLoading = ref(false)
+
+watch(reach, async (r: any) => {
+  if (!r) return
+  const lat = r.put_in_lat ?? r.start_lat ?? null
+  const lng = r.put_in_lng ?? r.start_lng ?? null
+  if (lat == null || lng == null) return
+  tributaryLoading.value = true
+  try {
+    const data: any = await $fetch(
+      `${config.public.apiBase}/api/v1/nldi/upstream-tributaries?lat=${lat}&lng=${lng}&distance=30`,
+    ).catch(() => null)
+    if (!data?.tributaries) return
+    tributaryFC.value = data.tributaries
+    const names = new Set<string>()
+    for (const f of (data.tributaries.features ?? [])) {
+      const n = f.properties?.gnis_name ?? f.properties?.name ?? ''
+      if (n && n !== data.snap?.name) names.add(n)
+    }
+    tributaryCreeks.value = [...names].sort()
+  } finally {
+    tributaryLoading.value = false
+  }
+}, { immediate: true })
 
 // ---- Share modal ------------------------------------------------------------
 
