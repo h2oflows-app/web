@@ -7,12 +7,13 @@
       <span class="text-sm font-medium text-neutral-700 dark:text-neutral-200 truncate">{{ reach?.name ?? 'Edit' }}</span>
     </AppHeader>
 
-    <!-- Sticky action bar (below AppHeader) — Save, Cancel, X, Add-to-dashboard, etc. -->
-    <div v-if="reach" class="sticky top-[51px] z-10 flex items-center justify-between gap-2 px-4 py-2 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
+    <!-- Sticky action bar (below AppHeader) — Save, Cancel, X, KML, Share, Delete -->
+    <div v-if="reach" class="sticky top-[51px] z-20 flex items-center justify-between gap-2 px-4 py-2 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
       <div class="flex items-center gap-1.5 min-w-0">
         <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-x-mark" :to="'/my/runs'" title="Close"><span class="hidden sm:inline">Close</span></UButton>
       </div>
       <div class="flex items-center gap-1.5 shrink-0">
+        <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-arrow-up-tray" title="Import KML/KMZ" @click="kmlModalOpen = true"><span class="hidden sm:inline">KML</span></UButton>
         <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-share" title="Share" @click="openShare()"><span class="hidden sm:inline">Share</span></UButton>
         <UButton size="xs" variant="ghost" color="error" icon="i-heroicons-trash" title="Delete" @click="confirmDelete"><span class="hidden sm:inline">Delete</span></UButton>
         <UButton size="xs" variant="outline" color="neutral" icon="i-heroicons-x-circle" :to="'/my/runs'" title="Cancel"><span class="hidden sm:inline">Cancel</span></UButton>
@@ -20,58 +21,23 @@
       </div>
     </div>
 
-    <!-- KML import — top of page near save/cancel actions -->
-    <div v-if="reach" class="px-4 pt-2">
-      <details class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
-        <summary class="cursor-pointer select-none px-4 py-2 flex items-center justify-between gap-2">
-          <span class="text-xs text-neutral-500 dark:text-neutral-400 font-medium uppercase tracking-wide">Import KML / KMZ</span>
-          <a
-            href="https://github.com/h2oflows-app/api/blob/main/internal/kmlimport/README.md"
-            target="_blank"
-            rel="noopener"
-            class="text-xs text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 transition-colors"
-            @click.stop
-          >Format guide ↗</a>
-        </summary>
-        <div class="px-4 pb-4 pt-1 space-y-3">
-          <p class="text-xs text-neutral-500 dark:text-neutral-400">Upload a KML/KMZ file to import rapids, hazards, and access points. Existing imported pins are replaced on each upload.</p>
-          <div class="flex items-center gap-2">
-            <input
-              id="kml-file-input"
-              type="file"
-              accept=".kml,.kmz"
-              class="flex-1 text-xs text-neutral-600 dark:text-neutral-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-neutral-100 dark:file:bg-neutral-800 file:text-neutral-600 dark:file:text-neutral-300 file:cursor-pointer"
-              @change="onKmlFileChange"
-            />
-            <UButton
-              size="xs"
-              :disabled="!kmlFile || kmlUploading"
-              :loading="kmlUploading"
-              @click="uploadKml"
-            >Upload</UButton>
-          </div>
-          <p v-if="kmlError" class="text-xs text-red-500">{{ kmlError }}</p>
-          <div v-if="kmlLog.length > 0" class="rounded bg-neutral-50 dark:bg-neutral-800 px-3 py-2 max-h-40 overflow-y-auto">
-            <p v-for="(line, i) in kmlLog" :key="i" class="text-xs font-mono text-neutral-600 dark:text-neutral-300 leading-relaxed">{{ line }}</p>
-          </div>
-        </div>
-      </details>
-    </div>
-
     <!-- Fork attribution — single inline line -->
     <div v-if="reach?.original_forked_at || reach?.forked_from_slug" class="px-4 pt-2 text-xs text-neutral-400 dark:text-neutral-500">
       Forked from {{ reach.forked_from_name ?? reach.forked_from_slug ?? 'unknown' }}<template v-if="reach.original_author_handle"> · @{{ reach.original_author_handle }}</template><template v-if="forkDate"> {{ forkDate }}</template>
     </div>
 
-    <!-- CFS strip (top, full width, modal-style summary) -->
-    <div v-if="reach" class="px-4 pt-3">
-      <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-4 py-3 flex items-center gap-4 flex-wrap">
-        <div class="min-w-0 flex-1">
-          <h1 class="text-base font-bold text-neutral-900 dark:text-neutral-100 truncate">{{ reach.name }}</h1>
-          <p v-if="reach.river_name" class="text-xs text-neutral-500 truncate">{{ reach.river_name }}</p>
+    <!-- Run heading (no card chrome) -->
+    <div v-if="reach" class="px-4 pt-4">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div v-if="reach.river_name" class="text-xs font-medium text-primary-500 uppercase tracking-wide mb-1">{{ reach.river_name }}</div>
+          <h1 class="text-2xl font-bold leading-tight text-neutral-900 dark:text-white truncate">{{ reach.name }}</h1>
+          <div v-if="reach.river_state_abbr || reach.river_basin" class="text-sm text-neutral-500 mt-0.5">
+            {{ [reach.river_state_abbr, reach.river_basin].filter(Boolean).join(' · ') }}
+          </div>
         </div>
         <template v-if="reach.gauge_name || reach.current_cfs != null">
-          <div class="flex items-end gap-3 shrink-0">
+          <div class="flex items-end gap-3 shrink-0 mt-1">
             <div class="text-right">
               <p v-if="reach.current_cfs != null" class="text-2xl font-bold font-mono leading-none" :style="{ color: cfsColor }">
                 {{ reach.current_cfs.toLocaleString() }}<span class="text-xs font-normal text-neutral-400 ml-1">cfs</span>
@@ -86,20 +52,20 @@
             >{{ flowBandLabel(reach.flow_band) }}</span>
           </div>
         </template>
-        <div
-          v-if="reach.gauge_poll_health === 'stale' || reach.gauge_poll_health === 'unreachable'"
-          class="basis-full flex items-start gap-2 px-2.5 py-1.5 rounded-md text-xs border"
-          :class="reach.gauge_poll_health === 'unreachable'
-            ? 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-900'
-            : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900'"
-        >
-          <svg class="w-3.5 h-3.5 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
-          <div>
-            <span class="font-medium">{{ reach.gauge_poll_health === 'unreachable' ? 'Gauge unreachable' : 'Gauge data is stale' }}</span>
-            <span v-if="reach.gauge_last_poll_success_at" class="block opacity-80">
-              Last update {{ new Date(reach.gauge_last_poll_success_at).toLocaleDateString() }}
-            </span>
-          </div>
+      </div>
+      <div
+        v-if="reach.gauge_poll_health === 'stale' || reach.gauge_poll_health === 'unreachable'"
+        class="mt-2 flex items-start gap-2 px-2.5 py-1.5 rounded-md text-xs border"
+        :class="reach.gauge_poll_health === 'unreachable'
+          ? 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-900'
+          : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900'"
+      >
+        <svg class="w-3.5 h-3.5 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
+        <div>
+          <span class="font-medium">{{ reach.gauge_poll_health === 'unreachable' ? 'Gauge unreachable' : 'Gauge data is stale' }}</span>
+          <span v-if="reach.gauge_last_poll_success_at" class="block opacity-80">
+            Last update {{ new Date(reach.gauge_last_poll_success_at).toLocaleDateString() }}
+          </span>
         </div>
       </div>
     </div>
@@ -476,7 +442,7 @@
             <svg v-if="run.is_official" class="w-3 h-3 text-primary-500 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
             <span class="w-2 h-2 rounded-full bg-neutral-300 dark:bg-neutral-600 shrink-0" v-else />
             <NuxtLink
-              :to="run.source === 'curated' ? `/runs/${run.slug}` : `/my/runs/${run.slug}`"
+              :to="run.source === 'curated' ? `/runs/${run.slug}` : (run.author_handle ? `/runs/${run.author_handle}/${run.slug}` : `/runs/u/${run.id}`)"
               class="font-medium text-neutral-700 dark:text-neutral-300 hover:text-primary-600 dark:hover:text-primary-400 hover:underline truncate flex-1"
             >{{ run.name }}</NuxtLink>
             <span class="text-neutral-400 shrink-0">{{ run.report_count }} report{{ run.report_count !== 1 ? 's' : '' }}</span>
@@ -543,6 +509,42 @@
     :loading="shareLoading"
     @close="shareOpen = false; customGaugePayload = null"
   />
+
+  <!-- KML import modal -->
+  <UModal v-model:open="kmlModalOpen" title="Import KML / KMZ">
+    <template #body>
+      <div class="space-y-3">
+        <p class="text-sm text-neutral-500 dark:text-neutral-400">
+          Upload a KML/KMZ file to import rapids, hazards, and access points. Existing imported pins are replaced on each upload.
+          <a
+            href="https://github.com/h2oflows-app/api/blob/main/internal/kmlimport/README.md"
+            target="_blank"
+            rel="noopener"
+            class="ml-1 text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 transition-colors"
+          >Format guide ↗</a>
+        </p>
+        <div class="flex items-center gap-2">
+          <input
+            id="kml-file-input"
+            type="file"
+            accept=".kml,.kmz"
+            class="flex-1 text-xs text-neutral-600 dark:text-neutral-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-neutral-100 dark:file:bg-neutral-800 file:text-neutral-600 dark:file:text-neutral-300 file:cursor-pointer"
+            @change="onKmlFileChange"
+          />
+          <UButton
+            size="xs"
+            :disabled="!kmlFile || kmlUploading"
+            :loading="kmlUploading"
+            @click="uploadKml"
+          >Upload</UButton>
+        </div>
+        <p v-if="kmlError" class="text-xs text-red-500">{{ kmlError }}</p>
+        <div v-if="kmlLog.length > 0" class="rounded bg-neutral-50 dark:bg-neutral-800 px-3 py-2 max-h-40 overflow-y-auto">
+          <p v-for="(line, i) in kmlLog" :key="i" class="text-xs font-mono text-neutral-600 dark:text-neutral-300 leading-relaxed">{{ line }}</p>
+        </div>
+      </div>
+    </template>
+  </UModal>
 </template>
 
 <script setup lang="ts">
@@ -770,6 +772,7 @@ const riverConfirmBannerVisible = computed(() =>
 
 // ── KML import ────────────────────────────────────────────────────────────────
 
+const kmlModalOpen   = ref(false)
 const kmlFile        = ref<File | null>(null)
 const kmlUploading   = ref(false)
 const kmlLog         = ref<string[]>([])
