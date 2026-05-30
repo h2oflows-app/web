@@ -31,8 +31,9 @@
 
           <!-- Icon toolbar -->
           <div class="shrink-0 flex items-center gap-1 mt-0.5">
-            <!-- Upvote -->
+            <!-- Upvote (hidden on own run) -->
             <button
+              v-if="!isOwnRun"
               class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors"
               :class="userUpvoted
                 ? 'bg-primary-50 dark:bg-primary-950 border-primary-300 dark:border-primary-700 text-primary-600 dark:text-primary-400'
@@ -412,6 +413,7 @@ interface PublicRunDetail {
   upvote_count:     number
   user_upvoted:     boolean
   centerline:       object | null
+  is_own?:          boolean
 }
 
 interface FlowRangeProposal {
@@ -533,6 +535,7 @@ async function loadCluster() {
 // ── Upvote ────────────────────────────────────────────────────────────────────
 
 const upvoteCount = computed(() => run.value?.upvote_count ?? 0)
+const isOwnRun    = computed(() => run.value?.is_own ?? false)
 const userUpvoted = ref(false)
 const upvoteLoading = ref(false)
 
