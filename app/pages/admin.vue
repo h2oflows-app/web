@@ -1064,12 +1064,6 @@ async function reviewCorrection(id: string, action: 'accept' | 'reject') {
   }
 }
 
-function gaugeSourceUrl(source: string, externalId: string): string | null {
-  const s = (source || '').toLowerCase()
-  if (s === 'usgs') return `https://waterdata.usgs.gov/monitoring-location/${externalId}/`
-  if (s === 'dwr')  return `https://dwr.state.co.us/Tools/Stations/${externalId}`
-  return null
-}
 
 function relativeDate(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime()

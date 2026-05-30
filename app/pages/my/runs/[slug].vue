@@ -253,7 +253,14 @@
             <template v-if="reach.gauge_name">
               <p class="text-sm text-neutral-700 dark:text-neutral-300">{{ reach.gauge_name }}</p>
               <p v-if="reach.gauge_external_id" class="text-xs text-neutral-400 font-mono">
-                {{ reach.gauge_external_id }}<span v-if="reach.gauge_source" class="uppercase ml-1.5">{{ reach.gauge_source }}</span>
+                <a
+                  v-if="reach.gauge_source && gaugeSourceUrl(reach.gauge_source, reach.gauge_external_id)"
+                  :href="gaugeSourceUrl(reach.gauge_source, reach.gauge_external_id)!"
+                  target="_blank" rel="noopener"
+                  class="hover:text-primary-400 underline underline-offset-2"
+                >{{ reach.gauge_external_id }}</a>
+                <span v-else>{{ reach.gauge_external_id }}</span>
+                <span v-if="reach.gauge_source" class="uppercase ml-1.5">{{ reach.gauge_source }}</span>
               </p>
             </template>
             <template v-else-if="reach.custom_gauge_name">

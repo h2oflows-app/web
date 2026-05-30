@@ -179,13 +179,7 @@ function formatHour(h: number): string {
   return `${h % 12 === 0 ? 12 : h % 12}${ampm}`
 }
 
-const sourceUrl = computed(() => {
-  switch (props.gauge.source) {
-    case 'usgs': return `https://waterdata.usgs.gov/monitoring-location/${props.gauge.externalId}/`
-    case 'dwr':  return `https://dwr.state.co.us/Tools/Stations/${props.gauge.externalId}`
-    default:     return '#'
-  }
-})
+const sourceUrl = computed(() => gaugeSourceUrl(props.gauge.source, props.gauge.externalId) ?? '#')
 
 
 const lastReadingRelative = computed(() => {
