@@ -171,47 +171,6 @@
         </div>
       </section>
 
-      <!-- AI ask -->
-      <section>
-        <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-          <form class="flex items-center gap-2 px-4 py-3" @submit.prevent="askQuestion">
-            <svg class="w-4 h-4 text-purple-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
-            </svg>
-            <input
-              v-model="askQuery"
-              type="text"
-              placeholder="Ask about conditions, flow, access…"
-              class="flex-1 min-w-0 bg-transparent text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none"
-              :disabled="asking"
-              @keydown.esc="askQuery = ''; askAnswer = ''; askError = ''"
-            />
-            <button
-              v-if="askQuery"
-              type="button"
-              class="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
-              @click="askQuery = ''; askAnswer = ''; askError = ''"
-            >
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
-            </button>
-            <button
-              type="submit"
-              :disabled="asking || !askQuery.trim()"
-              class="shrink-0 px-3 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white text-xs font-semibold transition-colors"
-            >
-              <span v-if="asking" class="flex items-center gap-1">
-                <span class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              </span>
-              <span v-else>Ask</span>
-            </button>
-          </form>
-          <div v-if="askAnswer" class="px-4 pb-4 border-t border-neutral-100 dark:border-neutral-800 pt-3">
-            <div class="ask-answer text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed" v-html="askMd.render(askAnswer)" />
-          </div>
-          <p v-if="askError" class="px-4 pb-3 text-sm text-red-500 dark:text-red-400">{{ askError }}</p>
-        </div>
-      </section>
-
       <!-- Quick stats — consolidated -->
       <section>
         <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 px-4 py-3">
@@ -316,129 +275,6 @@
           </ClientOnly>
         </div>
       </section>
-
-      <!-- Flow Band Override -->
-      <ClientOnly>
-        <section v-if="isAuthenticated">
-          <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-            <button
-              class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-              @click="overrideOpen = !overrideOpen"
-            >
-              <div class="flex items-center gap-2">
-                <span class="text-sm font-semibold text-neutral-700 dark:text-neutral-300">My Flow Bands</span>
-                <span
-                  v-if="hasOverride"
-                  class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300"
-                >Active</span>
-              </div>
-              <svg
-                class="w-4 h-4 text-neutral-400 transition-transform"
-                :class="overrideOpen ? 'rotate-180' : ''"
-                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              ><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-
-            <div v-if="overrideOpen" class="border-t border-neutral-100 dark:border-neutral-800 px-4 py-4 space-y-4">
-              <p class="text-xs text-neutral-500 dark:text-neutral-400">
-                Override the canonical flow bands for this run on your dashboard. Only visible to you.
-              </p>
-
-              <!-- Canonical reference -->
-              <div v-if="canonicalBands" class="grid grid-cols-3 gap-2 text-xs text-neutral-500 bg-neutral-50 dark:bg-neutral-800 rounded-lg px-3 py-2">
-                <div>
-                  <div class="text-[10px] uppercase tracking-wide mb-0.5 text-neutral-400">Too Low &lt;</div>
-                  <span class="font-mono">{{ canonicalBands.lowMax != null ? canonicalBands.lowMax : '—' }}</span>
-                </div>
-                <div>
-                  <div class="text-[10px] uppercase tracking-wide mb-0.5 text-neutral-400">Running</div>
-                  <span class="font-mono">{{ canonicalBands.runMin != null ? canonicalBands.runMin : '—' }} – {{ canonicalBands.runMax != null ? canonicalBands.runMax : '—' }}</span>
-                </div>
-                <div>
-                  <div class="text-[10px] uppercase tracking-wide mb-0.5 text-neutral-400">High &gt;</div>
-                  <span class="font-mono">{{ canonicalBands.highMin != null ? canonicalBands.highMin : '—' }}</span>
-                </div>
-              </div>
-
-              <!-- Override form -->
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div>
-                  <label class="block text-[10px] uppercase tracking-wide text-neutral-400 mb-1">Too Low max</label>
-                  <input
-                    v-model.number="overrideForm.low_max"
-                    type="number"
-                    step="any"
-                    placeholder="optional"
-                    class="w-full rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2.5 py-1.5 text-sm text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 placeholder-neutral-400"
-                  />
-                </div>
-                <div>
-                  <label class="block text-[10px] uppercase tracking-wide text-neutral-400 mb-1">Running min <span class="text-red-400">*</span></label>
-                  <input
-                    v-model.number="overrideForm.running_min"
-                    type="number"
-                    step="any"
-                    placeholder="required"
-                    class="w-full rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2.5 py-1.5 text-sm text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 placeholder-neutral-400"
-                  />
-                </div>
-                <div>
-                  <label class="block text-[10px] uppercase tracking-wide text-neutral-400 mb-1">Running max <span class="text-red-400">*</span></label>
-                  <input
-                    v-model.number="overrideForm.running_max"
-                    type="number"
-                    step="any"
-                    placeholder="required"
-                    class="w-full rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2.5 py-1.5 text-sm text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 placeholder-neutral-400"
-                  />
-                </div>
-                <div>
-                  <label class="block text-[10px] uppercase tracking-wide text-neutral-400 mb-1">High min</label>
-                  <input
-                    v-model.number="overrideForm.high_min"
-                    type="number"
-                    step="any"
-                    placeholder="optional"
-                    class="w-full rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2.5 py-1.5 text-sm text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 placeholder-neutral-400"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-[10px] uppercase tracking-wide text-neutral-400 mb-1">Note (optional)</label>
-                <input
-                  v-model="overrideForm.note"
-                  type="text"
-                  maxlength="255"
-                  placeholder="e.g. Low water year, shifted after big flood…"
-                  class="w-full rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2.5 py-1.5 text-sm text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 placeholder-neutral-400"
-                />
-              </div>
-
-              <p v-if="overrideError" class="text-xs text-red-500 dark:text-red-400">{{ overrideError }}</p>
-
-              <div class="flex items-center gap-2">
-                <button
-                  :disabled="overrideSaving"
-                  class="px-4 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-40 text-white text-sm font-semibold transition-colors"
-                  @click="saveOverride"
-                >
-                  <span v-if="overrideSaving" class="flex items-center gap-1">
-                    <span class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  </span>
-                  <span v-else>Save</span>
-                </button>
-                <button
-                  v-if="hasOverride"
-                  :disabled="overrideSaving"
-                  class="px-4 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-600 text-sm text-neutral-600 dark:text-neutral-400 hover:text-red-600 dark:hover:text-red-400 hover:border-red-300 dark:hover:border-red-600 disabled:opacity-40 transition-colors"
-                  @click="clearOverride"
-                >Clear override</button>
-              </div>
-            </div>
-          </div>
-        </section>
-      </ClientOnly>
 
       <!-- Reach Description -->
       <section v-if="reach.description">
@@ -721,7 +557,6 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
-import MarkdownIt from 'markdown-it'
 import { useWatchlistStore } from '~/stores/watchlist'
 import { gsap } from 'gsap'
 import { featurePanelIcon } from '~/utils/featureIcons'
@@ -887,8 +722,6 @@ async function loadMoreReports() {
 
 onMounted(() => fetchReports())
 
-// ---- AI ask -----------------------------------------------------------------
-
 // ── Fork ─────────────────────────────────────────────────────────────────────
 const forking = ref(false)
 async function forkRun() {
@@ -907,37 +740,6 @@ async function forkRun() {
     alert(e.message ?? 'Fork failed')
   } finally {
     forking.value = false
-  }
-}
-
-const askMd        = new MarkdownIt({ html: false, linkify: false, breaks: true })
-const askQuery     = ref('')
-const asking       = ref(false)
-const askAnswer    = ref('')
-const askError     = ref('')
-
-async function askQuestion() {
-  const q = askQuery.value.trim()
-  if (!q || !(reach.value as any)?.slug) return
-  asking.value  = true
-  askError.value  = ''
-  askAnswer.value = ''
-  try {
-    const res = await fetch(
-      `${config.public.apiBase}/api/v1/reaches/${(reach.value as any).slug}/ask`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q }) }
-    )
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({}))
-      askError.value = d.error ?? `Error ${res.status}`
-      return
-    }
-    const data = await res.json()
-    askAnswer.value = data.answer ?? ''
-  } catch {
-    askError.value = 'Network error — try again.'
-  } finally {
-    asking.value = false
   }
 }
 
@@ -1538,132 +1340,6 @@ const shareModalOpen = ref(false)
 function openShareForm() {
   shareModalOpen.value = true
 }
-
-// ---- Flow band override -----------------------------------------------------
-
-interface FlowBandOverride {
-  id: string
-  low_max: number | null
-  running_min: number
-  running_max: number
-  high_min: number | null
-  note: string | null
-}
-
-const userOverride   = ref<FlowBandOverride | null>(null)
-const overrideForm   = ref({ low_max: null as number | null, running_min: null as number | null, running_max: null as number | null, high_min: null as number | null, note: '' })
-const overrideSaving = ref(false)
-const overrideError  = ref('')
-const overrideOpen   = ref(false)
-const hasOverride    = computed(() => userOverride.value !== null)
-
-const canonicalBands = computed(() => {
-  const bands = (flowRanges.value as any[]) ?? []
-  const low     = bands.find(b => b.label === 'low')
-  const running = bands.find(b => b.label === 'running')
-  const high    = bands.find(b => b.label === 'high')
-  if (!running) return null
-  return {
-    lowMax:  low?.max_value  ?? null,
-    runMin:  running.min_value,
-    runMax:  running.max_value,
-    highMin: high?.min_value ?? null,
-  }
-})
-
-async function loadOverride() {
-  const slug = (reach.value as any)?.slug
-  if (!slug || !isAuthenticated.value) return
-  try {
-    const token = await getToken()
-    const data = await $fetch<FlowBandOverride | null>(
-      `${config.public.apiBase}/api/v1/me/reaches/${slug}/flow-band-override`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    ).catch(() => null)
-    userOverride.value = data ?? null
-    if (data) {
-      overrideForm.value = {
-        low_max:     data.low_max,
-        running_min: data.running_min,
-        running_max: data.running_max,
-        high_min:    data.high_min,
-        note:        data.note ?? '',
-      }
-    } else {
-      const cb = canonicalBands.value
-      overrideForm.value = {
-        low_max:     cb?.lowMax  ?? null,
-        running_min: cb?.runMin  ?? null,
-        running_max: cb?.runMax  ?? null,
-        high_min:    cb?.highMin ?? null,
-        note:        '',
-      }
-    }
-  } catch { /* ignore */ }
-}
-
-async function saveOverride() {
-  const slug = (reach.value as any)?.slug
-  if (!slug) return
-  overrideError.value = ''
-  const { low_max, running_min, running_max, high_min, note } = overrideForm.value
-  if (running_min == null || running_max == null || running_min <= 0 || running_max <= 0) {
-    overrideError.value = 'Running min and max are required and must be positive.'
-    return
-  }
-  if (running_min >= running_max) {
-    overrideError.value = 'Running min must be less than running max.'
-    return
-  }
-  overrideSaving.value = true
-  try {
-    const token = await getToken()
-    await $fetch(`${config.public.apiBase}/api/v1/me/reaches/${slug}/flow-band-override`, {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: { low_max: low_max ?? undefined, running_min, running_max, high_min: high_min ?? undefined, note: note || undefined },
-    })
-    await loadOverride()
-    await refreshReach()
-  } catch (e: any) {
-    overrideError.value = e?.data?.error ?? e?.message ?? 'Save failed.'
-  } finally {
-    overrideSaving.value = false
-  }
-}
-
-async function clearOverride() {
-  const slug = (reach.value as any)?.slug
-  if (!slug) return
-  overrideSaving.value = true
-  try {
-    const token = await getToken()
-    await $fetch(`${config.public.apiBase}/api/v1/me/reaches/${slug}/flow-band-override`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    userOverride.value = null
-    const cb = canonicalBands.value
-    overrideForm.value = {
-      low_max:     cb?.lowMax  ?? null,
-      running_min: cb?.runMin  ?? null,
-      running_max: cb?.runMax  ?? null,
-      high_min:    cb?.highMin ?? null,
-      note:        '',
-    }
-    await refreshReach()
-  } catch (e: any) {
-    overrideError.value = e?.data?.error ?? e?.message ?? 'Delete failed.'
-  } finally {
-    overrideSaving.value = false
-  }
-}
-
-watch(
-  [isAuthenticated, () => (reach.value as any)?.slug, () => flowRanges.value],
-  () => loadOverride(),
-  { immediate: true }
-)
 
 // ── User profile fallback ──────────────────────────────────────────────────────
 // When the slug doesn't match a curated run, try it as a user handle (V1/B1).
