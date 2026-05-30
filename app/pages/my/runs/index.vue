@@ -9,7 +9,7 @@
         <svg class="w-10 h-10 text-neutral-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
         </svg>
-        <h2 class="text-lg font-semibold">Sign in to view your runes</h2>
+        <h2 class="text-lg font-semibold">Sign in to view your runs</h2>
         <NuxtLink to="/login" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">Sign in</NuxtLink>
       </div>
 
@@ -59,7 +59,7 @@
 
         <!-- Loading -->
         <div v-if="loading" class="space-y-2">
-          <div v-for="i in 3" :key="i" class="h-16 rounded-lg bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+          <div v-for="i in 4" :key="i" class="h-12 rounded-lg bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
         </div>
 
         <!-- Error -->
@@ -75,33 +75,106 @@
           <p class="text-sm">No runs yet. Create your first custom run.</p>
         </div>
 
-        <!-- Reach list -->
-        <div v-else class="space-y-2">
-          <NuxtLink
-            v-for="reach in reaches"
-            :key="reach.id"
-            :to="`/my/runs/${reach.slug}`"
-            class="block rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:border-primary-300 dark:hover:border-primary-700 transition-colors p-4"
-          >
-            <div class="flex items-start justify-between gap-3">
-              <div class="min-w-0">
-                <p class="text-sm font-semibold text-neutral-900 dark:text-white truncate">{{ reach.name }}</p>
-                <p v-if="reach.river_name" class="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">{{ reach.river_name }}</p>
-              </div>
-              <div class="shrink-0 flex items-center gap-2">
-                <span
-                  v-if="reach.flow_band"
-                  class="text-xs font-medium px-2 py-0.5 rounded-full"
-                  :class="bandBadgeClass(reach.flow_band)"
-                >{{ flowBandLabel(reach.flow_band) }}</span>
-                <span v-if="reach.cfs != null" class="text-sm font-mono text-neutral-700 dark:text-neutral-300">
-                  {{ reach.cfs.toLocaleString() }} cfs
-                </span>
-              </div>
+        <!-- Grouped accordion -->
+        <div v-else class="divide-y divide-neutral-100 dark:divide-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+          <template v-for="stateGroup in groupedByStateBasin" :key="stateGroup.state">
+
+            <!-- State header -->
+            <div class="px-4 py-1.5 bg-neutral-100 dark:bg-neutral-800/80 border-t border-neutral-200 dark:border-neutral-700 first:border-t-0">
+              <p class="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">
+                {{ stateGroup.state === '—' ? 'No state' : stateGroup.state }}
+              </p>
             </div>
-            <p v-if="reach.note" class="text-xs text-neutral-400 mt-2 line-clamp-1">{{ reach.note }}</p>
-          </NuxtLink>
+
+            <template v-for="basinGroup in stateGroup.basins" :key="basinGroup.basin + stateGroup.state">
+
+              <!-- Basin sub-header -->
+              <div class="px-6 py-1 bg-neutral-50 dark:bg-neutral-900/60 border-t border-neutral-100 dark:border-neutral-800">
+                <p class="text-xs text-neutral-400 dark:text-neutral-500">{{ basinGroup.basin === '—' ? 'No basin' : basinGroup.basin }}</p>
+              </div>
+
+              <template v-for="riverGroup in basinGroup.rivers" :key="riverGroup.riverKey + stateGroup.state">
+
+                <!-- River row (clickable header) -->
+                <div
+                  class="flex items-center gap-3 px-4 py-2.5 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 cursor-pointer transition-colors"
+                  @click="toggleRiver(riverGroup.riverKey)"
+                >
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-neutral-900 dark:text-white truncate">{{ riverGroup.riverName }}</p>
+                    <p class="text-xs text-neutral-400">{{ riverGroup.runs.length }} run{{ riverGroup.runs.length !== 1 ? 's' : '' }}</p>
+                  </div>
+                  <svg
+                    class="w-4 h-4 text-neutral-400 shrink-0 transition-transform"
+                    :class="isExpanded(riverGroup.riverKey) ? 'rotate-90' : ''"
+                    viewBox="0 0 20 20" fill="currentColor"
+                  >
+                    <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/>
+                  </svg>
+                </div>
+
+                <!-- Expanded run rows -->
+                <div v-if="isExpanded(riverGroup.riverKey)" class="bg-neutral-50 dark:bg-neutral-950 border-t border-neutral-100 dark:border-neutral-800">
+                  <div class="divide-y divide-neutral-100 dark:divide-neutral-800">
+                    <div
+                      v-for="run in riverGroup.runs"
+                      :key="run.id"
+                      class="flex items-center gap-3 px-6 py-2.5 bg-white dark:bg-neutral-900/60 hover:bg-neutral-50 dark:hover:bg-neutral-800/40 cursor-pointer transition-colors"
+                      @click="router.push(`/my/runs/${run.slug}`)"
+                    >
+                      <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-neutral-900 dark:text-white truncate">{{ run.name }}</p>
+                        <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span v-if="run.class_max != null" class="text-xs text-neutral-400">Class {{ classLabel(run.class_max) }}</span>
+                          <span v-if="run.current_cfs != null" class="text-xs font-mono text-neutral-500">{{ run.current_cfs.toLocaleString() }} cfs</span>
+                          <span
+                            v-if="run.flow_band"
+                            class="text-xs font-medium px-1.5 py-0.5 rounded-full"
+                            :class="bandBadgeClass(run.flow_band)"
+                          >{{ flowBandLabel(run.flow_band) }}</span>
+                          <span v-if="run.is_private" class="text-xs px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-400">Private</span>
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-2 shrink-0" @click.stop>
+                        <NuxtLink
+                          v-if="run.author_handle"
+                          :to="`/runs/${run.author_handle}/${run.slug}`"
+                          class="text-xs text-primary-500 hover:underline px-2 py-1"
+                        >View</NuxtLink>
+                        <button
+                          class="text-xs text-red-400 hover:text-red-600 px-2 py-1 transition-colors"
+                          @click="confirmDelete(run)"
+                        >Delete</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </template>
+            </template>
+          </template>
+
+          <div v-if="groupedByStateBasin.length === 0 && !loading" class="px-4 py-8 text-center text-sm text-neutral-400">
+            No runs yet.
+          </div>
         </div>
+
+        <!-- Delete confirm dialog -->
+        <div v-if="pendingDelete" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="pendingDelete = null">
+          <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-xl p-6 max-w-sm w-full mx-4">
+            <h3 class="text-base font-semibold text-neutral-900 dark:text-white mb-2">Delete run?</h3>
+            <p class="text-sm text-neutral-500 mb-5">
+              "<span class="font-medium text-neutral-700 dark:text-neutral-300">{{ pendingDelete.name }}</span>" will be permanently deleted.
+            </p>
+            <div class="flex justify-end gap-3">
+              <button class="px-4 py-1.5 text-sm rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors" @click="pendingDelete = null">Cancel</button>
+              <button class="px-4 py-1.5 text-sm rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors" :disabled="deleting" @click="deleteRun">
+                {{ deleting ? 'Deleting…' : 'Delete' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
       </template>
     </main>
 
@@ -109,7 +182,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { flowBandLabel } from '~/utils/flowBand'
 
 const { bandBadgeClass } = useFlowBandPalette()
@@ -131,16 +204,132 @@ function onDocClick(e: MouseEvent) {
 }
 
 interface UserReach {
-  id:          string
-  slug:        string
-  name:        string
-  river_name:  string | null
-  cfs:         number | null
-  flow_band:   string | null
-  note:        string | null
+  id:           string
+  slug:         string
+  name:         string
+  river_name:   string | null
+  state_abbr:   string | null
+  basin_group:  string | null
+  class_max:    number | null
+  current_cfs:  number | null
+  flow_band:    string | null
+  note:         string | null
+  is_private:   boolean
+  author_handle: string | null
 }
 
 const reaches = ref<UserReach[]>([])
+
+// ── Grouping ──────────────────────────────────────────────────────────────────
+
+interface RiverGroup {
+  riverKey:  string
+  riverName: string
+  runs:      UserReach[]
+}
+interface BasinGroup {
+  basin:  string
+  rivers: RiverGroup[]
+}
+interface StateGroup {
+  state:  string
+  basins: BasinGroup[]
+}
+
+const groupedByStateBasin = computed((): StateGroup[] => {
+  const stateMap = new Map<string, Map<string, Map<string, UserReach[]>>>()
+
+  for (const r of reaches.value) {
+    const state  = r.state_abbr  ?? '—'
+    const basin  = r.basin_group ?? '—'
+    const river  = r.river_name  ?? '(No river)'
+
+    if (!stateMap.has(state)) stateMap.set(state, new Map())
+    const basinMap = stateMap.get(state)!
+    if (!basinMap.has(basin)) basinMap.set(basin, new Map())
+    const riverMap = basinMap.get(basin)!
+    if (!riverMap.has(river)) riverMap.set(river, [])
+    riverMap.get(river)!.push(r)
+  }
+
+  const result: StateGroup[] = []
+  for (const [state, basinMap] of stateMap) {
+    const basins: BasinGroup[] = []
+    for (const [basin, riverMap] of basinMap) {
+      const rivers: RiverGroup[] = []
+      for (const [riverName, runs] of riverMap) {
+        rivers.push({ riverKey: `${state}::${basin}::${riverName}`, riverName, runs })
+      }
+      basins.push({ basin, rivers })
+    }
+    result.push({ state, basins })
+  }
+
+  // Sort: states alphabetically (— last), basins alphabetically (— last)
+  result.sort((a, b) => {
+    if (a.state === '—') return 1
+    if (b.state === '—') return -1
+    return a.state.localeCompare(b.state)
+  })
+  for (const sg of result) {
+    sg.basins.sort((a, b) => {
+      if (a.basin === '—') return 1
+      if (b.basin === '—') return -1
+      return a.basin.localeCompare(b.basin)
+    })
+  }
+
+  return result
+})
+
+// ── Expand/collapse ───────────────────────────────────────────────────────────
+
+const expandedKeys = ref<Set<string>>(new Set())
+
+function isExpanded(key: string) { return expandedKeys.value.has(key) }
+function toggleRiver(key: string) {
+  const next = new Set(expandedKeys.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  expandedKeys.value = next
+}
+
+// ── Class label ───────────────────────────────────────────────────────────────
+
+const romanMap: Record<number, string> = { 1: 'I', 2: 'II', 3: 'III', 4: 'IV', 5: 'V', 6: 'VI' }
+function classLabel(v: number | null): string {
+  if (v == null) return '?'
+  const floor = Math.floor(v)
+  const base  = romanMap[floor] ?? String(floor)
+  return v % 1 >= 0.5 ? `${base}+` : base
+}
+
+// ── Delete ────────────────────────────────────────────────────────────────────
+
+const pendingDelete = ref<UserReach | null>(null)
+const deleting = ref(false)
+
+function confirmDelete(run: UserReach) { pendingDelete.value = run }
+
+async function deleteRun() {
+  if (!pendingDelete.value) return
+  deleting.value = true
+  try {
+    const token = await getToken()
+    const res = await fetch(`${apiBase}/api/v1/me/runs/${pendingDelete.value.slug}`, {
+      method: 'DELETE',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (res.ok) {
+      reaches.value = reaches.value.filter(r => r.id !== pendingDelete.value!.id)
+      pendingDelete.value = null
+    }
+  } finally {
+    deleting.value = false
+  }
+}
+
+// ── Load ──────────────────────────────────────────────────────────────────────
 
 async function load() {
   loading.value = true
@@ -150,7 +339,7 @@ async function load() {
     const res = await fetch(`${apiBase}/api/v1/me/reaches`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
-    if (res.status === 401) { error.value = 'Sign in to view your runes.'; return }
+    if (res.status === 401) { error.value = 'Sign in to view your runs.'; return }
     if (!res.ok) throw new Error(`${res.status}`)
     reaches.value = await res.json()
   } catch (e: any) {
@@ -168,5 +357,4 @@ onMounted(async () => {
 })
 
 onUnmounted(() => document.removeEventListener('click', onDocClick))
-
 </script>
