@@ -85,38 +85,6 @@
         </template>
       </div>
 
-        <!-- Filter dropdown — pinned right, outside scroll group so dropdown isn't clipped by overflow-x-auto -->
-        <div v-if="hasAnyContent" class="relative shrink-0" ref="filterWrap">
-          <ToolbarButton :active="!filterCurated || !filterUserReaches || !filterGauges" title="Filter content" @click="filterOpen = !filterOpen">
-            <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-              <path d="M1.5 4h13M4 8h8M6.5 12h3"/>
-            </svg>
-          </ToolbarButton>
-          <div
-            v-if="filterOpen"
-            class="absolute right-0 top-full mt-1 z-50 w-44 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg overflow-hidden py-1"
-          >
-            <button
-              v-for="opt in filterOptions"
-              :key="opt.key"
-              class="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-              @click="opt.toggle()"
-            >
-              <svg
-                class="w-3.5 h-3.5 shrink-0"
-                :class="opt.active ? 'text-primary-500' : 'text-neutral-200 dark:text-neutral-700'"
-                viewBox="0 0 20 20" fill="currentColor"
-              >
-                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-              </svg>
-              <IconWave v-if="opt.key === 'curated'" class="w-3.5 h-3.5 shrink-0 text-primary-400 dark:text-primary-500" />
-              <IconUser v-else-if="opt.key === 'myReaches'" class="w-3.5 h-3.5 shrink-0 text-primary-400 dark:text-primary-500" />
-              <IconGauge v-else-if="opt.key === 'gauges'" class="w-3.5 h-3.5 shrink-0 text-neutral-400 dark:text-neutral-500" />
-              {{ opt.label }}
-            </button>
-          </div>
-        </div>
-
         <!-- Grouping dropdown — pinned right, outside scroll group -->
         <div v-if="hasAnyContent" class="relative shrink-0" ref="groupingWrap">
           <ToolbarButton :active="!groupByState || !groupByBasin || groupByGauge" title="Group sections" @click="groupingOpen = !groupingOpen">
@@ -236,7 +204,6 @@
                     <div class="flex-1 h-px bg-neutral-200 dark:bg-neutral-700" />
                   </div>
                   <!-- Cards wrapper -->
-                  <template v-if="filterCurated">
                   <template v-if="groupByGauge">
                     <template v-for="split in [splitReachGroups(river.reaches)]" :key="'split'">
                       <div v-if="split.gaugeGroups.length > 0" :class="viewMode === 'list' ? 'space-y-1.5' : cardGridClass">
@@ -295,10 +262,8 @@
                       />
                     </div>
                   </template>
-                  </template><!-- end filterCurated -->
-
                 <!-- User reaches inline — same river, marked with person icon -->
-                <template v-if="filterUserReaches && river.userReaches.length > 0">
+                <template v-if="river.userReaches.length > 0">
                   <div v-if="viewMode === 'list'" class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden mt-1.5">
                     <div
                       v-for="r in river.userReaches"
@@ -362,7 +327,7 @@
               </div>
 
               <!-- Standalone gauges (no reach context) -->
-              <div v-if="filterGauges && sub.standaloneGauges.length > 0" class="mb-2 mt-1">
+              <div v-if="sub.standaloneGauges.length > 0" class="mb-2 mt-1">
                 <div class="flex items-center gap-2 py-1">
                   <svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
@@ -416,7 +381,7 @@
         </section>
 
         <!-- Custom Gauges section — shows active-dashboard gauges on all tabs -->
-        <section v-if="filterGauges && visibleCustomGauges.length > 0">
+        <section v-if="visibleCustomGauges.length > 0">
           <div class="flex items-center gap-2 mb-3">
             <button
               type="button"
@@ -819,7 +784,6 @@ function showCustomGauge(id: string) {
 if (import.meta.client) {
   document.addEventListener('click', (e) => {
     if (gaugeAddWrap.value && !gaugeAddWrap.value.contains(e.target as Node)) gaugeAddOpen.value = false
-    if (filterWrap.value && !filterWrap.value.contains(e.target as Node)) filterOpen.value = false
     if (groupingWrap.value && !groupingWrap.value.contains(e.target as Node)) groupingOpen.value = false
   })
 }
@@ -1085,13 +1049,11 @@ const displaySections = computed<DisplaySection[]>(() => {
 // ── Content visibility helpers ────────────────────────────────────────────────
 
 function riverHasVisibleContent(river: RiverGroup): boolean {
-  return (filterCurated.value && river.reaches.length > 0) ||
-         (filterUserReaches.value && river.userReaches.length > 0)
+  return river.reaches.length > 0 || river.userReaches.length > 0
 }
 
 function subSectionHasVisibleContent(sub: DisplaySubSection): boolean {
-  return (filterGauges.value && sub.standaloneGauges.length > 0) ||
-         sub.rivers.some(r => riverHasVisibleContent(r))
+  return sub.standaloneGauges.length > 0 || sub.rivers.some(r => riverHasVisibleContent(r))
 }
 
 function sectionHasVisibleContent(sec: DisplaySection): boolean {
@@ -1114,9 +1076,6 @@ interface DashboardPrefs {
   groupByGauge: boolean
   groupByState: boolean
   groupByBasin: boolean
-  filterCurated: boolean
-  filterUserReaches: boolean
-  filterGauges: boolean
   collapsedSections: string[]
   mapVisible: boolean
   showRivers: boolean
@@ -1127,9 +1086,6 @@ const DEFAULT_PREFS: DashboardPrefs = {
   groupByGauge: false,
   groupByState: false,
   groupByBasin: true,
-  filterCurated: true,
-  filterUserReaches: true,
-  filterGauges: true,
   collapsedSections: [],
   mapVisible: false,
   showRivers: true,
@@ -1155,16 +1111,13 @@ function loadPrefs(dashboardId: string | null): DashboardPrefs {
 function savePrefs() {
   if (typeof localStorage === 'undefined') return
   const prefs: DashboardPrefs = {
-    viewMode:           viewMode.value,
-    groupByGauge:       groupByGauge.value,
-    groupByState:       groupByState.value,
-    groupByBasin:       groupByBasin.value,
-    filterCurated:      filterCurated.value,
-    filterUserReaches:  filterUserReaches.value,
-    filterGauges:       filterGauges.value,
-    collapsedSections:  [...collapsedSections.value],
-    mapVisible:         mapVisible.value,
-    showRivers:         showRivers.value,
+    viewMode:          viewMode.value,
+    groupByGauge:      groupByGauge.value,
+    groupByState:      groupByState.value,
+    groupByBasin:      groupByBasin.value,
+    collapsedSections: [...collapsedSections.value],
+    mapVisible:        mapVisible.value,
+    showRivers:        showRivers.value,
   }
   localStorage.setItem(prefsKey(db.activeDashboardId.value), JSON.stringify(prefs))
 }
@@ -1173,9 +1126,6 @@ const viewMode          = ref<ViewMode>(DEFAULT_PREFS.viewMode)
 const groupByGauge      = ref(DEFAULT_PREFS.groupByGauge)
 const groupByState      = ref(DEFAULT_PREFS.groupByState)
 const groupByBasin      = ref(DEFAULT_PREFS.groupByBasin)
-const filterCurated     = ref(DEFAULT_PREFS.filterCurated)
-const filterUserReaches = ref(DEFAULT_PREFS.filterUserReaches)
-const filterGauges      = ref(DEFAULT_PREFS.filterGauges)
 const collapsedSections = ref<Set<string>>(new Set())
 const mapVisible        = ref(DEFAULT_PREFS.mapVisible)
 const showRivers        = ref(DEFAULT_PREFS.showRivers)
@@ -1191,9 +1141,6 @@ function applyPrefs(prefs: DashboardPrefs) {
   groupByGauge.value      = prefs.groupByGauge
   groupByState.value      = prefs.groupByState
   groupByBasin.value      = prefs.groupByBasin
-  filterCurated.value     = prefs.filterCurated
-  filterUserReaches.value = prefs.filterUserReaches
-  filterGauges.value      = prefs.filterGauges
   collapsedSections.value = new Set(prefs.collapsedSections)
   mapVisible.value        = prefs.mapVisible
   showRivers.value        = prefs.showRivers
@@ -1211,7 +1158,6 @@ watch(() => db.activeDashboardId.value, (id) => {
 // One unified save watcher — fires after any pref ref changes (except during hydration).
 watch(
   [viewMode, groupByGauge, groupByState, groupByBasin,
-   filterCurated, filterUserReaches, filterGauges,
    collapsedSections, () => mapVisible.value, () => showRivers.value],
   () => { if (!hydrating.value) savePrefs() },
   { deep: true },
@@ -1253,11 +1199,6 @@ const groupingOptions = computed(() => [
   { key: 'gauge', label: 'By gauge', active: groupByGauge.value, toggle: () => { groupByGauge.value = !groupByGauge.value } },
 ])
 
-const filterOptions = computed(() => [
-  { key: 'curated',   label: 'H2OFlows',        active: filterCurated.value,     toggle: () => { filterCurated.value = !filterCurated.value } },
-  { key: 'myReaches', label: 'My Runs',       active: filterUserReaches.value, toggle: () => { filterUserReaches.value = !filterUserReaches.value } },
-  { key: 'gauges',    label: 'Gauges',            active: filterGauges.value,      toggle: () => { filterGauges.value = !filterGauges.value } },
-])
 
 interface GaugeGroup { lead: WatchedGauge; all: WatchedGauge[] }
 interface SplitGroups { gaugeGroups: GaugeGroup[]; ungrouped: WatchedGauge[] }
@@ -1291,10 +1232,8 @@ const reachContainerClass = computed(() =>
 
 // ── UI state ─────────────────────────────────────────────────────────────────
 const searchOpen   = ref(false)
-const filterOpen   = ref(false)
 const groupingOpen = ref(false)
 const groupingWrap = ref<HTMLElement | null>(null)
-const filterWrap   = ref<HTMLElement | null>(null)
 
 async function handleAdd(gauge: Omit<WatchedGauge, 'watchState' | 'activeSince'>, dashboardId: string | null) {
   const targetId = dashboardId ?? db.activeDashboard.value?.id ?? null
