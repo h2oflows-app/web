@@ -229,6 +229,7 @@ const authReady = ref(false)
 onMounted(() => { authReady.value = true })
 
 const today = new Date().toISOString().slice(0, 10)
+const nowTime = new Date().toTimeString().slice(0, 5)
 
 const prefillSlug = computed(() => route.query.reach as string | undefined)
 const prefillRunSlug = computed(() => route.query.run as string | undefined)
@@ -237,7 +238,7 @@ const profileHandle = ref('')
 
 const form = ref({
   report_date: today,
-  report_time: '',
+  report_time: nowTime,
   content: '',
   paddled: false,
 })
