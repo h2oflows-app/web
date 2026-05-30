@@ -55,53 +55,6 @@
           </button>
         </div>
 
-        <!-- New run button -->
-        <div
-          v-if="isAuthenticated"
-          class="reach-picker-anchor px-3 pb-2 shrink-0 relative"
-        >
-          <button
-            class="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white transition-colors shadow-sm"
-            @click="reachPickerOpen = !reachPickerOpen"
-          >
-            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-              <line x1="10" y1="3" x2="10" y2="17"/><line x1="3" y1="10" x2="17" y2="10"/>
-            </svg>
-            New Run
-          </button>
-          <!-- Picker popover -->
-          <div
-            v-if="reachPickerOpen"
-            class="absolute left-3 right-3 top-full mt-1 z-40 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden"
-          >
-            <button
-              class="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-              @click="reachPickerOpen = false; navigateTo('/my/runs/new')"
-            >
-              <svg class="w-4 h-4 text-primary-500 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/>
-              </svg>
-              <div>
-                <p class="font-medium text-neutral-800 dark:text-neutral-100">Create new</p>
-                <p class="text-xs text-neutral-400">Build your own run</p>
-              </div>
-            </button>
-            <div class="border-t border-neutral-100 dark:border-neutral-800" />
-            <button
-              class="w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-              @click="reachPickerOpen = false; importModalOpen = true"
-            >
-              <svg class="w-4 h-4 text-neutral-500 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 16v1a1 1 0 001 1h10a1 1 0 001-1v-1M7 10l3 3 3-3M10 3v10"/>
-              </svg>
-              <div>
-                <p class="font-medium text-neutral-800 dark:text-neutral-100">Import shared…</p>
-                <p class="text-xs text-neutral-400">Paste a share code from another user</p>
-              </div>
-            </button>
-          </div>
-        </div>
-
         <!-- Loading / error / empty states -->
         <div v-if="userReachesLoading" class="flex-1 flex items-center justify-center text-sm text-neutral-400">Loading…</div>
         <div v-else-if="userReachesError" class="flex-1 flex items-center justify-center text-sm text-red-400">{{ userReachesError }}</div>
@@ -365,7 +318,6 @@ const db = useDashboards()
 
 // ── New reach / import / search modals ────────────────────────────────────────
 const authorModalOpen      = ref(false)
-const reachPickerOpen      = ref(false)
 const importModalOpen      = ref(false)
 const searchModalOpen      = ref(false)
 const searchModalInitialTab = ref<'mine' | 'discover'>('mine')
@@ -393,7 +345,6 @@ const membershipLoading      = ref(false)
 
 function onDocClick(e: MouseEvent) {
   const target = e.target as HTMLElement
-  if (reachPickerOpen.value && !target.closest('.reach-picker-anchor')) reachPickerOpen.value = false
   if (dropdownSlug.value && !target.closest('.dashboard-dropdown-anchor')) dropdownSlug.value = null
   if (filterDropdownOpen.value && !target.closest('.mode-dropdown-anchor')) filterDropdownOpen.value = false
 }
