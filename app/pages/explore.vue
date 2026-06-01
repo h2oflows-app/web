@@ -220,20 +220,15 @@
             <button
               v-for="dashboard in db.dashboards.value"
               :key="dashboard.id"
-              class="w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-colors"
-              :class="allRunsMode
-                ? 'opacity-50 cursor-not-allowed'
-                : 'hover:bg-neutral-50 dark:hover:bg-neutral-800'"
-              :disabled="allRunsMode"
-              :title="allRunsMode ? 'Uncheck All Runs to filter by dashboard.' : ''"
-              @click="!allRunsMode && toggleDashboardFilter(dashboard.id)"
+              class="w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800"
+              @click="toggleDashboardFilter(dashboard.id)"
             >
               <svg
                 class="w-3.5 h-3.5 shrink-0"
-                :class="!allRunsMode && selectedDashboardIds.has(dashboard.id) ? 'text-primary-500' : 'text-neutral-300 dark:text-neutral-600'"
+                :class="selectedDashboardIds.has(dashboard.id) ? 'text-primary-500' : 'text-neutral-300 dark:text-neutral-600'"
                 viewBox="0 0 20 20" fill="currentColor"
               >
-                <path v-if="!allRunsMode && selectedDashboardIds.has(dashboard.id)" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                <path v-if="selectedDashboardIds.has(dashboard.id)" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                 <circle v-else cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/>
               </svg>
               <span class="truncate text-neutral-700 dark:text-neutral-300">{{ dashboard.name }}</span>
@@ -259,6 +254,14 @@
                   <svg v-if="browseLoading" class="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="31.4" stroke-dashoffset="10" stroke-linecap="round"/></svg>
                   <span v-else>Go</span>
                 </button>
+              </div>
+              <div v-if="userSuggestions.length > 0" class="mt-1 rounded border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden">
+                <button
+                  v-for="h in userSuggestions"
+                  :key="h"
+                  class="w-full text-left px-2 py-1 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                  @click.stop="selectSuggestion(h)"
+                >@{{ h }}</button>
               </div>
               <p v-if="browseError" class="text-[10px] text-red-500">{{ browseError }}</p>
             </div>
@@ -448,10 +451,27 @@ const filterLabel = computed(() => {
 })
 
 // ── Browse User mode ──────────────────────────────────────────────────────────
-const browseHandle  = ref<string | null>(null)
-const browseInput   = ref('@h2oflows')
-const browseLoading = ref(false)
-const browseError   = ref('')
+const browseHandle      = ref<string | null>(null)
+const browseInput       = ref('@h2oflows')
+const browseLoading     = ref(false)
+const browseError       = ref('')
+const userSuggestions   = ref<string[]>([])
+let   suggestTimer: ReturnType<typeof setTimeout> | null = null
+
+watch(browseInput, (val) => {
+  if (suggestTimer) clearTimeout(suggestTimer)
+  const q = val.trim().replace(/^@/, '')
+  if (q.length < 2) { userSuggestions.value = []; return }
+  suggestTimer = setTimeout(async () => {
+    try {
+      const res = await fetch(`${apiBase}/api/v1/users/search?q=${encodeURIComponent(q)}`)
+      if (res.ok) {
+        const data = await res.json() as { handle: string }[]
+        userSuggestions.value = data.map(d => d.handle)
+      }
+    } catch { /* ignore */ }
+  }, 250)
+})
 
 async function browseUser() {
   const raw = browseInput.value.trim().replace(/^@/, '').toLowerCase()
@@ -462,6 +482,7 @@ async function browseUser() {
     const res = await fetch(`${apiBase}/api/v1/users/${encodeURIComponent(raw)}`)
     if (!res.ok) { browseError.value = 'User not found'; return }
     browseHandle.value = raw
+    userSuggestions.value = []
     filterDropdownOpen.value = false
   } catch {
     browseError.value = 'Failed to reach server'
@@ -474,6 +495,13 @@ function clearBrowse() {
   browseHandle.value = null
   browseInput.value = '@h2oflows'
   browseError.value = ''
+  userSuggestions.value = []
+}
+
+function selectSuggestion(handle: string) {
+  browseInput.value = handle
+  userSuggestions.value = []
+  browseUser()
 }
 
 const mapSourceUrl = computed((): string | null => {
@@ -492,18 +520,17 @@ const mapSourceUrl = computed((): string | null => {
 })
 
 function clickAllRuns() {
-  if (allRunsMode.value) {
-    allRunsMode.value = false
-  } else {
-    allRunsMode.value = true
-    selectedDashboardIds.value = new Set()
-  }
+  allRunsMode.value = true
 }
 
 function toggleDashboardFilter(id: string) {
   const next = new Set(selectedDashboardIds.value)
-  if (next.has(id)) next.delete(id)
-  else next.add(id)
+  if (next.has(id)) {
+    next.delete(id)
+  } else {
+    next.add(id)
+    allRunsMode.value = false
+  }
   selectedDashboardIds.value = next
 }
 
