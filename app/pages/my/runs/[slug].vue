@@ -127,11 +127,11 @@
       <!-- Form panel — mobile: natural scroll; desktop: fixed-height scrollable column -->
       <div class="lg:w-95 lg:overflow-y-auto lg:h-[calc(100vh-96px)] p-4 pb-20 space-y-4">
 
-        <!-- Flow lines & gauge -->
+        <!-- Flow Lines card -->
         <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-3">
-          <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Flow Lines &amp; Gauge</p>
+          <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Flow Lines</p>
 
-          <!-- Re-anchor row -->
+          <!-- Clear Flow Lines / pick mode -->
           <div class="flex flex-wrap items-center gap-2">
             <button
               class="text-xs px-2.5 py-1 rounded-md font-medium border transition-colors"
@@ -139,7 +139,7 @@
                 ? 'border-primary-500 bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300'
                 : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-neutral-300 dark:hover:border-neutral-600'"
               @click="togglePickMode"
-            >{{ repinPickMode ? 'Cancel' : 'Re-anchor' }}</button>
+            >{{ repinPickMode ? 'Cancel' : 'Clear Flow Lines' }}</button>
             <span v-if="repinAnchorSnapping" class="text-xs text-primary-600 dark:text-primary-400 animate-pulse">Snapping to NHD…</span>
             <span v-if="repinAnchorError" class="text-xs text-red-500">{{ repinAnchorError }}</span>
           </div>
@@ -151,7 +151,18 @@
             <span v-if="repinAnchorSnap.name" class="text-primary-600 dark:text-primary-300 truncate">{{ repinAnchorSnap.name }}</span>
           </div>
 
-          <!-- ComID + gauge toggles (visible once anchor snapped or downstream loaded) -->
+          <!-- "Looks like X — correct?" river name suggestion -->
+          <div
+            v-if="repinAnchorSnap?.name && !repinRiverNameConfirmed"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-200"
+          >
+            <svg class="w-3.5 h-3.5 shrink-0 text-emerald-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+            <span class="flex-1">Looks like <strong>{{ repinAnchorSnap.name }}</strong> — correct?</span>
+            <button class="text-emerald-700 dark:text-emerald-300 hover:underline font-medium" @click="applyAnchorRiverName">Yes, use it</button>
+            <button class="text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-300 px-1" @click="repinRiverNameConfirmed = true">✕</button>
+          </div>
+
+          <!-- ComID toggles (put-in + take-out only) -->
           <div v-if="repinAnchorSnap || repinDownstream" class="flex items-center gap-2 text-xs flex-wrap">
             <span class="text-neutral-500 shrink-0">Click map for:</span>
             <button
@@ -174,6 +185,32 @@
               <span class="w-2 h-2 rounded-full bg-red-500 shrink-0" />
               Take-Out<template v-if="repinDownComID"> · <span class="font-mono">{{ repinDownComID }}</span></template>
             </button>
+          </div>
+
+          <p v-if="repinFlowlinesLoading" class="text-xs text-primary-500 animate-pulse">Loading downstream mainstem…</p>
+
+          <!-- Status / revert -->
+          <div v-if="repinPreviewLoading || repinError || repinSuccess || repinFlowlinesDirty" class="flex items-center gap-2 pt-1 flex-wrap">
+            <span v-if="repinPreviewLoading" class="text-xs text-primary-500 animate-pulse">Computing centerline…</span>
+            <span v-if="repinError" class="text-xs text-red-500">{{ repinError }}</span>
+            <span v-if="repinSuccess" class="text-xs text-green-600 dark:text-green-400">{{ repinSuccess }}</span>
+            <div class="flex-1" />
+            <UButton
+              v-if="repinFlowlinesDirty"
+              size="xs"
+              variant="outline"
+              color="neutral"
+              @click="revertComIDs"
+            >Revert</UButton>
+          </div>
+        </div>
+
+        <!-- Gauge card -->
+        <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-3">
+          <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Gauge</p>
+
+          <!-- Gauge select toggle (only available when flow lines anchor is set) -->
+          <div v-if="repinAnchorSnap || repinDownstream" class="flex items-center gap-2 text-xs flex-wrap">
             <button
               class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors"
               :class="reach.custom_gauge_id
@@ -210,10 +247,9 @@
 
           <p v-if="repinGaugeError" class="text-xs text-red-500">{{ repinGaugeError }}</p>
           <p v-if="repinGaugeSelectMode" class="text-xs text-amber-600 dark:text-amber-400">Click an amber dot on the map to assign a primary gauge.</p>
-          <p v-if="repinFlowlinesLoading" class="text-xs text-primary-500 animate-pulse">Loading downstream mainstem…</p>
 
           <!-- Linked gauge -->
-          <div class="pt-2 border-t border-neutral-100 dark:border-neutral-800 space-y-1.5">
+          <div class="space-y-1.5">
             <div class="flex items-center justify-between gap-2">
               <p class="text-xs text-neutral-500">Linked gauge</p>
               <div class="relative">
@@ -278,21 +314,6 @@
               >Edit formula →</NuxtLink>
             </template>
             <p v-else class="text-xs text-neutral-400 italic">None</p>
-          </div>
-
-          <!-- Status / revert -->
-          <div v-if="repinPreviewLoading || repinError || repinSuccess || repinFlowlinesDirty" class="flex items-center gap-2 pt-1 flex-wrap">
-            <span v-if="repinPreviewLoading" class="text-xs text-primary-500 animate-pulse">Computing centerline…</span>
-            <span v-if="repinError" class="text-xs text-red-500">{{ repinError }}</span>
-            <span v-if="repinSuccess" class="text-xs text-green-600 dark:text-green-400">{{ repinSuccess }}</span>
-            <div class="flex-1" />
-            <UButton
-              v-if="repinFlowlinesDirty"
-              size="xs"
-              variant="outline"
-              color="neutral"
-              @click="revertComIDs"
-            >Revert</UButton>
           </div>
         </div>
 
@@ -676,11 +697,17 @@ const repinPreviewLoading  = ref(false)
 const repinError           = ref('')
 const repinSuccess         = ref('')
 
-const repinGauges          = ref<NHDFC | null>(null)
-const repinGaugeSelectMode = ref(false)
-const repinPendingGauge    = ref<PendingGauge | null>(null)
-const repinGaugeSaving     = ref(false)
-const repinGaugeError      = ref('')
+const repinGauges              = ref<NHDFC | null>(null)
+const repinGaugeSelectMode     = ref(false)
+const repinPendingGauge        = ref<PendingGauge | null>(null)
+const repinGaugeSaving         = ref(false)
+const repinGaugeError          = ref('')
+const repinRiverNameConfirmed  = ref(false)
+
+function applyAnchorRiverName() {
+  if (repinAnchorSnap.value?.name) form.value.riverName = repinAnchorSnap.value.name
+  repinRiverNameConfirmed.value = true
+}
 
 const riverNameLooking = ref(false)
 const nldiGnisId       = ref<string | null>(null)
@@ -977,6 +1004,7 @@ function resetGeometryState() {
   repinFlowlinesDirty.value = false
   repinError.value          = ''
   repinSuccess.value        = ''
+  repinRiverNameConfirmed.value = false
 }
 
 function revertComIDs() {
