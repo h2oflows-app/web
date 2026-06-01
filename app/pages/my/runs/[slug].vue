@@ -24,7 +24,7 @@
 
     <!-- Fork attribution — single inline line -->
     <div v-if="reach?.original_forked_at || reach?.forked_from_slug" class="px-4 pt-2 text-xs text-neutral-400 dark:text-neutral-500">
-      Forked from {{ reach.forked_from_name ?? reach.forked_from_slug ?? 'unknown' }}<template v-if="reach.original_author_handle"> · @{{ reach.original_author_handle }}</template><template v-if="forkDate"> {{ forkDate }}</template>
+      Forked from {{ reach.forked_from_name ?? reach.forked_from_slug ?? '' }}<template v-if="reach.original_author_handle"> · <NuxtLink :to="`/explore?browse=${reach.original_author_handle}`" class="hover:text-primary-500 transition-colors">@{{ reach.original_author_handle }}</NuxtLink></template><template v-if="forkDate"> {{ forkDate }}</template>
     </div>
 
     <!-- Run heading (no card chrome) -->
@@ -33,18 +33,19 @@
         <div class="min-w-0">
           <div v-if="reach.river_name" class="text-xs font-medium text-primary-500 uppercase tracking-wide mb-1">{{ reach.river_name }}</div>
           <h1 class="text-2xl font-bold leading-tight text-neutral-900 dark:text-white truncate">{{ reach.name }}</h1>
-          <div v-if="reach.river_state_abbr || reach.river_basin" class="text-sm text-neutral-500 mt-0.5">
-            {{ [reach.river_state_abbr, reach.river_basin].filter(Boolean).join(' · ') }}
+          <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+            <div v-if="reach.river_state_abbr || reach.river_basin" class="text-sm text-neutral-500">
+              {{ [reach.river_state_abbr, reach.river_basin].filter(Boolean).join(' · ') }}
+            </div>
+            <span class="text-xs font-mono text-neutral-300 dark:text-neutral-600">{{ slug }}</span>
           </div>
         </div>
-        <template v-if="reach.gauge_name || reach.current_cfs != null">
+        <template v-if="reach.current_cfs != null">
           <div class="flex items-end gap-3 shrink-0 mt-1">
             <div class="text-right">
-              <p v-if="reach.current_cfs != null" class="text-2xl font-bold font-mono leading-none" :style="{ color: cfsColor }">
+              <p class="text-2xl font-bold font-mono leading-none" :style="{ color: cfsColor }">
                 {{ reach.current_cfs.toLocaleString() }}<span class="text-xs font-normal text-neutral-400 ml-1">cfs</span>
               </p>
-              <p v-else class="text-sm text-neutral-400">No reading</p>
-              <p v-if="reach.gauge_name" class="text-xs text-neutral-400 truncate mt-0.5">{{ reach.gauge_name }}</p>
             </div>
             <span
               v-if="reach.flow_band"
