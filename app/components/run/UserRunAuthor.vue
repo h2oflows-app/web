@@ -123,13 +123,13 @@
     <div v-if="upComID && downComID" class="mt-4 space-y-3 rounded-xl border border-neutral-200 dark:border-neutral-700 p-4 bg-white dark:bg-neutral-900">
       <h3 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Run details</h3>
 
-      <!-- River name (read-only, GNIS-canonical) -->
-      <div v-if="form.riverName">
-        <label class="block text-xs text-neutral-500 mb-1">River name <span class="text-neutral-300">(from NHD)</span></label>
+      <!-- River name (editable; NHD auto-fills but user can override) -->
+      <div>
+        <label class="block text-xs text-neutral-500 mb-1">River name <span class="text-neutral-300">(optional — auto-detected from NHD)</span></label>
         <input
-          :value="form.riverName"
-          readonly
-          class="w-full rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900 px-2 py-1.5 text-sm text-neutral-500 dark:text-neutral-400 cursor-default"
+          v-model="form.riverName"
+          class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm"
+          placeholder="e.g. Arkansas River"
         />
       </div>
 

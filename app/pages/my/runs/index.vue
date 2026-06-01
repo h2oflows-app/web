@@ -120,7 +120,7 @@
                       v-for="run in riverGroup.runs"
                       :key="run.id"
                       class="flex items-center gap-3 px-6 py-2.5 bg-white dark:bg-neutral-900/60 hover:bg-neutral-50 dark:hover:bg-neutral-800/40 cursor-pointer transition-colors"
-                      @click="router.push(`/my/runs/${run.slug}`)"
+                      @click="run.author_handle ? router.push(`/runs/${run.author_handle}/${run.slug}`) : null"
                     >
                       <div class="flex-1 min-w-0">
                         <p class="text-sm font-medium text-neutral-900 dark:text-white truncate">{{ run.name }}</p>
@@ -133,14 +133,14 @@
                             :class="bandBadgeClass(run.flow_band)"
                           >{{ flowBandLabel(run.flow_band) }}</span>
                           <span v-if="run.is_private" class="text-xs px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-400">Private</span>
+                          <span class="text-xs font-mono text-neutral-300 dark:text-neutral-600">{{ run.slug }}</span>
                         </div>
                       </div>
                       <div class="flex items-center gap-2 shrink-0" @click.stop>
                         <NuxtLink
-                          v-if="run.author_handle"
-                          :to="`/runs/${run.author_handle}/${run.slug}`"
+                          :to="`/my/runs/${run.slug}`"
                           class="text-xs text-primary-500 hover:underline px-2 py-1"
-                        >View</NuxtLink>
+                        >Edit</NuxtLink>
                         <button
                           class="text-xs text-red-400 hover:text-red-600 px-2 py-1 transition-colors"
                           @click="confirmDelete(run)"
