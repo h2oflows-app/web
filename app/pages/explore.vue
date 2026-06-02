@@ -371,7 +371,7 @@ const searchModalInitialTab = ref<'mine' | 'discover'>('mine')
 
 function onAuthorCreated(slug: string) {
   authorModalOpen.value = false
-  router.push(`/runs/${slug}/edit`)
+  router.push(`/my/runs/${slug}`)
 }
 
 // ── Demo banner ───────────────────────────────────────────────────────────────
@@ -639,9 +639,13 @@ function onMapHover(slug: string | null) {
   }
 }
 
-function onReachClick(payload: { slug: string; id?: string; isCommunity?: boolean }) {
+function onReachClick(payload: { slug: string; id?: string; isCommunity?: boolean; authorHandle?: string | null }) {
   if (browseHandle.value) {
     navigateTo(`/runs/${browseHandle.value}/${payload.slug}`)
+    return
+  }
+  if (payload.authorHandle) {
+    navigateTo(`/runs/${payload.authorHandle}/${payload.slug}`)
     return
   }
   navigateTo(`/my/runs/${payload.slug}`)

@@ -63,7 +63,7 @@
               </div>
               <NuxtLink
                 v-if="rep.reach_slug"
-                :to="`/runs/${rep.reach_slug}`"
+                :to="`/runs/${rep.reach_author_handle ?? 'h2oflows'}/${rep.reach_slug}`"
                 class="text-xs text-primary-500 dark:text-primary-400 hover:underline"
               >{{ rep.reach_name ?? rep.reach_slug }}</NuxtLink>
             </div>
@@ -169,6 +169,7 @@ interface MyReport {
   created_at: string
   reach_name?: string
   reach_slug?: string
+  reach_author_handle?: string | null
   url?: string
   handle?: string
   aw_synced_at?: string

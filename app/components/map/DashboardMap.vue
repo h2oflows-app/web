@@ -364,8 +364,10 @@ onMounted(() => {
       paint: { 'line-color': 'transparent', 'line-width': 12, 'line-opacity': 0 },
     })
     map!.on('click', 'dash-lines-hit', (e) => {
-      const slug = e.features?.[0]?.properties?.slug
-      if (slug) router.push(`/runs/${slug}`)
+      const props = e.features?.[0]?.properties
+      const slug = props?.slug
+      const handle = props?.author_handle ?? 'h2oflows'
+      if (slug) router.push(`/runs/${handle}/${slug}`)
     })
     map!.on('mouseenter', 'dash-lines-hit', (e) => {
       map!.getCanvas().style.cursor = 'pointer'

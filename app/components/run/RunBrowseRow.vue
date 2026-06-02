@@ -11,7 +11,7 @@
     <!-- Reach name + author badge -->
     <div class="flex-1 min-w-0">
       <NuxtLink
-        :to="`/runs/${reach.slug}`"
+        :to="`/runs/${reach.author_handle ?? 'h2oflows'}/${reach.slug}`"
         class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors block"
       >{{ displayName }}</NuxtLink>
       <RunAuthorBadge

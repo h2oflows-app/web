@@ -148,15 +148,7 @@
 
         <!-- Submit -->
         <div class="flex items-center justify-end gap-3 pt-2 flex-wrap">
-          <NuxtLink
-            v-if="prefillSlug"
-            :to="`/runs/${prefillSlug}`"
-            class="text-sm text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
-          >
-            Cancel
-          </NuxtLink>
           <button
-            v-else
             type="button"
             class="text-sm text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
             @click="router.back()"

@@ -179,6 +179,8 @@ const props = defineProps<{
   access: AccessFeature[]
   // Current reach slug — used to exclude self from nearby reach layer
   slug?: string
+  // Author handle — used for canonical URL and OG meta
+  authorHandle?: string
   // River name — loads all reaches on the same river instead of viewport bbox
   riverName?: string
   // Legacy single-gauge props — kept for backwards compat
@@ -508,8 +510,10 @@ function addLayers() {
     paint: { 'line-color': 'transparent', 'line-width': 14, 'line-opacity': 0 },
   })
   map.on('click', 'other-reaches-hit', (e) => {
-    const slug = e.features?.[0]?.properties?.slug
-    if (slug) router.push(`/runs/${slug}`)
+    const p = e.features?.[0]?.properties
+    const slug = p?.slug
+    const handle = p?.author_handle ?? 'h2oflows'
+    if (slug) router.push(`/runs/${handle}/${slug}`)
   })
   map.on('mouseenter', 'other-reaches-hit', (e) => {
     if (!map) return
@@ -962,7 +966,7 @@ ${pts}
   </trk>`
   }
 
-  const canonical = props.slug ? `https://h2oflows.app/runs/${props.slug}` : ''
+  const canonical = props.slug ? `https://h2oflows.app/runs/${props.authorHandle ?? 'h2oflows'}/${props.slug}` : ''
   const gpx = `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="H2OFlows" xmlns="http://www.topografix.com/GPX/1/1">
   <metadata>

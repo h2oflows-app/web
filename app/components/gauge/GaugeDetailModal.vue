@@ -6,8 +6,8 @@
           <!-- Reach mode: reach name links to reach page; gauge info as subtitle -->
           <template v-if="mode === 'reach' && reachTitle">
             <NuxtLink
-              v-if="reachSlugForLink"
-              :to="`/runs/${reachSlugForLink}`"
+              v-if="reachNavPath"
+              :to="reachNavPath"
               class="text-lg font-bold text-neutral-900 dark:text-white truncate leading-tight hover:text-primary-600 dark:hover:text-primary-400 transition-colors block"
               @click="open = false"
             >{{ reachTitle }}</NuxtLink>
@@ -33,8 +33,8 @@
         <!-- View reach + close buttons -->
         <div class="flex items-center gap-1 shrink-0">
           <NuxtLink
-            v-if="mode === 'reach' && reachSlugForLink"
-            :to="`/runs/${reachSlugForLink}`"
+            v-if="mode === 'reach' && reachNavPath"
+            :to="reachNavPath"
             class="p-1.5 rounded-md text-neutral-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
             :title="`View ${reachTitle ?? 'run'} details`"
             @click="open = false"
@@ -154,6 +154,14 @@ const reachSlugForLink = computed(() =>
     ?? props.gauge.reachSlugs?.[0]
     ?? null
 )
+
+// Full nav path for reach link: /runs/{handle}/{slug}
+const reachNavPath = computed(() => {
+  const slug = reachSlugForLink.value
+  if (!slug) return null
+  const handle = props.gauge.contextReachAuthorHandle ?? 'h2oflows'
+  return `/runs/${handle}/${slug}`
+})
 
 // Reach slug passed to GaugeGraph only in reach mode — drives flow band coloring + legend.
 // null in gauge mode forces neutral blue graph with no bands.

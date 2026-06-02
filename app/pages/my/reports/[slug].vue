@@ -43,7 +43,7 @@
         <svg class="w-4 h-4 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14c3-6 6-9 8-9s5 9 8 9"/></svg>
         <span class="text-neutral-500 dark:text-neutral-400 shrink-0">Run:</span>
         <NuxtLink
-          :to="`/runs/${report.reach_slug}`"
+          :to="`/runs/${report.reach_author_handle ?? 'h2oflows'}/${report.reach_slug}`"
           class="font-medium text-primary-600 dark:text-primary-400 hover:underline truncate"
         >{{ report.reach_name || report.reach_slug }}</NuxtLink>
       </div>
@@ -167,6 +167,7 @@ interface MyReport {
   created_at: string
   reach_name: string
   reach_slug: string
+  reach_author_handle?: string | null
 }
 
 const report = ref<MyReport | null>(null)

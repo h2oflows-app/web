@@ -148,7 +148,7 @@
                             ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
                             : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400'"
                         >{{ reach.has_centerline ? 'Line ✓' : 'No line' }}</span>
-                        <NuxtLink :to="`/runs/${reach.slug}`" class="text-xs text-primary-500 hover:underline">View</NuxtLink>
+                        <NuxtLink :to="`/runs/h2oflows/${reach.slug}`" class="text-xs text-primary-500 hover:underline">View</NuxtLink>
                       </div>
                     </div>
                     <div v-if="river.reaches.length === 0" class="px-6 py-4 text-center text-sm text-neutral-400">No runs in this state</div>
@@ -214,7 +214,7 @@
                         ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
                         : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400'"
                     >{{ reach.has_centerline ? 'Line ✓' : 'No line' }}</span>
-                    <NuxtLink :to="`/runs/${reach.slug}`" class="text-xs text-primary-500 hover:underline">View</NuxtLink>
+                    <NuxtLink :to="`/runs/h2oflows/${reach.slug}`" class="text-xs text-primary-500 hover:underline">View</NuxtLink>
                   </div>
                 </div>
               </div>
@@ -492,7 +492,7 @@
                 <div class="min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
                     <NuxtLink
-                      :to="`/runs/${row.slug}`"
+                      :to="`/runs/h2oflows/${row.slug}`"
                       class="text-sm font-semibold text-primary-600 dark:text-primary-400 hover:underline"
                       target="_blank"
                     >{{ row.name }}</NuxtLink>

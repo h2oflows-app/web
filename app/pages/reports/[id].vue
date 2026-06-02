@@ -52,7 +52,7 @@
 
         <!-- Reach link — curated run goes to /runs/{slug}, user run to /my/runs/{slug} -->
         <NuxtLink
-          :to="report.is_user_run ? `/my/runs/${report.reach_slug}` : `/runs/${report.reach_slug}`"
+          :to="`/runs/${report.reach_author_handle ?? 'h2oflows'}/${report.reach_slug}`"
           class="inline-flex items-center gap-1.5 text-sm text-primary-600 dark:text-primary-400 hover:underline"
         >
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14c3-6 6-9 8-9s5 9 8 9 5-9 8-9"/></svg>
@@ -143,6 +143,8 @@ interface Report {
   created_at: string
   reach_name: string
   reach_slug: string
+  reach_author_handle?: string | null
+  is_user_run?: boolean
 }
 
 const { data: report, pending } = await useAsyncData<Report | null>(
