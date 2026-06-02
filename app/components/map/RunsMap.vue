@@ -80,7 +80,6 @@ const props = defineProps<{
 export interface ReachClickPayload {
   slug:          string
   id?:           string
-  isCommunity?:  boolean
   authorHandle?: string | null
 }
 
@@ -337,7 +336,6 @@ interface ReachFeature {
     river_name: string | null; gauge_id: string | null
     author_handle?: string | null
     is_official?: boolean
-    is_community?: boolean
     upvote_count?: number
   }
 }
@@ -501,7 +499,7 @@ function updateLayers(features: ReachFeature[]) {
       if (unique.length <= 1) {
         const p = (unique[0] ?? e.features[0]).properties as any
         if (!p.slug) return
-        emit('reach-click', { slug: p.slug, id: p.id ?? undefined, isCommunity: !!p.is_community, authorHandle: p.author_handle ?? null })
+        emit('reach-click', { slug: p.slug, id: p.id ?? undefined, authorHandle: p.author_handle ?? null })
         return
       }
       // Multiple overlapping — dismiss tooltip, show picker (top 5 by upvotes, official first on tie)
@@ -520,13 +518,13 @@ function updateLayers(features: ReachFeature[]) {
         : `<div class="rpp-header">${unique.length} runs here</div>`
       const items = sorted.map(f => {
         const p = f.properties as any
-        return `<div class="rpp-item" data-slug="${p.slug}" data-id="${p.id ?? ''}" data-community="${!!p.is_community}" data-handle="${p.author_handle ?? ''}">${p.common_name ?? p.name}</div>`
+        return `<div class="rpp-item" data-slug="${p.slug}" data-id="${p.id ?? ''}" data-handle="${p.author_handle ?? ''}">${p.common_name ?? p.name}</div>`
       }).join('')
       pickerPopup.setLngLat(e.lngLat).setHTML(`${header}${items}`).addTo(map!)
       pickerPopup.getElement()?.querySelectorAll<HTMLElement>('.rpp-item').forEach(el => {
         el.addEventListener('click', ev => {
           ev.stopPropagation()
-          emit('reach-click', { slug: el.dataset.slug!, id: el.dataset.id || undefined, isCommunity: el.dataset.community === 'true', authorHandle: el.dataset.handle || null })
+          emit('reach-click', { slug: el.dataset.slug!, id: el.dataset.id || undefined, authorHandle: el.dataset.handle || null })
           pickerPopup.remove()
         })
       })
@@ -609,8 +607,7 @@ function relativeTime(iso: string): string {
   return `${Math.floor(m / 60)}h ${m % 60}m ago`
 }
 
-// Reload features when the data source URL OR auth headers change
-// (toggling curated ↔ user ↔ community, or signing in mid-session).
+// Reload features when the data source URL OR auth headers change (e.g. signing in mid-session).
 watch(
   () => [props.sourceUrl, props.sourceHeaders?.Authorization ?? ''],
   () => { if (map) reloadSource() },
