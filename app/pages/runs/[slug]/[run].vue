@@ -338,7 +338,7 @@ async function loadRun() {
   pending.value = true
   try {
     const headers = await authHeaders()
-    const res = await fetch(`${apiBase}/api/v1/user-runs/by-handle/${handle.value}/${runSlug.value}`, { headers })
+    const res = await fetch(`${apiBase}/api/v1/users/${handle.value}/runs/${runSlug.value}`, { headers })
     if (!res.ok) { run.value = null; return }
     run.value = await res.json()
   } catch { run.value = null }

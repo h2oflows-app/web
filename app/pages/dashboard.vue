@@ -242,16 +242,16 @@
                     </template>
                   </template>
                   <template v-else>
-                    <!-- List: all reaches in one grouped card -->
+                    <!-- List: all reaches in one grouped card (skip if empty — empty container shows as phantom hr) -->
                     <DashboardRunGroup
-                      v-if="viewMode === 'list'"
+                      v-if="viewMode === 'list' && river.reaches.length > 0"
                       :reaches="river.reaches"
                       density="list"
                       @open="(g, mode) => openGauge(g, mode)"
                       @remove="(g) => removeAndSync(g.id, g.contextReachSlug)"
                     />
                     <!-- Card modes: each reach = own card in grid -->
-                    <div v-else :class="cardGridClass">
+                    <div v-else-if="viewMode !== 'list' && river.reaches.length > 0" :class="cardGridClass">
                       <DashboardRunGroup
                         v-for="reach in river.reaches"
                         :key="`${reach.id}::${reach.contextReachSlug}`"
