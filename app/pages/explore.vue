@@ -4,7 +4,7 @@
     <!-- Backdrop: consumes the click that closes the dashboard dropdown so it doesn't hit reach rows -->
     <div v-if="dropdownSlug !== null" class="fixed inset-0 z-30" @click.stop="dropdownSlug = null" />
 
-    <!-- Sharing banner (V22) — one-time, auth only, localStorage dismissed flag -->
+    <!-- Sharing banner — one-time, auth only, localStorage dismissed flag -->
     <div v-if="showSharingBanner" class="shrink-0 bg-blue-50 dark:bg-blue-950 border-b border-blue-200 dark:border-blue-800 px-4 py-2 flex items-center justify-between gap-4 text-sm">
       <p class="text-blue-800 dark:text-blue-200 text-center flex-1">
         Your runs help others discover paddleable water.
@@ -27,22 +27,35 @@
     <!-- Split-pane body -->
     <div class="flex-1 overflow-hidden flex relative">
 
-      <!-- ── Left panel: runs list ──────────────────────────────────────────── -->
+      <!-- ── Left panel ───────────────────────────────────────────────────────── -->
       <aside
         class="shrink-0 border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 flex flex-col overflow-hidden transition-all"
         :class="listVisible
           ? 'absolute sm:relative inset-0 sm:inset-auto z-30 sm:z-auto w-full sm:w-80'
           : 'hidden sm:flex sm:w-80'"
       >
-        <!-- Search + mobile map toggle -->
-        <div class="px-3 py-2.5 sm:border-b border-neutral-100 dark:border-neutral-800 shrink-0 flex items-center gap-2">
+        <!-- Tab segmented control -->
+        <div class="shrink-0 px-3 pt-2.5 pb-0">
+          <div class="flex rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden text-xs font-medium">
+            <button
+              v-for="tab in TABS" :key="tab.id"
+              class="flex-1 py-1.5 transition-colors"
+              :class="activeTab === tab.id
+                ? 'bg-primary-600 text-white'
+                : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-900'"
+              @click="setTab(tab.id)"
+            >{{ tab.label }}</button>
+          </div>
+        </div>
+
+        <!-- Search + mobile map toggle (all + dashboards tabs) -->
+        <div v-if="activeTab !== 'browse'" class="px-3 py-2 shrink-0 flex items-center gap-2">
           <input
             v-model="query"
             type="search"
             placeholder="Search runs, rivers…"
             class="flex-1 text-sm bg-neutral-100 dark:bg-neutral-900 rounded-md px-3 py-1.5 text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
-          <!-- Back to map (mobile only, shown when list is visible) -->
           <button
             class="sm:hidden shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-950/50 transition-colors"
             aria-label="Show map"
@@ -55,27 +68,92 @@
           </button>
         </div>
 
+        <!-- My Dashboards: inline dashboard checkboxes -->
+        <div v-if="activeTab === 'dashboards'" class="shrink-0 border-b border-neutral-100 dark:border-neutral-800 px-3 pb-2 space-y-1">
+          <div v-if="db.dashboards.value.length === 0" class="text-xs text-neutral-400 py-1">No dashboards yet.</div>
+          <button
+            v-for="dashboard in db.dashboards.value"
+            :key="dashboard.id"
+            class="w-full flex items-center gap-2 py-1 text-xs text-left"
+            @click="toggleDashboardFilter(dashboard.id)"
+          >
+            <svg
+              class="w-3.5 h-3.5 shrink-0"
+              :class="selectedDashboardIds.has(dashboard.id) ? 'text-primary-500' : 'text-neutral-300 dark:text-neutral-600'"
+              viewBox="0 0 20 20" fill="currentColor"
+            >
+              <path v-if="selectedDashboardIds.has(dashboard.id)" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+              <circle v-else cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+            <span class="truncate text-neutral-700 dark:text-neutral-300">{{ dashboard.name }}</span>
+          </button>
+        </div>
+
+        <!-- Browse User: handle input in sidebar -->
+        <div v-if="activeTab === 'browse'" class="shrink-0 border-b border-neutral-100 dark:border-neutral-800 px-3 py-2 space-y-1.5">
+          <div class="flex gap-1 items-center">
+            <button
+              class="sm:hidden shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-950/50 transition-colors"
+              aria-label="Show map"
+              @click="listVisible = false"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 5l-5 5 5 5"/>
+              </svg>
+            </button>
+            <input
+              v-model="browseInput"
+              type="text"
+              placeholder="@h2oflows"
+              class="flex-1 text-sm bg-neutral-100 dark:bg-neutral-900 rounded-md px-3 py-1.5 text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-primary-500 min-w-0"
+              @keydown.enter.prevent="browseUser"
+            />
+            <button
+              class="shrink-0 px-3 py-1.5 rounded-md text-xs font-medium bg-primary-500 hover:bg-primary-600 text-white transition-colors disabled:opacity-50"
+              :disabled="browseLoading"
+              @click="browseUser"
+            >
+              <svg v-if="browseLoading" class="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="31.4" stroke-dashoffset="10" stroke-linecap="round"/></svg>
+              <span v-else>Go</span>
+            </button>
+          </div>
+          <div v-if="userSuggestions.length > 0" class="rounded border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden">
+            <button
+              v-for="h in userSuggestions"
+              :key="h"
+              class="w-full text-left px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+              @click="selectSuggestion(h)"
+            >@{{ h }}</button>
+          </div>
+          <p v-if="browseError" class="text-xs text-red-500">{{ browseError }}</p>
+          <p v-if="browseHandle" class="text-xs text-neutral-400">
+            Showing <span class="font-medium text-neutral-700 dark:text-neutral-300">@{{ browseHandle }}</span>'s runs
+            <button class="ml-1 text-primary-500 hover:underline" @click="clearBrowse">clear</button>
+          </p>
+        </div>
+
         <!-- Loading / error / empty states -->
-        <div v-if="userReachesLoading" class="flex-1 flex items-center justify-center text-sm text-neutral-400">Loading…</div>
-        <div v-else-if="userReachesError" class="flex-1 flex items-center justify-center text-sm text-red-400">{{ userReachesError }}</div>
-        <div v-else-if="!isAuthenticated" class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-neutral-400">
+        <div v-if="!isAuthenticated && activeTab !== 'browse'" class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-neutral-400">
           <span>Sign in to see your runs.</span>
           <NuxtLink to="/login" class="text-primary-500 hover:underline">Sign in →</NuxtLink>
         </div>
-        <div v-else-if="userReaches.length === 0" class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-neutral-400">
-          <span>No saved runs yet.</span>
-          <NuxtLink to="/my/runs/new" class="text-primary-500 hover:underline">Create your first run →</NuxtLink>
+        <div v-else-if="mapReaches.length === 0 && activeTab === 'browse' && !browseHandle" class="flex-1 flex items-center justify-center text-sm text-neutral-400 px-4 text-center">
+          Enter a handle and press Go to browse another user's runs.
         </div>
-        <div v-else-if="query.length >= 2 && userRiverGroups.length === 0" class="flex-1 flex items-center justify-center text-sm text-neutral-400">
-          No results for "{{ query }}"
+        <div v-else-if="mapReaches.length === 0 && isAuthenticated" class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-neutral-400">
+          <span>{{ activeTab === 'browse' ? 'No public runs found.' : 'Pan or zoom the map to see runs here.' }}</span>
+          <NuxtLink v-if="activeTab !== 'browse'" to="/my/runs/new" class="text-primary-500 hover:underline">Create your first run →</NuxtLink>
+        </div>
+        <div v-else-if="query.length >= 2 && filteredMapGroups.length === 0 && activeTab !== 'browse'" class="flex-1 flex items-center justify-center text-sm text-neutral-400 px-4 text-center">
+          No results in view for "{{ query }}"
         </div>
 
-        <!-- My runs list -->
+        <!-- Reach list (from map viewport) -->
         <div
-          v-if="!userReachesLoading && !userReachesError && isAuthenticated && userReaches.length > 0 && !(query.length >= 2 && userRiverGroups.length === 0)"
+          v-if="showReachList"
           class="flex-1 overflow-y-auto"
         >
-          <div v-for="group in userRiverGroups" :key="group.name">
+          <div v-for="group in filteredMapGroups" :key="group.name">
             <!-- River header -->
             <div class="flex items-center gap-2 px-3 py-1.5 border-b border-neutral-100 dark:border-neutral-800/50 bg-neutral-50 dark:bg-neutral-900/50">
               <span class="text-xs font-semibold text-neutral-600 dark:text-neutral-300 flex-1 truncate">{{ group.name }}</span>
@@ -105,9 +183,9 @@
                 :style="{ color: bandSolid(null, reach.flow_status) }"
               >{{ Math.round(reach.current_cfs).toLocaleString() }}</span>
               <span v-else class="text-xs text-neutral-300 dark:text-neutral-600 shrink-0">—</span>
-              <!-- Add to dashboard dropdown -->
+              <!-- Add to dashboard (own runs only) -->
               <div
-                v-if="isAuthenticated"
+                v-if="isAuthenticated && activeTab !== 'browse'"
                 class="dashboard-dropdown-anchor shrink-0 relative"
                 @click.stop
               >
@@ -144,8 +222,9 @@
                   </button>
                 </div>
               </div>
+              <!-- View link -->
               <NuxtLink
-                :to="`/my/runs/${reach.slug}`"
+                :to="activeTab === 'browse' ? `/runs/${browseHandle}/${reach.slug}` : `/my/runs/${reach.slug}`"
                 class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-opacity opacity-60 sm:opacity-0 sm:group-hover:opacity-100 hover:opacity-100"
                 aria-label="View run"
                 @click.stop
@@ -162,9 +241,9 @@
       <!-- ── Right panel: map ──────────────────────────────────────────────── -->
       <div class="flex-1 min-w-0 relative flex flex-col">
 
-        <!-- Browsing banner -->
+        <!-- Browsing banner (Browse User tab with active handle) -->
         <div
-          v-if="browseHandle"
+          v-if="activeTab === 'browse' && browseHandle"
           class="shrink-0 bg-primary-50 dark:bg-primary-950 border-b border-primary-200 dark:border-primary-800 px-3 py-1.5 flex items-center justify-between gap-3 text-xs z-10"
         >
           <span class="text-primary-700 dark:text-primary-300 font-medium truncate">
@@ -180,119 +259,31 @@
         </div>
 
         <div class="flex-1 relative">
+          <ClientOnly>
+            <RunsMap
+              ref="mapRef"
+              :hovered-slug="hoveredSlug"
+              :source-url="mapSourceUrl"
+              :source-headers="mapSourceHeaders"
+              @reaches-updated="onReachesUpdated"
+              @zoom-updated="(z) => mapZoom = z"
+              @hover-changed="onMapHover"
+              @reach-click="onReachClick"
+            />
+          </ClientOnly>
 
-        <!-- Floating filter dropdown — multi-select dashboard checkboxes (V3/V4/V5) -->
-        <div
-          v-if="isAuthenticated && !listVisible"
-          class="mode-dropdown-anchor absolute top-2 right-2 z-20"
-        >
+          <!-- Mobile: open list (only shown when map is visible) -->
           <button
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 shadow-md bg-white/95 dark:bg-neutral-900/95 backdrop-blur-sm text-xs font-medium text-neutral-700 dark:text-neutral-200 hover:bg-white dark:hover:bg-neutral-900 transition-colors"
-            @click="filterDropdownOpen = !filterDropdownOpen"
+            v-if="!listVisible"
+            class="sm:hidden absolute top-2 left-2 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium shadow-md bg-white/95 dark:bg-neutral-900/95 border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200"
+            @click="listVisible = true"
           >
-            <span class="text-neutral-400 dark:text-neutral-500">Showing:</span>
-            <span class="text-primary-600 dark:text-primary-400">{{ filterLabel }}</span>
-            <svg class="w-3 h-3 text-neutral-400 transition-transform" :class="filterDropdownOpen ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/>
+            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/>
             </svg>
+            {{ mapReaches.length }} reaches
           </button>
-          <div
-            v-if="filterDropdownOpen && db.dashboards.value.length > 0"
-            class="absolute right-0 top-full mt-1 min-w-44 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden"
-          >
-            <!-- All Runs row -->
-            <button
-              class="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-              @click="clickAllRuns"
-            >
-              <svg
-                class="w-3.5 h-3.5 shrink-0"
-                :class="allRunsMode ? 'text-primary-500' : 'text-neutral-300 dark:text-neutral-600'"
-                viewBox="0 0 20 20" fill="currentColor"
-              >
-                <path v-if="allRunsMode" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                <circle v-else cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/>
-              </svg>
-              <span class="font-medium text-neutral-700 dark:text-neutral-300">All Runs</span>
-            </button>
-            <div class="border-t border-neutral-100 dark:border-neutral-800"/>
-            <!-- Per-dashboard rows -->
-            <button
-              v-for="dashboard in db.dashboards.value"
-              :key="dashboard.id"
-              class="w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800"
-              @click="toggleDashboardFilter(dashboard.id)"
-            >
-              <svg
-                class="w-3.5 h-3.5 shrink-0"
-                :class="selectedDashboardIds.has(dashboard.id) ? 'text-primary-500' : 'text-neutral-300 dark:text-neutral-600'"
-                viewBox="0 0 20 20" fill="currentColor"
-              >
-                <path v-if="selectedDashboardIds.has(dashboard.id)" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                <circle v-else cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/>
-              </svg>
-              <span class="truncate text-neutral-700 dark:text-neutral-300">{{ dashboard.name }}</span>
-            </button>
-
-            <!-- Browse User section -->
-            <div class="border-t border-neutral-100 dark:border-neutral-800 px-3 py-2 space-y-1.5">
-              <p class="text-[10px] font-semibold uppercase tracking-wide text-neutral-400">Browse User</p>
-              <div class="flex gap-1">
-                <input
-                  v-model="browseInput"
-                  type="text"
-                  placeholder="@h2oflows"
-                  class="flex-1 text-xs bg-neutral-100 dark:bg-neutral-800 rounded px-2 py-1 text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-primary-500 min-w-0"
-                  @keydown.enter.prevent="browseUser"
-                  @click.stop
-                />
-                <button
-                  class="shrink-0 px-2 py-1 rounded text-xs font-medium bg-primary-500 hover:bg-primary-600 text-white transition-colors disabled:opacity-50"
-                  :disabled="browseLoading"
-                  @click.stop="browseUser"
-                >
-                  <svg v-if="browseLoading" class="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="31.4" stroke-dashoffset="10" stroke-linecap="round"/></svg>
-                  <span v-else>Go</span>
-                </button>
-              </div>
-              <div v-if="userSuggestions.length > 0" class="mt-1 rounded border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden">
-                <button
-                  v-for="h in userSuggestions"
-                  :key="h"
-                  class="w-full text-left px-2 py-1 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-                  @click.stop="selectSuggestion(h)"
-                >@{{ h }}</button>
-              </div>
-              <p v-if="browseError" class="text-[10px] text-red-500">{{ browseError }}</p>
-            </div>
-          </div>
         </div>
-
-        <ClientOnly>
-          <RunsMap
-            ref="mapRef"
-            :hovered-slug="hoveredSlug"
-            :source-url="mapSourceUrl"
-            :source-headers="mapSourceHeaders"
-            @reaches-updated="onReachesUpdated"
-            @zoom-updated="(z) => mapZoom = z"
-            @hover-changed="onMapHover"
-            @reach-click="onReachClick"
-          />
-        </ClientOnly>
-
-        <!-- Mobile: open list (only shown when map is visible) -->
-        <button
-          v-if="!listVisible"
-          class="sm:hidden absolute top-2 left-2 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium shadow-md bg-white/95 dark:bg-neutral-900/95 border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200"
-          @click="listVisible = true"
-        >
-          <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/>
-          </svg>
-          {{ mapReaches.length }} reaches
-        </button>
-        </div><!-- /flex-1 relative inner -->
       </div>
     </div>
   </div>
@@ -306,16 +297,16 @@
   />
 
   <!-- Import run modal -->
-  <RunImportModal v-model:open="importModalOpen" @imported="loadUserReaches" />
+  <RunImportModal v-model:open="importModalOpen" @imported="reloadMap" />
 
-  <!-- Search / Discover modal — opened via ?discover=true or ?import=true query (V9) -->
+  <!-- Search / Discover modal — opened via ?discover=true or ?import=true query -->
   <GaugeSearchModal
     v-model:open="searchModalOpen"
     :initial-tab="searchModalInitialTab"
-    @added-external="loadUserReaches"
+    @added-external="reloadMap"
   />
 
-  <!-- New reach modal (admin only — retained for admin reach authoring) -->
+  <!-- New reach modal (admin only) -->
   <Teleport to="body">
     <Transition
       enter-active-class="transition-opacity duration-150"
@@ -350,7 +341,7 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
-import type { ReachListItem as MapReachItem } from '~/components/map/RunsMap.vue'
+import type { ReachListItem, ReachClickPayload } from '~/components/map/RunsMap.vue'
 import type { WatchedGauge } from '~/stores/watchlist'
 
 definePageMeta({ ssr: false })
@@ -363,10 +354,26 @@ let pendingFocusSlug: string | null = (route.query.focus as string) || null
 const { isAuthenticated, getToken } = useAuth()
 const db = useDashboards()
 
-// ── New reach / import / search modals ────────────────────────────────────────
-const authorModalOpen      = ref(false)
-const importModalOpen      = ref(false)
-const searchModalOpen      = ref(false)
+// ── Tab control ───────────────────────────────────────────────────────────────
+type TabId = 'all' | 'dashboards' | 'browse'
+const TABS: { id: TabId; label: string }[] = [
+  { id: 'all',        label: 'All My Runs'   },
+  { id: 'dashboards', label: 'My Dashboards' },
+  { id: 'browse',     label: 'Browse User'   },
+]
+const TAB_STORAGE_KEY = 'h2o-explore-tab'
+const activeTab = ref<TabId>('all')
+
+function setTab(id: TabId) {
+  activeTab.value = id
+  try { localStorage.setItem(TAB_STORAGE_KEY, id) } catch {}
+  if (id === 'dashboards') loadDashboardMembership()
+}
+
+// ── New reach / import / search modals ───────────────────────────────────────
+const authorModalOpen       = ref(false)
+const importModalOpen       = ref(false)
+const searchModalOpen       = ref(false)
 const searchModalInitialTab = ref<'mine' | 'discover'>('mine')
 
 function onAuthorCreated(slug: string) {
@@ -377,7 +384,7 @@ function onAuthorCreated(slug: string) {
 // ── Demo banner ───────────────────────────────────────────────────────────────
 const showDemoBanner = ref(false)
 
-// ── Sharing banner (V22) ──────────────────────────────────────────────────────
+// ── Sharing banner ────────────────────────────────────────────────────────────
 const showSharingBanner = ref(false)
 
 function dismissSharingBanner() {
@@ -393,30 +400,43 @@ const membershipLoading      = ref(false)
 function onDocClick(e: MouseEvent) {
   const target = e.target as HTMLElement
   if (dropdownSlug.value && !target.closest('.dashboard-dropdown-anchor')) dropdownSlug.value = null
-  if (filterDropdownOpen.value && !target.closest('.mode-dropdown-anchor')) filterDropdownOpen.value = false
 }
 
 onMounted(async () => {
   showDemoBanner.value = localStorage.getItem('demo-banner-dismissed') !== 'true'
   document.addEventListener('click', onDocClick)
+
+  // Restore persisted tab
+  try {
+    const saved = localStorage.getItem(TAB_STORAGE_KEY) as TabId | null
+    if (saved && TABS.some(t => t.id === saved)) activeTab.value = saved
+  } catch {}
+
   if (isAuthenticated.value) {
     db.load()
-    await loadUserReaches()
+    await initMapToken()
     await loadDashboardMembership()
-    if (
-      userReaches.value.length > 0 &&
-      localStorage.getItem('sharing-banner-dismissed') !== 'true'
-    ) {
+    if (localStorage.getItem('sharing-banner-dismissed') !== 'true') {
       showSharingBanner.value = true
     }
   }
-  // wizard paths: ?import=true opens import modal (V10); ?discover=true opens search modal on Discover tab (V9)
+
+  // wizard paths
   if (route.query.import === 'true') {
     importModalOpen.value = true
     router.replace({ query: {} })
   } else if (route.query.discover === 'true') {
     searchModalInitialTab.value = 'discover'
     searchModalOpen.value = true
+    router.replace({ query: {} })
+  }
+
+  // ?browse=handle query param
+  if (route.query.browse) {
+    const handle = (route.query.browse as string).replace(/^@/, '').toLowerCase()
+    browseInput.value = handle
+    activeTab.value = 'browse'
+    browseHandle.value = handle
     router.replace({ query: {} })
   }
 })
@@ -427,110 +447,27 @@ function dismissBanner() {
   localStorage.setItem('demo-banner-dismissed', 'true')
 }
 
-// ── Map source ────────────────────────────────────────────────────────────────
+// ── Map auth token ────────────────────────────────────────────────────────────
 const mapToken = ref<string | null>(null)
+
+async function initMapToken() {
+  const token = await getToken()
+  mapToken.value = token
+}
+
 const mapSourceHeaders = computed((): Record<string, string> => {
-  if (browseHandle.value) return {}
+  if (activeTab.value === 'browse') return {}
   return mapToken.value ? { Authorization: `Bearer ${mapToken.value}` } : {}
 })
 
-// ── Dashboard filter (V3/V4/V5) ───────────────────────────────────────────────
-const filterDropdownOpen  = ref(false)
-const allRunsMode         = ref(true)
+// ── Dashboard filter (dashboards tab) ─────────────────────────────────────────
 const selectedDashboardIds = ref(new Set<string>())
-const dashboardReachMap   = ref(new Map<string, Set<string>>())
-
-const filterLabel = computed(() => {
-  if (browseHandle.value) return `@${browseHandle.value}`
-  if (allRunsMode.value || selectedDashboardIds.value.size === 0) return 'All Runs'
-  if (selectedDashboardIds.value.size === 1) {
-    const id = [...selectedDashboardIds.value][0]
-    return db.dashboards.value.find(d => d.id === id)?.name ?? 'Dashboard'
-  }
-  return `${selectedDashboardIds.value.size} dashboards`
-})
-
-// ── Browse User mode ──────────────────────────────────────────────────────────
-const browseHandle      = ref<string | null>(null)
-const browseInput       = ref('@h2oflows')
-const browseLoading     = ref(false)
-const browseError       = ref('')
-const userSuggestions   = ref<string[]>([])
-let   suggestTimer: ReturnType<typeof setTimeout> | null = null
-
-watch(browseInput, (val) => {
-  if (suggestTimer) clearTimeout(suggestTimer)
-  const q = val.trim().replace(/^@/, '')
-  if (q.length < 2) { userSuggestions.value = []; return }
-  suggestTimer = setTimeout(async () => {
-    try {
-      const res = await fetch(`${apiBase}/api/v1/users/search?q=${encodeURIComponent(q)}`)
-      if (res.ok) {
-        const data = await res.json() as { handle: string }[]
-        userSuggestions.value = data.map(d => d.handle)
-      }
-    } catch { /* ignore */ }
-  }, 250)
-})
-
-async function browseUser() {
-  const raw = browseInput.value.trim().replace(/^@/, '').toLowerCase()
-  if (!raw) return
-  browseLoading.value = true
-  browseError.value = ''
-  try {
-    const res = await fetch(`${apiBase}/api/v1/users/${encodeURIComponent(raw)}`)
-    if (!res.ok) { browseError.value = 'User not found'; return }
-    browseHandle.value = raw
-    userSuggestions.value = []
-    filterDropdownOpen.value = false
-  } catch {
-    browseError.value = 'Failed to reach server'
-  } finally {
-    browseLoading.value = false
-  }
-}
-
-function clearBrowse() {
-  browseHandle.value = null
-  browseInput.value = '@h2oflows'
-  browseError.value = ''
-  userSuggestions.value = []
-}
-
-function selectSuggestion(handle: string) {
-  browseInput.value = handle
-  userSuggestions.value = []
-  browseUser()
-}
-
-const mapSourceUrl = computed((): string | null => {
-  if (browseHandle.value) {
-    return `${apiBase}/api/v1/users/${encodeURIComponent(browseHandle.value)}/runs/map/all`
-  }
-  if (!mapToken.value) return null
-  const base = `${apiBase}/api/v1/me/runs/map/all`
-  if (allRunsMode.value || selectedDashboardIds.value.size === 0) return base
-  const slugs = new Set<string>()
-  for (const id of selectedDashboardIds.value) {
-    for (const slug of (dashboardReachMap.value.get(id) ?? new Set())) slugs.add(slug)
-  }
-  if (slugs.size === 0) return null
-  return `${base}?slugs=${[...slugs].join(',')}`
-})
-
-function clickAllRuns() {
-  allRunsMode.value = true
-}
+const dashboardReachMap    = ref(new Map<string, Set<string>>())
 
 function toggleDashboardFilter(id: string) {
   const next = new Set(selectedDashboardIds.value)
-  if (next.has(id)) {
-    next.delete(id)
-  } else {
-    next.add(id)
-    allRunsMode.value = false
-  }
+  if (next.has(id)) next.delete(id)
+  else               next.add(id)
   selectedDashboardIds.value = next
 }
 
@@ -551,54 +488,97 @@ async function loadDashboardMembership() {
       }
     }
     dashboardReachMap.value = m
-  } catch { /* silent — filter just won't narrow */ }
+  } catch {}
 }
 
-// ── User reaches ──────────────────────────────────────────────────────────────
-interface UserReachSummary {
-  id: string; slug: string; name: string
-  river_name: string | null
-  current_cfs: number | null
-  flow_status: string
-  gauge_id?: string | null
-}
-interface UserRiverGroup { name: string; reaches: UserReachSummary[] }
+// ── Browse User mode ──────────────────────────────────────────────────────────
+const browseHandle    = ref<string | null>(null)
+const browseInput     = ref('@h2oflows')
+const browseLoading   = ref(false)
+const browseError     = ref('')
+const userSuggestions = ref<string[]>([])
+let   suggestTimer: ReturnType<typeof setTimeout> | null = null
 
-const userReachesLoading = ref(false)
-const userReachesError  = ref('')
-const userReaches       = ref<UserReachSummary[]>([])
+watch(browseInput, (val) => {
+  if (suggestTimer) clearTimeout(suggestTimer)
+  const q = val.trim().replace(/^@/, '')
+  if (q.length < 2) { userSuggestions.value = []; return }
+  suggestTimer = setTimeout(async () => {
+    try {
+      const res = await fetch(`${apiBase}/api/v1/users/search?q=${encodeURIComponent(q)}`)
+      if (res.ok) {
+        const data = await res.json() as { handle: string }[]
+        userSuggestions.value = data.map(d => d.handle)
+      }
+    } catch {}
+  }, 250)
+})
 
-async function loadUserReaches() {
-  userReachesLoading.value = true
-  userReachesError.value = ''
+async function browseUser() {
+  // cancel pending suggestion fetch — avoids race with GO
+  if (suggestTimer) { clearTimeout(suggestTimer); suggestTimer = null }
+  userSuggestions.value = []
+  const raw = browseInput.value.trim().replace(/^@/, '').toLowerCase()
+  if (!raw) return
+  browseLoading.value = true
+  browseError.value = ''
   try {
-    const token = await getToken()
-    mapToken.value = token
-    if (!token) { userReachesError.value = 'Sign in to view your runs.'; return }
-    const res = await fetch(`${apiBase}/api/v1/me/reaches`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (!res.ok) throw new Error(`${res.status}`)
-    userReaches.value = await res.json()
+    const res = await fetch(`${apiBase}/api/v1/users/${encodeURIComponent(raw)}`)
+    if (!res.ok) { browseError.value = 'User not found'; return }
+    browseHandle.value = raw
   } catch {
-    userReachesError.value = 'Failed to load your runs.'
+    browseError.value = 'Failed to reach server'
   } finally {
-    userReachesLoading.value = false
+    browseLoading.value = false
   }
 }
 
-// ── Search ────────────────────────────────────────────────────────────────────
+function clearBrowse() {
+  browseHandle.value = null
+  browseInput.value = '@h2oflows'
+  browseError.value = ''
+  userSuggestions.value = []
+  setTab('all')
+}
+
+function selectSuggestion(handle: string) {
+  browseInput.value = handle
+  userSuggestions.value = []
+  browseUser()
+}
+
+// ── Map source URL ────────────────────────────────────────────────────────────
+const mapSourceUrl = computed((): string | null => {
+  if (activeTab.value === 'browse') {
+    if (!browseHandle.value) return null
+    return `${apiBase}/api/v1/users/${encodeURIComponent(browseHandle.value)}/runs/map/all`
+  }
+  if (!mapToken.value) return null
+  const base = `${apiBase}/api/v1/me/runs/map/all`
+  if (activeTab.value === 'all' || selectedDashboardIds.value.size === 0) return base
+  // dashboards tab with selection: filter by slugs belonging to selected dashboards
+  const slugs = new Set<string>()
+  for (const id of selectedDashboardIds.value) {
+    for (const slug of (dashboardReachMap.value.get(id) ?? new Set())) slugs.add(slug)
+  }
+  if (slugs.size === 0) return null
+  return `${base}?slugs=${[...slugs].join(',')}`
+})
+
+// ── Reach list (from map viewport) ───────────────────────────────────────────
 const query = ref('')
 
-const userRiverGroups = computed((): UserRiverGroup[] => {
+interface ReachGroup { name: string; reaches: ReachListItem[] }
+
+const filteredMapGroups = computed((): ReachGroup[] => {
   const q = query.value.trim().toLowerCase()
   const items = q.length >= 2
-    ? userReaches.value.filter(r =>
+    ? mapReaches.value.filter(r =>
         r.name.toLowerCase().includes(q) ||
         (r.river_name?.toLowerCase().includes(q) ?? false)
       )
-    : userReaches.value
-  const grouped = new Map<string, UserReachSummary[]>()
+    : mapReaches.value
+  const grouped = new Map<string, ReachListItem[]>()
   for (const r of items) {
     const key = r.river_name ?? 'No River'
     if (!grouped.has(key)) grouped.set(key, [])
@@ -609,10 +589,18 @@ const userRiverGroups = computed((): UserRiverGroup[] => {
     .map(([name, reaches]) => ({ name, reaches }))
 })
 
-// ── Two-way interaction: list ↔ map ───────────────────────────────────────────
+const showReachList = computed(() => {
+  if (!isAuthenticated.value && activeTab.value !== 'browse') return false
+  if (activeTab.value === 'browse' && !browseHandle.value) return false
+  if (mapReaches.value.length === 0) return false
+  if (query.value.length >= 2 && filteredMapGroups.value.length === 0) return false
+  return true
+})
+
+// ── Map interaction ───────────────────────────────────────────────────────────
 const mapRef      = ref<{ flyToSlug: (slug: string) => void; reloadSource: () => Promise<void> } | null>(null)
 const hoveredSlug = ref<string | null>(null)
-const mapReaches  = ref<MapReachItem[]>([])
+const mapReaches  = ref<ReachListItem[]>([])
 const mapZoom     = ref(4)
 
 const reachRefs = new Map<string, HTMLElement>()
@@ -621,7 +609,7 @@ function setReachRef(slug: string, el: HTMLElement | null) {
   else    reachRefs.delete(slug)
 }
 
-function onReachesUpdated(r: MapReachItem[]) {
+function onReachesUpdated(r: ReachListItem[]) {
   mapReaches.value = r
   if (pendingFocusSlug && r.some(x => x.slug === pendingFocusSlug)) {
     mapRef.value?.flyToSlug(pendingFocusSlug)
@@ -639,8 +627,8 @@ function onMapHover(slug: string | null) {
   }
 }
 
-function onReachClick(payload: { slug: string; id?: string; isCommunity?: boolean; authorHandle?: string | null }) {
-  if (browseHandle.value) {
+function onReachClick(payload: ReachClickPayload) {
+  if (activeTab.value === 'browse' && browseHandle.value) {
     navigateTo(`/runs/${browseHandle.value}/${payload.slug}`)
     return
   }
@@ -651,11 +639,16 @@ function onReachClick(payload: { slug: string; id?: string; isCommunity?: boolea
   navigateTo(`/my/runs/${payload.slug}`)
 }
 
+async function reloadMap() {
+  await initMapToken()
+  await mapRef.value?.reloadSource()
+}
+
 // ── Mobile list/map toggle ────────────────────────────────────────────────────
 const listVisible = ref(false)
 
-// ── Dashboard watchlist integration ───────────────────────────────────────────
-async function openUserReachDropdown(r: UserReachSummary) {
+// ── Dashboard watchlist integration ──────────────────────────────────────────
+async function openUserReachDropdown(r: ReachListItem) {
   if (dropdownSlug.value === r.slug) { dropdownSlug.value = null; return }
   dropdownSlug.value = r.slug
   membershipLoading.value = true
@@ -680,7 +673,7 @@ async function openUserReachDropdown(r: UserReachSummary) {
   }
 }
 
-async function toggleDashboardForUserReach(r: UserReachSummary, dashboardId: string) {
+async function toggleDashboardForUserReach(r: ReachListItem, dashboardId: string) {
   const { addReachToWatchlist } = useWatchlistSync()
   if (membershipDashboardIds.value.has(dashboardId)) {
     membershipDashboardIds.value = new Set([...membershipDashboardIds.value].filter(id => id !== dashboardId))
@@ -699,7 +692,7 @@ async function toggleDashboardForUserReach(r: UserReachSummary, dashboardId: str
       const key = `h2oflow_hidden_reaches_${dashboardId}`
       try {
         const set = new Set<string>(JSON.parse(localStorage.getItem(key) ?? '[]'))
-        if (set.delete(r.id)) localStorage.setItem(key, JSON.stringify([...set]))
+        if (set.delete(r.slug)) localStorage.setItem(key, JSON.stringify([...set]))
       } catch {}
     }
   }
