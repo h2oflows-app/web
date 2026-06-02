@@ -191,7 +191,7 @@
 
               <template v-if="!sub.name || !collapsedSections.has(sub.key)">
               <!-- Reaches grouped by river -->
-              <div class="mb-2">
+              <div v-if="sub.rivers.some(r => riverHasVisibleContent(r))" class="mb-2">
                 <template v-for="river in sub.rivers" :key="river.name">
                 <div v-if="riverHasVisibleContent(river)" class="first:mt-0" :class="showRivers ? 'mt-4' : 'mt-1.5'">
                   <!-- River section divider -->
@@ -272,7 +272,6 @@
                       @click="openUserReach(r)"
                     >
                       <div class="flex items-center gap-1 min-w-0 flex-1">
-                        <svg class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
                         <span class="min-w-0 text-sm text-neutral-700 dark:text-neutral-300 truncate">{{ r.name }}</span>
                         <NuxtLink :to="`/my/runs/${r.slug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
                           <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
@@ -301,7 +300,6 @@
                       <div class="flex items-start gap-3 mb-2">
                         <div class="min-w-0 flex-1">
                           <div class="flex items-center gap-1.5 min-w-0">
-                            <svg class="w-4 h-4 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
                             <span class="text-base font-semibold truncate">{{ r.name }}</span>
                             <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', reachBadgeClass(r)]">{{ reachStatusLabel(r) }}</span>
                           </div>
@@ -847,13 +845,11 @@ const byStateTree = computed<StateGroup[]>(() => {
 
   // De-duplicate: same gauge+reach should only appear once
   const seen = new Set<string>()
-  // User reaches render via the activeUserReaches fold-in below. Any watchlist
-  // gauge whose contextReachSlug matches a user reach slug is a stale or legacy
-  // gauge-bound entry — skip it so the user reach isn't double-rendered as a
-  // phantom curated reach under "Unknown River".
-  const userReachSlugs = new Set(userReaches.value.map(r => r.slug))
+  // Track slugs already claimed by a watchlist gauge entry so the userReaches
+  // fold-in below skips them (avoids double-render when a user reach also has
+  // a gauge in the watchlist).
+  const gaugeReachSlugs = new Set(store.gauges.map(g => g.contextReachSlug).filter(Boolean) as string[])
   for (const g of store.gauges) {
-    if (g.contextReachSlug && userReachSlugs.has(g.contextReachSlug)) continue
     const dedupeKey = `${g.id}::${g.contextReachSlug ?? ''}`
     if (seen.has(dedupeKey)) continue
     seen.add(dedupeKey)
@@ -880,8 +876,8 @@ const byStateTree = computed<StateGroup[]>(() => {
     }
   }
 
-  // Fold visible user reaches into the same tree
-  for (const ur of activeUserReaches.value.filter(r => !hiddenReaches.value.has(r.id))) {
+  // Fold visible user reaches that are NOT already covered by a watchlist gauge entry
+  for (const ur of activeUserReaches.value.filter(r => !hiddenReaches.value.has(r.id) && !gaugeReachSlugs.has(r.slug))) {
     const state = ur.state_abbr ?? '—'
     const basin = cleanBasinName(ur.basin_group) ?? 'Other'
     const river = ur.river_name ?? 'My Runs'

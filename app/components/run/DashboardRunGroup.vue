@@ -14,15 +14,11 @@
         <span class="min-w-0 text-sm text-neutral-700 dark:text-neutral-300 truncate">
           {{ reachLabel(reach) }}
         </span>
-        <NuxtLink
-          :to="`/runs/${reach.contextReachAuthorHandle ?? 'h2oflows'}/${reach.contextReachSlug}`"
-          class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
-          aria-label="View run page"
-          @click.stop
-        >
-          <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/>
-          </svg>
+        <NuxtLink :to="`/my/runs/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="Edit" title="Edit" @click.stop>
+          <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
+        </NuxtLink>
+        <NuxtLink :to="`/runs/${reach.contextReachAuthorHandle ?? 'h2oflows'}/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View" title="View" @click.stop>
+          <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
         </NuxtLink>
       </div>
       <div class="w-44 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
@@ -59,15 +55,11 @@
         <div class="flex items-center gap-2">
           <div class="flex items-center gap-1 min-w-0 flex-1">
             <span class="min-w-0 text-sm font-semibold text-neutral-800 dark:text-neutral-100 truncate">{{ reachLabel(reach) }}</span>
-            <NuxtLink
-              :to="`/runs/${reach.contextReachAuthorHandle ?? 'h2oflows'}/${reach.contextReachSlug}`"
-              class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
-              aria-label="View run page"
-              @click.stop
-            >
-              <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/>
-              </svg>
+            <NuxtLink :to="`/my/runs/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="Edit" title="Edit" @click.stop>
+              <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
+            </NuxtLink>
+            <NuxtLink :to="`/runs/${reach.contextReachAuthorHandle ?? 'h2oflows'}/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View" title="View" @click.stop>
+              <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
             </NuxtLink>
           </div>
           <span
@@ -87,7 +79,10 @@
         <div class="flex items-center gap-2 mb-2">
           <div class="flex-1 min-w-0 flex items-center gap-1">
             <span class="min-w-0 text-base font-semibold text-neutral-800 dark:text-neutral-100 truncate">{{ reachLabel(reach) }}</span>
-            <NuxtLink :to="`/runs/${reach.contextReachAuthorHandle ?? 'h2oflows'}/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View run page" @click.stop>
+            <NuxtLink :to="`/my/runs/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="Edit" title="Edit" @click.stop>
+              <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
+            </NuxtLink>
+            <NuxtLink :to="`/runs/${reach.contextReachAuthorHandle ?? 'h2oflows'}/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View" title="View" @click.stop>
               <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
             </NuxtLink>
             <span v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(reach), displayFlowStatus(reach))]">{{ flowBandLabel(displayFlowBandLabel(reach), displayFlowStatus(reach)) }}</span>
@@ -110,7 +105,10 @@
         <div class="flex items-center gap-2 mb-2">
           <div class="flex-1 min-w-0 flex items-center gap-1">
             <span class="min-w-0 text-base font-semibold text-neutral-800 dark:text-neutral-100 truncate">{{ reachLabel(reach) }}</span>
-            <NuxtLink :to="`/runs/${reach.contextReachAuthorHandle ?? 'h2oflows'}/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View run page" @click.stop>
+            <NuxtLink :to="`/my/runs/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="Edit" title="Edit" @click.stop>
+              <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
+            </NuxtLink>
+            <NuxtLink :to="`/runs/${reach.contextReachAuthorHandle ?? 'h2oflows'}/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View" title="View" @click.stop>
               <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
             </NuxtLink>
             <span v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(reach), displayFlowStatus(reach))]">{{ flowBandLabel(displayFlowBandLabel(reach), displayFlowStatus(reach)) }}</span>
