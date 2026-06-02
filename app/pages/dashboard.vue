@@ -191,7 +191,7 @@
 
               <template v-if="!sub.name || !collapsedSections.has(sub.key)">
               <!-- Reaches grouped by river -->
-              <div class="mb-2">
+              <div v-if="sub.rivers.some(r => riverHasVisibleContent(r))" class="mb-2">
                 <template v-for="river in sub.rivers" :key="river.name">
                 <div v-if="riverHasVisibleContent(river)" class="first:mt-0" :class="showRivers ? 'mt-4' : 'mt-1.5'">
                   <!-- River section divider -->
