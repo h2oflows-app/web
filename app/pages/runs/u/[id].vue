@@ -228,7 +228,7 @@
             </svg>
             <span v-else class="w-2 h-2 rounded-full bg-neutral-300 dark:bg-neutral-600 shrink-0" />
             <NuxtLink
-              :to="cr.source === 'curated' ? `/runs/${cr.slug}` : `/runs/u/${cr.id}`"
+              :to="cr.author_handle ? `/runs/${cr.author_handle}/${cr.slug}` : `/runs/h2oflows/${cr.slug}`"
               class="font-medium text-neutral-700 dark:text-neutral-300 hover:text-primary-600 dark:hover:text-primary-400 hover:underline truncate flex-1"
             >{{ cr.name }}</NuxtLink>
             <span class="text-neutral-400 shrink-0">{{ cr.report_count }} report{{ cr.report_count !== 1 ? 's' : '' }}</span>
