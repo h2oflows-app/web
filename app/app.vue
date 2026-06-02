@@ -5,6 +5,7 @@
     </Head>
     <NuxtPage />
     <ClientOnly><SiteDisclaimerBanner /></ClientOnly>
+    <ClientOnly><HandleClaimModal /></ClientOnly>
     <MobileTabBar />
   </UApp>
 </template>
