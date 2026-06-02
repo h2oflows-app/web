@@ -113,7 +113,7 @@
       <div v-for="run in dupeRuns.slice(0, 3)" :key="run.id" class="flex items-center gap-2 text-xs">
         <svg v-if="run.is_official" class="w-3 h-3 text-primary-500 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
         <span class="w-2 h-2 rounded-full bg-neutral-400 shrink-0" v-else />
-        <NuxtLink :to="run.source === 'curated' ? `/runs/${run.slug}` : `/my/runs/${run.slug}`" target="_blank" class="font-medium text-amber-800 dark:text-amber-200 hover:underline truncate">{{ run.name }}</NuxtLink>
+        <NuxtLink :to="`/runs/${run.author_handle ?? 'h2oflows'}/${run.slug}`" target="_blank" class="font-medium text-amber-800 dark:text-amber-200 hover:underline truncate">{{ run.name }}</NuxtLink>
         <span class="text-amber-600 dark:text-amber-400 shrink-0">{{ run.source === 'curated' ? 'Official' : (run.author_handle ? `@${run.author_handle}` : 'Community') }}</span>
       </div>
       <p class="text-xs text-amber-700 dark:text-amber-300">Consider adding a report or forking instead of creating a duplicate.</p>

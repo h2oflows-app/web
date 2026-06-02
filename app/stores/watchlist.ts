@@ -27,6 +27,7 @@ export interface WatchedGauge {
   contextReachBasinGroup: string | null  // e.g. "Arkansas" — from KML metadata or auto-derived
   contextReachCenterLng: number | null   // centroid of the reach centerline — fallback for upstream→downstream sort
   contextReachRiverOrder: number | null  // admin-set upstream→downstream index; preferred sort key
+  contextReachAuthorHandle: string | null  // owner of the context run — for /runs/{handle}/{slug}
   contextReachPermitRequired: boolean
   contextReachMultiDayDays: number
   // All reaches associated with this gauge (for informational display)
@@ -229,6 +230,7 @@ export const useWatchlistStore = defineStore('watchlist', {
       gauge.contextReachBasinGroup     = fresh.contextReachBasinGroup ?? null
       gauge.contextReachCenterLng      = fresh.contextReachCenterLng ?? null
       gauge.contextReachRiverOrder     = fresh.contextReachRiverOrder ?? null
+      gauge.contextReachAuthorHandle   = fresh.contextReachAuthorHandle ?? null
       gauge.contextReachPermitRequired = fresh.contextReachPermitRequired ?? false
       gauge.contextReachMultiDayDays   = fresh.contextReachMultiDayDays ?? 1
       gauge.reachId               = fresh.reachId

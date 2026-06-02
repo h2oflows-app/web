@@ -54,7 +54,7 @@
             {{ item.contextReachCommonName ?? item.contextReachFullName ?? item.name }}
           </span>
           <NuxtLink
-            :to="`/runs/${item.contextReachSlug}`"
+            :to="`/runs/${item.contextReachAuthorHandle ?? 'h2oflows'}/${item.contextReachSlug}`"
             class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
             aria-label="View run page"
             title="View run page"
@@ -183,7 +183,7 @@
             {{ item.contextReachCommonName ?? item.contextReachFullName ?? item.name }}
           </span>
           <NuxtLink
-            :to="`/runs/${item.contextReachSlug}`"
+            :to="`/runs/${item.contextReachAuthorHandle ?? 'h2oflows'}/${item.contextReachSlug}`"
             class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
             aria-label="View run page"
             title="View run page"

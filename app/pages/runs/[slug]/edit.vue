@@ -4,7 +4,7 @@
       <template #default>
         <span class="text-neutral-300 dark:text-neutral-700 shrink-0">/</span>
         <NuxtLink
-          :to="`/runs/${slug}`"
+          :to="`/runs/h2oflows/${slug}`"
           class="text-sm font-medium truncate text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 transition-colors"
         >{{ slug }}</NuxtLink>
         <span class="text-neutral-300 dark:text-neutral-700 shrink-0">/</span>
@@ -19,7 +19,7 @@
       </svg>
       <h2 class="text-lg font-semibold">Access restricted</h2>
       <p class="text-sm text-neutral-500">You need data admin permissions to edit runs.</p>
-      <NuxtLink :to="`/runs/${slug}`" class="text-sm text-primary-500 hover:text-primary-400">Back to run</NuxtLink>
+      <NuxtLink :to="`/runs/h2oflows/${slug}`" class="text-sm text-primary-500 hover:text-primary-400">Back to run</NuxtLink>
     </div>
 
     <!-- Loading auth -->
@@ -33,7 +33,7 @@
           <h1 class="text-xl font-bold text-neutral-900 dark:text-white">Edit Run</h1>
           <p class="text-xs text-neutral-400 font-mono mt-0.5">{{ slug }}</p>
         </div>
-        <NuxtLink :to="`/runs/${slug}`" class="text-sm text-primary-500 hover:text-primary-400 transition-colors">
+        <NuxtLink :to="`/runs/h2oflows/${slug}`" class="text-sm text-primary-500 hover:text-primary-400 transition-colors">
           View run
         </NuxtLink>
       </div>

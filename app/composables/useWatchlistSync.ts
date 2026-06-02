@@ -244,6 +244,7 @@ export function featureToWatchedGauge(
     contextReachBasinGroup:     p.context_reach_basin_group ?? null,
     contextReachCenterLng:      p.context_reach_center_lng ?? null,
     contextReachRiverOrder:     p.context_reach_river_order ?? null,
+    contextReachAuthorHandle:    p.context_reach_author_handle ?? null,
     contextReachPermitRequired: p.context_reach_permit_required ?? false,
     contextReachMultiDayDays:   p.context_reach_multi_day_days ?? 1,
     reachId:                p.reach_id ?? null,
