@@ -61,12 +61,14 @@ import { THEMES } from '../../../app.config'
 import { useThemeStore } from '~/stores/theme'
 
 export interface ReachListItem {
-  slug:        string
-  name:        string        // full display form: "put_in to take_out" or reach name
-  common_name: string | null // short common name: "Foxton", "The Numbers", etc.
-  class_max:   number | null
-  flow_status: string
-  current_cfs: number | null
+  slug:         string
+  name:         string
+  common_name:  string | null
+  class_max:    number | null
+  flow_status:  string
+  current_cfs:  number | null
+  author_handle: string | null
+  river_name:   string | null
 }
 
 const props = defineProps<{
@@ -401,12 +403,14 @@ function filterVisible() {
 
   updateLayers(visible)
   emit('reaches-updated', visible.map(f => ({
-    slug:        f.properties.slug,
-    name:        displayName(f.properties),
-    common_name: f.properties.common_name ?? null,
-    class_max:   f.properties.class_max,
-    flow_status: f.properties.flow_status ?? 'unknown',
-    current_cfs: f.properties.current_cfs ?? null,
+    slug:          f.properties.slug,
+    name:          displayName(f.properties),
+    common_name:   f.properties.common_name ?? null,
+    class_max:     f.properties.class_max,
+    flow_status:   f.properties.flow_status ?? 'unknown',
+    current_cfs:   f.properties.current_cfs ?? null,
+    author_handle: f.properties.author_handle ?? null,
+    river_name:    f.properties.river_name ?? null,
   })))
 }
 
