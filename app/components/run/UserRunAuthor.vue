@@ -135,8 +135,13 @@
 
       <!-- Reach name -->
       <div>
-        <label class="block text-xs text-neutral-500 mb-1">Run name <span class="text-red-400">*</span></label>
-        <input v-model="form.name" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="e.g. Upper Canyon" />
+        <label class="block text-xs text-neutral-500 mb-1">Short name <span class="text-red-400">*</span></label>
+        <input v-model="form.name" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="e.g. Foxton" />
+      </div>
+
+      <div>
+        <label class="block text-xs text-neutral-500 mb-1">Full name <span class="text-neutral-400 font-normal">(optional)</span></label>
+        <input v-model="form.longName" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="e.g. Buffalo Creek to South Platte Hotel" />
       </div>
 
       <!-- Notes -->
@@ -273,6 +278,7 @@ const disableAutoFit = computed(() => !!anchorSnap.value && !(upComID.value && d
 
 const form = ref({
   name:      '',
+  longName:  '',
   riverName: '',
   note:      '',
   classMin:  null as number | null,
@@ -482,6 +488,7 @@ async function submit() {
       put_in:    { lat: startLat.value!, lng: startLng.value! },
       take_out:  { lat: endLat.value!,   lng: endLng.value!   },
     }
+    if (form.value.longName.trim())  body.long_name  = form.value.longName.trim()
     if (form.value.riverName.trim()) body.river_name = form.value.riverName.trim()
     if (gnisId.value)                body.gnis_id    = gnisId.value
     if (form.value.note.trim())      body.note       = form.value.note.trim()

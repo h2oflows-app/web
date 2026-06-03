@@ -323,8 +323,13 @@
           <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Run details</p>
 
           <div>
-            <label class="block text-xs text-neutral-500 mb-1">Run name <span class="text-red-400">*</span></label>
-            <input v-model="form.name" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" />
+            <label class="block text-xs text-neutral-500 mb-1">Short name <span class="text-red-400">*</span></label>
+            <input v-model="form.name" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="e.g. Foxton" />
+          </div>
+
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1">Full name <span class="text-neutral-400 font-normal">(optional)</span></label>
+            <input v-model="form.longName" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="e.g. Buffalo Creek to South Platte Hotel" />
           </div>
 
           <div>
@@ -611,6 +616,7 @@ interface UserReachDetail {
   id:                string
   slug:              string
   name:              string
+  long_name:         string | null
   river_name:        string | null
   river_slug:        string | null
   river_state_abbr:  string | null
@@ -656,6 +662,7 @@ const reach = ref<UserReachDetail | null>(null)
 
 const form = ref({
   name:      '',
+  longName:  '' as string,
   riverName: '',
   note:      '',
   classMin:  null as number | null,
@@ -1158,6 +1165,7 @@ async function linkCustomGauge(cg: CustomGaugeSummary) {
 
 function populateForm(r: UserReachDetail) {
   form.value.name      = r.name
+  form.value.longName  = r.long_name ?? ''
   form.value.riverName = r.river_name ?? ''
   form.value.note      = r.note ?? ''
   form.value.classMin  = r.class_min ?? null
@@ -1238,6 +1246,7 @@ async function save() {
     // Build combined patch: metadata + flow lines if dirty
     const patchBody: Record<string, unknown> = {
       name:       form.value.name.trim(),
+      long_name:  form.value.longName.trim()  || null,
       river_name: form.value.riverName.trim() || null,
       note:       form.value.note.trim()      || null,
       class_min:  form.value.classMin,
@@ -1286,6 +1295,7 @@ async function save() {
       reach.value = {
         ...reach.value,
         name:        form.value.name.trim(),
+        long_name:   form.value.longName.trim()  || null,
         river_name:  form.value.riverName.trim() || null,
         note:        form.value.note.trim()      || null,
         is_private:  form.value.isPrivate,
