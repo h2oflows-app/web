@@ -168,30 +168,7 @@
       </div>
 
       <!-- Flow bands -->
-      <div class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900/50 p-3 space-y-2">
-        <p class="text-xs font-semibold text-neutral-500 uppercase tracking-wide">Flow bands (CFS) <span class="font-normal text-neutral-400 normal-case">optional</span></p>
-        <div class="space-y-2">
-          <div v-for="band in flowBands" :key="band.key" class="flex items-center gap-3">
-            <span class="w-16 text-xs font-medium" :class="band.labelClass">{{ band.label }}</span>
-            <input
-              v-model.number="form.flowRanges[band.key].min"
-              type="number" min="0"
-              class="w-24 rounded border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-1.5 py-1 text-xs"
-              :placeholder="band.showMin ? 'min' : '—'"
-              :disabled="!band.showMin"
-            />
-            <span class="text-neutral-400 text-xs">–</span>
-            <input
-              v-model.number="form.flowRanges[band.key].max"
-              type="number" min="0"
-              class="w-24 rounded border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-1.5 py-1 text-xs"
-              :placeholder="band.showMax ? 'max' : '—'"
-              :disabled="!band.showMax"
-            />
-            <span class="text-xs text-neutral-400">cfs</span>
-          </div>
-        </div>
-      </div>
+      <FlowBandEditor v-model="form.flowBands" />
 
       <div v-if="submitError" class="text-xs text-red-500">{{ submitError }}</div>
 
@@ -208,6 +185,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import type { FlowBands } from '~/utils/flowBand'
 
 const emit = defineEmits<{
   created: [slug: string]
@@ -283,18 +261,8 @@ const form = ref({
   note:      '',
   classMin:  null as number | null,
   classMax:  null as number | null,
-  flowRanges: {
-    low:     { min: null as number | null, max: null as number | null },
-    running: { min: null as number | null, max: null as number | null },
-    high:    { min: null as number | null, max: null as number | null },
-  },
+  flowBands: { base_label: 'Too Low', base_color: 'red-3', thresholds: [] } as FlowBands,
 })
-
-const flowBands = [
-  { key: 'low',     label: 'Too Low',  labelClass: 'text-neutral-400',    showMin: false, showMax: true  },
-  { key: 'running', label: 'Runnable', labelClass: 'text-emerald-500', showMin: true,  showMax: true  },
-  { key: 'high',    label: 'High',     labelClass: 'text-sky-400',     showMin: true,  showMax: false },
-] as const
 
 const putInPin = computed(() =>
   startLat.value != null && startLng.value != null
@@ -337,13 +305,9 @@ function reset() {
   saving.value      = false
   previewLoading.value = false
   form.value = {
-    name: '', riverName: '', note: '',
+    name: '', longName: '', riverName: '', note: '',
     classMin: null, classMax: null,
-    flowRanges: {
-      low:     { min: null, max: null },
-      running: { min: null, max: null },
-      high:    { min: null, max: null },
-    },
+    flowBands: { base_label: 'Too Low', base_color: 'red-3', thresholds: [] },
   }
 }
 
@@ -478,9 +442,6 @@ async function submit() {
     const token = await getToken()
     const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
 
-    const ranges = form.value.flowRanges
-    const hasRanges = Object.values(ranges).some(b => b.min != null || b.max != null)
-
     const body: Record<string, any> = {
       name:       form.value.name.trim(),
       up_comid:   upComID.value,
@@ -494,13 +455,7 @@ async function submit() {
     if (form.value.note.trim())      body.note       = form.value.note.trim()
     if (form.value.classMin != null) body.class_min  = form.value.classMin
     if (form.value.classMax != null) body.class_max  = form.value.classMax
-    if (hasRanges) {
-      body.flow_ranges = {
-        low:     { min_value: null,               max_value: ranges.low.max      },
-        running: { min_value: ranges.running.min, max_value: ranges.running.max  },
-        high:    { min_value: ranges.high.min,    max_value: null                },
-      }
-    }
+    body.flow_bands = form.value.flowBands
 
     const res = await fetch(`${apiBase}/api/v1/me/reaches`, {
       method: 'POST', headers, body: JSON.stringify(body),
