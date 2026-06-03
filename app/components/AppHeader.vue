@@ -138,17 +138,7 @@
               </svg>
               My Reports
             </NuxtLink>
-            <NuxtLink
-              v-if="isAuthenticated"
-              to="/my/runs"
-              class="w-full text-left px-3 py-1.5 text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors flex items-center gap-2"
-              @click="userMenuOpen = false"
-            >
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M2 12c2-4 4-6 6-6s4 6 6 6 4-6 6-6" stroke-linecap="round"/>
-              </svg>
-              My Runs
-            </NuxtLink>
+
             <NuxtLink
               v-if="isAuthenticated"
               to="/my/gauges"

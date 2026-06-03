@@ -2,7 +2,7 @@
   <div class="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex flex-col">
     <AppHeader>
       <span class="text-neutral-300 dark:text-neutral-700 shrink-0">/</span>
-      <NuxtLink to="/my/runs" class="text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors">My Runs</NuxtLink>
+      <NuxtLink to="/dashboard" class="text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors">Dashboard</NuxtLink>
       <span class="text-neutral-300 dark:text-neutral-700 shrink-0">/</span>
       <span class="text-sm font-medium text-neutral-700 dark:text-neutral-200 truncate">{{ reach?.name ?? 'Edit' }}</span>
     </AppHeader>
@@ -10,14 +10,14 @@
     <!-- Sticky action bar (below AppHeader) — Save, Cancel, X, KML, Share, Delete -->
     <div v-if="reach" class="sticky top-[51px] z-20 flex items-center justify-between gap-2 px-4 py-2 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
       <div class="flex items-center gap-1.5 min-w-0">
-        <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-x-mark" :to="'/my/runs'" title="Close"><span class="hidden sm:inline">Close</span></UButton>
+        <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-x-mark" :to="'/dashboard'" title="Close"><span class="hidden sm:inline">Close</span></UButton>
       </div>
       <div class="flex items-center gap-1.5 shrink-0">
         <RunDashboardMembershipPicker v-if="reach" :slug="slug" :reach-id="reach.id" />
         <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-arrow-up-tray" title="Import KML/KMZ" @click="kmlModalOpen = true"><span class="hidden sm:inline">KML</span></UButton>
         <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-share" title="Share" @click="openShare()"><span class="hidden sm:inline">Share</span></UButton>
         <UButton size="xs" variant="ghost" color="error" icon="i-heroicons-trash" title="Delete" @click="confirmDelete"><span class="hidden sm:inline">Delete</span></UButton>
-        <UButton size="xs" variant="outline" color="neutral" icon="i-heroicons-x-circle" :to="'/my/runs'" title="Cancel"><span class="hidden sm:inline">Cancel</span></UButton>
+        <UButton size="xs" variant="outline" color="neutral" icon="i-heroicons-x-circle" :to="'/dashboard'" title="Cancel"><span class="hidden sm:inline">Cancel</span></UButton>
         <UButton size="xs" :disabled="!form.name.trim()" :loading="saving" icon="i-heroicons-check" title="Save" @click="save"><span class="hidden sm:inline">Save</span></UButton>
       </div>
     </div>
@@ -1310,6 +1310,6 @@ async function confirmDelete() {
   if (!confirm(`Delete "${reach.value?.name}"? This cannot be undone.`)) return
   const headers = await authHeaders()
   const res = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}`, { method: 'DELETE', headers })
-  if (res.ok) router.push('/my/runs')
+  if (res.ok) router.push('/dashboard')
 }
 </script>
