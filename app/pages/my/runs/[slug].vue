@@ -450,7 +450,7 @@
             <svg v-if="run.is_official" class="w-3 h-3 text-primary-500 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
             <span class="w-2 h-2 rounded-full bg-neutral-300 dark:bg-neutral-600 shrink-0" v-else />
             <NuxtLink
-              :to="run.source === 'curated' ? `/runs/${run.slug}` : (run.author_handle ? `/runs/${run.author_handle}/${run.slug}` : `/runs/u/${run.id}`)"
+              :to="`/runs/${run.author_handle ?? 'h2oflows'}/${run.slug}`"
               class="font-medium text-neutral-700 dark:text-neutral-300 hover:text-primary-600 dark:hover:text-primary-400 hover:underline truncate flex-1"
             >{{ run.name }}</NuxtLink>
             <span class="text-neutral-400 shrink-0">{{ run.report_count }} report{{ run.report_count !== 1 ? 's' : '' }}</span>
@@ -778,7 +778,7 @@ async function uploadKml() {
 
 // ── Similar runs (cluster) ────────────────────────────────────────────────────
 
-interface ClusterRun { id: string; slug: string; name: string; source: string; author_handle: string | null; is_official: boolean; class_min: number | null; class_max: number | null; report_count: number; rank_score: number }
+interface ClusterRun { id: string; slug: string; name: string; author_handle: string | null; is_official: boolean; class_min: number | null; class_max: number | null; report_count: number; rank_score: number }
 
 const clusterRuns = ref<ClusterRun[]>([])
 

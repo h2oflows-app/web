@@ -838,8 +838,8 @@ interface BasinGroup { name: string; reachCount: number; rivers: RiverGroup[]; s
 interface StateGroup { name: string; reachCount: number; basins: BasinGroup[] }
 
 const byStateTree = computed<StateGroup[]>(() => {
-  // state → basin → river → reaches (curated + user)
-  type RiverEntry = { curatedReaches: WatchedGauge[]; userReaches: UserReachSummary[] }
+  // state → basin → river → reaches (gauge watchlist + user runs)
+  type RiverEntry = { gaugeReaches: WatchedGauge[]; userReaches: UserReachSummary[] }
   type BasinEntry = { rivers: Map<string, RiverEntry>; standalone: WatchedGauge[] }
   const stateMap = new Map<string, Map<string, BasinEntry>>()
 
@@ -869,8 +869,8 @@ const byStateTree = computed<StateGroup[]>(() => {
 
     if (g.contextReachSlug) {
       const river = g.contextReachRiverName ?? g.riverName ?? 'Unknown River'
-      if (!entry.rivers.has(river)) entry.rivers.set(river, { curatedReaches: [], userReaches: [] })
-      entry.rivers.get(river)!.curatedReaches.push(g)
+      if (!entry.rivers.has(river)) entry.rivers.set(river, { gaugeReaches: [], userReaches: [] })
+      entry.rivers.get(river)!.gaugeReaches.push(g)
     } else {
       entry.standalone.push(g)
     }
@@ -885,7 +885,7 @@ const byStateTree = computed<StateGroup[]>(() => {
     const basinMap = stateMap.get(state)!
     if (!basinMap.has(basin)) basinMap.set(basin, { rivers: new Map(), standalone: [] })
     const entry = basinMap.get(basin)!
-    if (!entry.rivers.has(river)) entry.rivers.set(river, { curatedReaches: [], userReaches: [] })
+    if (!entry.rivers.has(river)) entry.rivers.set(river, { gaugeReaches: [], userReaches: [] })
     entry.rivers.get(river)!.userReaches.push(ur)
   }
 
@@ -897,10 +897,10 @@ const byStateTree = computed<StateGroup[]>(() => {
         .map(([bName, { rivers, standalone }]) => {
           const riverGroups = [...rivers.entries()]
             .sort(([a], [b]) => a.localeCompare(b))
-            .map(([rName, { curatedReaches, userReaches }]) => ({
+            .map(([rName, { gaugeReaches, userReaches }]) => ({
               name: rName,
               userReaches,
-              reaches: [...curatedReaches].sort((a, b) => {
+              reaches: [...gaugeReaches].sort((a, b) => {
                 // river_order (stored, admin-set) preferred; fall back to center longitude
                 const ao = a.contextReachRiverOrder
                 const bo = b.contextReachRiverOrder

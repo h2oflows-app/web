@@ -353,7 +353,7 @@ interface RunReport {
   content: string; flow_cfs?: number; created_at: string; handle?: string
 }
 interface ClusterRun {
-  id: string; slug: string; name: string; source: string
+  id: string; slug: string; name: string
   author_handle: string | null; is_official: boolean
   class_min: number | null; class_max: number | null
   report_count: number; rank_score: number
