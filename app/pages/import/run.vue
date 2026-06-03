@@ -34,9 +34,9 @@
                 <span v-if="payload.put_in">Put-in: {{ payload.put_in.lat.toFixed(4) }}, {{ payload.put_in.lng.toFixed(4) }}</span>
                 <span v-if="payload.take_out">Take-out: {{ payload.take_out.lat.toFixed(4) }}, {{ payload.take_out.lng.toFixed(4) }}</span>
               </div>
-              <div v-if="payload.flow_ranges" class="flex gap-3 pt-0.5 text-xs">
-                <span v-if="payload.flow_ranges.running?.min_value != null" class="text-emerald-600 dark:text-emerald-400">Running ≥ {{ payload.flow_ranges.running.min_value }} cfs</span>
-                <span v-if="payload.flow_ranges.running?.max_value != null" class="text-amber-600 dark:text-amber-400">High ≥ {{ payload.flow_ranges.running.max_value }} cfs</span>
+              <div v-if="payload.flow_bands" class="flex flex-wrap gap-2 pt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+                <span>{{ payload.flow_bands.base_label }}</span>
+                <span v-for="t in payload.flow_bands.thresholds" :key="t.value">{{ t.label }} ≥ {{ t.value }} cfs</span>
               </div>
             </div>
 
@@ -82,8 +82,9 @@ const payload = computed(() => {
       river_name?: string
       put_in?: { lat: number; lng: number }
       take_out?: { lat: number; lng: number }
-      flow_ranges?: {
-        running?: { min_value: number | null; max_value: number | null }
+      flow_bands?: {
+        base_label: string; base_color: string
+        thresholds: Array<{ value: number; label: string; color: string }>
       }
     }
   } catch {

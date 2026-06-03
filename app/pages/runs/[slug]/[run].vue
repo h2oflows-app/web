@@ -317,7 +317,6 @@ const { bandBadgeClass } = useFlowBandPalette()
 const handle  = computed(() => route.params.slug as string)
 const runSlug = computed(() => route.params.run as string)
 
-interface FlowRange { label: string; min_value: number | null; max_value: number | null }
 interface RunRapid {
   id: string; name: string; description: string | null
   class_rating: number | null; is_surf_wave: boolean; is_permanent_hazard: boolean
@@ -339,7 +338,8 @@ interface PublicRunDetail {
   current_cfs: number | null; flow_band: string | null
   note: string | null; is_official: boolean; author_handle: string | null
   forked_from_slug: string | null; forked_from_name: string | null
-  flow_ranges: FlowRange[]; rapids: RunRapid[]; access_points: RunAccessPoint[]
+  flow_bands?: { base_label: string; base_color: string; thresholds: Array<{ value: number; label: string; color: string }> }
+  rapids: RunRapid[]; access_points: RunAccessPoint[]
   upvote_count: number; user_upvoted: boolean; centerline: object | null
   is_own?: boolean
 }

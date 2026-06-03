@@ -370,10 +370,6 @@ const runId = computed(() => route.params.id as string)
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
-interface FlowRange {
-  label: string; min_value: number | null; max_value: number | null
-}
-
 interface RunRapid {
   id: string; name: string; description: string | null
   class_rating: number | null; is_surf_wave: boolean; is_permanent_hazard: boolean
@@ -410,7 +406,7 @@ interface PublicRunDetail {
   author_handle:    string | null
   forked_from_slug: string | null
   forked_from_name: string | null
-  flow_ranges:      FlowRange[]
+  flow_bands?:      { base_label: string; base_color: string; thresholds: Array<{ value: number; label: string; color: string }> }
   rapids:           RunRapid[]
   access_points:    RunAccessPoint[]
   upvote_count:     number

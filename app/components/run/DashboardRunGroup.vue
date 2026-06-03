@@ -26,10 +26,10 @@
       </div>
       <span
         v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)"
-        :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(reach), displayFlowStatus(reach))]"
-      >{{ flowBandLabel(displayFlowBandLabel(reach), displayFlowStatus(reach)) }}</span>
+        :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', colorKeyToBadgeClass(displayBandColor(reach))]"
+      >{{ displayFlowBandLabel(reach) }}</span>
       <div class="w-20 shrink-0 text-right">
-        <span class="whitespace-nowrap text-base font-bold tabular-nums" :style="{ color: bandSolid(displayFlowBandLabel(reach)) }">
+        <span class="whitespace-nowrap text-base font-bold tabular-nums" :style="{ color: colorKeyToHex(displayBandColor(reach)) }">
           {{ displayCfs(reach) != null ? Math.round(displayCfs(reach)!).toLocaleString() : '—' }}
           <span class="text-xs font-normal text-neutral-400">cfs</span>
         </span>
@@ -64,9 +64,9 @@
           </div>
           <span
             v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)"
-            :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(reach), displayFlowStatus(reach))]"
-          >{{ flowBandLabel(displayFlowBandLabel(reach), displayFlowStatus(reach)) }}</span>
-          <span class="text-lg font-bold tabular-nums shrink-0 leading-none" :style="{ color: bandSolid(displayFlowBandLabel(reach)) }">
+            :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', colorKeyToBadgeClass(displayBandColor(reach))]"
+          >{{ displayFlowBandLabel(reach) }}</span>
+          <span class="text-lg font-bold tabular-nums shrink-0 leading-none" :style="{ color: colorKeyToHex(displayBandColor(reach)) }">
             {{ displayCfs(reach) != null ? Math.round(displayCfs(reach)!).toLocaleString() : '—' }}
           </span>
           <span class="text-xs text-neutral-400 shrink-0">cfs</span>
@@ -85,10 +85,10 @@
             <NuxtLink :to="`/runs/${reach.contextReachAuthorHandle ?? 'h2oflows'}/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View" title="View" @click.stop>
               <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
             </NuxtLink>
-            <span v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(reach), displayFlowStatus(reach))]">{{ flowBandLabel(displayFlowBandLabel(reach), displayFlowStatus(reach)) }}</span>
+            <span v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', colorKeyToBadgeClass(displayBandColor(reach))]">{{ displayFlowBandLabel(reach) }}</span>
           </div>
           <div class="text-right shrink-0">
-            <div class="font-bold tabular-nums leading-none text-2xl" :style="{ color: bandSolid(displayFlowBandLabel(reach)) }">
+            <div class="font-bold tabular-nums leading-none text-2xl" :style="{ color: colorKeyToHex(displayBandColor(reach)) }">
               {{ displayCfs(reach) != null ? Math.round(displayCfs(reach)!).toLocaleString() : '—' }}
             </div>
             <div class="text-xs text-neutral-400">cfs</div>
@@ -111,10 +111,10 @@
             <NuxtLink :to="`/runs/${reach.contextReachAuthorHandle ?? 'h2oflows'}/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View" title="View" @click.stop>
               <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
             </NuxtLink>
-            <span v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(reach), displayFlowStatus(reach))]">{{ flowBandLabel(displayFlowBandLabel(reach), displayFlowStatus(reach)) }}</span>
+            <span v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', colorKeyToBadgeClass(displayBandColor(reach))]">{{ displayFlowBandLabel(reach) }}</span>
           </div>
           <div class="text-right shrink-0">
-            <div class="font-bold tabular-nums leading-none text-3xl" :style="{ color: bandSolid(displayFlowBandLabel(reach)) }">
+            <div class="font-bold tabular-nums leading-none text-3xl" :style="{ color: colorKeyToHex(displayBandColor(reach)) }">
               {{ displayCfs(reach) != null ? Math.round(displayCfs(reach)!).toLocaleString() : '—' }}
             </div>
             <div class="text-xs text-neutral-400">cfs</div>
@@ -132,7 +132,7 @@
 <script setup lang="ts">
 import { reactive, onMounted, watch } from 'vue'
 import type { WatchedGauge } from '~/stores/watchlist'
-import { flowBandLabel } from '~/utils/flowBand'
+import { colorKeyToHex, colorKeyToBadgeClass } from '~/utils/flowBand'
 
 const props = defineProps<{
   reaches: WatchedGauge[]
@@ -144,9 +144,9 @@ const emit = defineEmits<{
   (e: 'remove', gauge: WatchedGauge): void
 }>()
 
-const { bandBadgeClass, bandSolid } = useFlowBandPalette()
+useFlowBandPalette()
 const liveCfsMap = reactive<Record<string, number>>({})
-const { prefetch, bandForCfs, statusForBand } = useRunFlowBand()
+const { prefetch, bandForCfs, statusForColor } = useRunFlowBand()
 
 function reachKey(reach: WatchedGauge): string {
   return `${reach.id}::${reach.contextReachSlug}`
@@ -160,12 +160,20 @@ function displayCfs(reach: WatchedGauge): number | null {
   return liveCfsMap[reachKey(reach)] ?? reach.currentCfs
 }
 
+function displayBand(reach: WatchedGauge): { label: string; color: string } | null {
+  return bandForCfs(reach.contextReachSlug, displayCfs(reach))
+}
+
 function displayFlowBandLabel(reach: WatchedGauge): string | null {
-  return bandForCfs(reach.contextReachSlug, displayCfs(reach)) ?? reach.flowBandLabel ?? null
+  return displayBand(reach)?.label ?? reach.flowBandLabel ?? null
+}
+
+function displayBandColor(reach: WatchedGauge): string | null {
+  return displayBand(reach)?.color ?? null
 }
 
 function displayFlowStatus(reach: WatchedGauge): string {
-  return statusForBand(displayFlowBandLabel(reach)) ?? reach.flowStatus ?? 'unknown'
+  return statusForColor(displayBandColor(reach)) ?? reach.flowStatus ?? 'unknown'
 }
 
 function prefetchAll() {
@@ -182,7 +190,8 @@ function reachLabel(reach: WatchedGauge): string {
 }
 
 function sparklineColor(reach: WatchedGauge): string {
-  return bandSolid(displayFlowBandLabel(reach))
+  const color = displayBandColor(reach)
+  return color ? colorKeyToHex(color) : '#9ca3af'
 }
 
 </script>

@@ -62,8 +62,8 @@
         </div>
         <span
           v-if="displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)"
-          :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(item), displayFlowStatus(item))]"
-        >{{ flowBandLabel(displayFlowBandLabel(item), displayFlowStatus(item)) }}</span>
+          :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', colorKeyToBadgeClass(displayBandColor(item))]"
+        >{{ displayFlowBandLabel(item) }}</span>
         <TrashButton label="Remove" @click="removeAndSync(item.id, item.contextReachSlug)" />
       </div>
     </div>
@@ -186,8 +186,8 @@
         </div>
         <span
           v-if="displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)"
-          :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', bandBadgeClass(displayFlowBandLabel(item), displayFlowStatus(item))]"
-        >{{ flowBandLabel(displayFlowBandLabel(item), displayFlowStatus(item)) }}</span>
+          :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', colorKeyToBadgeClass(displayBandColor(item))]"
+        >{{ displayFlowBandLabel(item) }}</span>
         <TrashButton label="Remove" @click="removeAndSync(item.id, item.contextReachSlug)" />
       </div>
       <div v-if="reachItems.length === 0" class="px-3 py-1.5 text-xs text-neutral-400 italic">
@@ -200,7 +200,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import type { WatchedGauge } from '~/stores/watchlist'
-import { flowBandLabel } from '~/utils/flowBand'
+import { colorKeyToBadgeClass } from '~/utils/flowBand'
 
 const props = defineProps<{
   leadGauge: WatchedGauge
@@ -215,22 +215,28 @@ const emit = defineEmits<{
   (e: 'remove-group'): void
 }>()
 
-const { bandBadgeClass } = useFlowBandPalette()
+useFlowBandPalette()
 const { removeAndSync } = useWatchlistSync()
 
 const liveCfs = ref<number | null>(null)
 
-const { prefetch, bandForCfs, statusForBand } = useRunFlowBand()
+const { prefetch, bandForCfs, statusForColor } = useRunFlowBand()
+
+function displayBand(reach: WatchedGauge): { label: string; color: string } | null {
+  const cfs = liveCfs.value ?? reach.currentCfs
+  return bandForCfs(reach.contextReachSlug, cfs)
+}
 
 function displayFlowBandLabel(reach: WatchedGauge): string | null {
-  // All reaches in a group share one gauge — use live CFS from the gauge sparkline.
-  // Falls back to stored currentCfs before the sparkline fires, then to server flowBandLabel.
-  const cfs = liveCfs.value ?? reach.currentCfs
-  return bandForCfs(reach.contextReachSlug, cfs) ?? reach.flowBandLabel ?? null
+  return displayBand(reach)?.label ?? reach.flowBandLabel ?? null
+}
+
+function displayBandColor(reach: WatchedGauge): string | null {
+  return displayBand(reach)?.color ?? null
 }
 
 function displayFlowStatus(reach: WatchedGauge): string {
-  return statusForBand(displayFlowBandLabel(reach)) ?? reach.flowStatus ?? 'unknown'
+  return statusForColor(displayBandColor(reach)) ?? reach.flowStatus ?? 'unknown'
 }
 
 function prefetchAll() {
