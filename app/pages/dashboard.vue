@@ -272,7 +272,10 @@
                       @click="openUserReach(r)"
                     >
                       <div class="flex items-center gap-1 min-w-0 flex-1">
-                        <span class="min-w-0 text-sm text-neutral-700 dark:text-neutral-300 truncate">{{ r.name }}</span>
+                        <div class="min-w-0 flex-1">
+                          <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate block">{{ r.name }}</span>
+                          <span v-if="r.long_name" class="text-xs text-neutral-400 dark:text-neutral-500 truncate block">{{ r.long_name }}</span>
+                        </div>
                         <NuxtLink :to="`/my/runs/${r.slug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
                           <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
                         </NuxtLink>
@@ -303,6 +306,7 @@
                             <span class="text-base font-semibold truncate">{{ r.name }}</span>
                             <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', reachBadgeClass(r)]">{{ reachStatusLabel(r) }}</span>
                           </div>
+                          <p v-if="r.long_name" class="text-xs text-neutral-400 dark:text-neutral-500 truncate mt-0.5">{{ r.long_name }}</p>
                         </div>
                         <div class="shrink-0 flex items-center gap-1">
                           <span class="font-bold tabular-nums leading-none text-3xl" :style="{ color: bandSolid(r.flow_band, r.flow_status) }">
@@ -636,7 +640,7 @@ const isDefaultDashboard = computed(() =>
 
 // ── User reaches ──────────────────────────────────────────────────────────────
 interface UserReachSummary {
-  id: string; slug: string; name: string; river_name: string | null
+  id: string; slug: string; name: string; long_name: string | null; river_name: string | null
   state_abbr: string | null; basin_group: string | null
   current_cfs: number | null; flow_band: string | null
   flow_status: 'runnable' | 'caution' | 'flood' | 'unknown'
