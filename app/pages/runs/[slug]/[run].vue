@@ -147,13 +147,15 @@
             <div v-if="run.current_cfs != null || run.gauge_name" class="col-span-3 sm:col-span-1 border-t sm:border-t-0 sm:border-l border-neutral-200 dark:border-neutral-700 pt-2 sm:pt-0 sm:pl-4">
               <div class="text-[10px] text-neutral-400 uppercase tracking-wide mb-1">Flow</div>
               <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-lg font-bold tabular-nums" :class="run.flow_band ? flowBandTextClass(run.flow_band) : 'text-neutral-800 dark:text-neutral-100'">
+                <span class="text-lg font-bold tabular-nums" :style="{ color: liveBand ? colorKeyToHex(liveBand.color) : undefined }">
                   {{ run.current_cfs != null ? run.current_cfs.toLocaleString() : '—' }}
                 </span>
                 <span class="text-xs text-neutral-500">cfs</span>
-                <span v-if="run.flow_band" :class="['inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium', bandBadgeClass(run.flow_band)]">
-                  {{ flowBandLabel(run.flow_band) }}
-                </span>
+                <span
+                  v-if="liveBand || run.flow_band"
+                  :class="['inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium',
+                    liveBand ? colorKeyToBadgeClass(liveBand.color) : bandBadgeClass(null, run.flow_status ?? undefined)]"
+                >{{ liveBand?.label ?? run.flow_band }}</span>
               </div>
               <p v-if="run.gauge_name" class="text-xs text-neutral-400 mt-0.5 truncate">{{ run.gauge_name }}</p>
             </div>
@@ -305,7 +307,7 @@
 
 <script setup lang="ts">
 import { classRange } from '~/utils/classRating'
-import { flowBandLabel as flowBandLabelFn } from '~/utils/flowBand'
+import { bandForCfs as computeBandForCfs, colorKeyToHex, colorKeyToBadgeClass } from '~/utils/flowBand'
 
 const route  = useRoute()
 const router = useRouter()
@@ -317,7 +319,6 @@ const { bandBadgeClass } = useFlowBandPalette()
 const handle  = computed(() => route.params.slug as string)
 const runSlug = computed(() => route.params.run as string)
 
-interface FlowRange { label: string; min_value: number | null; max_value: number | null }
 interface RunRapid {
   id: string; name: string; description: string | null
   class_rating: number | null; is_surf_wave: boolean; is_permanent_hazard: boolean
@@ -336,10 +337,11 @@ interface PublicRunDetail {
   put_in_lng: number; put_in_lat: number
   take_out_lng: number; take_out_lat: number
   gauge_id: string | null; gauge_name: string | null
-  current_cfs: number | null; flow_band: string | null
+  current_cfs: number | null; flow_band: string | null; flow_status: string | null
   note: string | null; is_official: boolean; author_handle: string | null
   forked_from_slug: string | null; forked_from_name: string | null
-  flow_ranges: FlowRange[]; rapids: RunRapid[]; access_points: RunAccessPoint[]
+  flow_bands?: { base_label: string; base_color: string; thresholds: Array<{ value: number; label: string; color: string }> }
+  rapids: RunRapid[]; access_points: RunAccessPoint[]
   upvote_count: number; user_upvoted: boolean; centerline: object | null
   is_own?: boolean
 }
@@ -464,14 +466,11 @@ const classLabel = computed(() => {
   return 'Class ' + classRange(r.class_min, r.class_max)
 })
 
-function flowBandLabel(band: string) { return flowBandLabelFn(band) }
-function flowBandTextClass(band: string) {
-  const map: Record<string, string> = {
-    too_low: 'text-neutral-400', low: 'text-sky-500',
-    running: 'text-emerald-500', high: 'text-amber-500', too_high: 'text-red-500',
-  }
-  return map[band] ?? 'text-neutral-800 dark:text-neutral-100'
-}
+const liveBand = computed(() => {
+  const r = run.value
+  if (!r || r.current_cfs == null || !r.flow_bands) return null
+  return computeBandForCfs(r.current_cfs, r.flow_bands)
+})
 
 const mapRapids = computed(() => (run.value?.rapids ?? []).map(r => ({
   id: r.id, name: r.name, description: r.description,

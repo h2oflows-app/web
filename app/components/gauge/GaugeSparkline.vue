@@ -59,7 +59,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import type { WatchedGauge } from '~/stores/watchlist'
-import { flowStatusForBand } from '~/utils/flowBand'
+import type { FlowBands } from '~/utils/flowBand'
 
 const props = defineProps<{
   gaugeId: string
@@ -85,10 +85,10 @@ const PREF_KEY = 'h2oflow_sparkline_hours'
 const hours   = ref<12 | 24 | 168 | 720>(12)
 const loading = ref(true)
 const readings = ref<{ cfs: number; timestamp: string }[]>([])
-// Flow ranges are fetched once per mount so we can compute the live band
+// Flow bands are fetched once per mount so we can compute the live band
 // from the freshest reading and emit it upward, overriding the (potentially
 // stale) flowBandLabel coming from the watchlist store.
-const flowRanges = ref<{ label: string; min_value: number | null; max_value: number | null }[]>([])
+const flowBands = ref<FlowBands | null>(null)
 let rangesLoaded = false
 
 async function loadFlowRanges() {
@@ -98,7 +98,7 @@ async function loadFlowRanges() {
       ? `${apiBase}/api/v1/reaches/${props.reachSlug}/flow-ranges`
       : `${apiBase}/api/v1/gauges/${props.gaugeId}/flow-ranges`
     const res = await fetch(url)
-    if (res.ok) flowRanges.value = await res.json()
+    if (res.ok) flowBands.value = await res.json()
     rangesLoaded = true
   } catch { /* fall through */ }
 }
@@ -115,12 +115,12 @@ async function fetchReadings() {
       if (readings.value.length > 0) {
         const latestCfs = readings.value[readings.value.length - 1].cfs
         emit('latestCfs', latestCfs)
-        const matched = flowRanges.value.find(fr =>
-          (fr.min_value == null || latestCfs >= fr.min_value) &&
-          (fr.max_value == null || latestCfs <  fr.max_value)
-        )
-        const liveLabel = matched?.label ?? null
-        emit('liveFlowBand', { flowBandLabel: liveLabel, flowStatus: flowStatusForBand(liveLabel) })
+        if (flowBands.value) {
+          const band = bandForCfs(latestCfs, flowBands.value)
+          emit('liveFlowBand', { flowBandLabel: band.label, flowStatus: flowStatusForColorKey(band.color) })
+        } else {
+          emit('liveFlowBand', { flowBandLabel: null, flowStatus: 'unknown' })
+        }
       }
     }
   } catch { /* fall through */ } finally {

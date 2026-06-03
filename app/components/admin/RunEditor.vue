@@ -228,29 +228,7 @@
       <!-- Flow bands editor -->
       <div class="rounded-xl border border-neutral-200 dark:border-neutral-700 p-4 bg-white dark:bg-neutral-900 space-y-3">
         <p class="text-xs font-semibold text-neutral-500 uppercase tracking-wide">Flow bands</p>
-        <div class="space-y-2">
-          <div v-for="band in repinFlowBandsDef" :key="band.key" class="flex items-center gap-2 text-xs">
-            <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="`background:${band.dot}`" />
-            <span class="w-20 shrink-0 text-neutral-600 dark:text-neutral-400">{{ band.label }}</span>
-            <template v-if="band.showMin">
-              <input
-                v-model.number="repinFlowBands[band.key].min"
-                type="number" min="0" placeholder="min cfs"
-                class="w-24 rounded border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-1.5 py-1 text-xs"
-              />
-            </template>
-            <span v-else class="w-24" />
-            <span class="text-neutral-400">–</span>
-            <template v-if="band.showMax">
-              <input
-                v-model.number="repinFlowBands[band.key].max"
-                type="number" min="0" placeholder="max cfs"
-                class="w-24 rounded border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-1.5 py-1 text-xs"
-              />
-            </template>
-            <span v-else class="w-24 text-neutral-400 italic">no limit</span>
-          </div>
-        </div>
+        <FlowBandEditor v-model="repinFlowBands" />
         <div class="flex items-center gap-3 pt-1">
           <span v-if="repinFlowBandsMsg" class="text-xs" :class="repinFlowBandsMsg === 'Saved' ? 'text-green-600 dark:text-green-400' : 'text-red-500'">{{ repinFlowBandsMsg }}</span>
           <div class="flex-1" />
@@ -264,6 +242,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import type { FlowBands } from '~/utils/flowBand'
 
 interface NHDFC { type: string; features: any[] }
 interface RepinReach {
@@ -325,16 +304,7 @@ const repinSlugAvailable = ref<boolean | null>(null)
 const repinSlugChecking  = ref(false)
 let   repinSlugTimer: ReturnType<typeof setTimeout> | null = null
 
-const repinFlowBands = ref({
-  low:     { min: null as number | null, max: null as number | null },
-  running: { min: null as number | null, max: null as number | null },
-  high:    { min: null as number | null, max: null as number | null },
-})
-const repinFlowBandsDef = [
-  { key: 'low',     label: 'Too Low', dot: '#ef4444', showMin: false, showMax: true  },
-  { key: 'running', label: 'Running', dot: '#34d399', showMin: true,  showMax: true  },
-  { key: 'high',    label: 'High',    dot: '#38bdf8', showMin: true,  showMax: false },
-] as const
+const repinFlowBands = ref<FlowBands>({ base_label: 'Too Low', base_color: 'red-3', thresholds: [] })
 const repinFlowBandsSaving = ref(false)
 const repinFlowBandsMsg    = ref('')
 
@@ -445,7 +415,7 @@ function resetState() {
   repinEndLat.value = null;   repinEndLng.value = null
   repinFlowlinesDirty.value = false
   repinForm.value = { name: '', commonName: '', riverName: '', slug: '', classMin: null, classMax: null, permitRequired: false, multiDay: 1 }
-  repinFlowBands.value = { low: { min: null, max: null }, running: { min: null, max: null }, high: { min: null, max: null } }
+  repinFlowBands.value = { base_label: 'Too Low', base_color: 'red-3', thresholds: [] }
   repinFlowBandsSaving.value = false; repinFlowBandsMsg.value = ''
   repinRiverId.value = ''
   repinSlugAvailable.value = null
@@ -524,14 +494,7 @@ async function loadReach() {
       const frRes = await fetch(`${apiBase}/api/v1/reaches/${slug}/flow-ranges`, {
         headers: token2 ? { Authorization: `Bearer ${token2}` } : {},
       })
-      if (frRes.ok) {
-        const bands: Array<{ label: string; min_value: number | null; max_value: number | null }> = await frRes.json()
-        repinFlowBands.value = { low: { min: null, max: null }, running: { min: null, max: null }, high: { min: null, max: null } }
-        for (const b of bands) {
-          const k = b.label as keyof typeof repinFlowBands.value
-          if (k in repinFlowBands.value) repinFlowBands.value[k] = { min: b.min_value ?? null, max: b.max_value ?? null }
-        }
-      }
+      if (frRes.ok) repinFlowBands.value = await frRes.json()
     } catch { /* non-fatal */ }
 
     if (data.start_comid) {
@@ -743,16 +706,11 @@ async function saveFlowBands() {
   repinFlowBandsSaving.value = true
   repinFlowBandsMsg.value = ''
   try {
-    const b = repinFlowBands.value
     const token = await getToken()
     const res = await fetch(`${apiBase}/api/v1/reaches/${repinReach.value.slug}/flow-ranges`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify({
-        low:     b.low.max     != null ? { min_value: null,          max_value: b.low.max     } : null,
-        running: b.running.min != null ? { min_value: b.running.min, max_value: b.running.max } : null,
-        high:    b.high.min    != null ? { min_value: b.high.min,    max_value: null           } : null,
-      }),
+      body: JSON.stringify(repinFlowBands.value),
     })
     repinFlowBandsMsg.value = res.ok ? 'Saved' : `HTTP ${res.status}`
   } catch (e: any) {

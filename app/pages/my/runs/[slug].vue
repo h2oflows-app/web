@@ -48,10 +48,10 @@
               </p>
             </div>
             <span
-              v-if="reach.flow_band"
+              v-if="liveBand"
               class="text-xs font-medium px-2 py-0.5 rounded-full shrink-0 mb-0.5"
-              :class="bandBadgeClass(reach.flow_band)"
-            >{{ flowBandLabel(reach.flow_band) }}</span>
+              :class="colorKeyToBadgeClass(liveBand.color)"
+            >{{ liveBand.label }}</span>
           </div>
         </template>
       </div>
@@ -392,30 +392,7 @@
         </div>
 
         <!-- Flow bands -->
-        <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-2">
-          <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Flow bands <span class="font-normal normal-case text-neutral-400">(CFS)</span></p>
-          <div class="space-y-2">
-            <div v-for="band in flowBandDefs" :key="band.key" class="flex items-center gap-2">
-              <span class="w-16 text-xs font-medium shrink-0" :class="band.labelClass">{{ band.label }}</span>
-              <input
-                v-model.number="form.ranges[band.key].min"
-                type="number" min="0"
-                class="w-20 rounded border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-1.5 py-1 text-xs"
-                :placeholder="band.showMin ? 'min' : '—'"
-                :disabled="!band.showMin"
-              />
-              <span class="text-neutral-400 text-xs">–</span>
-              <input
-                v-model.number="form.ranges[band.key].max"
-                type="number" min="0"
-                class="w-20 rounded border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-1.5 py-1 text-xs"
-                :placeholder="band.showMax ? 'max' : '—'"
-                :disabled="!band.showMax"
-              />
-              <span class="text-xs text-neutral-400">cfs</span>
-            </div>
-          </div>
-        </div>
+        <FlowBandEditor v-model="form.flowBands" />
 
         <!-- Features list -->
         <div v-if="reach && (reach.rapids.length > 0 || reach.access_points.length > 0)" class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-2">
@@ -562,11 +539,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { flowBandLabel } from '~/utils/flowBand'
+import type { FlowBands } from '~/utils/flowBand'
+import { bandForCfs as computeBandForCfs, colorKeyToHex, colorKeyToBadgeClass } from '~/utils/flowBand'
 
 definePageMeta({ ssr: false })
 
-const { bandBadgeClass, bandSolid } = useFlowBandPalette()
+useFlowBandPalette()
 
 const route  = useRoute()
 const router = useRouter()
@@ -587,9 +565,6 @@ interface AnchorSnap { comid: string; name: string }
 interface PendingGauge { externalId: string; source: string; name: string; lat: number; lng: number }
 type ComIDEditMode = 'up' | 'down' | null
 
-interface FlowRange {
-  label: string; min_value: number | null; max_value: number | null
-}
 
 interface RunRapid {
   id: string
@@ -646,7 +621,7 @@ interface UserReachDetail {
   original_author_handle:     string | null
   original_forked_at:         string | null
   last_modified_after_fork_at: string | null
-  flow_ranges:       FlowRange[]
+  flow_bands:        FlowBands
   rapids:            RunRapid[]
   access_points:     RunAccessPoint[]
   upvote_count:      number
@@ -668,18 +643,8 @@ const form = ref({
   classMin:  null as number | null,
   classMax:  null as number | null,
   isPrivate: false,
-  ranges: {
-    low:     { min: null as number | null, max: null as number | null },
-    running: { min: null as number | null, max: null as number | null },
-    high:    { min: null as number | null, max: null as number | null },
-  },
+  flowBands: { base_label: 'Too Low', base_color: 'red-3', thresholds: [] } as FlowBands,
 })
-
-const flowBandDefs = [
-  { key: 'low',     label: 'Too Low',  labelClass: 'text-neutral-400',    showMin: false, showMax: true  },
-  { key: 'running', label: 'Runnable', labelClass: 'text-emerald-500', showMin: true,  showMax: true  },
-  { key: 'high',    label: 'High',     labelClass: 'text-sky-400',     showMin: true,  showMax: false },
-] as const
 
 // ── Repin state (mirrors admin RunEditor) ───────────────────────────────────
 
@@ -855,7 +820,13 @@ const anyPickMode = computed(() =>
   repinPickMode.value || repinGaugeSelectMode.value || repinComIDEditMode.value !== null,
 )
 
-const cfsColor = computed(() => bandSolid(reach.value?.flow_band ?? null))
+const liveBand = computed(() => {
+  const r = reach.value
+  if (!r || r.current_cfs == null) return null
+  return computeBandForCfs(r.current_cfs, r.flow_bands)
+})
+
+const cfsColor = computed(() => liveBand.value ? colorKeyToHex(liveBand.value.color) : '#9ca3af')
 
 const forkDate = computed(() => {
   const d = reach.value?.original_forked_at ?? null
@@ -872,7 +843,6 @@ const modifiedDate = computed(() => {
 const sharePayload = computed(() => {
   const r = reach.value
   if (!r) return ''
-  const fr = form.value.ranges
   const payload: Record<string, unknown> = {
     name:       r.name,
     river_name: r.river_name ?? '',
@@ -881,11 +851,7 @@ const sharePayload = computed(() => {
     up_comid:   r.up_comid   ?? '',
     down_comid: r.down_comid ?? '',
     note:       r.note ?? '',
-    flow_ranges: {
-      low:     { min_value: null,          max_value: fr.low.max     },
-      running: { min_value: fr.running.min, max_value: fr.running.max },
-      high:    { min_value: fr.high.min,   max_value: null           },
-    },
+    flow_bands: form.value.flowBands,
   }
   if (customGaugePayload.value) {
     payload.custom_gauge = customGaugePayload.value
@@ -1171,14 +1137,7 @@ function populateForm(r: UserReachDetail) {
   form.value.classMin  = r.class_min ?? null
   form.value.classMax  = r.class_max ?? null
   form.value.isPrivate = r.is_private ?? false
-  const low     = r.flow_ranges.find(x => x.label === 'low')
-  const running = r.flow_ranges.find(x => x.label === 'running')
-  const high    = r.flow_ranges.find(x => x.label === 'high')
-  form.value.ranges = {
-    low:     { min: null,                       max: low?.max_value      ?? null },
-    running: { min: running?.min_value ?? null,  max: running?.max_value ?? null },
-    high:    { min: high?.min_value    ?? null,  max: null               },
-  }
+  form.value.flowBands = r.flow_bands ?? { base_label: 'Too Low', base_color: 'red-3', thresholds: [] }
   nldiGnisId.value = null
 }
 
@@ -1281,14 +1240,9 @@ async function save() {
       repinFlowlinesDirty.value = false
     }
 
-    const r = form.value.ranges
     await fetch(`${apiBase}/api/v1/me/runs/${slug.value}/flow-ranges`, {
       method: 'PUT', headers,
-      body: JSON.stringify({
-        low:     { min_value: null,           max_value: r.low.max     },
-        running: { min_value: r.running.min,  max_value: r.running.max },
-        high:    { min_value: r.high.min,     max_value: null          },
-      }),
+      body: JSON.stringify(form.value.flowBands),
     })
 
     if (reach.value) {
@@ -1299,11 +1253,7 @@ async function save() {
         river_name:  form.value.riverName.trim() || null,
         note:        form.value.note.trim()      || null,
         is_private:  form.value.isPrivate,
-        flow_ranges: [
-          { label: 'low',     min_value: null,          max_value: r.low.max     },
-          { label: 'running', min_value: r.running.min, max_value: r.running.max },
-          { label: 'high',    min_value: r.high.min,    max_value: null          },
-        ],
+        flow_bands:  form.value.flowBands,
       }
     }
     void loadCluster()

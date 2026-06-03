@@ -1,8 +1,111 @@
-// Shared flow-band display helpers. DB stores 3 bands: low / running / high.
+// Shared flow-band display helpers.
 
 export type FlowBand = 'low' | 'running' | 'high'
 
 export type FlowStatus = 'runnable' | 'caution' | 'flood' | 'unknown' | string
+
+// ── New flexible band types (Umbrella J) ─────────────────────────────────────
+
+export interface FlowBandThreshold {
+  value: number
+  label: string
+  color: string // color key: ^(red|orange|yellow|green|blue|purple)-[1-5]$
+}
+
+export interface FlowBands {
+  base_label: string
+  base_color: string
+  thresholds: FlowBandThreshold[]
+}
+
+// ── Color key lookup (6 hues × 5 levels = 30 entries) ───────────────────────
+// Levels 1→5: light→dark (Tailwind 300→700)
+
+export const COLOR_KEY_HEX: Record<string, string> = {
+  'red-1':    '#fca5a5', // red-300
+  'red-2':    '#f87171', // red-400
+  'red-3':    '#ef4444', // red-500
+  'red-4':    '#dc2626', // red-600
+  'red-5':    '#b91c1c', // red-700
+  'orange-1': '#fdba74', // orange-300
+  'orange-2': '#fb923c', // orange-400
+  'orange-3': '#f97316', // orange-500
+  'orange-4': '#ea580c', // orange-600
+  'orange-5': '#c2410c', // orange-700
+  'yellow-1': '#fde047', // yellow-300
+  'yellow-2': '#facc15', // yellow-400
+  'yellow-3': '#eab308', // yellow-500
+  'yellow-4': '#ca8a04', // yellow-600
+  'yellow-5': '#a16207', // yellow-700
+  'green-1':  '#86efac', // green-300
+  'green-2':  '#4ade80', // green-400
+  'green-3':  '#22c55e', // green-500
+  'green-4':  '#16a34a', // green-600
+  'green-5':  '#15803d', // green-700
+  'blue-1':   '#93c5fd', // blue-300
+  'blue-2':   '#60a5fa', // blue-400
+  'blue-3':   '#3b82f6', // blue-500
+  'blue-4':   '#2563eb', // blue-600
+  'blue-5':   '#1d4ed8', // blue-700
+  'purple-1': '#d8b4fe', // purple-300
+  'purple-2': '#c084fc', // purple-400
+  'purple-3': '#a855f7', // purple-500
+  'purple-4': '#9333ea', // purple-600
+  'purple-5': '#7e22ce', // purple-700
+}
+
+function colorKeyHue(key: string): string {
+  return key.split('-')[0] ?? ''
+}
+
+const BADGE_BY_HUE: Record<string, string> = {
+  red:    'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400',
+  orange: 'bg-orange-100 dark:bg-orange-950/50 text-orange-700 dark:text-orange-400',
+  yellow: 'bg-yellow-100 dark:bg-yellow-950/50 text-yellow-700 dark:text-yellow-500',
+  green:  'bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-400',
+  blue:   'bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400',
+  purple: 'bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-400',
+}
+
+const TEXT_BY_HUE: Record<string, string> = {
+  red:    'text-red-500',
+  orange: 'text-orange-500',
+  yellow: 'text-yellow-500',
+  green:  'text-green-500',
+  blue:   'text-blue-500',
+  purple: 'text-purple-500',
+}
+
+export function colorKeyToHex(key: string): string {
+  return COLOR_KEY_HEX[key] ?? '#9ca3af'
+}
+
+export function colorKeyToBadgeClass(key: string): string {
+  return BADGE_BY_HUE[colorKeyHue(key)] ?? 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+}
+
+export function colorKeyToTextClass(key: string): string {
+  return TEXT_BY_HUE[colorKeyHue(key)] ?? 'text-gray-400'
+}
+
+// Derive coarse flow status from a color key (red=caution, blue=flood, else runnable).
+export function flowStatusForColorKey(key?: string | null): FlowStatus {
+  if (!key) return 'unknown'
+  const hue = colorKeyHue(key)
+  if (hue === 'red') return 'caution'
+  if (hue === 'blue') return 'flood'
+  if (COLOR_KEY_HEX[key]) return 'runnable'
+  return 'unknown'
+}
+
+// V9: highest threshold where cfs >= value; else base.
+export function bandForCfs(cfs: number, bands: FlowBands): { label: string; color: string } {
+  const sorted = [...bands.thresholds].sort((a, b) => b.value - a.value)
+  for (const t of sorted) {
+    if (cfs >= t.value) return { label: t.label, color: t.color }
+  }
+  return { label: bands.base_label, color: bands.base_color }
+}
 
 // ── Display labels ──────────────────────────────────────────────────────────
 
@@ -13,7 +116,7 @@ const LABEL: Record<string, string> = {
 }
 
 export function flowBandLabel(band?: string | null, status?: string | null): string {
-  if (band && LABEL[band]) return LABEL[band]
+  if (band) return LABEL[band] ?? band // passthrough custom labels
   switch (status) {
     case 'runnable': return 'Running'
     case 'caution':  return 'Too Low'
