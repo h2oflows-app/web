@@ -68,8 +68,8 @@
           </button>
         </div>
 
-        <!-- My Dashboards: inline dashboard checkboxes -->
-        <div v-if="activeTab === 'dashboards'" class="shrink-0 border-b border-neutral-100 dark:border-neutral-800 px-3 pb-2 space-y-1">
+        <!-- Dashboard filter (My Runs tab) -->
+        <div v-if="activeTab === 'mine'" class="shrink-0 border-b border-neutral-100 dark:border-neutral-800 px-3 pb-2 space-y-1">
           <div v-if="db.dashboards.value.length === 0" class="text-xs text-neutral-400 py-1">No dashboards yet.</div>
           <button
             v-for="dashboard in db.dashboards.value"
@@ -355,19 +355,17 @@ const { isAuthenticated, getToken } = useAuth()
 const db = useDashboards()
 
 // ── Tab control ───────────────────────────────────────────────────────────────
-type TabId = 'all' | 'dashboards' | 'browse'
+type TabId = 'mine' | 'browse'
 const TABS: { id: TabId; label: string }[] = [
-  { id: 'all',        label: 'All My Runs'   },
-  { id: 'dashboards', label: 'My Dashboards' },
-  { id: 'browse',     label: 'Browse User'   },
+  { id: 'mine',   label: 'My Runs'     },
+  { id: 'browse', label: 'Browse User' },
 ]
 const TAB_STORAGE_KEY = 'h2o-explore-tab'
-const activeTab = ref<TabId>('all')
+const activeTab = ref<TabId>('mine')
 
 function setTab(id: TabId) {
   activeTab.value = id
   try { localStorage.setItem(TAB_STORAGE_KEY, id) } catch {}
-  if (id === 'dashboards') loadDashboardMembership()
 }
 
 // ── New reach / import / search modals ───────────────────────────────────────
@@ -406,10 +404,11 @@ onMounted(async () => {
   showDemoBanner.value = localStorage.getItem('demo-banner-dismissed') !== 'true'
   document.addEventListener('click', onDocClick)
 
-  // Restore persisted tab
+  // Restore persisted tab (map legacy 'all'/'dashboards' → 'mine')
   try {
-    const saved = localStorage.getItem(TAB_STORAGE_KEY) as TabId | null
-    if (saved && TABS.some(t => t.id === saved)) activeTab.value = saved
+    const saved = localStorage.getItem(TAB_STORAGE_KEY)
+    if (saved === 'browse') activeTab.value = 'browse'
+    else if (saved === 'mine' || saved === 'all' || saved === 'dashboards') activeTab.value = 'mine'
   } catch {}
 
   if (isAuthenticated.value) {
@@ -538,7 +537,7 @@ function clearBrowse() {
   browseInput.value = '@h2oflows'
   browseError.value = ''
   userSuggestions.value = []
-  setTab('all')
+  setTab('mine')
 }
 
 function selectSuggestion(handle: string) {
@@ -555,8 +554,8 @@ const mapSourceUrl = computed((): string | null => {
   }
   if (!mapToken.value) return null
   const base = `${apiBase}/api/v1/me/runs/map/all`
-  if (activeTab.value === 'all' || selectedDashboardIds.value.size === 0) return base
-  // dashboards tab with selection: filter by slugs belonging to selected dashboards
+  if (selectedDashboardIds.value.size === 0) return base
+  // dashboard filter active: include only slugs belonging to selected dashboards
   const slugs = new Set<string>()
   for (const id of selectedDashboardIds.value) {
     for (const slug of (dashboardReachMap.value.get(id) ?? new Set())) slugs.add(slug)
