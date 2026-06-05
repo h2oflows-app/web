@@ -78,6 +78,19 @@
               </svg>
             </button>
             <span v-else-if="flagDone" class="text-xs text-red-400 px-1">Flagged</span>
+
+            <!-- Share button (all users) -->
+            <button
+              v-if="run"
+              class="flex items-center justify-center p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-colors"
+              title="Share"
+              @click="shareOpen = true"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -310,6 +323,16 @@
         </div>
       </template>
     </UModal>
+
+    <!-- Share modal -->
+    <ShareLinkModal
+      v-if="run"
+      :open="shareOpen"
+      :title="run.name"
+      :link="shareLink"
+      :json="shareJson"
+      @close="shareOpen = false"
+    />
 
     <!-- First-run CTA sticky banner (anon only) -->
     <ClientOnly>
@@ -615,6 +638,25 @@ const mapAccess = computed(() => {
     lng:         a.lng,
     lat:         a.lat,
   }))
+})
+
+// ── Share ─────────────────────────────────────────────────────────────────────
+
+const shareOpen = ref(false)
+const shareLink = computed(() => import.meta.client ? window.location.href : '')
+const shareJson = computed(() => {
+  const r = run.value
+  if (!r) return ''
+  return JSON.stringify({
+    name:       r.name,
+    river_name: r.river_name ?? '',
+    class_min:  r.class_min,
+    class_max:  r.class_max,
+    put_in:   { lat: r.put_in_lat,    lng: r.put_in_lng    },
+    take_out: { lat: r.take_out_lat,  lng: r.take_out_lng  },
+    gauge_id:   r.gauge_id ?? null,
+    flow_bands: r.flow_bands ?? null,
+  }, null, 2)
 })
 
 // ── Flag ──────────────────────────────────────────────────────────────────────
