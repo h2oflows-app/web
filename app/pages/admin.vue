@@ -38,9 +38,10 @@
 
         <!-- Rivers tab -->
         <div v-if="activeTab === 'rivers'">
+          <h2 class="text-sm font-semibold text-neutral-700 dark:text-neutral-200 mb-2">@h2oflows runs</h2>
           <div class="flex items-center justify-between mb-3">
             <p class="text-sm text-neutral-500">
-              {{ rivers.length }} rivers
+              {{ totalRivers }} rivers · {{ totalRuns }} runs
               <template v-if="unassignedReaches.length"> · <span class="text-amber-500">{{ unassignedReaches.length }} unassigned</span></template>
             </p>
             <div class="flex items-center gap-2">
@@ -148,6 +149,7 @@
                             ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
                             : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400'"
                         >{{ reach.has_centerline ? 'Line ✓' : 'No line' }}</span>
+                        <NuxtLink :to="`/my/runs/${reach.slug}`" class="text-xs text-neutral-500 hover:text-primary-500 hover:underline">Edit</NuxtLink>
                         <NuxtLink :to="`/runs/h2oflows/${reach.slug}`" class="text-xs text-primary-500 hover:underline">View</NuxtLink>
                       </div>
                     </div>
@@ -800,6 +802,7 @@ const groupedByStateBasin = computed((): GroupedStateBasin[] => {
 // Paginate by total river count across all state groups
 const allRivers = computed(() => filteredGroupedReaches.value.flatMap(sg => sg.rivers))
 const totalRivers = computed(() => allRivers.value.length)
+const totalRuns = computed(() => allRivers.value.reduce((sum, r) => sum + r.reaches.length, 0))
 const totalPages = computed(() => Math.max(1, Math.ceil(totalRivers.value / pageSize.value)))
 const pagedRiverIds = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
