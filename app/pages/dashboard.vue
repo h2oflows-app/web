@@ -262,69 +262,8 @@
                       />
                     </div>
                   </template>
-                <!-- User reaches inline -->
+                <!-- User reaches inline — always flat, no gauge grouping -->
                 <template v-if="river.userReaches.length > 0">
-                  <!-- Grouped by gauge when groupByGauge is toggled -->
-                  <template v-if="groupByGauge">
-                    <template v-for="group in groupUserReachesByGauge(river.userReaches)" :key="group.gaugeId ?? '__ungauged'">
-                      <!-- Gauge header row -->
-                      <div v-if="group.gaugeId" class="flex items-center gap-1.5 px-1 pt-1.5 pb-0.5 text-xs text-neutral-500 dark:text-neutral-400 font-medium">
-                        <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M12 12 16 8"/><path d="M3 12a9 9 0 0 1 18 0"/>
-                        </svg>
-                        {{ group.gaugeName }}
-                      </div>
-                      <div v-if="viewMode === 'list'" class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden mt-0.5 mb-1.5">
-                        <div
-                          v-for="r in group.runs" :key="r.id"
-                          class="flex items-center gap-2 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer"
-                          @click="openUserReach(r)"
-                        >
-                          <div class="flex items-center gap-1 min-w-0 flex-1">
-                            <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate">{{ r.name }}</span>
-                            <NuxtLink :to="`/my/runs/${r.slug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
-                              <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
-                            </NuxtLink>
-                          </div>
-                          <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', urBadgeClass(r)]">{{ urBandLabel(r) }}</span>
-                          <span class="whitespace-nowrap text-base font-bold tabular-nums shrink-0" :style="{ color: urBandHex(r) }">
-                            {{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-400"> cfs</span>
-                          </span>
-                          <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
-                        </div>
-                      </div>
-                      <div v-else :class="[cardGridClass, 'mt-0.5 mb-1.5']">
-                        <div
-                          v-for="r in group.runs" :key="r.id"
-                          class="relative rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-3 transition-all duration-200 cursor-pointer overflow-hidden"
-                          @click="openUserReach(r)"
-                        >
-                          <div class="flex items-start gap-3 mb-2">
-                            <div class="min-w-0 flex-1">
-                              <div class="flex items-center gap-1.5 min-w-0">
-                                <span class="text-base font-semibold truncate">{{ r.name }}</span>
-                                <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', urBadgeClass(r)]">{{ urBandLabel(r) }}</span>
-                              </div>
-                            </div>
-                            <div class="shrink-0 flex items-center gap-1">
-                              <span class="font-bold tabular-nums leading-none text-3xl" :style="{ color: urBandHex(r) }">
-                                {{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-500 dark:text-neutral-400 ml-0.5">cfs</span>
-                              </span>
-                              <NuxtLink :to="`/my/runs/${r.slug}`" class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
-                                <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
-                              </NuxtLink>
-                              <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
-                            </div>
-                          </div>
-                          <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" :compact="viewMode !== 'full'" class="mb-1 opacity-70" />
-                          <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" :compact="viewMode !== 'full'" :color="urBandHex(r)" class="mb-1 opacity-70" />
-                        </div>
-                      </div>
-                    </template>
-                  </template>
-
-                  <!-- Flat (non-grouped) view -->
-                  <template v-else>
                   <div v-if="viewMode === 'list'" class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden mt-1.5">
                     <div
                       v-for="r in river.userReaches"
@@ -384,7 +323,6 @@
                       <p v-if="r.last_reading_at" class="text-xs text-neutral-400 mt-0.5">{{ reachLastUpdated(r) }}</p>
                     </div>
                   </div>
-                  </template><!-- end flat view -->
                 </template><!-- end river.userReaches -->
                 </div><!-- end riverHasVisibleContent -->
                 </template><!-- end v-for river -->
@@ -1281,27 +1219,6 @@ const groupingOptions = computed(() => [
 interface GaugeGroup { lead: WatchedGauge; all: WatchedGauge[] }
 interface SplitGroups { gaugeGroups: GaugeGroup[]; ungrouped: WatchedGauge[] }
 
-interface UserReachGaugeGroup { gaugeId: string | null; gaugeName: string; runs: UserReachSummary[] }
-function groupUserReachesByGauge(reaches: UserReachSummary[]): UserReachGaugeGroup[] {
-  const map = new Map<string | null, UserReachSummary[]>()
-  for (const r of reaches) {
-    const key = r.gauge_id ?? null
-    if (!map.has(key)) map.set(key, [])
-    map.get(key)!.push(r)
-  }
-  const groups: UserReachGaugeGroup[] = []
-  for (const [gaugeId, runs] of map.entries()) {
-    if (gaugeId) {
-      const g = store.gauges.find(g => g.id === gaugeId)
-      const gaugeName = g?.name ?? g?.externalId ?? gaugeId
-      groups.push({ gaugeId, gaugeName, runs })
-    }
-  }
-  // Ungauged runs last
-  const ungauged = map.get(null)
-  if (ungauged?.length) groups.push({ gaugeId: null, gaugeName: '', runs: ungauged })
-  return groups
-}
 function splitReachGroups(reaches: WatchedGauge[]): SplitGroups {
   const map = new Map<string, WatchedGauge[]>()
   for (const r of reaches) {
