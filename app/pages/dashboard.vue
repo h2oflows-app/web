@@ -281,12 +281,12 @@
                         </NuxtLink>
                       </div>
                       <div class="w-44 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
-                        <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="bandSolid(r.flow_band, r.flow_status)" compact />
-                        <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" compact :color="bandSolid(r.flow_band, r.flow_status)" />
+                        <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" compact />
+                        <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" compact :color="urBandHex(r)" />
                       </div>
-                      <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', reachBadgeClass(r)]">{{ reachStatusLabel(r) }}</span>
+                      <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', urBadgeClass(r)]">{{ urBandLabel(r) }}</span>
                       <div class="w-20 shrink-0 text-right">
-                        <span class="whitespace-nowrap text-base font-bold tabular-nums" :style="{ color: bandSolid(r.flow_band, r.flow_status) }">
+                        <span class="whitespace-nowrap text-base font-bold tabular-nums" :style="{ color: urBandHex(r) }">
                           {{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-400 dark:text-neutral-500"> cfs</span>
                         </span>
                       </div>
@@ -304,12 +304,12 @@
                         <div class="min-w-0 flex-1">
                           <div class="flex items-center gap-1.5 min-w-0">
                             <span class="text-base font-semibold truncate">{{ r.name }}</span>
-                            <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', reachBadgeClass(r)]">{{ reachStatusLabel(r) }}</span>
+                            <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', urBadgeClass(r)]">{{ urBandLabel(r) }}</span>
                           </div>
                           <p v-if="r.long_name" class="text-xs text-neutral-400 dark:text-neutral-500 truncate mt-0.5">{{ r.long_name }}</p>
                         </div>
                         <div class="shrink-0 flex items-center gap-1">
-                          <span class="font-bold tabular-nums leading-none text-3xl" :style="{ color: bandSolid(r.flow_band, r.flow_status) }">
+                          <span class="font-bold tabular-nums leading-none text-3xl" :style="{ color: urBandHex(r) }">
                             {{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-500 dark:text-neutral-400 ml-0.5">cfs</span>
                           </span>
                           <NuxtLink :to="`/my/runs/${r.slug}`" class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
@@ -318,8 +318,8 @@
                           <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
                         </div>
                       </div>
-                      <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :flow-band-label="r.flow_band ?? null" :compact="viewMode !== 'full'" class="mb-1 opacity-70" />
-                      <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" :compact="viewMode !== 'full'" :color="bandSolid(r.flow_band, r.flow_status)" class="mb-1 opacity-70" />
+                      <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" :compact="viewMode !== 'full'" class="mb-1 opacity-70" />
+                      <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" :compact="viewMode !== 'full'" :color="urBandHex(r)" class="mb-1 opacity-70" />
                       <p v-if="r.last_reading_at" class="text-xs text-neutral-400 mt-0.5">{{ reachLastUpdated(r) }}</p>
                     </div>
                   </div>
@@ -555,11 +555,28 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useWatchlistStore, type WatchedGauge } from '~/stores/watchlist'
 import { cleanBasinName, slugifyBasin } from '~/utils/basin'
-import { flowBandLabel } from '~/utils/flowBand'
+import { flowBandLabel, colorKeyToHex, colorKeyToBadgeClass } from '~/utils/flowBand'
 
 definePageMeta({ ssr: false })
 
 const { bandBadgeClass, bandSolid } = useFlowBandPalette()
+const { prefetch: prefetchBand, bandForCfs } = useRunFlowBand()
+
+// Helpers for UserReachSummary coloring via composable (color keys, not old palette)
+function urBandColor(r: UserReachSummary): string | null {
+  return bandForCfs(r.slug, r.current_cfs)?.color ?? null
+}
+function urBandHex(r: UserReachSummary): string {
+  const key = urBandColor(r)
+  return key ? colorKeyToHex(key) : bandSolid(r.flow_band, r.flow_status)
+}
+function urBadgeClass(r: UserReachSummary): string {
+  const key = urBandColor(r)
+  return key ? colorKeyToBadgeClass(key) : bandBadgeClass(r.flow_band, r.flow_status)
+}
+function urBandLabel(r: UserReachSummary): string {
+  return bandForCfs(r.slug, r.current_cfs)?.label ?? flowBandLabel(r.flow_band, r.flow_status)
+}
 
 const router = useRouter()
 const store = useWatchlistStore()
@@ -715,6 +732,7 @@ async function loadUserReaches() {
   }).catch(() => null)
   if (!res?.ok) return
   userReaches.value = await res.json() ?? []
+  for (const r of userReaches.value) prefetchBand(r.slug)
 }
 
 function loadSet(key: string): Set<string> {
