@@ -85,6 +85,7 @@ export interface ReachClickPayload {
 
 const emit  = defineEmits<{
   (e: 'reaches-updated', reaches: ReachListItem[]): void
+  (e: 'all-reaches-updated', reaches: ReachListItem[]): void
   (e: 'bounds-updated', bbox: string): void
   (e: 'zoom-updated', zoom: number): void
   (e: 'hover-changed', slug: string | null): void
@@ -343,6 +344,19 @@ interface ReachFeature {
 // All features from the server — loaded once at startup.
 let allServerFeatures: ReachFeature[] = []
 
+function emitAllReaches() {
+  emit('all-reaches-updated', allServerFeatures.map(f => ({
+    slug:          f.properties.slug,
+    name:          displayName(f.properties),
+    common_name:   f.properties.common_name ?? null,
+    class_max:     f.properties.class_max,
+    flow_status:   f.properties.flow_status ?? 'unknown',
+    current_cfs:   f.properties.current_cfs ?? null,
+    author_handle: f.properties.author_handle ?? null,
+    river_name:    f.properties.river_name ?? null,
+  })))
+}
+
 /** One-time load of the full cached dataset from the server. */
 async function loadAllReaches() {
   if (!map) return
@@ -351,6 +365,7 @@ async function loadAllReaches() {
     allServerFeatures = []
     loadedFeatures = []
     filterVisible()
+    emitAllReaches()
     return
   }
   const url = props.sourceUrl ?? `${apiBase}/api/v1/reaches/map/all`
@@ -360,21 +375,23 @@ async function loadAllReaches() {
     const res = await fetch(url, hasHeaders ? { headers } : undefined)
     if (!res.ok) {
       console.warn(`[RunsMap] fetch ${url} → ${res.status}`)
-      // Surface empty FC so map clears + emits reaches-updated (instead of stale layers).
       allServerFeatures = []
       loadedFeatures = []
       filterVisible()
+      emitAllReaches()
       return
     }
     const fc = await res.json()
     allServerFeatures = fc.features ?? []
     loadedFeatures = allServerFeatures
     filterVisible()
+    emitAllReaches()
   } catch (e) {
     console.warn('[RunsMap] fetch:', e)
     allServerFeatures = []
     loadedFeatures = []
     filterVisible()
+    emitAllReaches()
   }
 }
 
@@ -383,7 +400,8 @@ async function reloadSource() {
   allServerFeatures = []
   loadedFeatures = []
   filterVisible()
-  if (props.sourceUrl === null) return  // null = explicit empty, no fetch
+  emit('all-reaches-updated', [])  // clear immediately
+  if (props.sourceUrl === null) return
   await loadAllReaches()
 }
 
