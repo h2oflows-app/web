@@ -366,6 +366,10 @@ const activeTab = ref<TabId>('mine')
 function setTab(id: TabId) {
   activeTab.value = id
   try { localStorage.setItem(TAB_STORAGE_KEY, id) } catch {}
+  if (id === 'browse' && !browseHandle.value) {
+    browseInput.value = '@h2oflows'
+    browseUser()
+  }
 }
 
 // ── New reach / import / search modals ───────────────────────────────────────
@@ -407,8 +411,13 @@ onMounted(async () => {
   // Restore persisted tab (map legacy 'all'/'dashboards' → 'mine')
   try {
     const saved = localStorage.getItem(TAB_STORAGE_KEY)
-    if (saved === 'browse') activeTab.value = 'browse'
-    else if (saved === 'mine' || saved === 'all' || saved === 'dashboards') activeTab.value = 'mine'
+    if (saved === 'browse') {
+      activeTab.value = 'browse'
+      browseInput.value = '@h2oflows'
+      browseUser()  // auto-load h2oflows on restore to browse tab
+    } else if (saved === 'mine' || saved === 'all' || saved === 'dashboards') {
+      activeTab.value = 'mine'
+    }
   } catch {}
 
   if (isAuthenticated.value) {
@@ -541,7 +550,7 @@ function clearBrowse() {
   browseInput.value = '@h2oflows'
   browseError.value = ''
   userSuggestions.value = []
-  setTab('mine')
+  // stay on browse tab; map clears to blank (null sourceUrl)
 }
 
 function selectSuggestion(handle: string) {
