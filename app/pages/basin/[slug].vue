@@ -112,7 +112,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from '#app'
 import { useWatchlistStore } from '~/stores/watchlist'
 import { cleanBasinName, slugifyBasin } from '~/utils/basin'
@@ -129,6 +129,27 @@ const router = useRouter()
 const slug   = route.params.slug as string
 const store  = useWatchlistStore()
 const { apiBase } = useRuntimeConfig().public
+const { isAuthenticated, getToken } = useAuth()
+
+// User reaches for this basin (loaded from /api/v1/me/runs)
+const userReachSlugs = ref<string[]>([])
+const userBasinName  = ref<string | null>(null)
+
+onMounted(async () => {
+  if (!isAuthenticated.value) return
+  const token = await getToken()
+  if (!token) return
+  const res = await fetch(`${apiBase}/api/v1/me/runs`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).catch(() => null)
+  if (!res?.ok) return
+  const runs: { slug: string; basin_group: string | null }[] = await res.json() ?? []
+  const inBasin = runs.filter(r => slugifyBasin(cleanBasinName(r.basin_group) ?? '') === slug)
+  userReachSlugs.value = inBasin.map(r => r.slug)
+  if (inBasin.length > 0 && !userBasinName.value) {
+    userBasinName.value = cleanBasinName(inBasin[0].basin_group) ?? null
+  }
+})
 
 const mapData      = ref<BasinReach[]>([])
 const networkData  = ref<BasinNetwork | null>(null)
@@ -157,6 +178,7 @@ const basinGauges = computed(() =>
 )
 
 const displayName = computed<string | null>(() => {
+  if (userBasinName.value) return userBasinName.value
   const g = basinGauges.value[0]
   if (!g) return null
   return cleanBasinName(g.contextReachBasinGroup)
@@ -181,6 +203,9 @@ const reachSlugs = computed<string[]>(() => {
       seen.add(g.contextReachSlug)
       out.push(g.contextReachSlug)
     }
+  }
+  for (const s of userReachSlugs.value) {
+    if (!seen.has(s)) { seen.add(s); out.push(s) }
   }
   return out
 })
@@ -221,8 +246,7 @@ async function fetchAll() {
   }
 }
 
-// With localStorage persistence, store is populated synchronously before mount.
-// immediate:true handles SPA nav (already in memory) and hard refresh (restored).
+// Fetch when reachSlugs becomes non-empty (store.gauges sync + userReaches async)
 const hasFetched = ref(false)
 watch(reachSlugs, (slugs) => {
   if (slugs.length > 0 && !hasFetched.value) {
@@ -230,4 +254,11 @@ watch(reachSlugs, (slugs) => {
     fetchAll()
   }
 }, { immediate: true })
+// Re-fetch when userReachSlugs arrive if we already tried (got empty first)
+watch(userReachSlugs, (slugs) => {
+  if (slugs.length > 0 && !hasFetched.value) {
+    hasFetched.value = true
+    fetchAll()
+  }
+})
 </script>
