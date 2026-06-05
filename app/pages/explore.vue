@@ -78,7 +78,7 @@
             />
             Zoom &amp; Filter
           </label>
-          <span class="text-xs text-neutral-400 tabular-nums">{{ sidebarReaches.length }} runs</span>
+          <span class="text-xs text-neutral-400 tabular-nums">{{ sidebarCount }} runs</span>
         </div>
 
         <!-- Dashboard filter (My Runs tab) -->
@@ -612,6 +612,14 @@ const filteredSidebarGroups = computed((): ReachGroup[] => {
 // keep for legacy compat (showReachList uses this)
 const filteredMapGroups = filteredSidebarGroups
 
+// count shown in sidebar badge: filtered total when search active, else full sidebar
+const sidebarCount = computed(() => {
+  if (query.value.trim().length >= 2) {
+    return filteredSidebarGroups.value.reduce((sum, g) => sum + g.reaches.length, 0)
+  }
+  return sidebarReaches.value.length
+})
+
 const showReachList = computed(() => {
   if (!isAuthenticated.value && activeTab.value !== 'browse') return false
   if (activeTab.value === 'browse' && !browseHandle.value) return false
@@ -629,9 +637,9 @@ const mapZoom     = ref(4)
 
 // ── Zoom & Filter toggle ──────────────────────────────────────────────────────
 const zoomFilter = ref(false)
-// auto-enable when source loads >150 runs
+// auto-enable when source loads >100 runs
 watch(allReaches, (reaches) => {
-  if (reaches.length > 150) zoomFilter.value = true
+  if (reaches.length > 100) zoomFilter.value = true
 })
 
 // sidebar source: all loaded OR viewport-filtered based on toggle
