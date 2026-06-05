@@ -48,8 +48,8 @@
           </div>
         </div>
 
-        <!-- Search + mobile map toggle (all + dashboards tabs) -->
-        <div v-if="activeTab !== 'browse'" class="px-3 py-2 shrink-0 flex items-center gap-2">
+        <!-- Search + mobile map toggle (all tabs) -->
+        <div class="px-3 py-2 shrink-0 flex items-center gap-2">
           <input
             v-model="query"
             type="search"
@@ -66,6 +66,19 @@
             </svg>
             Map
           </button>
+        </div>
+
+        <!-- Zoom & Filter toggle -->
+        <div class="px-3 pb-1.5 shrink-0 flex items-center justify-between">
+          <label class="flex items-center gap-1.5 cursor-pointer select-none text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200">
+            <input
+              v-model="zoomFilter"
+              type="checkbox"
+              class="rounded w-3 h-3 accent-primary-500 cursor-pointer"
+            />
+            Zoom &amp; Filter
+          </label>
+          <span class="text-xs text-neutral-400 tabular-nums">{{ sidebarCount }} runs</span>
         </div>
 
         <!-- Dashboard filter (My Runs tab) -->
@@ -92,15 +105,6 @@
         <!-- Browse User: handle input in sidebar -->
         <div v-if="activeTab === 'browse'" class="shrink-0 border-b border-neutral-100 dark:border-neutral-800 px-3 py-2 space-y-1.5">
           <div class="flex gap-1 items-center">
-            <button
-              class="sm:hidden shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-950/50 transition-colors"
-              aria-label="Show map"
-              @click="listVisible = false"
-            >
-              <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 5l-5 5 5 5"/>
-              </svg>
-            </button>
             <input
               v-model="browseInput"
               type="text"
@@ -140,26 +144,37 @@
         <div v-else-if="mapReaches.length === 0 && activeTab === 'browse' && !browseHandle" class="flex-1 flex items-center justify-center text-sm text-neutral-400 px-4 text-center">
           Enter a handle and press Go to browse another user's runs.
         </div>
-        <div v-else-if="mapReaches.length === 0 && isAuthenticated" class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-neutral-400">
-          <span>{{ activeTab === 'browse' ? 'No public runs found.' : 'Pan or zoom the map to see runs here.' }}</span>
+        <div v-else-if="sidebarReaches.length === 0 && isAuthenticated" class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-neutral-400">
+          <span>{{ activeTab === 'browse' ? 'No public runs found.' : 'No runs yet.' }}</span>
           <NuxtLink v-if="activeTab !== 'browse'" to="/my/runs/new" class="text-primary-500 hover:underline">Create your first run →</NuxtLink>
         </div>
-        <div v-else-if="query.length >= 2 && filteredMapGroups.length === 0 && activeTab !== 'browse'" class="flex-1 flex items-center justify-center text-sm text-neutral-400 px-4 text-center">
-          No results in view for "{{ query }}"
+        <div v-else-if="query.length >= 2 && filteredSidebarGroups.length === 0" class="flex-1 flex items-center justify-center text-sm text-neutral-400 px-4 text-center">
+          No results for "{{ query }}"
         </div>
 
-        <!-- Reach list (from map viewport) -->
+        <!-- Reach list -->
         <div
           v-if="showReachList"
           class="flex-1 overflow-y-auto"
         >
-          <div v-for="group in filteredMapGroups" :key="group.name">
-            <!-- River header -->
-            <div class="flex items-center gap-2 px-3 py-1.5 border-b border-neutral-100 dark:border-neutral-800/50 bg-neutral-50 dark:bg-neutral-900/50">
+          <div v-for="group in filteredSidebarGroups" :key="group.name">
+            <!-- River header (collapsible) -->
+            <button
+              class="w-full flex items-center gap-2 px-3 py-1.5 border-b border-neutral-100 dark:border-neutral-800/50 bg-neutral-50 dark:bg-neutral-900/50 text-left hover:bg-neutral-100 dark:hover:bg-neutral-800/60 transition-colors"
+              @click="toggleRiverCollapse(group.name)"
+            >
+              <svg
+                class="w-3 h-3 shrink-0 text-neutral-400 transition-transform"
+                :class="collapsedRivers.has(group.name) ? '-rotate-90' : ''"
+                viewBox="0 0 20 20" fill="currentColor"
+              >
+                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+              </svg>
               <span class="text-xs font-semibold text-neutral-600 dark:text-neutral-300 flex-1 truncate">{{ group.name }}</span>
               <span class="text-xs text-neutral-400 shrink-0">{{ group.reaches.length }}</span>
-            </div>
-            <!-- Reach rows -->
+            </button>
+            <!-- Reach rows (collapsed by river group) -->
+            <div v-show="!collapsedRivers.has(group.name)">
             <div
               v-for="reach in group.reaches"
               :key="reach.slug"
@@ -234,6 +249,7 @@
                 </svg>
               </NuxtLink>
             </div>
+            </div><!-- end collapsible rows wrapper -->
           </div>
         </div>
       </aside>
@@ -266,6 +282,7 @@
               :source-url="mapSourceUrl"
               :source-headers="mapSourceHeaders"
               @reaches-updated="onReachesUpdated"
+              @all-reaches-updated="onAllReachesUpdated"
               @zoom-updated="(z) => mapZoom = z"
               @hover-changed="onMapHover"
               @reach-click="onReachClick"
@@ -577,19 +594,19 @@ const mapSourceUrl = computed((): string | null => {
   return `${base}?slugs=${[...slugs].join(',')}`
 })
 
-// ── Reach list (from map viewport) ───────────────────────────────────────────
+// ── Reach list ────────────────────────────────────────────────────────────────
 const query = ref('')
 
 interface ReachGroup { name: string; reaches: ReachListItem[] }
 
-const filteredMapGroups = computed((): ReachGroup[] => {
+const filteredSidebarGroups = computed((): ReachGroup[] => {
   const q = query.value.trim().toLowerCase()
   const items = q.length >= 2
-    ? mapReaches.value.filter(r =>
+    ? sidebarReaches.value.filter(r =>
         r.name.toLowerCase().includes(q) ||
         (r.river_name?.toLowerCase().includes(q) ?? false)
       )
-    : mapReaches.value
+    : sidebarReaches.value
   const grouped = new Map<string, ReachListItem[]>()
   for (const r of items) {
     const key = r.river_name ?? 'No River'
@@ -601,19 +618,53 @@ const filteredMapGroups = computed((): ReachGroup[] => {
     .map(([name, reaches]) => ({ name, reaches }))
 })
 
+// keep for legacy compat (showReachList uses this)
+const filteredMapGroups = filteredSidebarGroups
+
+// count shown in sidebar badge: filtered total when search active, else full sidebar
+const sidebarCount = computed(() => {
+  if (query.value.trim().length >= 2) {
+    return filteredSidebarGroups.value.reduce((sum, g) => sum + g.reaches.length, 0)
+  }
+  return sidebarReaches.value.length
+})
+
 const showReachList = computed(() => {
   if (!isAuthenticated.value && activeTab.value !== 'browse') return false
   if (activeTab.value === 'browse' && !browseHandle.value) return false
-  if (mapReaches.value.length === 0) return false
-  if (query.value.length >= 2 && filteredMapGroups.value.length === 0) return false
+  if (sidebarReaches.value.length === 0) return false
+  if (query.value.length >= 2 && filteredSidebarGroups.value.length === 0) return false
   return true
 })
 
 // ── Map interaction ───────────────────────────────────────────────────────────
 const mapRef      = ref<{ flyToSlug: (slug: string) => void; reloadSource: () => Promise<void> } | null>(null)
 const hoveredSlug = ref<string | null>(null)
-const mapReaches  = ref<ReachListItem[]>([])
+const mapReaches  = ref<ReachListItem[]>([])   // viewport-filtered (from map moveend)
+const allReaches  = ref<ReachListItem[]>([])   // all loaded from source (not viewport-filtered)
 const mapZoom     = ref(4)
+
+// ── Zoom & Filter toggle ──────────────────────────────────────────────────────
+const zoomFilter = ref(false)
+// auto-enable when source loads >100 runs
+watch(allReaches, (reaches) => {
+  if (reaches.length > 100) zoomFilter.value = true
+})
+
+// sidebar source: all loaded OR viewport-filtered based on toggle
+const sidebarReaches = computed((): ReachListItem[] =>
+  zoomFilter.value ? mapReaches.value : allReaches.value
+)
+
+// ── Collapsible river groups ──────────────────────────────────────────────────
+const collapsedRivers = ref(new Set<string>())
+
+function toggleRiverCollapse(name: string) {
+  const next = new Set(collapsedRivers.value)
+  if (next.has(name)) next.delete(name)
+  else                next.add(name)
+  collapsedRivers.value = next
+}
 
 const reachRefs = new Map<string, HTMLElement>()
 function setReachRef(slug: string, el: HTMLElement | null) {
@@ -628,6 +679,10 @@ function onReachesUpdated(r: ReachListItem[]) {
     pendingFocusSlug = null
     router.replace({ query: {} })
   }
+}
+
+function onAllReachesUpdated(r: ReachListItem[]) {
+  allReaches.value = r
 }
 
 function onMapHover(slug: string | null) {
