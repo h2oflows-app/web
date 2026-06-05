@@ -1227,8 +1227,7 @@ function splitReachGroups(reaches: WatchedGauge[]): SplitGroups {
   const gaugeGroups: GaugeGroup[] = []
   const ungrouped: WatchedGauge[] = []
   for (const all of map.values()) {
-    if (all.length > 1) gaugeGroups.push({ lead: all[0]!, all })
-    else ungrouped.push(all[0]!)
+    gaugeGroups.push({ lead: all[0]!, all })
   }
   return { gaugeGroups, ungrouped }
 }
