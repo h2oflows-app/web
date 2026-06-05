@@ -524,7 +524,11 @@ async function browseUser() {
   try {
     const res = await fetch(`${apiBase}/api/v1/users/${encodeURIComponent(raw)}`)
     if (!res.ok) { browseError.value = 'User not found'; return }
-    browseHandle.value = raw
+    if (browseHandle.value !== raw) {
+      browseHandle.value = raw  // triggers mapSourceUrl change → RunsMap watch auto-reloads
+    } else {
+      await mapRef.value?.reloadSource()  // same handle: force refresh
+    }
   } catch {
     browseError.value = 'Failed to reach server'
   } finally {

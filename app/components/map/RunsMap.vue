@@ -346,6 +346,13 @@ let allServerFeatures: ReachFeature[] = []
 /** One-time load of the full cached dataset from the server. */
 async function loadAllReaches() {
   if (!map) return
+  // null = explicit "no data" (e.g. browse tab with no handle selected); undefined = default curated
+  if (props.sourceUrl === null) {
+    allServerFeatures = []
+    loadedFeatures = []
+    filterVisible()
+    return
+  }
   const url = props.sourceUrl ?? `${apiBase}/api/v1/reaches/map/all`
   const headers = props.sourceHeaders ?? {}
   const hasHeaders = Object.keys(headers).length > 0
@@ -373,10 +380,10 @@ async function loadAllReaches() {
 
 /** Reload features from the current source (called when sourceUrl/sourceHeaders change). */
 async function reloadSource() {
-  // Clear immediately so map gives feedback during fetch; loadAllReaches re-populates.
   allServerFeatures = []
   loadedFeatures = []
   filterVisible()
+  if (props.sourceUrl === null) return  // null = explicit empty, no fetch
   await loadAllReaches()
 }
 
