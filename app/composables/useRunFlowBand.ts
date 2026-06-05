@@ -3,12 +3,15 @@ import { bandForCfs as computeBandForCfs, flowStatusForColorKey } from '~/utils/
 
 export function useRunFlowBand() {
   const { apiBase } = useRuntimeConfig().public
+  const { getToken } = useAuth()
   const cache = reactive<Record<string, FlowBands>>({})
 
   async function prefetch(slug: string) {
     if (slug in cache) return
     try {
-      const res = await fetch(`${apiBase}/api/v1/reaches/${slug}/flow-ranges`)
+      const token = await getToken()
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+      const res = await fetch(`${apiBase}/api/v1/me/runs/${slug}/flow-ranges`, { headers })
       if (res.ok) cache[slug] = await res.json()
     } catch {}
   }
