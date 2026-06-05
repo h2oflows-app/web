@@ -31,80 +31,24 @@
             </div>
           </div>
 
-          <!-- Icon toolbar -->
-          <div class="shrink-0 flex items-center gap-1 mt-0.5">
-            <!-- Owner controls -->
-            <template v-if="isOwnRun">
-              <NuxtLink
-                :to="`/my/runs/${runSlug}`"
-                class="flex items-center justify-center p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-colors"
-                title="Edit run"
-              >
-                <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
-              </NuxtLink>
-              <button
-                :disabled="deleting"
-                class="flex items-center justify-center p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-400 hover:text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors disabled:opacity-40"
-                title="Delete run"
-                @click="confirmDelete"
-              >
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6m4-6v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-                </svg>
-              </button>
-            </template>
+          <!-- Toolbar -->
+          <div class="shrink-0 flex items-center gap-1.5 mt-0.5">
 
-            <!-- Non-owner controls -->
-            <template v-else>
-              <!-- Upvote -->
-              <button
-                class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors"
-                :class="userUpvoted
-                  ? 'bg-primary-50 dark:bg-primary-950 border-primary-300 dark:border-primary-700 text-primary-600 dark:text-primary-400'
-                  : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:border-primary-300 hover:text-primary-600'"
-                :disabled="upvoteLoading || !isAuthenticated"
-                :title="isAuthenticated ? 'Upvote this run' : 'Sign in to upvote'"
-                @click="toggleUpvote"
-              >
-                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/>
-                  <path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/>
-                </svg>
-                {{ upvoteCount }}
-              </button>
+            <!-- Edit (owner or admin) -->
+            <NuxtLink
+              v-if="isOwnRun || isDataAdmin"
+              :to="`/my/runs/${runSlug}`"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/30 hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
+              title="Edit run"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
+              <span class="hidden sm:inline">Edit</span>
+            </NuxtLink>
 
-              <!-- Fork (auth only) -->
-              <button
-                v-if="isAuthenticated"
-                :disabled="forking"
-                class="flex items-center justify-center p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors disabled:opacity-40"
-                title="Fork this run — create your own copy"
-                @click="forkRun"
-              >
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/>
-                  <path d="M12 7v3m0 0c0 2-2 3-4 3H7m5 0c0 2 2 3 4 3h1"/>
-                </svg>
-              </button>
-
-              <!-- Flag (auth only) -->
-              <button
-                v-if="isAuthenticated && !flagDone"
-                class="flex items-center justify-center p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-400 hover:text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
-                title="Flag as inappropriate"
-                @click="flagOpen = true"
-              >
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
-                </svg>
-              </button>
-              <span v-else-if="flagDone" class="text-xs text-red-400 px-1">Flagged</span>
-            </template>
-
-            <!-- Share button (all users) -->
+            <!-- Share (all users) -->
             <button
               v-if="run"
-              class="flex items-center justify-center p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-colors"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/30 hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
               title="Share"
               @click="shareOpen = true"
             >
@@ -112,9 +56,69 @@
                 <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
                 <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
               </svg>
+              <span class="hidden sm:inline">Share</span>
             </button>
 
-            <!-- Dashboard picker (auth, all users) -->
+            <!-- Upvote (non-owner) -->
+            <button
+              v-if="!isOwnRun"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-sm font-medium transition-colors"
+              :class="userUpvoted
+                ? 'bg-primary-50 dark:bg-primary-950 border-primary-300 dark:border-primary-700 text-primary-600 dark:text-primary-400'
+                : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:border-primary-300 hover:text-primary-600'"
+              :disabled="upvoteLoading || !isAuthenticated"
+              :title="isAuthenticated ? 'Upvote this run' : 'Sign in to upvote'"
+              @click="toggleUpvote"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/>
+                <path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/>
+              </svg>
+              {{ upvoteCount }}
+            </button>
+
+            <!-- Fork (auth, non-owner) -->
+            <button
+              v-if="isAuthenticated && !isOwnRun"
+              :disabled="forking"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors disabled:opacity-40"
+              title="Fork this run — create your own copy"
+              @click="forkRun"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/>
+                <path d="M12 7v3m0 0c0 2-2 3-4 3H7m5 0c0 2 2 3 4 3h1"/>
+              </svg>
+              <span class="hidden sm:inline">Fork</span>
+            </button>
+
+            <!-- Delete (owner only) -->
+            <button
+              v-if="isOwnRun"
+              :disabled="deleting"
+              class="inline-flex items-center justify-center p-2 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-400 hover:text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors disabled:opacity-40"
+              title="Delete run"
+              @click="confirmDelete"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6m4-6v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+              </svg>
+            </button>
+
+            <!-- Flag (auth, non-owner) -->
+            <button
+              v-if="isAuthenticated && !isOwnRun && !flagDone"
+              class="inline-flex items-center justify-center p-2 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-400 hover:text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+              title="Flag as inappropriate"
+              @click="flagOpen = true"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
+              </svg>
+            </button>
+            <span v-else-if="flagDone" class="text-xs text-red-400 px-1">Flagged</span>
+
+            <!-- Dashboard picker (auth) -->
             <RunDashboardMembershipPicker v-if="isAuthenticated && run" :slug="run.slug" :reach-id="run.id" />
           </div>
         </div>
@@ -325,7 +329,7 @@ import { bandForCfs as computeBandForCfs, colorKeyToHex, colorKeyToBadgeClass } 
 const route  = useRoute()
 const router = useRouter()
 const config = useRuntimeConfig()
-const { isAuthenticated, getToken } = useAuth()
+const { isAuthenticated, isDataAdmin, getToken } = useAuth()
 const { apiBase } = config.public
 const { bandBadgeClass } = useFlowBandPalette()
 
