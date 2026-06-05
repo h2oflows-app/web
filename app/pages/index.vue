@@ -141,10 +141,11 @@
               ref="mapRef"
               embedded
               :hovered-slug="heroHoveredSlug"
+              :source-url="`${apiBase}/api/v1/users/h2oflows/runs/map/all`"
               @reaches-updated="onReachesUpdated"
               @bounds-updated="onBoundsUpdated"
               @hover-changed="slug => heroHoveredSlug = slug"
-              @reach-click="p => navigateTo(`/runs/${p.authorHandle ?? 'h2oflows'}/${p.slug}`)"
+              @reach-click="p => navigateTo(`/runs/h2oflows/${p.slug}`)"
               @gauge-add="addGaugeById"
             />
           </ClientOnly>
