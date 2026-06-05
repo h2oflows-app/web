@@ -26,14 +26,14 @@
           <GaugeSparkline
             :gauge-id="leadGauge.id"
             flow-status="unknown"
-            color="#3b82f6"
+            :color="gaugeHeaderHex"
             compact
             :poll-health="leadGauge.pollHealth"
             :last-reading-at="leadGauge.lastReadingAt"
             @latest-cfs="liveCfs = $event"
           />
         </div>
-        <span class="shrink-0 whitespace-nowrap text-right text-base font-bold tabular-nums text-neutral-900 dark:text-white">
+        <span class="shrink-0 whitespace-nowrap text-right text-base font-bold tabular-nums" :style="{ color: gaugeHeaderHex }">
           {{ currentCfs != null ? Math.round(currentCfs).toLocaleString() : '—' }} <span class="text-xs font-normal text-neutral-400 dark:text-neutral-500">cfs</span>
         </span>
         <TrashButton label="Remove gauge group" @click="$emit('remove-group')" />
@@ -108,7 +108,7 @@
             <span v-if="riverDisplayName && !hideRiverName" class="text-xs text-neutral-400 dark:text-neutral-500 truncate block leading-tight">{{ riverDisplayName }}</span>
           </div>
           <div class="text-right shrink-0">
-            <div class="font-bold tabular-nums leading-none text-neutral-900 dark:text-white text-2xl">
+            <div class="font-bold tabular-nums leading-none text-2xl" :style="{ color: gaugeHeaderHex }">
               {{ currentCfs != null ? Math.round(currentCfs).toLocaleString() : '—' }}
             </div>
             <div class="text-xs text-neutral-400">cfs</div>
@@ -120,7 +120,7 @@
           <GaugeSparkline
             :gauge-id="leadGauge.id"
             flow-status="unknown"
-            color="#3b82f6"
+            :color="gaugeHeaderHex"
             :compact="false"
             :poll-health="leadGauge.pollHealth"
             :last-reading-at="leadGauge.lastReadingAt"
@@ -143,7 +143,7 @@
             </div>
           </div>
           <div class="text-right shrink-0">
-            <div class="font-bold tabular-nums leading-none text-neutral-900 dark:text-white text-3xl">
+            <div class="font-bold tabular-nums leading-none text-3xl" :style="{ color: gaugeHeaderHex }">
               {{ currentCfs != null ? Math.round(currentCfs).toLocaleString() : '—' }}
             </div>
             <div class="text-xs text-neutral-400 mt-0.5">cfs</div>
@@ -154,7 +154,7 @@
           <GaugeSparkline
             :gauge-id="leadGauge.id"
             flow-status="unknown"
-            color="#3b82f6"
+            :color="gaugeHeaderHex"
             :compact="false"
             :poll-health="leadGauge.pollHealth"
             :last-reading-at="leadGauge.lastReadingAt"
@@ -200,7 +200,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import type { WatchedGauge } from '~/stores/watchlist'
-import { colorKeyToBadgeClass } from '~/utils/flowBand'
+import { colorKeyToBadgeClass, colorKeyToHex } from '~/utils/flowBand'
 
 const props = defineProps<{
   leadGauge: WatchedGauge
@@ -249,6 +249,13 @@ onMounted(prefetchAll)
 watch(() => props.reachItems, prefetchAll)
 
 const currentCfs = computed(() => liveCfs.value ?? props.leadGauge.currentCfs)
+
+// Color gauge header CFS + sparkline by first run's band (V14)
+const gaugeHeaderColor = computed((): string | null => {
+  if (props.reachItems.length === 0) return null
+  return displayBandColor(props.reachItems[0])
+})
+const gaugeHeaderHex = computed(() => colorKeyToHex(gaugeHeaderColor.value) ?? '#9ca3af')
 
 const gaugeShortLabel = computed(() =>
   `${props.leadGauge.source.toUpperCase()}-${props.leadGauge.externalId}`
