@@ -440,7 +440,6 @@
               @click="openStandaloneCustomGauge(cg)"
             >
               <div class="min-w-0 flex-1 flex items-center gap-1.5">
-                <svg class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
                 <span class="text-sm font-medium truncate">{{ cg.name }}</span>
                 <span v-if="cg.any_input_unhealthy" class="hidden sm:inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 shrink-0">Stale</span>
               </div>
@@ -465,7 +464,6 @@
               <div class="flex items-start gap-3">
                 <div class="min-w-0 flex-1">
                   <div class="flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
                     <span class="text-base font-semibold truncate block">{{ cg.name }}</span>
                   </div>
                   <p v-if="cg.description" class="text-xs text-neutral-400 truncate mt-0.5">{{ cg.description }}</p>
