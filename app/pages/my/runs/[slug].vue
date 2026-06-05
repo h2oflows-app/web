@@ -167,6 +167,17 @@
             <textarea v-model="form.note" rows="3" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm resize-y" placeholder="Beta, access, permanent hazards…" />
           </div>
 
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1">Class min</label>
+              <input v-model.number="form.classMin" type="number" min="1" max="6" step="0.5" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="3" />
+            </div>
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1">Class max</label>
+              <input v-model.number="form.classMax" type="number" min="1" max="6" step="0.5" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="5" />
+            </div>
+          </div>
+
           <!-- Privacy toggle -->
           <div class="flex items-center justify-between">
             <div>
@@ -189,9 +200,9 @@
           </div>
         </div>
 
-        <!-- Flow Lines card -->
+        <!-- Geometry card -->
         <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-3">
-          <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Flow Lines</p>
+          <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Geometry</p>
 
           <!-- Clear Flow Lines / pick mode -->
           <div class="flex flex-wrap items-center gap-2">
@@ -201,7 +212,7 @@
                 ? 'border-primary-500 bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300'
                 : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-neutral-300 dark:hover:border-neutral-600'"
               @click="togglePickMode"
-            >{{ repinPickMode ? 'Cancel' : 'Clear Flow Lines' }}</button>
+            >{{ repinPickMode ? 'Cancel' : 'Clear Geometry' }}</button>
             <span v-if="repinAnchorSnapping" class="text-xs text-primary-600 dark:text-primary-400 animate-pulse">Snapping to NHD…</span>
             <span v-if="repinAnchorError" class="text-xs text-red-500">{{ repinAnchorError }}</span>
           </div>
@@ -267,9 +278,12 @@
           </div>
         </div>
 
-        <!-- Gauge card -->
-        <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-3">
-          <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Gauge</p>
+        <!-- Flows section: Gauge + Flow Bands -->
+        <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 divide-y divide-neutral-100 dark:divide-neutral-800">
+
+        <!-- Gauge subsection -->
+        <div class="p-4 space-y-3">
+          <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Flows</p>
 
           <!-- Gauge select toggle (only available when flow lines anchor is set) -->
           <div v-if="repinAnchorSnap || repinDownstream" class="flex items-center gap-2 text-xs flex-wrap">
@@ -377,28 +391,14 @@
             </template>
             <p v-else class="text-xs text-neutral-400 italic">None</p>
           </div>
+        </div><!-- end gauge subsection -->
+
+        <!-- Flow Bands subsection -->
+        <div class="p-4">
+          <FlowBandEditor v-model="form.flowBands" />
         </div>
 
-        <!-- Flow Bands & Difficulty -->
-        <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-4">
-          <div>
-            <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium mb-2">Difficulty</p>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs text-neutral-500 mb-1">Class min</label>
-                <input v-model.number="form.classMin" type="number" min="1" max="6" step="0.5" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="3" />
-              </div>
-              <div>
-                <label class="block text-xs text-neutral-500 mb-1">Class max</label>
-                <input v-model.number="form.classMax" type="number" min="1" max="6" step="0.5" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="5" />
-              </div>
-            </div>
-          </div>
-          <div>
-            <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium mb-2">Flow Bands</p>
-            <FlowBandEditor v-model="form.flowBands" />
-          </div>
-        </div>
+        </div><!-- end Flows section -->
 
         <!-- Features list -->
         <div v-if="reach && (reach.rapids.length > 0 || reach.access_points.length > 0)" class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-2">
