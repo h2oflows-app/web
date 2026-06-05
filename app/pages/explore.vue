@@ -76,7 +76,7 @@
               type="checkbox"
               class="rounded w-3 h-3 accent-primary-500 cursor-pointer"
             />
-            Zoom &amp; Filter
+            Filter to view
           </label>
           <span class="text-xs text-neutral-400 tabular-nums">{{ sidebarCount }} runs</span>
         </div>
@@ -237,14 +237,18 @@
                   </button>
                 </div>
               </div>
-              <!-- View link -->
+              <!-- Edit (mine) / View (browse) link -->
               <NuxtLink
                 :to="activeTab === 'browse' ? `/runs/${browseHandle}/${reach.slug}` : `/my/runs/${reach.slug}`"
                 class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-opacity opacity-60 sm:opacity-0 sm:group-hover:opacity-100 hover:opacity-100"
-                aria-label="View run"
+                :aria-label="activeTab === 'browse' ? 'View run' : 'Edit run'"
                 @click.stop
               >
-                <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <!-- Pencil for edit (mine), external-link for browse -->
+                <svg v-if="activeTab !== 'browse'" class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/>
+                </svg>
+                <svg v-else class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </NuxtLink>
@@ -267,7 +271,7 @@
           </span>
           <button
             class="shrink-0 flex items-center gap-1 text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 transition-colors font-medium"
-            @click="clearBrowse"
+            @click="clearBrowse(); setTab('mine')"
           >
             <svg class="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4 4 12M4 4l8 8"/></svg>
             My Runs
