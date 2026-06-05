@@ -481,7 +481,7 @@ async function loadDashboardMembership() {
     const data = await res.json()
     const m = new Map<string, Set<string>>()
     for (const item of (data.items ?? [])) {
-      if (item.reach_slug && item.dashboard_id && item.gauge_id == null) {
+      if (item.reach_slug && item.dashboard_id) {
         if (!m.has(item.dashboard_id)) m.set(item.dashboard_id, new Set())
         m.get(item.dashboard_id)!.add(item.reach_slug)
       }
@@ -662,7 +662,7 @@ async function openUserReachDropdown(r: ReachListItem) {
     const data = await res.json()
     const ids = new Set<string>()
     for (const item of (data.items ?? [])) {
-      if (item.reach_slug === r.slug && item.gauge_id == null && item.dashboard_id) {
+      if (item.reach_slug === r.slug && item.dashboard_id) {
         ids.add(item.dashboard_id)
       }
     }
