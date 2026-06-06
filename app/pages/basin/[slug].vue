@@ -82,8 +82,11 @@
               :class="bandBadgeClass(null, reach.flow_status)"
             >{{ flowBandLabel(null, reach.flow_status) }}</span>
           </div>
-          <div v-if="mapData.length === 0 && reachSlugs.length > 0" class="px-4 py-6 text-center text-sm text-neutral-400">
+          <div v-if="!fetchDone && reachSlugs.length > 0" class="px-4 py-6 text-center text-sm text-neutral-400">
             Loading runs…
+          </div>
+          <div v-else-if="fetchDone && mapData.length === 0 && reachSlugs.length > 0" class="px-4 py-6 text-center text-sm text-neutral-400">
+            No centerlines available for these runs yet.
           </div>
         </section>
 

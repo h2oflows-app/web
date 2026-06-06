@@ -17,8 +17,9 @@
   NUXT_PUBLIC_API_BASE = "https://api.h2oflows.app"
 
 # SPA fallback — any path without a matching static file (e.g. /dashboard, /trips,
-# /confirm) gets served the Nuxt-generated 200.html so client-side routing takes over.
+# /confirm) gets served index.html so client-side routing takes over.
+# Nuxt 4 generate outputs index.html, not 200.html.
 [[redirects]]
   from   = "/*"
-  to     = "/200.html"
+  to     = "/index.html"
   status = 200
