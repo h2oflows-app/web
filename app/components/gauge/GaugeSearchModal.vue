@@ -353,7 +353,7 @@
                 class="shrink-0 text-xs rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-200 px-2 py-1.5"
                 @change="onGaugeInput"
               >
-                <option value="">--</option>
+                <option value="" disabled>State…</option>
                 <option v-for="s in US_STATES" :key="s.code" :value="s.code">{{ s.code }} — {{ s.name }}</option>
               </select>
               <input
@@ -365,8 +365,8 @@
               />
             </div>
             <p v-if="gaugeState === 'CO'" class="text-[10px] text-neutral-400 px-1">USGS + Colorado DWR (search by name or station abbreviation).</p>
-            <p v-else-if="gaugeState" class="text-[10px] text-neutral-400 px-1">USGS only for {{ gaugeState }}. Select a different state to include that state's water resource API.</p>
-            <p v-else class="text-[10px] text-neutral-400 px-1">USGS national search. Select a state to also include that state's water resource API.</p>
+            <p v-else-if="gaugeState" class="text-[10px] text-neutral-400 px-1">USGS for {{ gaugeState }}. Select CO to also include Colorado DWR.</p>
+            <p v-else class="text-[10px] text-amber-500 px-1">Select a state to search.</p>
             <div v-if="gaugeLoading" class="space-y-2 py-1">
               <div v-for="i in 3" :key="i" class="flex items-center gap-3 px-2 py-2">
                 <div class="flex-1 h-4 rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse"/>
@@ -696,7 +696,7 @@ function onGaugeInput() {
 
 async function searchGauges() {
   const q = gaugeQuery.value.trim()
-  if (!q) { gaugeResults.value = []; return }
+  if (!q || !gaugeState.value) { gaugeResults.value = []; return }
   gaugeLoading.value = true
   try {
     const params = new URLSearchParams({ q })
