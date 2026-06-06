@@ -32,6 +32,8 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { useRouter } from '#app'
 import type { WatchedGauge } from '~/stores/watchlist'
 
+const { getToken } = useAuth()
+
 const props = defineProps<{ gauges: WatchedGauge[] }>()
 const emit  = defineEmits<{
   (e: 'remove-gauge', id: string): void
@@ -178,8 +180,10 @@ async function refreshData() {
 
   let bySlug = new Map<string, any>()
   try {
-    // Load all reaches (cached server-side) so we can show context lines
-    const res = await fetch(`${apiBase}/api/v1/reaches/map/all`)
+    // Load user runs map (user_reaches) for centerline fallback — slugs match contextReachSlug
+    const token = await getToken()
+    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
+    const res = await fetch(`${apiBase}/api/v1/me/runs/map/all`, { headers })
     if (!res.ok) return
     const fc = await res.json()
     if (seq !== fetchSeq) return          // a newer call superseded us — discard
