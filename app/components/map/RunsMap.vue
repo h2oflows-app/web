@@ -67,6 +67,7 @@ export interface ReachListItem {
   current_cfs:  number | null
   author_handle: string | null
   river_name:   string | null
+  gauge_id:     string | null
 }
 
 const props = defineProps<{
@@ -352,6 +353,7 @@ function emitAllReaches() {
     current_cfs:   f.properties.current_cfs ?? null,
     author_handle: f.properties.author_handle ?? null,
     river_name:    f.properties.river_name ?? null,
+    gauge_id:      f.properties.gauge_id ?? null,
   })))
 }
 
@@ -432,6 +434,7 @@ function filterVisible() {
     current_cfs:   f.properties.current_cfs ?? null,
     author_handle: f.properties.author_handle ?? null,
     river_name:    f.properties.river_name ?? null,
+    gauge_id:      f.properties.gauge_id ?? null,
   })))
 }
 
