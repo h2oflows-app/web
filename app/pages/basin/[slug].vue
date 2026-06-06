@@ -190,17 +190,17 @@ const reachSlugs = computed<string[]>(() => {
   return out
 })
 
-async function fetchMapData(params: URLSearchParams) {
-  const res = await fetch(`${apiBase}/api/v1/reaches/basin/${slug}/map?${params}`)
+async function fetchMapData(params: URLSearchParams, headers: HeadersInit) {
+  const res = await fetch(`${apiBase}/api/v1/reaches/basin/${slug}/map?${params}`, { headers })
   if (!res.ok) return
   const body = await res.json()
   mapData.value = body.reaches ?? []
 }
 
-async function fetchNetworkData(params: URLSearchParams) {
+async function fetchNetworkData(params: URLSearchParams, headers: HeadersInit) {
   networkLoading.value = true
   try {
-    const res = await fetch(`${apiBase}/api/v1/reaches/basin/${slug}/network?${params}`)
+    const res = await fetch(`${apiBase}/api/v1/reaches/basin/${slug}/network?${params}`, { headers })
     if (!res.ok) return
     const body = await res.json()
     networkData.value = { tributaries: body.tributaries, gauges: body.gauges }
@@ -223,8 +223,15 @@ async function fetchAll() {
   if (reachSlugs.value.length > 0) {
     params.set('slugs', reachSlugs.value.join(','))
   }
+
+  const headers: Record<string, string> = {}
+  if (isAuthenticated.value) {
+    const token = await getToken()
+    if (token) headers['Authorization'] = `Bearer ${token}`
+  }
+
   try {
-    await Promise.all([fetchMapData(params), fetchNetworkData(params)])
+    await Promise.all([fetchMapData(params, headers), fetchNetworkData(params, headers)])
   } catch (e) {
     console.warn('[basin page] fetch:', e)
   } finally {
