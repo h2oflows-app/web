@@ -22,7 +22,7 @@
           </select>
         </div>
 
-        <!-- 2-tab bar (V13) -->
+        <!-- 3-tab bar -->
         <div class="flex items-center gap-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg p-1 self-start">
           <button
             v-for="t in TABS" :key="t.key"
@@ -296,6 +296,99 @@
           </div>
         </template>
 
+        <!-- ── Gauges tab ── -->
+        <template v-if="activeTab === 'gauges'">
+          <!-- Custom gauges section -->
+          <div class="space-y-1">
+            <p class="text-xs font-semibold text-neutral-400 uppercase tracking-wide px-1">My Custom Gauges</p>
+            <input
+              v-model="gaugeTabQuery"
+              type="search"
+              placeholder="Filter custom gauges…"
+              class="w-full text-sm bg-neutral-100 dark:bg-neutral-900 rounded-md px-3 py-2 text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            />
+            <div v-if="customGaugesLoading" class="space-y-2 py-1">
+              <div v-for="i in 3" :key="i" class="flex items-center gap-3 px-2 py-2">
+                <div class="flex-1 h-4 rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse"/>
+                <div class="h-7 w-16 rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse"/>
+              </div>
+            </div>
+            <div v-else-if="customGauges.length === 0" class="text-xs text-neutral-400 px-1 py-2">
+              No custom gauges yet.
+              <NuxtLink to="/my/runs/new" class="text-primary-500 hover:underline" @click="open = false">Create one →</NuxtLink>
+            </div>
+            <ul v-else class="divide-y divide-neutral-100 dark:divide-neutral-800 max-h-[28vh] overflow-y-auto">
+              <li
+                v-for="cg in filteredCustomGauges"
+                :key="cg.id"
+                class="flex items-center gap-3 py-2 px-2 hover:bg-primary-50 dark:hover:bg-primary-950/30 rounded-lg transition-colors"
+              >
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">{{ cg.name }}</p>
+                  <p v-if="cg.last_value_cfs != null" class="text-xs text-neutral-400">
+                    {{ Math.round(cg.last_value_cfs).toLocaleString() }} {{ cg.unit }}
+                  </p>
+                </div>
+                <button
+                  class="shrink-0 px-2.5 py-1 rounded-md text-xs font-medium bg-primary-600 hover:bg-primary-700 text-white transition-colors"
+                  :disabled="addingCustomId === cg.id"
+                  @click="addCustomGauge(cg)"
+                >
+                  <span v-if="addingCustomId === cg.id" class="flex items-center gap-1">
+                    <span class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+                    Adding…
+                  </span>
+                  <span v-else>Add</span>
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          <!-- USGS/DWR search section -->
+          <div class="space-y-1 pt-1 border-t border-neutral-100 dark:border-neutral-800">
+            <p class="text-xs font-semibold text-neutral-400 uppercase tracking-wide px-1">USGS / DWR Gauges</p>
+            <input
+              v-model="gaugeQuery"
+              type="search"
+              placeholder="Search by station name or ID…"
+              class="w-full text-sm bg-neutral-100 dark:bg-neutral-900 rounded-md px-3 py-2 text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              @input="onGaugeInput"
+            />
+            <div v-if="gaugeLoading" class="space-y-2 py-1">
+              <div v-for="i in 3" :key="i" class="flex items-center gap-3 px-2 py-2">
+                <div class="flex-1 h-4 rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse"/>
+                <div class="h-7 w-16 rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse"/>
+              </div>
+            </div>
+            <div v-else-if="gaugeQuery.trim() && gaugeResults.length === 0" class="text-xs text-neutral-400 px-1 py-2">
+              No gauges found for "{{ gaugeQuery }}"
+            </div>
+            <ul v-else-if="gaugeResults.length > 0" class="divide-y divide-neutral-100 dark:divide-neutral-800 max-h-[28vh] overflow-y-auto">
+              <li
+                v-for="g in gaugeResults"
+                :key="g.id"
+                class="flex items-center gap-3 py-2 px-2 hover:bg-primary-50 dark:hover:bg-primary-950/30 rounded-lg transition-colors"
+              >
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">{{ g.name }}</p>
+                  <p class="text-xs text-neutral-400 font-mono">{{ g.source.toUpperCase() }} · {{ g.external_id }}</p>
+                </div>
+                <button
+                  class="shrink-0 px-2.5 py-1 rounded-md text-xs font-medium bg-primary-600 hover:bg-primary-700 text-white transition-colors"
+                  :disabled="addingGaugeId === g.id"
+                  @click="addGaugeResult(g)"
+                >
+                  <span v-if="addingGaugeId === g.id" class="flex items-center gap-1">
+                    <span class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+                    Adding…
+                  </span>
+                  <span v-else>Add</span>
+                </button>
+              </li>
+            </ul>
+          </div>
+        </template>
+
       </div>
     </template>
     <template #footer>
@@ -342,11 +435,12 @@ watch(() => db.activeDashboardId.value, (id) => {
   }
 })
 
-// ── Tabs (V13) ────────────────────────────────────────────────────────────────
-type TabKey = 'mine' | 'discover'
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+type TabKey = 'mine' | 'discover' | 'gauges'
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'mine',     label: 'My Runs' },
   { key: 'discover', label: 'Discover' },
+  { key: 'gauges',   label: 'Gauges' },
 ]
 const activeTab = ref<TabKey>(props.initialTab)
 
@@ -354,6 +448,7 @@ function setTab(key: TabKey) {
   activeTab.value = key
   if (key === 'mine' && myRuns.value.length === 0 && !myRunsLoading.value) loadMyRuns()
   if (key === 'discover' && discoverRuns.value.length === 0) loadDiscoverRuns()
+  if (key === 'gauges' && customGauges.value.length === 0) loadCustomGauges()
 }
 
 watch(open, (v) => {
@@ -366,10 +461,14 @@ watch(open, (v) => {
     forkedForRunId.value = null
     pendingForkedSlug.value = null
     pendingForkedGaugeId.value = null
+    gaugeQuery.value = ''
+    gaugeResults.value = []
+    gaugeTabQuery.value = ''
   } else {
     if (db.activeDashboardId.value) selectedDashboardId.value = db.activeDashboardId.value
     if (activeTab.value === 'mine') loadMyRuns()
-    else loadDiscoverRuns()
+    else if (activeTab.value === 'discover') loadDiscoverRuns()
+    else if (activeTab.value === 'gauges') loadCustomGauges()
   }
 })
 
@@ -539,6 +638,96 @@ async function confirmForkDashboard(dashId: string | null) {
 function cancelFork() {
   forkedForRunId.value = null
   pendingForkedSlug.value = null
+}
+
+// ── Gauges tab ────────────────────────────────────────────────────────────────
+interface GaugeResult { id: string; name: string; external_id: string; source: string }
+interface CustomGaugeSummary { id: string; slug: string; name: string; description: string | null; unit: string; last_value_cfs: number | null }
+
+const gaugeQuery       = ref('')
+const gaugeResults     = ref<GaugeResult[]>([])
+const gaugeLoading     = ref(false)
+const addingGaugeId    = ref<string | null>(null)
+const customGauges     = ref<CustomGaugeSummary[]>([])
+const customGaugesLoading = ref(false)
+const addingCustomId   = ref<string | null>(null)
+const gaugeTabQuery    = ref('')
+
+let gaugeDebounce: ReturnType<typeof setTimeout> | null = null
+function onGaugeInput() {
+  if (gaugeDebounce) clearTimeout(gaugeDebounce)
+  gaugeDebounce = setTimeout(searchGauges, 350)
+}
+
+async function searchGauges() {
+  const q = gaugeQuery.value.trim()
+  if (!q) { gaugeResults.value = []; return }
+  gaugeLoading.value = true
+  try {
+    const res = await fetch(`${apiBase}/api/v1/gauges/search?q=${encodeURIComponent(q)}&limit=20`)
+    if (!res.ok) return
+    const data = await res.json()
+    gaugeResults.value = (data.features ?? []).map((f: any) => f.properties as GaugeResult)
+  } catch { /* non-fatal */ } finally {
+    gaugeLoading.value = false
+  }
+}
+
+async function loadCustomGauges() {
+  customGaugesLoading.value = true
+  try {
+    const token = await getToken()
+    if (!token) return
+    const res = await fetch(`${apiBase}/api/v1/me/custom-gauges`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      const data = await res.json()
+      customGauges.value = data.items ?? []
+    }
+  } catch { /* non-fatal */ } finally {
+    customGaugesLoading.value = false
+  }
+}
+
+const filteredCustomGauges = computed(() => {
+  const q = gaugeTabQuery.value.trim().toLowerCase()
+  if (!q) return customGauges.value
+  return customGauges.value.filter(cg => cg.name.toLowerCase().includes(q))
+})
+
+async function addCustomGauge(cg: CustomGaugeSummary) {
+  addingCustomId.value = cg.id
+  try {
+    const token = await getToken()
+    if (!token) return
+    await fetch(`${apiBase}/api/v1/watchlist`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ custom_gauge_id: cg.id, dashboard_id: selectedDashboardId.value }),
+    })
+    emit('addedExternal', { kind: 'custom_gauge', customGaugeId: cg.id })
+    open.value = false
+  } finally {
+    addingCustomId.value = null
+  }
+}
+
+async function addGaugeResult(g: GaugeResult) {
+  addingGaugeId.value = g.id
+  try {
+    const token = await getToken()
+    if (!token) return
+    await fetch(`${apiBase}/api/v1/watchlist`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gauge_id: g.id, reach_slug: null, dashboard_id: selectedDashboardId.value }),
+    })
+    emit('addedExternal')
+    open.value = false
+  } finally {
+    addingGaugeId.value = null
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
