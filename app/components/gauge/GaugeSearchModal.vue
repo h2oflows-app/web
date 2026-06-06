@@ -86,7 +86,7 @@
         </template>
 
         <!-- ── Discover tab (V14-V19, V23) ── -->
-        <template v-else>
+        <template v-else-if="activeTab === 'discover'">
           <!-- Search input -->
           <input
             v-model="discoverQuery"
@@ -345,28 +345,39 @@
           </div>
 
           <!-- USGS/DWR search section -->
-          <div class="space-y-1 pt-1 border-t border-neutral-100 dark:border-neutral-800">
+          <div class="space-y-1.5 pt-1 border-t border-neutral-100 dark:border-neutral-800">
             <p class="text-xs font-semibold text-neutral-400 uppercase tracking-wide px-1">USGS / DWR Gauges</p>
-            <input
-              v-model="gaugeQuery"
-              type="search"
-              placeholder="Search by station name or ID…"
-              class="w-full text-sm bg-neutral-100 dark:bg-neutral-900 rounded-md px-3 py-2 text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              @input="onGaugeInput"
-            />
+            <div class="flex gap-2">
+              <select
+                v-model="gaugeState"
+                class="shrink-0 text-xs rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-200 px-2 py-1.5"
+                @change="onGaugeInput"
+              >
+                <option value="">All states</option>
+                <option v-for="s in US_STATES" :key="s.code" :value="s.code">{{ s.code }} — {{ s.name }}</option>
+              </select>
+              <input
+                v-model="gaugeQuery"
+                type="search"
+                placeholder="Station name or ID…"
+                class="flex-1 text-sm bg-neutral-100 dark:bg-neutral-900 rounded-md px-3 py-1.5 text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                @input="onGaugeInput"
+              />
+            </div>
+            <p v-if="gaugeState === 'CO'" class="text-[10px] text-neutral-400 px-1">Searches both USGS and Colorado DWR.</p>
             <div v-if="gaugeLoading" class="space-y-2 py-1">
               <div v-for="i in 3" :key="i" class="flex items-center gap-3 px-2 py-2">
                 <div class="flex-1 h-4 rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse"/>
                 <div class="h-7 w-16 rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse"/>
               </div>
             </div>
-            <div v-else-if="gaugeQuery.trim() && gaugeResults.length === 0" class="text-xs text-neutral-400 px-1 py-2">
-              No gauges found for "{{ gaugeQuery }}"
+            <div v-else-if="gaugeQuery.trim() && gaugeResults.length === 0 && !gaugeLoading" class="text-xs text-neutral-400 px-1 py-2">
+              No gauges found for "{{ gaugeQuery }}"{{ gaugeState ? ` in ${gaugeState}` : '' }}.
             </div>
             <ul v-else-if="gaugeResults.length > 0" class="divide-y divide-neutral-100 dark:divide-neutral-800 max-h-[28vh] overflow-y-auto">
               <li
                 v-for="g in gaugeResults"
-                :key="g.id"
+                :key="`${g.source}:${g.external_id}`"
                 class="flex items-center gap-3 py-2 px-2 hover:bg-primary-50 dark:hover:bg-primary-950/30 rounded-lg transition-colors"
               >
                 <div class="min-w-0 flex-1">
@@ -375,10 +386,10 @@
                 </div>
                 <button
                   class="shrink-0 px-2.5 py-1 rounded-md text-xs font-medium bg-primary-600 hover:bg-primary-700 text-white transition-colors"
-                  :disabled="addingGaugeId === g.id"
+                  :disabled="addingGaugeId === `${g.source}:${g.external_id}`"
                   @click="addGaugeResult(g)"
                 >
-                  <span v-if="addingGaugeId === g.id" class="flex items-center gap-1">
+                  <span v-if="addingGaugeId === `${g.source}:${g.external_id}`" class="flex items-center gap-1">
                     <span class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
                     Adding…
                   </span>
@@ -462,6 +473,7 @@ watch(open, (v) => {
     pendingForkedSlug.value = null
     pendingForkedGaugeId.value = null
     gaugeQuery.value = ''
+    gaugeState.value = ''
     gaugeResults.value = []
     gaugeTabQuery.value = ''
   } else {
@@ -641,10 +653,31 @@ function cancelFork() {
 }
 
 // ── Gauges tab ────────────────────────────────────────────────────────────────
-interface GaugeResult { id: string; name: string; external_id: string; source: string }
+const US_STATES = [
+  { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' }, { code: 'AZ', name: 'Arizona' },
+  { code: 'AR', name: 'Arkansas' }, { code: 'CA', name: 'California' }, { code: 'CO', name: 'Colorado' },
+  { code: 'CT', name: 'Connecticut' }, { code: 'DE', name: 'Delaware' }, { code: 'FL', name: 'Florida' },
+  { code: 'GA', name: 'Georgia' }, { code: 'HI', name: 'Hawaii' }, { code: 'ID', name: 'Idaho' },
+  { code: 'IL', name: 'Illinois' }, { code: 'IN', name: 'Indiana' }, { code: 'IA', name: 'Iowa' },
+  { code: 'KS', name: 'Kansas' }, { code: 'KY', name: 'Kentucky' }, { code: 'LA', name: 'Louisiana' },
+  { code: 'ME', name: 'Maine' }, { code: 'MD', name: 'Maryland' }, { code: 'MA', name: 'Massachusetts' },
+  { code: 'MI', name: 'Michigan' }, { code: 'MN', name: 'Minnesota' }, { code: 'MS', name: 'Mississippi' },
+  { code: 'MO', name: 'Missouri' }, { code: 'MT', name: 'Montana' }, { code: 'NE', name: 'Nebraska' },
+  { code: 'NV', name: 'Nevada' }, { code: 'NH', name: 'New Hampshire' }, { code: 'NJ', name: 'New Jersey' },
+  { code: 'NM', name: 'New Mexico' }, { code: 'NY', name: 'New York' }, { code: 'NC', name: 'North Carolina' },
+  { code: 'ND', name: 'North Dakota' }, { code: 'OH', name: 'Ohio' }, { code: 'OK', name: 'Oklahoma' },
+  { code: 'OR', name: 'Oregon' }, { code: 'PA', name: 'Pennsylvania' }, { code: 'RI', name: 'Rhode Island' },
+  { code: 'SC', name: 'South Carolina' }, { code: 'SD', name: 'South Dakota' }, { code: 'TN', name: 'Tennessee' },
+  { code: 'TX', name: 'Texas' }, { code: 'UT', name: 'Utah' }, { code: 'VT', name: 'Vermont' },
+  { code: 'VA', name: 'Virginia' }, { code: 'WA', name: 'Washington' }, { code: 'WV', name: 'West Virginia' },
+  { code: 'WI', name: 'Wisconsin' }, { code: 'WY', name: 'Wyoming' },
+]
+
+interface GaugeResult { name: string; external_id: string; source: string; lat: number | null; lng: number | null }
 interface CustomGaugeSummary { id: string; slug: string; name: string; description: string | null; unit: string; last_value_cfs: number | null }
 
 const gaugeQuery       = ref('')
+const gaugeState       = ref('')
 const gaugeResults     = ref<GaugeResult[]>([])
 const gaugeLoading     = ref(false)
 const addingGaugeId    = ref<string | null>(null)
@@ -664,10 +697,11 @@ async function searchGauges() {
   if (!q) { gaugeResults.value = []; return }
   gaugeLoading.value = true
   try {
-    const res = await fetch(`${apiBase}/api/v1/gauges/search?q=${encodeURIComponent(q)}&limit=20`)
+    const params = new URLSearchParams({ q })
+    if (gaugeState.value) params.set('state', gaugeState.value)
+    const res = await fetch(`${apiBase}/api/v1/gauges/search-external?${params}`)
     if (!res.ok) return
-    const data = await res.json()
-    gaugeResults.value = (data.features ?? []).map((f: any) => f.properties as GaugeResult)
+    gaugeResults.value = await res.json() ?? []
   } catch { /* non-fatal */ } finally {
     gaugeLoading.value = false
   }
@@ -714,14 +748,22 @@ async function addCustomGauge(cg: CustomGaugeSummary) {
 }
 
 async function addGaugeResult(g: GaugeResult) {
-  addingGaugeId.value = g.id
+  const key = `${g.source}:${g.external_id}`
+  addingGaugeId.value = key
   try {
     const token = await getToken()
     if (!token) return
-    await fetch(`${apiBase}/api/v1/watchlist`, {
+    await fetch(`${apiBase}/api/v1/me/gauges/add-external`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gauge_id: g.id, reach_slug: null, dashboard_id: selectedDashboardId.value }),
+      body: JSON.stringify({
+        external_id: g.external_id,
+        source: g.source,
+        name: g.name,
+        lat: g.lat,
+        lng: g.lng,
+        dashboard_id: selectedDashboardId.value,
+      }),
     })
     emit('addedExternal')
     open.value = false
