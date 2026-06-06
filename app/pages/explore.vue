@@ -745,7 +745,7 @@ async function openUserReachDropdown(r: ReachListItem) {
 }
 
 async function toggleDashboardForUserReach(r: ReachListItem, dashboardId: string) {
-  const { addReachToWatchlist } = useWatchlistSync()
+  const { addReachToWatchlist, addUserReachToWatchlist } = useWatchlistSync()
   if (membershipDashboardIds.value.has(dashboardId)) {
     membershipDashboardIds.value = new Set([...membershipDashboardIds.value].filter(id => id !== dashboardId))
     const token = await getToken()
@@ -758,7 +758,12 @@ async function toggleDashboardForUserReach(r: ReachListItem, dashboardId: string
     }
   } else {
     membershipDashboardIds.value = new Set([...membershipDashboardIds.value, dashboardId])
-    await addReachToWatchlist(r.slug, dashboardId)
+    // Use gauge-linked path when run has a gauge so it appears in river.reaches
+    if (r.gauge_id) {
+      await addUserReachToWatchlist(r.gauge_id, r.slug, dashboardId)
+    } else {
+      await addReachToWatchlist(r.slug, dashboardId)
+    }
     if (import.meta.client) {
       const key = `h2oflow_hidden_reaches_${dashboardId}`
       try {

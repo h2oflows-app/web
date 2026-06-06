@@ -331,7 +331,7 @@ const emit = defineEmits<{
 const { apiBase } = useRuntimeConfig().public
 const { getToken } = useAuth()
 const db = useDashboards()
-const { addReachToWatchlist } = useWatchlistSync()
+const { addReachToWatchlist, addUserReachToWatchlist } = useWatchlistSync()
 
 onMounted(() => { if (!db.loaded.value) db.load() })
 
@@ -365,6 +365,7 @@ watch(open, (v) => {
     previewRun.value = null
     forkedForRunId.value = null
     pendingForkedSlug.value = null
+    pendingForkedGaugeId.value = null
   } else {
     if (db.activeDashboardId.value) selectedDashboardId.value = db.activeDashboardId.value
     if (activeTab.value === 'mine') loadMyRuns()
@@ -411,7 +412,11 @@ async function loadMyRuns() {
 async function addMyRun(r: MyRunSummary) {
   addingMineId.value = r.id
   try {
-    await addReachToWatchlist(r.slug, selectedDashboardId.value)
+    if (r.gauge_id) {
+      await addUserReachToWatchlist(r.gauge_id, r.slug, selectedDashboardId.value)
+    } else {
+      await addReachToWatchlist(r.slug, selectedDashboardId.value)
+    }
     emit('addedExternal', { kind: 'reach', reachId: r.id, reachSlug: r.slug })
     open.value = false
   } finally {
@@ -477,8 +482,9 @@ async function loadMore() {
 
 // ── Fork flow (V17) ───────────────────────────────────────────────────────────
 const forkingId        = ref<string | null>(null)
-const forkedForRunId   = ref<string | null>(null)
+const forkedForRunId    = ref<string | null>(null)
 const pendingForkedSlug = ref<string | null>(null)
+const pendingForkedGaugeId = ref<string | null>(null)
 const addingToDashId   = ref<string | null>(null)
 
 async function startFork(run: DiscoverRun) {
@@ -500,6 +506,7 @@ async function startFork(run: DiscoverRun) {
     if (!res.ok) return
     const forked = await res.json()
     pendingForkedSlug.value = forked.slug ?? forked.id
+    pendingForkedGaugeId.value = forked.gauge_id ?? null
     if (db.dashboards.value.length <= 1) {
       await confirmForkDashboard(selectedDashboardId.value)
     } else {
@@ -514,13 +521,18 @@ async function confirmForkDashboard(dashId: string | null) {
   if (!pendingForkedSlug.value) return
   addingToDashId.value = dashId
   try {
-    await addReachToWatchlist(pendingForkedSlug.value, dashId)
+    if (pendingForkedGaugeId.value) {
+      await addUserReachToWatchlist(pendingForkedGaugeId.value, pendingForkedSlug.value, dashId)
+    } else {
+      await addReachToWatchlist(pendingForkedSlug.value, dashId)
+    }
     emit('addedExternal', { kind: 'reach', reachSlug: pendingForkedSlug.value })
     open.value = false
   } finally {
     addingToDashId.value = null
     forkedForRunId.value = null
     pendingForkedSlug.value = null
+    pendingForkedGaugeId.value = null
   }
 }
 

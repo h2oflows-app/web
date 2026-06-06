@@ -262,7 +262,7 @@
                       />
                     </div>
                   </template>
-                <!-- User reaches inline — same river, marked with person icon -->
+                <!-- User reaches inline — always flat, no gauge grouping -->
                 <template v-if="river.userReaches.length > 0">
                   <div v-if="viewMode === 'list'" class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden mt-1.5">
                     <div
@@ -323,7 +323,7 @@
                       <p v-if="r.last_reading_at" class="text-xs text-neutral-400 mt-0.5">{{ reachLastUpdated(r) }}</p>
                     </div>
                   </div>
-                </template>
+                </template><!-- end river.userReaches -->
                 </div><!-- end riverHasVisibleContent -->
                 </template><!-- end v-for river -->
               </div>
@@ -1218,6 +1218,7 @@ const groupingOptions = computed(() => [
 
 interface GaugeGroup { lead: WatchedGauge; all: WatchedGauge[] }
 interface SplitGroups { gaugeGroups: GaugeGroup[]; ungrouped: WatchedGauge[] }
+
 function splitReachGroups(reaches: WatchedGauge[]): SplitGroups {
   const map = new Map<string, WatchedGauge[]>()
   for (const r of reaches) {
