@@ -364,7 +364,8 @@
                 @input="onGaugeInput"
               />
             </div>
-            <p v-if="gaugeState === 'CO'" class="text-[10px] text-neutral-400 px-1">Searches both USGS and Colorado DWR.</p>
+            <p v-if="gaugeState === 'CO'" class="text-[10px] text-neutral-400 px-1">Searches USGS and Colorado DWR (by name or abbreviation).</p>
+            <p v-else-if="!gaugeState" class="text-[10px] text-neutral-400 px-1">No state selected — searches Colorado DWR only. Select a state for USGS results.</p>
             <div v-if="gaugeLoading" class="space-y-2 py-1">
               <div v-for="i in 3" :key="i" class="flex items-center gap-3 px-2 py-2">
                 <div class="flex-1 h-4 rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse"/>
