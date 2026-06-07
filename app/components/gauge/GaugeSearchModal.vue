@@ -3,9 +3,9 @@
     <template #body>
       <div class="space-y-3">
 
-        <!-- Dashboard picker — multi-dash users -->
+        <!-- Dashboard picker — always shown on Gauges tab; multi-dash only on other tabs -->
         <div
-          v-if="db.dashboards.value.length > 1"
+          v-if="db.dashboards.value.length > 0 && (activeTab === 'gauges' || db.dashboards.value.length > 1)"
           class="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-primary-50 dark:bg-primary-950/30 border border-primary-100 dark:border-primary-900/40"
         >
           <div class="flex items-center gap-2 min-w-0">
@@ -330,14 +330,16 @@
                   </p>
                 </div>
                 <button
-                  class="shrink-0 px-2.5 py-1 rounded-md text-xs font-medium bg-primary-600 hover:bg-primary-700 text-white transition-colors"
-                  :disabled="addingCustomId === cg.id"
+                  class="shrink-0 px-2.5 py-1 rounded-md text-xs font-medium transition-colors"
+                  :class="addedCustomIds.has(cg.id) ? 'bg-green-600 text-white' : 'bg-primary-600 hover:bg-primary-700 text-white'"
+                  :disabled="addingCustomId === cg.id || addedCustomIds.has(cg.id)"
                   @click="addCustomGauge(cg)"
                 >
                   <span v-if="addingCustomId === cg.id" class="flex items-center gap-1">
                     <span class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
                     Adding…
                   </span>
+                  <span v-else-if="addedCustomIds.has(cg.id)">Added ✓</span>
                   <span v-else>Add</span>
                 </button>
               </li>
@@ -387,14 +389,16 @@
                   <p class="text-xs text-neutral-400 font-mono">{{ g.source.toUpperCase() }} · {{ g.external_id }}</p>
                 </div>
                 <button
-                  class="shrink-0 px-2.5 py-1 rounded-md text-xs font-medium bg-primary-600 hover:bg-primary-700 text-white transition-colors"
-                  :disabled="addingGaugeId === `${g.source}:${g.external_id}`"
+                  class="shrink-0 px-2.5 py-1 rounded-md text-xs font-medium transition-colors"
+                  :class="addedGaugeKeys.has(`${g.source}:${g.external_id}`) ? 'bg-green-600 text-white' : 'bg-primary-600 hover:bg-primary-700 text-white'"
+                  :disabled="addingGaugeId === `${g.source}:${g.external_id}` || addedGaugeKeys.has(`${g.source}:${g.external_id}`)"
                   @click="addGaugeResult(g)"
                 >
                   <span v-if="addingGaugeId === `${g.source}:${g.external_id}`" class="flex items-center gap-1">
                     <span class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
                     Adding…
                   </span>
+                  <span v-else-if="addedGaugeKeys.has(`${g.source}:${g.external_id}`)">Added ✓</span>
                   <span v-else>Add</span>
                 </button>
               </li>
@@ -478,6 +482,8 @@ watch(open, (v) => {
     gaugeState.value = ''
     gaugeResults.value = []
     gaugeTabQuery.value = ''
+    addedGaugeKeys.value = new Set()
+    addedCustomIds.value = new Set()
   } else {
     if (db.activeDashboardId.value) selectedDashboardId.value = db.activeDashboardId.value
     if (activeTab.value === 'mine') loadMyRuns()
@@ -683,9 +689,11 @@ const gaugeState       = ref('')
 const gaugeResults     = ref<GaugeResult[]>([])
 const gaugeLoading     = ref(false)
 const addingGaugeId    = ref<string | null>(null)
+const addedGaugeKeys   = ref<Set<string>>(new Set())
 const customGauges     = ref<CustomGaugeSummary[]>([])
 const customGaugesLoading = ref(false)
 const addingCustomId   = ref<string | null>(null)
+const addedCustomIds   = ref<Set<string>>(new Set())
 const gaugeTabQuery    = ref('')
 
 let gaugeDebounce: ReturnType<typeof setTimeout> | null = null
@@ -737,13 +745,17 @@ async function addCustomGauge(cg: CustomGaugeSummary) {
   try {
     const token = await getToken()
     if (!token) return
-    await fetch(`${apiBase}/api/v1/watchlist`, {
+    const res = await fetch(`${apiBase}/api/v1/watchlist`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ custom_gauge_id: cg.id, dashboard_id: selectedDashboardId.value }),
     })
+    if (!res.ok) return
+    addedCustomIds.value = new Set([...addedCustomIds.value, cg.id])
     emit('addedExternal', { kind: 'custom_gauge', customGaugeId: cg.id })
-    open.value = false
+    setTimeout(() => {
+      addedCustomIds.value = new Set([...addedCustomIds.value].filter(id => id !== cg.id))
+    }, 3000)
   } finally {
     addingCustomId.value = null
   }
@@ -755,7 +767,7 @@ async function addGaugeResult(g: GaugeResult) {
   try {
     const token = await getToken()
     if (!token) return
-    await fetch(`${apiBase}/api/v1/me/gauges/add-external`, {
+    const res = await fetch(`${apiBase}/api/v1/me/gauges/add-external`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -767,8 +779,12 @@ async function addGaugeResult(g: GaugeResult) {
         dashboard_id: selectedDashboardId.value,
       }),
     })
+    if (!res.ok) return
+    addedGaugeKeys.value = new Set([...addedGaugeKeys.value, key])
     emit('addedExternal')
-    open.value = false
+    setTimeout(() => {
+      addedGaugeKeys.value = new Set([...addedGaugeKeys.value].filter(k => k !== key))
+    }, 3000)
   } finally {
     addingGaugeId.value = null
   }
