@@ -97,6 +97,7 @@
 </template>
 
 <script setup lang="ts">
+import { nextTick } from 'vue'
 import type { FlowBands, FlowBandThreshold } from '~/utils/flowBand'
 
 interface LocalThreshold extends FlowBandThreshold {
@@ -117,6 +118,7 @@ const emit = defineEmits<{
 }>()
 
 let _nextId = 0
+let _emitting = false  // prevents watch round-trip from re-initialising local (fixes focus loss)
 
 function toLocal(fb: FlowBands): LocalState {
   return {
@@ -129,6 +131,7 @@ function toLocal(fb: FlowBands): LocalState {
 const local = reactive<LocalState>(toLocal(props.modelValue))
 
 watch(() => props.modelValue, (v) => {
+  if (_emitting) return
   Object.assign(local, toLocal(v))
 }, { deep: true })
 
@@ -139,11 +142,13 @@ const sortedThresholds = computed(() =>
 const atMax = computed(() => local.thresholds.length >= 8)
 
 function emitChange() {
+  _emitting = true
   emit('update:modelValue', {
     base_label: local.base_label,
     base_color:  local.base_color,
     thresholds:  local.thresholds.map(({ _id: _, ...t }) => t),
   })
+  nextTick(() => { _emitting = false })
 }
 
 function update(id: number, patch: Partial<FlowBandThreshold>) {

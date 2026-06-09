@@ -244,6 +244,47 @@
         </ClientOnly>
       </section>
 
+      <!-- Rapids & Access Points (fixes #199) -->
+      <section v-if="run.rapids.length > 0 || run.access_points.length > 0">
+        <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-4 space-y-4">
+          <h2 class="text-sm font-semibold text-neutral-800 dark:text-neutral-200">Features</h2>
+
+          <!-- Rapids -->
+          <div v-if="run.rapids.length > 0" class="space-y-2">
+            <p class="text-xs font-medium text-neutral-500 uppercase tracking-wide">Rapids &amp; Hazards</p>
+            <div v-for="r in run.rapids" :key="r.id" class="flex items-start gap-2.5 py-1.5 border-b border-neutral-100 dark:border-neutral-800 last:border-0">
+              <span
+                class="mt-0.5 shrink-0 w-2 h-2 rounded-full"
+                :class="r.is_permanent_hazard ? 'bg-red-500' : r.is_surf_wave ? 'bg-sky-400' : 'bg-amber-400'"
+              />
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-sm font-medium text-neutral-800 dark:text-neutral-200">{{ r.name }}</span>
+                  <span v-if="r.class_rating" class="text-xs text-neutral-400">Class {{ r.class_rating }}</span>
+                  <span v-if="r.is_permanent_hazard" class="text-xs text-red-500 font-medium">Hazard</span>
+                  <span v-if="r.is_surf_wave" class="text-xs text-sky-500 font-medium">Wave</span>
+                  <span v-if="r.hazard_type" class="text-xs text-neutral-400">· {{ r.hazard_type }}</span>
+                </div>
+                <p v-if="r.description" class="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5 leading-relaxed">{{ r.description }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Access Points -->
+          <div v-if="run.access_points.length > 0" class="space-y-2">
+            <p class="text-xs font-medium text-neutral-500 uppercase tracking-wide">Access Points</p>
+            <div v-for="a in run.access_points" :key="a.id" class="flex items-start gap-2.5 py-1.5 border-b border-neutral-100 dark:border-neutral-800 last:border-0">
+              <span class="mt-0.5 shrink-0 w-2 h-2 rounded-full bg-emerald-500" />
+              <div class="min-w-0">
+                <span class="text-sm font-medium text-neutral-800 dark:text-neutral-200 capitalize">{{ a.access_type.replace('_', ' ') }}</span>
+                <span v-if="a.name" class="text-sm text-neutral-500 dark:text-neutral-400"> · {{ a.name }}</span>
+                <p v-if="a.notes" class="text-xs text-neutral-400 mt-0.5">{{ a.notes }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Reports -->
       <section>
         <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
