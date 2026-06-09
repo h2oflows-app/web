@@ -51,18 +51,6 @@
           <span>Flow Insights</span>
         </div>
 
-        <!-- DB stats -->
-        <div v-if="dbStats" class="flex items-center gap-4 mb-6 text-sm text-neutral-500 dark:text-neutral-400">
-          <span class="flex items-center gap-1.5">
-            <span class="font-semibold text-neutral-800 dark:text-neutral-200">{{ dbStats.reaches.toLocaleString() }}</span>
-            reaches
-          </span>
-          <span class="text-neutral-300 dark:text-neutral-700">·</span>
-          <span class="flex items-center gap-1.5">
-            <span class="font-semibold text-neutral-800 dark:text-neutral-200">{{ dbStats.rivers.toLocaleString() }}</span>
-            rivers
-          </span>
-        </div>
 
         <!-- Primary nav buttons -->
         <div class="flex items-center gap-3 mb-8">

@@ -178,13 +178,17 @@
                         <span v-if="run.length_mi" class="text-xs text-neutral-400">{{ run.length_mi.toFixed(1) }}mi</span>
                         <span v-if="run.gauge_name" class="text-xs text-neutral-400 truncate max-w-30">📍 {{ run.gauge_name }}</span>
                         <span class="text-xs text-neutral-400">{{ run.upvote_count }} ▲</span>
+                        <!-- Fork variants count (V10) -->
+                        <span v-if="run.fork_count > 0" class="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400">
+                          {{ run.fork_count }} variant{{ run.fork_count !== 1 ? 's' : '' }}
+                        </span>
                         <span v-if="run.last_forked_at" class="text-xs text-neutral-300 dark:text-neutral-600">{{ fmtDate(run.last_forked_at) }}</span>
                       </div>
                     </div>
 
                     <!-- Action buttons -->
                     <div class="flex items-center gap-1 shrink-0">
-                      <!-- Preview button (V18) -->
+                      <!-- Preview button -->
                       <button
                         class="p-1.5 rounded-md text-xs text-neutral-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-colors"
                         :class="previewRun?.id === run.id ? 'text-primary-500 bg-primary-50 dark:bg-primary-950/30' : ''"
@@ -196,31 +200,68 @@
                           <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
                         </svg>
                       </button>
-                      <!-- Fork & Add split button (V17) -->
+
+                      <!-- Community run: Add (reference, V6) + Fork (explicit copy, V7) -->
+                      <template v-if="!run.is_official">
+                        <button
+                          class="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white transition-colors"
+                          :disabled="addingReferenceId === run.id"
+                          title="Add to dashboard (no copy)"
+                          @click="startReference(run)"
+                        >
+                          <span v-if="addingReferenceId === run.id" class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+                          <template v-else-if="addedReferenceIds.has(run.id)">✓ Added</template>
+                          <template v-else>Add +</template>
+                        </button>
+                        <button
+                          class="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-primary-400 hover:text-primary-600 disabled:opacity-60 transition-colors"
+                          :disabled="forkingId === run.id"
+                          title="Fork — make your own editable copy"
+                          @click="startFork(run)"
+                        >
+                          <span v-if="forkingId === run.id" class="w-3 h-3 border-2 border-neutral-300 border-t-neutral-600 rounded-full animate-spin"/>
+                          <template v-else>Fork</template>
+                        </button>
+                      </template>
+
+                      <!-- Curated run: fork only (creates user_reaches row) -->
                       <button
+                        v-else
                         class="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white transition-colors"
                         :disabled="forkingId === run.id"
                         @click="startFork(run)"
                       >
-                        <span v-if="forkingId === run.id" class="flex items-center gap-1">
-                          <span class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
-                        </span>
-                        <template v-else>
-                          Fork &amp; Add to
-                          <svg class="w-2.5 h-2.5 ml-0.5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/>
-                          </svg>
-                        </template>
+                        <span v-if="forkingId === run.id" class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+                        <template v-else>Fork &amp; Add</template>
                       </button>
                     </div>
                   </div>
 
-                  <!-- Inline dashboard picker — shown after fork (V17) -->
+                  <!-- Inline dashboard picker — reference add (V6) -->
+                  <div
+                    v-if="referenceForRunId === run.id"
+                    class="mt-2 pl-2 flex flex-wrap items-center gap-2"
+                  >
+                    <span class="text-xs text-neutral-500">Add to:</span>
+                    <button
+                      v-for="d in db.dashboards.value"
+                      :key="d.id"
+                      class="px-2 py-1 rounded-md text-xs border transition-colors"
+                      :class="addingReferenceId === run.id
+                        ? 'bg-primary-100 border-primary-300 text-primary-700 cursor-default'
+                        : 'border-neutral-200 dark:border-neutral-700 hover:border-primary-400 hover:bg-primary-50/60 text-neutral-600 dark:text-neutral-300'"
+                      :disabled="addingReferenceId === run.id"
+                      @click="confirmReferenceDashboard(run.id, d.id)"
+                    >{{ d.name }}</button>
+                    <button class="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 ml-1" @click="cancelReference">Cancel</button>
+                  </div>
+
+                  <!-- Inline dashboard picker — fork add (V7) -->
                   <div
                     v-if="forkedForRunId === run.id && pendingForkedSlug"
                     class="mt-2 pl-2 flex flex-wrap items-center gap-2"
                   >
-                    <span class="text-xs text-neutral-500">Add to dashboard:</span>
+                    <span class="text-xs text-neutral-500">Add fork to:</span>
                     <button
                       v-for="d in db.dashboards.value"
                       :key="d.id"
@@ -441,7 +482,7 @@ const emit = defineEmits<{
 const { apiBase } = useRuntimeConfig().public
 const { getToken } = useAuth()
 const db = useDashboards()
-const { addReachToWatchlist, addUserReachToWatchlist } = useWatchlistSync()
+const { addReachToWatchlist, addUserReachToWatchlist, addReferenceToWatchlist } = useWatchlistSync()
 
 onMounted(() => { if (!db.loaded.value) db.load() })
 
@@ -554,6 +595,7 @@ interface DiscoverRun {
   gauge_name: string | null
   put_in_lng: number; put_in_lat: number
   original_author_handle: string | null
+  fork_count: number
 }
 
 const discoverRuns     = ref<DiscoverRun[]>([])
@@ -597,6 +639,42 @@ async function loadDiscoverRuns(append = false) {
 
 async function loadMore() {
   await loadDiscoverRuns(true)
+}
+
+// ── Reference flow (V6) ──────────────────────────────────────────────────────
+const referenceForRunId   = ref<string | null>(null)
+const addingReferenceId   = ref<string | null>(null)
+const addedReferenceIds   = ref<Set<string>>(new Set())
+
+async function startReference(run: DiscoverRun) {
+  if (db.dashboards.value.length <= 1) {
+    await doAddReference(run.id, selectedDashboardId.value)
+  } else {
+    referenceForRunId.value = run.id
+  }
+}
+
+async function confirmReferenceDashboard(runId: string, dashId: string | null) {
+  referenceForRunId.value = null
+  await doAddReference(runId, dashId)
+}
+
+async function doAddReference(runId: string, dashId: string | null) {
+  addingReferenceId.value = runId
+  try {
+    await addReferenceToWatchlist(runId, dashId)
+    addedReferenceIds.value = new Set([...addedReferenceIds.value, runId])
+    emit('addedExternal', { kind: 'reach', reachSlug: runId })
+    setTimeout(() => {
+      addedReferenceIds.value = new Set([...addedReferenceIds.value].filter(x => x !== runId))
+    }, 3000)
+  } finally {
+    addingReferenceId.value = null
+  }
+}
+
+function cancelReference() {
+  referenceForRunId.value = null
 }
 
 // ── Fork flow (V17) ───────────────────────────────────────────────────────────

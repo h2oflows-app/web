@@ -198,6 +198,20 @@ export function useWatchlistSync() {
   }
 
   /**
+   * Reference-add a public community run to a dashboard. No copy made. (V6)
+   * Calls POST /user-runs/{runId}/add-to-dashboard.
+   */
+  async function addReferenceToWatchlist(runId: string, dashboardId: string | null) {
+    const token = await getToken()
+    if (!token) return
+    await fetch(`${apiBase}/api/v1/user-runs/${runId}/add-to-dashboard`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dashboard_id: dashboardId ?? null }),
+    }).catch(() => {})
+  }
+
+  /**
    * Adds an ungauged user reach (reach_slug only) to the watchlist. Used when
    * a user reach has no gauge or custom gauge linked but should still appear on
    * a dashboard for planning/reference.
@@ -220,6 +234,7 @@ export function useWatchlistSync() {
     addCustomGaugeToWatchlist,
     addUserReachToWatchlist,
     addReachToWatchlist,
+    addReferenceToWatchlist,
     removeAndSync,
     loadFromServer,
     loadForDashboard,

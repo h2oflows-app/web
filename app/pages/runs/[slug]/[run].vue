@@ -20,6 +20,45 @@
 
     <main v-else class="max-w-3xl mx-auto px-3 py-6 pb-32 sm:pb-10 space-y-6">
 
+      <!-- Tombstone banner (V11, V12, V14) -->
+      <div v-if="run.deleted_at" class="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl px-4 py-3 space-y-2">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="flex items-start gap-2 min-w-0">
+            <svg class="w-4 h-4 text-amber-500 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
+            <div>
+              <p class="text-sm font-medium text-amber-800 dark:text-amber-200">Author removed this run.</p>
+              <p class="text-xs text-amber-600 dark:text-amber-400 mt-0.5">Read-only snapshot. Fork to keep your own copy.</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <!-- Frozen vote count (V12) -->
+            <span class="text-sm font-medium text-amber-700 dark:text-amber-300">★ {{ upvoteCount }}</span>
+            <!-- Fork CTA -->
+            <button
+              v-if="isAuthenticated"
+              :disabled="forking"
+              class="px-2.5 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 text-xs font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30 disabled:opacity-50 transition-colors"
+              @click="forkRun"
+            >
+              <span v-if="forking" class="w-3 h-3 border-2 border-amber-400 border-t-amber-700 rounded-full animate-spin inline-block"/>
+              <template v-else>Fork a copy</template>
+            </button>
+            <!-- Adopt CTA (V14) — auth non-owner -->
+            <button
+              v-if="isAuthenticated && !isOwnRun"
+              :disabled="adopting"
+              class="px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-xs font-medium text-white disabled:opacity-50 transition-colors"
+              title="Take ownership of this run — requires it on your dashboard"
+              @click="adoptRun"
+            >
+              <span v-if="adopting" class="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin inline-block"/>
+              <template v-else>Adopt</template>
+            </button>
+          </div>
+        </div>
+        <p v-if="adoptError" class="text-xs text-red-600 dark:text-red-400">{{ adoptError }}</p>
+      </div>
+
       <!-- Hero -->
       <section>
         <div class="flex items-start justify-between gap-3">
@@ -34,10 +73,10 @@
           <!-- Toolbar -->
           <div class="shrink-0 flex items-center gap-1.5 mt-0.5">
 
-            <!-- Edit (owner or admin) -->
+            <!-- Edit (owner → /my/runs, admin non-owner → /runs/{slug}/edit) -->
             <NuxtLink
               v-if="isOwnRun || isDataAdmin"
-              :to="`/my/runs/${runSlug}`"
+              :to="isOwnRun ? `/my/runs/${runSlug}` : `/runs/${runSlug}/edit`"
               class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/30 hover:border-primary-300 dark:hover:border-primary-700 transition-colors"
               title="Edit run"
             >
@@ -59,9 +98,9 @@
               <span class="hidden sm:inline">Share</span>
             </button>
 
-            <!-- Upvote (non-owner) -->
+            <!-- Upvote (non-owner, not tombstoned — V12) -->
             <button
-              v-if="!isOwnRun"
+              v-if="!isOwnRun && !run.deleted_at"
               class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-sm font-medium transition-colors"
               :class="userUpvoted
                 ? 'bg-primary-50 dark:bg-primary-950 border-primary-300 dark:border-primary-700 text-primary-600 dark:text-primary-400'
@@ -105,9 +144,9 @@
               </svg>
             </button>
 
-            <!-- Flag (auth, non-owner) -->
+            <!-- Flag (auth, non-owner, not tombstoned) -->
             <button
-              v-if="isAuthenticated && !isOwnRun && !flagDone"
+              v-if="isAuthenticated && !isOwnRun && !flagDone && !run.deleted_at"
               class="inline-flex items-center justify-center p-2 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-400 hover:text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
               title="Flag as inappropriate"
               @click="flagOpen = true"
@@ -124,8 +163,19 @@
         </div>
 
         <!-- Author badge -->
-        <div class="mt-2">
+        <div class="mt-2 flex flex-wrap items-center gap-2">
           <RunAuthorBadge :is-official="run.is_official" :author-handle="run.author_handle" />
+          <!-- Lineage credit (V15) — forked from canonical run -->
+          <span v-if="run.forked_from_name || run.original_author_handle" class="text-xs text-neutral-400 dark:text-neutral-500">
+            Forked from
+            <NuxtLink
+              v-if="run.original_author_handle && run.forked_from_slug"
+              :to="`/runs/${run.original_author_handle}/${run.forked_from_slug}`"
+              class="text-neutral-500 dark:text-neutral-400 hover:text-primary-500 hover:underline"
+            >{{ run.forked_from_name ?? run.forked_from_slug }}</NuxtLink>
+            <span v-else>{{ run.forked_from_name ?? run.forked_from_slug }}</span>
+            <template v-if="run.original_author_handle"> by @{{ run.original_author_handle }}</template>
+          </span>
         </div>
       </section>
 
@@ -361,6 +411,7 @@ interface PublicRunDetail {
   rapids: RunRapid[]; access_points: RunAccessPoint[]
   upvote_count: number; user_upvoted: boolean; centerline: object | null
   is_own?: boolean
+  deleted_at?: string | null
 }
 interface FlowRangeProposal {
   id: string; author_id: string; author_handle: string | null
@@ -484,6 +535,34 @@ async function forkRun() {
     const data = await res.json()
     if (data.slug) router.push(`/my/runs/${data.slug}`)
   } catch {} finally { forking.value = false }
+}
+
+const adopting   = ref(false)
+const adoptError = ref('')
+
+async function adoptRun() {
+  if (!run.value || adopting.value) return
+  adopting.value  = true
+  adoptError.value = ''
+  try {
+    const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) }
+    const res = await fetch(`${apiBase}/api/v1/user-runs/${run.value.id}/adopt`, { method: 'POST', headers })
+    if (!res.ok) {
+      const msg = await res.json().catch(() => ({}))
+      adoptError.value = res.status === 403
+        ? 'Add this run to your dashboard first to adopt it.'
+        : (msg.error ?? `HTTP ${res.status}`)
+      return
+    }
+    const data = await res.json()
+    // Redirect to owner's editor for the adopted run
+    if (data.slug) router.push(`/my/runs/${data.slug}`)
+    else await loadRun()
+  } catch (e: any) {
+    adoptError.value = e?.message ?? 'Adopt failed'
+  } finally {
+    adopting.value = false
+  }
 }
 
 const classLabel = computed(() => {

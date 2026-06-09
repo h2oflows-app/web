@@ -104,19 +104,43 @@
       <span>Looks like <strong>{{ form.riverName }}</strong><template v-if="gnisId"> · GNIS {{ gnisId }}</template></span>
     </div>
 
-    <!-- Dupe warning — shown when similar runs found and not dismissed -->
+    <!-- Dupe warning — geometry overlap detected (V21); blocks submit until dismissed -->
     <div v-if="dupeRuns.length > 0 && !dupeDismissed" class="mt-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-4 py-3 space-y-2">
       <div class="flex items-start justify-between gap-2">
         <p class="text-xs font-medium text-amber-800 dark:text-amber-200">Similar run{{ dupeRuns.length !== 1 ? 's' : '' }} already exist on this section:</p>
-        <button class="text-amber-400 hover:text-amber-600 shrink-0 text-xs" @click="dupeDismissed = true">Dismiss</button>
       </div>
       <div v-for="run in dupeRuns.slice(0, 3)" :key="run.id" class="flex items-center gap-2 text-xs">
         <svg v-if="run.is_official" class="w-3 h-3 text-primary-500 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
         <span class="w-2 h-2 rounded-full bg-neutral-400 shrink-0" v-else />
-        <NuxtLink :to="`/runs/${run.author_handle ?? 'h2oflows'}/${run.slug}`" target="_blank" class="font-medium text-amber-800 dark:text-amber-200 hover:underline truncate">{{ run.name }}</NuxtLink>
+        <span class="font-medium text-amber-800 dark:text-amber-200 truncate flex-1">{{ run.name }}</span>
         <span class="text-amber-600 dark:text-amber-400 shrink-0">{{ run.is_official ? 'H2OFlows' : (run.author_handle ? `@${run.author_handle}` : '') }}</span>
+        <!-- "Edit existing" for own runs; "View" for others -->
+        <NuxtLink
+          v-if="!run.is_official && !run.author_handle"
+          :to="`/my/runs/${run.slug}`"
+          class="shrink-0 text-[10px] px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+          target="_blank"
+        >Edit</NuxtLink>
+        <NuxtLink
+          v-else
+          :to="`/runs/${run.author_handle ?? 'h2oflows'}/${run.slug}`"
+          class="shrink-0 text-[10px] px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+          target="_blank"
+        >View</NuxtLink>
       </div>
-      <p class="text-xs text-amber-700 dark:text-amber-300">Consider adding a report or forking instead of creating a duplicate.</p>
+      <div class="flex items-center gap-2 pt-1">
+        <p class="text-xs text-amber-700 dark:text-amber-300 flex-1">Modify an existing run or create a new one with different flow lines.</p>
+        <button class="shrink-0 text-xs px-2.5 py-1 rounded-md bg-amber-100 dark:bg-amber-900/40 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-900/60 font-medium" @click="dupeDismissed = true">Create anyway</button>
+      </div>
+    </div>
+
+    <!-- Name conflict warning (V22) -->
+    <div v-if="nameConflictSlug && !nameConflictDismissed" class="mt-3 rounded-lg border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/40 px-4 py-3 space-y-2">
+      <p class="text-xs font-medium text-orange-800 dark:text-orange-200">You already have a run with this name.</p>
+      <div class="flex items-center gap-2">
+        <NuxtLink :to="`/my/runs/${nameConflictSlug}`" target="_blank" class="text-xs px-2 py-1 rounded border border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-100 dark:hover:bg-orange-900/30">Edit existing</NuxtLink>
+        <button class="text-xs px-2 py-1 rounded border border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-100 dark:hover:bg-orange-900/30 font-medium" @click="nameConflictDismissed = true; submit()">Save anyway</button>
+      </div>
     </div>
 
     <!-- Reach form — shown once both ComIDs selected -->
@@ -174,7 +198,7 @@
 
       <div class="flex gap-2 justify-end pt-1">
         <UButton size="sm" variant="ghost" color="neutral" @click="emit('cancel')">Cancel</UButton>
-        <UButton size="sm" :disabled="!form.name.trim()" :loading="saving" @click="submit">Save Run</UButton>
+        <UButton size="sm" :disabled="!form.name.trim() || (dupeRuns.length > 0 && !dupeDismissed)" :loading="saving" @click="submit">Save Run</UButton>
       </div>
     </div>
 
@@ -219,10 +243,12 @@ const previewGeoJSON      = ref<object | null>(null)
 
 const comIDPairLocked = ref(false)
 
-// Dupe detection
+// Dupe detection (V21 geometry, V22 name)
 interface ClusterRun { id: string; slug: string; name: string; author_handle: string | null; is_official: boolean; class_min: number | null; class_max: number | null; rank_score: number }
-const dupeRuns        = ref<ClusterRun[]>([])
-const dupeDismissed   = ref(false)
+const dupeRuns          = ref<ClusterRun[]>([])
+const dupeDismissed     = ref(false)
+const nameConflictSlug  = ref<string | null>(null)
+const nameConflictDismissed = ref(false)
 
 async function checkDupes() {
   if (!startLat.value || !startLng.value || !endLat.value || !endLng.value) return
@@ -441,6 +467,29 @@ async function submit() {
   try {
     const token = await getToken()
     const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+
+    // V22: name uniqueness check against own runs
+    if (!nameConflictDismissed.value) {
+      try {
+        const existing = await fetch(`${apiBase}/api/v1/me/reaches`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        if (existing.ok) {
+          const runs: Array<{ slug: string; name: string; long_name: string | null }> = await existing.json()
+          const nameLower = form.value.name.trim().toLowerCase()
+          const longNameLower = form.value.longName.trim().toLowerCase()
+          const conflict = runs.find(r =>
+            r.name.toLowerCase() === nameLower ||
+            (longNameLower && r.long_name?.toLowerCase() === longNameLower)
+          )
+          if (conflict) {
+            nameConflictSlug.value = conflict.slug
+            saving.value = false
+            return
+          }
+        }
+      } catch { /* non-fatal — don't block if check fails */ }
+    }
 
     const body: Record<string, any> = {
       name:       form.value.name.trim(),
