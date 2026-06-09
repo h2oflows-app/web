@@ -8,13 +8,18 @@
   NUXT_PUBLIC_API_BASE = "https://api.h2oflows.app"
   NODE_VERSION         = "20"
 
-# Branch deploy previews — same API, unique preview URL per branch/commit.
-# Share the Netlify preview URL with the AW team to demo specific feature branches.
+# Deploy previews + branch deploys run against the STAGING API and a SEPARATE
+# staging Supabase project — they must never touch production. Fill the staging
+# Supabase values below (publishable anon key — safe to commit, ships in bundle).
 [context.deploy-preview.environment]
-  NUXT_PUBLIC_API_BASE = "https://api.h2oflows.app"
+  NUXT_PUBLIC_API_BASE = "https://api-staging.h2oflows.app"
+  SUPABASE_URL         = "https://STAGING_PROJECT_REF.supabase.co"
+  SUPABASE_KEY         = "STAGING_PUBLISHABLE_ANON_KEY"
 
 [context.branch-deploy.environment]
-  NUXT_PUBLIC_API_BASE = "https://api.h2oflows.app"
+  NUXT_PUBLIC_API_BASE = "https://api-staging.h2oflows.app"
+  SUPABASE_URL         = "https://STAGING_PROJECT_REF.supabase.co"
+  SUPABASE_KEY         = "STAGING_PUBLISHABLE_ANON_KEY"
 
 # SPA fallback — any path without a matching static file (e.g. /dashboard, /trips,
 # /confirm) gets served the Nuxt-generated 200.html so client-side routing takes over.
