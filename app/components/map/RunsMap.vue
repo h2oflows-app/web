@@ -59,6 +59,7 @@ import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
 export interface ReachListItem {
+  id:           string | null
   slug:         string
   name:         string
   common_name:  string | null
@@ -345,6 +346,7 @@ let allServerFeatures: ReachFeature[] = []
 
 function emitAllReaches() {
   emit('all-reaches-updated', allServerFeatures.map(f => ({
+    id:            f.properties.id ?? null,
     slug:          f.properties.slug,
     name:          displayName(f.properties),
     common_name:   f.properties.common_name ?? null,
@@ -426,6 +428,7 @@ function filterVisible() {
 
   updateLayers(visible)
   emit('reaches-updated', visible.map(f => ({
+    id:            f.properties.id ?? null,
     slug:          f.properties.slug,
     name:          displayName(f.properties),
     common_name:   f.properties.common_name ?? null,

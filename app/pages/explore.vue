@@ -198,7 +198,38 @@
                 :style="{ color: bandSolid(null, reach.flow_status) }"
               >{{ Math.round(reach.current_cfs).toLocaleString() }}</span>
               <span v-else class="text-xs text-neutral-300 dark:text-neutral-600 shrink-0">—</span>
-              <!-- Add to dashboard (own runs only) -->
+              <!-- Add to dashboard: own runs = membership picker; browse = reference-add -->
+              <!-- Browse user run: reference-add "+" -->
+              <div
+                v-if="isAuthenticated && activeTab === 'browse' && reach.id"
+                class="browse-ref-anchor shrink-0 relative"
+                @click.stop
+              >
+                <button
+                  class="p-1 rounded transition-colors"
+                  :class="addedRefIds.has(reach.id) ? 'text-primary-500' : 'text-neutral-400 dark:text-neutral-500 hover:text-primary-500 dark:hover:text-primary-400'"
+                  :disabled="addingRefId === reach.id"
+                  aria-label="Add to dashboard"
+                  @click="db.dashboards.value.length <= 1 ? addBrowseReference(reach, db.dashboards.value[0]?.id ?? null) : (browseRefDropdownId = browseRefDropdownId === reach.id ? null : reach.id)"
+                >
+                  <span v-if="addingRefId === reach.id" class="w-4 h-4 border-2 border-primary-300 border-t-primary-600 rounded-full animate-spin inline-block"/>
+                  <svg v-else-if="addedRefIds.has(reach.id)" class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                  <svg v-else class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="14"/><line x1="6" y1="10" x2="14" y2="10"/></svg>
+                </button>
+                <div
+                  v-if="browseRefDropdownId === reach.id"
+                  class="absolute right-0 top-full mt-1 z-40 min-w-40 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden"
+                >
+                  <p class="px-3 pt-2 pb-1 text-[10px] text-neutral-400 uppercase tracking-wide">Add to dashboard</p>
+                  <button
+                    v-for="dashboard in db.dashboards.value"
+                    :key="dashboard.id"
+                    class="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-neutral-700 dark:text-neutral-300"
+                    @click="addBrowseReference(reach, dashboard.id)"
+                  >{{ dashboard.name }}</button>
+                </div>
+              </div>
+              <!-- Own runs: membership picker -->
               <div
                 v-if="isAuthenticated && activeTab !== 'browse'"
                 class="dashboard-dropdown-anchor shrink-0 relative"
@@ -420,9 +451,30 @@ const dropdownSlug           = ref<string | null>(null)
 const membershipDashboardIds = ref<Set<string>>(new Set())
 const membershipLoading      = ref(false)
 
+// ── Browse mode: reference-add per run ────────────────────────────────────────
+const browseRefDropdownId = ref<string | null>(null)
+const addingRefId         = ref<string | null>(null)
+const addedRefIds         = ref<Set<string>>(new Set())
+
+async function addBrowseReference(reach: ReachListItem, dashId: string | null) {
+  if (!reach.id) return
+  addingRefId.value = reach.id
+  browseRefDropdownId.value = null
+  try {
+    await addReferenceToWatchlist(reach.id, dashId)
+    addedRefIds.value = new Set([...addedRefIds.value, reach.id])
+    setTimeout(() => {
+      addedRefIds.value = new Set([...addedRefIds.value].filter(x => x !== reach.id))
+    }, 3000)
+  } finally {
+    addingRefId.value = null
+  }
+}
+
 function onDocClick(e: MouseEvent) {
   const target = e.target as HTMLElement
   if (dropdownSlug.value && !target.closest('.dashboard-dropdown-anchor')) dropdownSlug.value = null
+  if (browseRefDropdownId.value && !target.closest('.browse-ref-anchor')) browseRefDropdownId.value = null
 }
 
 onMounted(async () => {
@@ -745,7 +797,7 @@ async function openUserReachDropdown(r: ReachListItem) {
 }
 
 async function toggleDashboardForUserReach(r: ReachListItem, dashboardId: string) {
-  const { addReachToWatchlist, addUserReachToWatchlist } = useWatchlistSync()
+  const { addReachToWatchlist, addUserReachToWatchlist, addReferenceToWatchlist } = useWatchlistSync()
   if (membershipDashboardIds.value.has(dashboardId)) {
     membershipDashboardIds.value = new Set([...membershipDashboardIds.value].filter(id => id !== dashboardId))
     const token = await getToken()
