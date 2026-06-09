@@ -163,8 +163,19 @@
         </div>
 
         <!-- Author badge -->
-        <div class="mt-2">
+        <div class="mt-2 flex flex-wrap items-center gap-2">
           <RunAuthorBadge :is-official="run.is_official" :author-handle="run.author_handle" />
+          <!-- Lineage credit (V15) — forked from canonical run -->
+          <span v-if="run.forked_from_name || run.original_author_handle" class="text-xs text-neutral-400 dark:text-neutral-500">
+            Forked from
+            <NuxtLink
+              v-if="run.original_author_handle && run.forked_from_slug"
+              :to="`/runs/${run.original_author_handle}/${run.forked_from_slug}`"
+              class="text-neutral-500 dark:text-neutral-400 hover:text-primary-500 hover:underline"
+            >{{ run.forked_from_name ?? run.forked_from_slug }}</NuxtLink>
+            <span v-else>{{ run.forked_from_name ?? run.forked_from_slug }}</span>
+            <template v-if="run.original_author_handle"> by @{{ run.original_author_handle }}</template>
+          </span>
         </div>
       </section>
 

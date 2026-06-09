@@ -178,6 +178,10 @@
                         <span v-if="run.length_mi" class="text-xs text-neutral-400">{{ run.length_mi.toFixed(1) }}mi</span>
                         <span v-if="run.gauge_name" class="text-xs text-neutral-400 truncate max-w-30">📍 {{ run.gauge_name }}</span>
                         <span class="text-xs text-neutral-400">{{ run.upvote_count }} ▲</span>
+                        <!-- Fork variants count (V10) -->
+                        <span v-if="run.fork_count > 0" class="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400">
+                          {{ run.fork_count }} variant{{ run.fork_count !== 1 ? 's' : '' }}
+                        </span>
                         <span v-if="run.last_forked_at" class="text-xs text-neutral-300 dark:text-neutral-600">{{ fmtDate(run.last_forked_at) }}</span>
                       </div>
                     </div>
@@ -591,6 +595,7 @@ interface DiscoverRun {
   gauge_name: string | null
   put_in_lng: number; put_in_lat: number
   original_author_handle: string | null
+  fork_count: number
 }
 
 const discoverRuns     = ref<DiscoverRun[]>([])
