@@ -4,8 +4,8 @@
     <!-- Demo banner -->
     <div v-if="showDemoBanner" class="bg-amber-50 dark:bg-amber-950 border-b border-amber-200 dark:border-amber-800 px-4 py-2.5 flex items-center justify-between gap-4 text-sm">
       <p class="text-amber-800 dark:text-amber-200 text-center flex-1">
-        <span class="font-semibold">Demo only.</span>
-        River data is manually curated for Colorado by a paddler familiar with the region. Coverage outside Colorado is limited. Always verify conditions before paddling.
+        <span class="font-semibold">Early access.</span>
+        Run data is community-curated — coverage is limited but growing. Create your own runs, set flow bands, and help make H2OFlows stronger for everyone. Always verify conditions before paddling.
       </p>
       <button @click="dismissBanner" class="shrink-0 text-amber-600 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-100 font-medium transition-colors">Dismiss</button>
     </div>

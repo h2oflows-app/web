@@ -82,25 +82,6 @@
         </div>
 
         <!-- Dashboard filter (My Runs tab) -->
-        <div v-if="activeTab === 'mine'" class="shrink-0 border-b border-neutral-100 dark:border-neutral-800 px-3 pb-2 space-y-1">
-          <div v-if="db.dashboards.value.length === 0" class="text-xs text-neutral-400 py-1">No dashboards yet.</div>
-          <button
-            v-for="dashboard in db.dashboards.value"
-            :key="dashboard.id"
-            class="w-full flex items-center gap-2 py-1 text-xs text-left"
-            @click="toggleDashboardFilter(dashboard.id)"
-          >
-            <svg
-              class="w-3.5 h-3.5 shrink-0"
-              :class="selectedDashboardIds.has(dashboard.id) ? 'text-primary-500' : 'text-neutral-300 dark:text-neutral-600'"
-              viewBox="0 0 20 20" fill="currentColor"
-            >
-              <path v-if="selectedDashboardIds.has(dashboard.id)" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-              <circle v-else cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/>
-            </svg>
-            <span class="truncate text-neutral-700 dark:text-neutral-300">{{ dashboard.name }}</span>
-          </button>
-        </div>
 
         <!-- Browse User: handle input in sidebar -->
         <div v-if="activeTab === 'browse'" class="shrink-0 border-b border-neutral-100 dark:border-neutral-800 px-3 py-2 space-y-1.5">
@@ -323,6 +304,52 @@
               @reach-click="onReachClick"
             />
           </ClientOnly>
+
+          <!-- Map click popup: Add to dashboard / View run (issue #201) -->
+          <Transition name="popup">
+            <div
+              v-if="popupRun"
+              class="absolute top-3 left-1/2 -translate-x-1/2 z-30 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-lg px-4 py-3 min-w-52 max-w-72"
+            >
+              <div class="flex items-start justify-between gap-2 mb-2">
+                <p class="text-sm font-semibold text-neutral-800 dark:text-neutral-200 truncate flex-1">{{ popupRun.name }}</p>
+                <button class="shrink-0 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400" @click="dismissPopup">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                </button>
+              </div>
+              <div class="flex items-center gap-2">
+                <!-- Add to dashboard -->
+                <div class="relative flex-1 browse-ref-anchor">
+                  <button
+                    class="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-xs font-medium transition-colors"
+                    @click="db.dashboards.value.length <= 1 ? addPopupRunToDashboard(db.dashboards.value[0]?.id ?? null) : (browseRefDropdownId = browseRefDropdownId === popupRun?.slug ? null : (popupRun?.slug ?? null))"
+                  >
+                    <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="14"/><line x1="6" y1="10" x2="14" y2="10"/></svg>
+                    Add +
+                  </button>
+                  <div
+                    v-if="browseRefDropdownId === popupRun?.slug && db.dashboards.value.length > 1"
+                    class="absolute left-0 top-full mt-1 z-40 min-w-40 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden"
+                  >
+                    <button
+                      v-for="d in db.dashboards.value"
+                      :key="d.id"
+                      class="w-full px-3 py-2 text-xs text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300"
+                      @click="addPopupRunToDashboard(d.id)"
+                    >{{ d.name }}</button>
+                  </div>
+                </div>
+                <!-- View run detail -->
+                <NuxtLink
+                  :to="popupRun.viewUrl"
+                  class="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                  @click="dismissPopup"
+                >
+                  View →
+                </NuxtLink>
+              </div>
+            </div>
+          </Transition>
 
           <!-- Mobile: open list (only shown when map is visible) -->
           <button
@@ -750,16 +777,44 @@ function onMapHover(slug: string | null) {
   }
 }
 
+// ── Map click popup (issue #201) ──────────────────────────────────────────────
+interface PopupRun { slug: string; name: string; id: string | null; authorHandle: string | null; viewUrl: string }
+const popupRun = ref<PopupRun | null>(null)
+
 function onReachClick(payload: ReachClickPayload) {
-  if (activeTab.value === 'browse' && browseHandle.value) {
-    navigateTo(`/runs/${browseHandle.value}/${payload.slug}`)
+  const isOwn = activeTab.value !== 'browse' && !payload.authorHandle
+  const viewUrl = activeTab.value === 'browse' && browseHandle.value
+    ? `/runs/${browseHandle.value}/${payload.slug}`
+    : payload.authorHandle
+      ? `/runs/${payload.authorHandle}/${payload.slug}`
+      : `/my/runs/${payload.slug}`
+
+  if (!isAuthenticated.value) {
+    navigateTo(viewUrl)
     return
   }
-  if (payload.authorHandle) {
-    navigateTo(`/runs/${payload.authorHandle}/${payload.slug}`)
-    return
+
+  // Show popup with add/view options
+  popupRun.value = {
+    slug:         payload.slug,
+    name:         payload.name ?? payload.slug,
+    id:           payload.id ?? null,
+    authorHandle: payload.authorHandle ?? (activeTab.value === 'browse' ? (browseHandle.value ?? null) : null),
+    viewUrl,
   }
-  navigateTo(`/my/runs/${payload.slug}`)
+}
+
+function dismissPopup() { popupRun.value = null }
+
+async function addPopupRunToDashboard(dashId: string | null) {
+  if (!popupRun.value) return
+  const p = popupRun.value
+  popupRun.value = null
+  if (p.id && (activeTab.value === 'browse' || p.authorHandle)) {
+    await addReferenceToWatchlist(p.id, dashId)
+  } else {
+    await addReachToWatchlist(p.slug, dashId)
+  }
 }
 
 async function reloadMap() {
