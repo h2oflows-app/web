@@ -178,25 +178,25 @@
             </div>
           </div>
 
-          <!-- Privacy toggle -->
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-xs font-medium text-neutral-700 dark:text-neutral-300">Private</p>
-              <p class="text-xs text-neutral-400">Only visible to you</p>
+          <!-- Visibility pills (V1/V2/V3) -->
+          <div class="space-y-1.5">
+            <p class="text-xs font-medium text-neutral-700 dark:text-neutral-300">Visibility</p>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <button
+                v-for="opt in visibilityOptions"
+                :key="opt.value"
+                type="button"
+                :disabled="opt.disabled"
+                class="px-2.5 py-1 rounded-full text-xs font-medium border transition-colors"
+                :class="form.visibility === opt.value
+                  ? 'bg-primary-500 text-white border-primary-500'
+                  : opt.disabled
+                    ? 'border-neutral-200 dark:border-neutral-700 text-neutral-300 dark:text-neutral-600 cursor-default'
+                    : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400'"
+                @click="setVisibility(opt.value)"
+              >{{ opt.label }}</button>
             </div>
-            <button
-              type="button"
-              role="switch"
-              :aria-checked="form.isPrivate"
-              class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
-              :class="form.isPrivate ? 'bg-primary-500' : 'bg-neutral-300 dark:bg-neutral-600'"
-              @click="form.isPrivate = !form.isPrivate"
-            >
-              <span
-                class="inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform"
-                :class="form.isPrivate ? 'translate-x-4.5' : 'translate-x-0.5'"
-              />
-            </button>
+            <p class="text-xs text-neutral-400">{{ visibilityDescription }}</p>
           </div>
         </div>
 
@@ -506,6 +506,26 @@
     @close="shareOpen = false; customGaugePayload = null"
   />
 
+  <!-- Publish confirm gate (V5) — irreversible warning -->
+  <UModal v-model:open="publishConfirmOpen" title="Make this run public?">
+    <template #body>
+      <div class="space-y-3">
+        <p class="text-sm text-neutral-700 dark:text-neutral-300">
+          Publishing is <strong>permanent</strong>. Others can add, fork, and up-vote this run.
+          You can only delete it later — people who added it keep a read-only copy.
+        </p>
+        <p class="text-xs text-amber-600 dark:text-amber-400 font-medium">
+          This cannot be undone.
+        </p>
+        <p v-if="publishError" class="text-xs text-red-500">{{ publishError }}</p>
+      </div>
+      <div class="flex justify-end gap-2 mt-4">
+        <UButton size="xs" variant="outline" color="neutral" :disabled="publishing" @click="publishConfirmOpen = false">Cancel</UButton>
+        <UButton size="xs" color="primary" :loading="publishing" @click="confirmPublish">Make Public</UButton>
+      </div>
+    </template>
+  </UModal>
+
   <!-- KML import modal -->
   <UModal v-model:open="kmlModalOpen" title="Import KML / KMZ">
     <template #body>
@@ -554,6 +574,7 @@ useFlowBandPalette()
 
 const route  = useRoute()
 const router = useRouter()
+const toast  = useToast()
 const { getToken } = useAuth()
 const { apiBase }  = useRuntimeConfig().public
 
@@ -622,6 +643,7 @@ interface UserReachDetail {
   flow_band:         string | null
   note:              string | null
   is_private:        boolean
+  visibility:        string
   forked_from_slug:  string | null
   forked_from_name:  string | null
   original_author_handle:     string | null
@@ -642,14 +664,14 @@ const reach = ref<UserReachDetail | null>(null)
 // ── Form state ────────────────────────────────────────────────────────────────
 
 const form = ref({
-  name:      '',
-  longName:  '' as string,
-  riverName: '',
-  note:      '',
-  classMin:  null as number | null,
-  classMax:  null as number | null,
-  isPrivate: false,
-  flowBands: { base_label: 'Too Low', base_color: 'red-3', thresholds: [] } as FlowBands,
+  name:       '',
+  longName:   '' as string,
+  riverName:  '',
+  note:       '',
+  classMin:   null as number | null,
+  classMax:   null as number | null,
+  visibility: 'private' as 'private' | 'unlisted' | 'public',
+  flowBands:  { base_label: 'Too Low', base_color: 'red-3', thresholds: [] } as FlowBands,
 })
 
 // ── Repin state (mirrors admin RunEditor) ───────────────────────────────────
@@ -698,6 +720,66 @@ const customGaugeSaving      = ref(false)
 const shareOpen           = ref(false)
 const shareLoading        = ref(false)
 const customGaugePayload  = ref<object | null>(null)
+
+const publishConfirmOpen  = ref(false)
+const publishing          = ref(false)
+const publishError        = ref('')
+
+// ── Visibility helpers (V1/V2/V3/V5) ─────────────────────────────────────────
+
+type Visibility = 'private' | 'unlisted' | 'public'
+
+const visibilityOptions = computed(() => {
+  const isPublished = form.value.visibility === 'public'
+  return [
+    { value: 'private'  as Visibility, label: 'Private',  disabled: isPublished },
+    { value: 'unlisted' as Visibility, label: 'Unlisted', disabled: isPublished },
+    { value: 'public'   as Visibility, label: 'Public',   disabled: false },
+  ]
+})
+
+const visibilityDescription = computed(() => {
+  switch (form.value.visibility) {
+    case 'private':  return 'Only you can see this run.'
+    case 'unlisted': return 'Accessible via link — not in explore or search.'
+    case 'public':   return 'On explore, searchable, and up-votable. Cannot be made private again.'
+    default:         return ''
+  }
+})
+
+function setVisibility(v: Visibility) {
+  if (v === form.value.visibility) return
+  if (v === 'public') {
+    publishError.value = ''
+    publishConfirmOpen.value = true
+    return
+  }
+  // private↔unlisted transitions go through PATCH (API validates V3 ratchet)
+  form.value.visibility = v
+}
+
+async function confirmPublish() {
+  if (!reach.value) return
+  publishing.value  = true
+  publishError.value = ''
+  try {
+    const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) }
+    const res = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}/publish`, { method: 'POST', headers })
+    if (!res.ok) {
+      const msg = await res.json().catch(() => ({}))
+      publishError.value = msg.error ?? `HTTP ${res.status}`
+      return
+    }
+    form.value.visibility = 'public'
+    publishConfirmOpen.value = false
+    toast.add({ title: 'Run is now public.', color: 'success' })
+    await load()
+  } catch (e: any) {
+    publishError.value = e?.message ?? 'Publish failed'
+  } finally {
+    publishing.value = false
+  }
+}
 
 // ── River confirmation banner ──────────────────────────────────────────────────
 
@@ -1136,14 +1218,14 @@ async function linkCustomGauge(cg: CustomGaugeSummary) {
 // ── Load ──────────────────────────────────────────────────────────────────────
 
 function populateForm(r: UserReachDetail) {
-  form.value.name      = r.name
-  form.value.longName  = r.long_name ?? ''
-  form.value.riverName = r.river_name ?? ''
-  form.value.note      = r.note ?? ''
-  form.value.classMin  = r.class_min ?? null
-  form.value.classMax  = r.class_max ?? null
-  form.value.isPrivate = r.is_private ?? false
-  form.value.flowBands = r.flow_bands ?? { base_label: 'Too Low', base_color: 'red-3', thresholds: [] }
+  form.value.name       = r.name
+  form.value.longName   = r.long_name ?? ''
+  form.value.riverName  = r.river_name ?? ''
+  form.value.note       = r.note ?? ''
+  form.value.classMin   = r.class_min ?? null
+  form.value.classMax   = r.class_max ?? null
+  form.value.visibility = (r.visibility as Visibility) ?? (r.is_private ? 'private' : 'public')
+  form.value.flowBands  = r.flow_bands ?? { base_label: 'Too Low', base_color: 'red-3', thresholds: [] }
   nldiGnisId.value = null
 }
 
@@ -1216,7 +1298,7 @@ async function save() {
       note:       form.value.note.trim()      || null,
       class_min:  form.value.classMin,
       class_max:  form.value.classMax,
-      is_private: form.value.isPrivate,
+      visibility: form.value.visibility,
       gnis_id:    nldiGnisId.value ?? undefined,
     }
     if (repinFlowlinesDirty.value && repinUpComID.value && repinDownComID.value) {
@@ -1258,7 +1340,8 @@ async function save() {
         long_name:   form.value.longName.trim()  || null,
         river_name:  form.value.riverName.trim() || null,
         note:        form.value.note.trim()      || null,
-        is_private:  form.value.isPrivate,
+        is_private:  form.value.visibility !== 'public',
+        visibility:  form.value.visibility,
         flow_bands:  form.value.flowBands,
       }
     }
