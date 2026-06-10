@@ -305,11 +305,12 @@
             />
           </ClientOnly>
 
-          <!-- Map click popup: Add to dashboard / View run (issue #201) -->
+          <!-- Map click popup: Add to dashboard / View run -->
           <Transition name="popup">
             <div
               v-if="popupRun"
-              class="absolute top-3 left-1/2 -translate-x-1/2 z-30 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-lg px-4 py-3 min-w-52 max-w-72"
+              class="absolute z-30 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-lg px-4 py-3 min-w-52 max-w-72"
+              :style="popupStyle"
             >
               <div class="flex items-start justify-between gap-2 mb-2">
                 <p class="text-sm font-semibold text-neutral-800 dark:text-neutral-200 truncate flex-1">{{ popupRun.name }}</p>
@@ -777,12 +778,20 @@ function onMapHover(slug: string | null) {
   }
 }
 
-// ── Map click popup (issue #201) ──────────────────────────────────────────────
-interface PopupRun { slug: string; name: string; id: string | null; authorHandle: string | null; viewUrl: string }
+// ── Map click popup ───────────────────────────────────────────────────────────
+interface PopupRun { slug: string; name: string; id: string | null; authorHandle: string | null; viewUrl: string; point?: { x: number; y: number } }
 const popupRun = ref<PopupRun | null>(null)
 
+const popupStyle = computed((): Record<string, string> => {
+  const pt = popupRun.value?.point
+  if (!pt) return { top: '12px', left: '50%', transform: 'translateX(-50%)' }
+  return {
+    left: `${Math.max(8, pt.x - 100)}px`,
+    top:  `${Math.max(8, pt.y - 148)}px`,
+  }
+})
+
 function onReachClick(payload: ReachClickPayload) {
-  const isOwn = activeTab.value !== 'browse' && !payload.authorHandle
   const viewUrl = activeTab.value === 'browse' && browseHandle.value
     ? `/runs/${browseHandle.value}/${payload.slug}`
     : payload.authorHandle
@@ -801,6 +810,7 @@ function onReachClick(payload: ReachClickPayload) {
     id:           payload.id ?? null,
     authorHandle: payload.authorHandle ?? (activeTab.value === 'browse' ? (browseHandle.value ?? null) : null),
     viewUrl,
+    point:        payload.point,
   }
 }
 
