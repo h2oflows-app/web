@@ -82,6 +82,7 @@ export interface ReachClickPayload {
   id?:           string | null
   name?:         string | null
   authorHandle?: string | null
+  point?:        { x: number; y: number }
 }
 
 const emit  = defineEmits<{
@@ -529,7 +530,7 @@ function updateLayers(features: ReachFeature[]) {
       if (unique.length <= 1) {
         const p = (unique[0] ?? e.features[0]).properties as any
         if (!p.slug) return
-        emit('reach-click', { slug: p.slug, id: p.id ?? null, name: p.name ?? p.common_name ?? null, authorHandle: p.author_handle ?? null })
+        emit('reach-click', { slug: p.slug, id: p.id ?? null, name: p.name ?? p.common_name ?? null, authorHandle: p.author_handle ?? null, point: { x: e.point.x, y: e.point.y } })
         return
       }
       // Multiple overlapping — dismiss tooltip, show picker (top 5 by upvotes, official first on tie)
