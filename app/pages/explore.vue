@@ -188,17 +188,17 @@
               >
                 <button
                   class="p-1 rounded transition-colors"
-                  :class="addedRefIds.has(reach.id) ? 'text-primary-500' : 'text-neutral-400 dark:text-neutral-500 hover:text-primary-500 dark:hover:text-primary-400'"
-                  :disabled="addingRefId === reach.id"
+                  :class="addedRefIds.has(reach.slug) ? 'text-primary-500' : 'text-neutral-400 dark:text-neutral-500 hover:text-primary-500 dark:hover:text-primary-400'"
+                  :disabled="addingRefId === reach.slug"
                   aria-label="Add to dashboard"
-                  @click="db.dashboards.value.length <= 1 ? addBrowseReference(reach, db.dashboards.value[0]?.id ?? null) : (browseRefDropdownId = browseRefDropdownId === reach.id ? null : reach.id)"
+                  @click="db.dashboards.value.length <= 1 ? addBrowseReference(reach, db.dashboards.value[0]?.id ?? null) : (browseRefDropdownId = browseRefDropdownId === reach.slug ? null : reach.slug)"
                 >
-                  <span v-if="addingRefId === reach.id" class="w-4 h-4 border-2 border-primary-300 border-t-primary-600 rounded-full animate-spin inline-block"/>
-                  <svg v-else-if="addedRefIds.has(reach.id)" class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                  <span v-if="addingRefId === reach.slug" class="w-4 h-4 border-2 border-primary-300 border-t-primary-600 rounded-full animate-spin inline-block"/>
+                  <svg v-else-if="addedRefIds.has(reach.slug)" class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
                   <svg v-else class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="14"/><line x1="6" y1="10" x2="14" y2="10"/></svg>
                 </button>
                 <div
-                  v-if="browseRefDropdownId === reach.id"
+                  v-if="browseRefDropdownId === reach.slug"
                   class="absolute right-0 top-full mt-1 z-40 min-w-40 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden"
                 >
                   <p class="px-3 pt-2 pb-1 text-[10px] text-neutral-400 uppercase tracking-wide">Add to dashboard</p>
@@ -433,6 +433,7 @@ const route = useRoute()
 let pendingFocusSlug: string | null = (route.query.focus as string) || null
 const { isAuthenticated, getToken } = useAuth()
 const db = useDashboards()
+const { addReachToWatchlist, addUserReachToWatchlist, addReferenceToWatchlist } = useWatchlistSync()
 
 // ── Tab control ───────────────────────────────────────────────────────────────
 type TabId = 'mine' | 'browse'
@@ -485,14 +486,13 @@ const addingRefId         = ref<string | null>(null)
 const addedRefIds         = ref<Set<string>>(new Set())
 
 async function addBrowseReference(reach: ReachListItem, dashId: string | null) {
-  if (!reach.id) return
-  addingRefId.value = reach.id
+  addingRefId.value = reach.slug
   browseRefDropdownId.value = null
   try {
-    await addReferenceToWatchlist(reach.id, dashId)
-    addedRefIds.value = new Set([...addedRefIds.value, reach.id])
+    await addReachToWatchlist(reach.slug, dashId)
+    addedRefIds.value = new Set([...addedRefIds.value, reach.slug])
     setTimeout(() => {
-      addedRefIds.value = new Set([...addedRefIds.value].filter(x => x !== reach.id))
+      addedRefIds.value = new Set([...addedRefIds.value].filter(x => x !== reach.slug))
     }, 3000)
   } finally {
     addingRefId.value = null
@@ -524,7 +524,6 @@ onMounted(async () => {
   if (isAuthenticated.value) {
     db.load()
     await initMapToken()
-    await loadDashboardMembership()
     if (localStorage.getItem('sharing-banner-dismissed') !== 'true') {
       showSharingBanner.value = true
     }
@@ -568,37 +567,6 @@ const mapSourceHeaders = computed((): Record<string, string> => {
   if (activeTab.value === 'browse') return {}
   return mapToken.value ? { Authorization: `Bearer ${mapToken.value}` } : {}
 })
-
-// ── Dashboard filter (dashboards tab) ─────────────────────────────────────────
-const selectedDashboardIds = ref(new Set<string>())
-const dashboardReachMap    = ref(new Map<string, Set<string>>())
-
-function toggleDashboardFilter(id: string) {
-  const next = new Set(selectedDashboardIds.value)
-  if (next.has(id)) next.delete(id)
-  else               next.add(id)
-  selectedDashboardIds.value = next
-}
-
-async function loadDashboardMembership() {
-  const token = await getToken()
-  if (!token) return
-  try {
-    const res = await fetch(`${apiBase}/api/v1/watchlist`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (!res.ok) return
-    const data = await res.json()
-    const m = new Map<string, Set<string>>()
-    for (const item of (data.items ?? [])) {
-      if (item.reach_slug && item.dashboard_id) {
-        if (!m.has(item.dashboard_id)) m.set(item.dashboard_id, new Set())
-        m.get(item.dashboard_id)!.add(item.reach_slug)
-      }
-    }
-    dashboardReachMap.value = m
-  } catch {}
-}
 
 // ── Browse User mode ──────────────────────────────────────────────────────────
 const browseHandle    = ref<string | null>(null)
@@ -667,15 +635,7 @@ const mapSourceUrl = computed((): string | null => {
     return `${apiBase}/api/v1/users/${encodeURIComponent(browseHandle.value)}/runs/map/all`
   }
   if (!mapToken.value) return null
-  const base = `${apiBase}/api/v1/me/runs/map/all`
-  if (selectedDashboardIds.value.size === 0) return base
-  // dashboard filter active: include only slugs belonging to selected dashboards
-  const slugs = new Set<string>()
-  for (const id of selectedDashboardIds.value) {
-    for (const slug of (dashboardReachMap.value.get(id) ?? new Set())) slugs.add(slug)
-  }
-  if (slugs.size === 0) return null
-  return `${base}?slugs=${[...slugs].join(',')}`
+  return `${apiBase}/api/v1/me/runs/map/all`
 })
 
 // ── Reach list ────────────────────────────────────────────────────────────────
@@ -820,11 +780,7 @@ async function addPopupRunToDashboard(dashId: string | null) {
   if (!popupRun.value) return
   const p = popupRun.value
   popupRun.value = null
-  if (p.id && (activeTab.value === 'browse' || p.authorHandle)) {
-    await addReferenceToWatchlist(p.id, dashId)
-  } else {
-    await addReachToWatchlist(p.slug, dashId)
-  }
+  await addReachToWatchlist(p.slug, dashId)
 }
 
 async function reloadMap() {
@@ -862,7 +818,6 @@ async function openUserReachDropdown(r: ReachListItem) {
 }
 
 async function toggleDashboardForUserReach(r: ReachListItem, dashboardId: string) {
-  const { addReachToWatchlist, addUserReachToWatchlist, addReferenceToWatchlist } = useWatchlistSync()
   if (membershipDashboardIds.value.has(dashboardId)) {
     membershipDashboardIds.value = new Set([...membershipDashboardIds.value].filter(id => id !== dashboardId))
     const token = await getToken()
