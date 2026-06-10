@@ -433,6 +433,7 @@ const route = useRoute()
 let pendingFocusSlug: string | null = (route.query.focus as string) || null
 const { isAuthenticated, getToken } = useAuth()
 const db = useDashboards()
+const { addReachToWatchlist, addUserReachToWatchlist, addReferenceToWatchlist } = useWatchlistSync()
 
 // ── Tab control ───────────────────────────────────────────────────────────────
 type TabId = 'mine' | 'browse'
@@ -822,7 +823,6 @@ async function openUserReachDropdown(r: ReachListItem) {
 }
 
 async function toggleDashboardForUserReach(r: ReachListItem, dashboardId: string) {
-  const { addReachToWatchlist, addUserReachToWatchlist, addReferenceToWatchlist } = useWatchlistSync()
   if (membershipDashboardIds.value.has(dashboardId)) {
     membershipDashboardIds.value = new Set([...membershipDashboardIds.value].filter(id => id !== dashboardId))
     const token = await getToken()
