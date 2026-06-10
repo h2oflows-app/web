@@ -524,7 +524,6 @@ onMounted(async () => {
   if (isAuthenticated.value) {
     db.load()
     await initMapToken()
-    await loadDashboardMembership()
     if (localStorage.getItem('sharing-banner-dismissed') !== 'true') {
       showSharingBanner.value = true
     }
@@ -568,37 +567,6 @@ const mapSourceHeaders = computed((): Record<string, string> => {
   if (activeTab.value === 'browse') return {}
   return mapToken.value ? { Authorization: `Bearer ${mapToken.value}` } : {}
 })
-
-// ── Dashboard filter (dashboards tab) ─────────────────────────────────────────
-const selectedDashboardIds = ref(new Set<string>())
-const dashboardReachMap    = ref(new Map<string, Set<string>>())
-
-function toggleDashboardFilter(id: string) {
-  const next = new Set(selectedDashboardIds.value)
-  if (next.has(id)) next.delete(id)
-  else               next.add(id)
-  selectedDashboardIds.value = next
-}
-
-async function loadDashboardMembership() {
-  const token = await getToken()
-  if (!token) return
-  try {
-    const res = await fetch(`${apiBase}/api/v1/watchlist`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (!res.ok) return
-    const data = await res.json()
-    const m = new Map<string, Set<string>>()
-    for (const item of (data.items ?? [])) {
-      if (item.reach_slug && item.dashboard_id) {
-        if (!m.has(item.dashboard_id)) m.set(item.dashboard_id, new Set())
-        m.get(item.dashboard_id)!.add(item.reach_slug)
-      }
-    }
-    dashboardReachMap.value = m
-  } catch {}
-}
 
 // ── Browse User mode ──────────────────────────────────────────────────────────
 const browseHandle    = ref<string | null>(null)
@@ -667,15 +635,7 @@ const mapSourceUrl = computed((): string | null => {
     return `${apiBase}/api/v1/users/${encodeURIComponent(browseHandle.value)}/runs/map/all`
   }
   if (!mapToken.value) return null
-  const base = `${apiBase}/api/v1/me/runs/map/all`
-  if (selectedDashboardIds.value.size === 0) return base
-  // dashboard filter active: include only slugs belonging to selected dashboards
-  const slugs = new Set<string>()
-  for (const id of selectedDashboardIds.value) {
-    for (const slug of (dashboardReachMap.value.get(id) ?? new Set())) slugs.add(slug)
-  }
-  if (slugs.size === 0) return null
-  return `${base}?slugs=${[...slugs].join(',')}`
+  return `${apiBase}/api/v1/me/runs/map/all`
 })
 
 // ── Reach list ────────────────────────────────────────────────────────────────
