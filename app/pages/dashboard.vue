@@ -271,14 +271,18 @@
                       class="flex items-center gap-2 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer"
                       @click="openUserReach(r)"
                     >
-                      <div class="flex items-center gap-1 min-w-0 flex-1">
-                        <div class="min-w-0 flex-1">
-                          <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate block">{{ r.name }}</span>
-                          <span v-if="r.long_name" class="text-xs text-neutral-400 dark:text-neutral-500 truncate block">{{ r.long_name }}</span>
+                      <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-1 min-w-0">
+                          <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate">{{ r.name }}</span>
+                          <NuxtLink :to="`/my/runs/${r.slug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
+                            <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
+                          </NuxtLink>
                         </div>
-                        <NuxtLink :to="`/my/runs/${r.slug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
-                          <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
-                        </NuxtLink>
+                        <div v-if="r.author_handle || r.long_name" class="flex items-center gap-1 mt-0.5">
+                          <span v-if="r.author_handle" class="text-xs text-neutral-400 dark:text-neutral-500 shrink-0">@{{ r.author_handle }}</span>
+                          <span v-if="r.author_handle && r.long_name" class="text-xs text-neutral-300 dark:text-neutral-600">·</span>
+                          <span v-if="r.long_name" class="text-xs text-neutral-400 dark:text-neutral-500 truncate">{{ r.long_name }}</span>
+                        </div>
                       </div>
                       <div class="w-44 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
                         <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" compact />
@@ -661,6 +665,7 @@ interface UserReachSummary {
   flow_status: 'runnable' | 'caution' | 'flood' | 'unknown'
   last_reading_at: string | null; gauge_id: string | null
   custom_gauge_id: string | null; custom_gauge_slug: string | null; custom_gauge_name: string | null
+  author_handle: string | null
 }
 
 function reachBadgeClass(r: UserReachSummary): string {
@@ -721,7 +726,7 @@ function openUserReach(r: UserReachSummary) {
               ?? store.gauges.find(g => g.id === r.gauge_id)
     if (gauge) { openGauge(gauge, 'reach'); return }
   }
-  router.push(`/my/runs/${r.slug}`)
+  router.push(`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`)
 }
 const userReaches = ref<UserReachSummary[]>([])
 async function loadUserReaches() {
