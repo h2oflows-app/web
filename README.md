@@ -4,6 +4,17 @@ Nuxt 4 frontend for the H2OFlows streamflow platform. Gauge dashboard, reach pag
 
 Deployed on **Netlify**. API backend: [h2oflows-app/api](https://github.com/h2oflows-app/api).
 
+## Environments
+
+| Context | API | Supabase (auth) |
+|---|---|---|
+| Production | `api.h2oflows.app` | prod project |
+| Deploy preview / branch deploy | `api-staging.h2oflows.app` | staging project |
+
+Deploy previews run against the **staging** API + a separate staging Supabase
+project, so PR previews never touch production data or auth. Wiring lives in
+`netlify.toml` (per-context `NUXT_PUBLIC_API_BASE` / `SUPABASE_URL` / `SUPABASE_KEY`).
+
 ---
 
 ## Stack
