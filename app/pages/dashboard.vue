@@ -664,6 +664,7 @@ interface UserReachSummary {
   current_cfs: number | null; flow_band: string | null
   flow_status: 'runnable' | 'caution' | 'flood' | 'unknown'
   last_reading_at: string | null; gauge_id: string | null
+  gauge_external_id: string | null; gauge_source: string | null; gauge_name: string | null
   custom_gauge_id: string | null; custom_gauge_slug: string | null; custom_gauge_name: string | null
   author_handle: string | null
 }
@@ -725,8 +726,57 @@ function openUserReach(r: UserReachSummary) {
     const gauge = store.gauges.find(g => g.id === r.gauge_id && g.contextReachSlug === r.slug)
               ?? store.gauges.find(g => g.id === r.gauge_id)
     if (gauge) { openGauge(gauge, 'reach'); return }
+    // Run's gauge isn't in the watchlist store (the run carries it, not a separate
+    // watchlist add). Build a synthetic WatchedGauge from the run summary so the
+    // modal opens in reach mode instead of falling through to navigation.
+    if (r.gauge_external_id && r.gauge_source) {
+      openGauge(synthGaugeForReach(r), 'reach')
+      return
+    }
   }
   router.push(`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`)
+}
+
+// Minimal WatchedGauge built from a user-reach summary — only the fields
+// GaugeDetailModal reads in reach mode are populated.
+function synthGaugeForReach(r: UserReachSummary): WatchedGauge {
+  return {
+    id: r.gauge_id!,
+    externalId: r.gauge_external_id ?? '',
+    source: r.gauge_source ?? '',
+    name: r.gauge_name ?? null,
+    contextReachSlug: r.slug,
+    contextReachCommonName: r.name,
+    contextReachFullName: r.long_name,
+    contextReachRiverName: r.river_name,
+    contextReachBasinGroup: r.basin_group,
+    contextReachCenterLng: null,
+    contextReachRiverOrder: null,
+    contextReachAuthorHandle: r.author_handle,
+    contextReachPermitRequired: false,
+    contextReachMultiDayDays: 0,
+    reachId: null,
+    reachName: r.name,
+    reachNames: [r.name],
+    reachSlug: r.slug,
+    reachSlugs: [r.slug],
+    reachCommonNames: [r.name],
+    reachRelationship: null,
+    watershedName: null,
+    basinName: r.basin_group,
+    riverName: r.river_name,
+    stateAbbr: r.state_abbr,
+    lat: null,
+    lng: null,
+    currentCfs: r.current_cfs,
+    flowStatus: r.flow_status,
+    flowBandLabel: r.flow_band,
+    lastReadingAt: r.last_reading_at,
+    pollHealth: null,
+    lastPollSuccessAt: null,
+    watchState: 'saved',
+    activeSince: null,
+  }
 }
 const userReaches = ref<UserReachSummary[]>([])
 async function loadUserReaches() {
