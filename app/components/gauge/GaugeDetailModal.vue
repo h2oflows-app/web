@@ -176,16 +176,21 @@ const graphReachSlug = computed(() =>
 )
 
 // User runs store flow ranges under the run, not the curated /reaches/{slug}
-// endpoint. When the reach has an author handle it's a user run — point the graph
-// at the public-by-handle flow-ranges endpoint so own + referenced runs color.
+// endpoint. When the reach has an author handle it's a user run:
+//  - my own run  → /me/runs/{slug}/flow-ranges (authed, works at any visibility)
+//  - another's   → /users/{handle}/runs/{slug}/flow-ranges (public-only)
 // Null falls back to GaugeGraph's curated default.
 const { apiBase } = useRuntimeConfig().public
+const { load: loadMyProfile, isMine } = useMyProfile()
+loadMyProfile()
 const graphFlowRangesUrl = computed(() => {
   if (props.mode !== 'reach') return null
   const slug = props.gauge.contextReachSlug ?? props.gauge.reachSlug
   const handle = props.gauge.contextReachAuthorHandle
-  if (slug && handle) return `${apiBase}/api/v1/users/${handle}/runs/${slug}/flow-ranges`
-  return null
+  if (!slug || !handle) return null
+  return isMine(handle)
+    ? `${apiBase}/api/v1/me/runs/${slug}/flow-ranges`
+    : `${apiBase}/api/v1/users/${handle}/runs/${slug}/flow-ranges`
 })
 
 // ── Diurnal helpers ───────────────────────────────────────────────────────
