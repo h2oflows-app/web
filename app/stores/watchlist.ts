@@ -24,6 +24,7 @@ export interface WatchedGauge {
   contextReachCommonName: string | null  // e.g. "Foxton"
   contextReachFullName: string | null   // e.g. "Buffalo Creek to South Platte"
   contextReachRiverName: string | null  // e.g. "South Platte River"
+  contextReachRiverId: string | null    // UUID of the river record
   contextReachBasinGroup: string | null  // e.g. "Arkansas" — from KML metadata or auto-derived
   contextReachCenterLng: number | null   // centroid of the reach centerline — fallback for upstream→downstream sort
   contextReachRiverOrder: number | null  // admin-set upstream→downstream index; preferred sort key
@@ -227,6 +228,7 @@ export const useWatchlistStore = defineStore('watchlist', {
       gauge.contextReachCommonName = fresh.contextReachCommonName ?? null
       gauge.contextReachFullName  = fresh.contextReachFullName ?? null
       gauge.contextReachRiverName = fresh.contextReachRiverName ?? null
+      gauge.contextReachRiverId   = fresh.contextReachRiverId ?? null
       gauge.contextReachBasinGroup     = fresh.contextReachBasinGroup ?? null
       gauge.contextReachCenterLng      = fresh.contextReachCenterLng ?? null
       gauge.contextReachRiverOrder     = fresh.contextReachRiverOrder ?? null

@@ -1207,7 +1207,9 @@ const byStateTree = computed<StateGroup[]>(() => {
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([rName, { gaugeReaches, userReaches }]) => ({
               name: rName,
-              riverId: userReaches.find(r => r.river_id)?.river_id ?? null,
+              riverId: userReaches.find(r => r.river_id)?.river_id
+                ?? gaugeReaches.find(g => g.contextReachRiverId)?.contextReachRiverId
+                ?? null,
               userReaches,
               reaches: [...gaugeReaches].sort((a, b) => {
                 // river_order (stored, admin-set) preferred; fall back to center longitude
