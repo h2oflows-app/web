@@ -175,50 +175,6 @@
                   <h2 class="text-sm font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide">{{ sub.name }} Basin</h2>
                   <span class="text-xs text-neutral-400">({{ sub.reachCount }})</span>
                 </button>
-                <!-- Inline basin-label editor -->
-                <template v-if="sub.stateAbbr && sub.rawBasinKey">
-                  <template v-if="editingBasinKey === sub.stateAbbr + '|' + sub.rawBasinKey">
-                    <input
-                      :id="`basin-edit-${sub.key}`"
-                      v-model="editingBasinName"
-                      type="text"
-                      maxlength="80"
-                      class="text-sm font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide bg-white dark:bg-neutral-800 border border-primary-400 rounded px-1.5 py-0.5 w-32 shrink-0"
-                      @keydown.enter="saveBasinOverride(sub)"
-                      @keydown.esc="cancelBasinEdit"
-                    />
-                    <button
-                      class="shrink-0 p-0.5 rounded text-primary-500 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 transition-colors"
-                      title="Save label"
-                      @click="saveBasinOverride(sub)"
-                    >
-                      <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                    </button>
-                    <button
-                      v-if="basinOverrides.has(sub.stateAbbr + '|' + sub.rawBasinKey)"
-                      class="shrink-0 p-0.5 rounded text-neutral-400 hover:text-red-500 dark:text-neutral-500 dark:hover:text-red-400 transition-colors"
-                      title="Reset to default label"
-                      @click="deleteBasinOverride(sub)"
-                    >
-                      <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
-                    </button>
-                    <button
-                      class="shrink-0 p-0.5 rounded text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 transition-colors"
-                      title="Cancel"
-                      @click="cancelBasinEdit"
-                    >
-                      <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
-                    </button>
-                  </template>
-                  <button
-                    v-else
-                    class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-neutral-500 dark:hover:text-neutral-400 transition-colors"
-                    title="Rename basin label"
-                    @click="startBasinEdit(sub)"
-                  >
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zm-2.207 2.207L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
-                  </button>
-                </template>
                 <!-- Map-pin link to full basin page -->
                 <NuxtLink
                   :to="`/basin/${slugifyBasin(sub.name)}`"
@@ -245,6 +201,50 @@
                       <path d="M4 22c3-6 6-9 8-9s5 9 8 9 5-9 8-9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
                     </svg>
                     <span class="text-base font-semibold text-primary-600 dark:text-primary-400 shrink-0">{{ river.name }}</span>
+                    <!-- Inline basin-reassignment editor (only for rivers with user runs) -->
+                    <template v-if="river.riverId">
+                      <template v-if="editingRiverId === river.riverId">
+                        <input
+                          v-model="editingRiverBasinName"
+                          type="text"
+                          maxlength="80"
+                          placeholder="Basin name"
+                          class="text-xs bg-white dark:bg-neutral-800 border border-primary-400 rounded px-1.5 py-0.5 w-28 shrink-0"
+                          @keydown.enter="saveRiverBasinOverride(river)"
+                          @keydown.esc="cancelRiverBasinEdit"
+                        />
+                        <button
+                          class="shrink-0 p-0.5 rounded text-primary-500 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 transition-colors"
+                          title="Save basin"
+                          @click="saveRiverBasinOverride(river)"
+                        >
+                          <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                        </button>
+                        <button
+                          v-if="riverBasinOverrides.has(river.riverId)"
+                          class="shrink-0 p-0.5 rounded text-neutral-400 hover:text-red-500 dark:text-neutral-500 dark:hover:text-red-400 transition-colors"
+                          title="Reset to default basin"
+                          @click="deleteRiverBasinOverride(river)"
+                        >
+                          <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                        </button>
+                        <button
+                          class="shrink-0 p-0.5 rounded text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 transition-colors"
+                          title="Cancel"
+                          @click="cancelRiverBasinEdit"
+                        >
+                          <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                        </button>
+                      </template>
+                      <button
+                        v-else
+                        class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-neutral-500 dark:hover:text-neutral-400 transition-colors"
+                        title="Move river to a different basin"
+                        @click="startRiverBasinEdit(river)"
+                      >
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zm-2.207 2.207L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
+                      </button>
+                    </template>
                     <div class="flex-1 h-px bg-neutral-200 dark:bg-neutral-700" />
                   </div>
                   <!-- Cards wrapper -->
@@ -696,12 +696,12 @@ async function syncWithServer() {
   }
 }
 
-watch(isAuthenticated, (val) => { if (val) { syncWithServer(); loadUserReaches(); loadCustomGauges(); loadBasinOverrides() } })
+watch(isAuthenticated, (val) => { if (val) { syncWithServer(); loadUserReaches(); loadCustomGauges(); loadRiverBasinOverrides() } })
 
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
-  if (isAuthenticated.value) { syncWithServer(); loadUserReaches(); loadCustomGauges(); loadBasinOverrides() }
+  if (isAuthenticated.value) { syncWithServer(); loadUserReaches(); loadCustomGauges(); loadRiverBasinOverrides() }
   refresh()
   refreshTimer = setInterval(refresh, 60_000)
 })
@@ -715,7 +715,7 @@ const isDefaultDashboard = computed(() =>
 // ── User reaches ──────────────────────────────────────────────────────────────
 interface UserReachSummary {
   id: string; slug: string; name: string; long_name: string | null; river_name: string | null
-  state_abbr: string | null; basin_group: string | null
+  river_id: string | null; state_abbr: string | null; basin_group: string | null
   current_cfs: number | null; flow_band: string | null
   flow_status: 'runnable' | 'caution' | 'flood' | 'unknown'
   last_reading_at: string | null; gauge_id: string | null
@@ -1030,76 +1030,84 @@ async function activateDashboard(id: string) {
 }
 onUnmounted(() => { serverSynced = false; if (refreshTimer) clearInterval(refreshTimer) })
 
-// ── Basin overrides ───────────────────────────────────────────────────────────
-// Keyed by "${stateAbbr}|${rawBasinKey}" → display name.
-// Fetched once on load; applied in byStateTree to re-label basins client-side
-// without touching the rivers table.
+// ── River basin overrides ─────────────────────────────────────────────────────
+// Keyed by river_id → basin_key (free-text label).
+// Fetched once on load; applied in byStateTree to re-group rivers client-side.
 
-const basinOverrides = ref<Map<string, string>>(new Map())
+const riverBasinOverrides = ref<Map<string, string>>(new Map())
 
-async function loadBasinOverrides() {
+async function loadRiverBasinOverrides() {
   const token = await getToken()
   if (!token) return
-  const res = await fetch(`${apiBase}/api/v1/me/basin-overrides`, {
+  const res = await fetch(`${apiBase}/api/v1/me/river-basin-overrides`, {
     headers: { Authorization: `Bearer ${token}` },
   }).catch(() => null)
   if (!res?.ok) return
-  const data: { state_abbr: string; basin_key: string; display_name: string }[] = await res.json() ?? []
-  basinOverrides.value = new Map(data.map(o => [`${o.state_abbr}|${o.basin_key}`, o.display_name]))
+  const data: { river_id: string; basin_key: string }[] = await res.json() ?? []
+  riverBasinOverrides.value = new Map(data.map(o => [o.river_id, o.basin_key]))
 }
 
-// Inline basin-label editor state
-const editingBasinKey   = ref<string | null>(null)  // "${stateAbbr}|${rawBasinKey}" or null
-const editingBasinName  = ref('')
+// Derived: (state|riverName) → basin_key for applying overrides to gauge entries
+// that lack a river_id but share the same river name + state as an overridden run.
+const riverNameBasinOverrides = computed(() => {
+  const m = new Map<string, string>()
+  for (const [riverId, basinKey] of riverBasinOverrides.value) {
+    const run = activeUserReaches.value.find(r => r.river_id === riverId)
+    if (run?.river_name && run?.state_abbr) {
+      m.set(`${run.state_abbr}|${run.river_name}`, basinKey)
+    }
+  }
+  return m
+})
 
-function startBasinEdit(sub: DisplaySubSection) {
-  if (!sub.stateAbbr || !sub.rawBasinKey) return
-  const key = `${sub.stateAbbr}|${sub.rawBasinKey}`
-  editingBasinKey.value  = key
-  editingBasinName.value = basinOverrides.value.get(key) ?? sub.name ?? ''
+// Inline river-basin editor state
+const editingRiverId       = ref<string | null>(null)
+const editingRiverBasinName = ref('')
+
+function startRiverBasinEdit(river: RiverGroup) {
+  if (!river.riverId) return
+  editingRiverId.value       = river.riverId
+  editingRiverBasinName.value = riverBasinOverrides.value.get(river.riverId) ?? ''
 }
 
-function cancelBasinEdit() {
-  editingBasinKey.value  = null
-  editingBasinName.value = ''
+function cancelRiverBasinEdit() {
+  editingRiverId.value       = null
+  editingRiverBasinName.value = ''
 }
 
-async function saveBasinOverride(sub: DisplaySubSection) {
-  if (!sub.stateAbbr || !sub.rawBasinKey) return
-  const name = editingBasinName.value.trim()
-  if (!name) { cancelBasinEdit(); return }
+async function saveRiverBasinOverride(river: RiverGroup) {
+  if (!river.riverId) return
+  const name = editingRiverBasinName.value.trim()
+  if (!name) { cancelRiverBasinEdit(); return }
   const token = await getToken()
   if (!token) return
-  const res = await fetch(`${apiBase}/api/v1/me/basin-overrides`, {
+  const res = await fetch(`${apiBase}/api/v1/me/rivers/${river.riverId}/basin-override`, {
     method: 'PUT',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ state_abbr: sub.stateAbbr, basin_key: sub.rawBasinKey, display_name: name }),
+    body: JSON.stringify({ basin_key: name }),
   }).catch(() => null)
   if (!res?.ok) return
-  const key = `${sub.stateAbbr}|${sub.rawBasinKey}`
-  basinOverrides.value = new Map([...basinOverrides.value, [key, name]])
-  cancelBasinEdit()
+  riverBasinOverrides.value = new Map([...riverBasinOverrides.value, [river.riverId, name]])
+  cancelRiverBasinEdit()
 }
 
-async function deleteBasinOverride(sub: DisplaySubSection) {
-  if (!sub.stateAbbr || !sub.rawBasinKey) return
+async function deleteRiverBasinOverride(river: RiverGroup) {
+  if (!river.riverId) return
   const token = await getToken()
   if (!token) return
-  const qs = `?state_abbr=${encodeURIComponent(sub.stateAbbr)}&basin_key=${encodeURIComponent(sub.rawBasinKey)}`
-  await fetch(`${apiBase}/api/v1/me/basin-overrides${qs}`, {
+  await fetch(`${apiBase}/api/v1/me/rivers/${river.riverId}/basin-override`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   }).catch(() => null)
-  const key = `${sub.stateAbbr}|${sub.rawBasinKey}`
-  const next = new Map(basinOverrides.value)
-  next.delete(key)
-  basinOverrides.value = next
-  cancelBasinEdit()
+  const next = new Map(riverBasinOverrides.value)
+  next.delete(river.riverId)
+  riverBasinOverrides.value = next
+  cancelRiverBasinEdit()
 }
 
 // ── Reach-primary grouping: state → basin → river → reaches ─────────────────
 
-interface RiverGroup { name: string; reaches: WatchedGauge[]; userReaches: UserReachSummary[] }
+interface RiverGroup { name: string; riverId: string | null; reaches: WatchedGauge[]; userReaches: UserReachSummary[] }
 interface BasinGroup { name: string; rawKey: string; reachCount: number; rivers: RiverGroup[]; standaloneGauges: WatchedGauge[] }
 interface StateGroup { name: string; reachCount: number; basins: BasinGroup[] }
 
@@ -1111,14 +1119,21 @@ const byStateTree = computed<StateGroup[]>(() => {
   type BasinEntry = { rivers: Map<string, RiverEntry>; standalone: WatchedGauge[]; rawKey: string }
   const stateMap = new Map<string, Map<string, BasinEntry>>()
 
-  // Helper: resolve basin display name, applying per-user override first.
-  function resolveBasin(rawBasin: string | null | undefined, state: string): { display: string; rawKey: string } {
-    const rawKey = rawBasin ?? ''
-    const overrideKey = `${state}|${rawKey}`
-    if (rawKey && basinOverrides.value.has(overrideKey)) {
-      return { display: basinOverrides.value.get(overrideKey)!, rawKey }
+  // Resolve basin for a gauge entry: check riverNameBasinOverrides by (state|riverName).
+  function resolveBasinForGauge(rawBasin: string | null | undefined, state: string, riverName: string | null): string {
+    if (riverName) {
+      const nameKey = `${state}|${riverName}`
+      if (riverNameBasinOverrides.value.has(nameKey)) return riverNameBasinOverrides.value.get(nameKey)!
     }
-    return { display: cleanBasinName(rawBasin) ?? 'Other', rawKey }
+    return cleanBasinName(rawBasin) ?? 'Other'
+  }
+
+  // Resolve basin for a user run: check riverBasinOverrides by river_id first.
+  function resolveBasinForRun(ur: UserReachSummary, state: string): string {
+    if (ur.river_id && riverBasinOverrides.value.has(ur.river_id)) {
+      return riverBasinOverrides.value.get(ur.river_id)!
+    }
+    return cleanBasinName(ur.basin_group) ?? 'Other'
   }
 
   // De-duplicate: same gauge+reach should only appear once
@@ -1133,10 +1148,11 @@ const byStateTree = computed<StateGroup[]>(() => {
     seen.add(dedupeKey)
 
     const state = g.stateAbbr ?? '—'
-    // Prefer the most specific basin source; first non-null raw value wins for rawKey.
     const rawBasin = g.contextReachBasinGroup ?? g.watershedName ?? g.basinName
       ?? g.contextReachRiverName ?? g.riverName ?? null
-    const { display: basin, rawKey } = resolveBasin(rawBasin, state)
+    const riverName = g.contextReachRiverName ?? g.riverName ?? null
+    const basin = resolveBasinForGauge(rawBasin, state, riverName)
+    const rawKey = rawBasin ?? ''
 
     if (!stateMap.has(state)) stateMap.set(state, new Map())
     const basinMap = stateMap.get(state)!
@@ -1155,7 +1171,8 @@ const byStateTree = computed<StateGroup[]>(() => {
   // Fold visible user reaches that are NOT already covered by a watchlist gauge entry
   for (const ur of activeUserReaches.value.filter(r => !hiddenReaches.value.has(r.id) && !gaugeReachSlugs.has(r.slug))) {
     const state = ur.state_abbr ?? '—'
-    const { display: basin, rawKey } = resolveBasin(ur.basin_group, state)
+    const basin = resolveBasinForRun(ur, state)
+    const rawKey = ur.basin_group ?? ''
     const river = ur.river_name ?? 'My Runs'
     if (!stateMap.has(state)) stateMap.set(state, new Map())
     const basinMap = stateMap.get(state)!
@@ -1169,7 +1186,8 @@ const byStateTree = computed<StateGroup[]>(() => {
   // they render read-only in the userReaches list, flagged via is_reference.
   for (const ur of activeReferencedReaches.value) {
     const state = ur.state_abbr ?? '—'
-    const { display: basin, rawKey } = resolveBasin(ur.basin_group, state)
+    const basin = resolveBasinForRun(ur, state)
+    const rawKey = ur.basin_group ?? ''
     const river = ur.river_name ?? 'Shared Runs'
     if (!stateMap.has(state)) stateMap.set(state, new Map())
     const basinMap = stateMap.get(state)!
@@ -1189,6 +1207,7 @@ const byStateTree = computed<StateGroup[]>(() => {
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([rName, { gaugeReaches, userReaches }]) => ({
               name: rName,
+              riverId: userReaches.find(r => r.river_id)?.river_id ?? null,
               userReaches,
               reaches: [...gaugeReaches].sort((a, b) => {
                 // river_order (stored, admin-set) preferred; fall back to center longitude
@@ -1251,7 +1270,7 @@ function sortReaches(reaches: WatchedGauge[]): WatchedGauge[] {
 function mergeRivers(allRivers: RiverGroup[]): RiverGroup[] {
   const map = new Map<string, RiverGroup>()
   for (const r of allRivers) {
-    if (!map.has(r.name)) map.set(r.name, { name: r.name, reaches: [], userReaches: [] })
+    if (!map.has(r.name)) map.set(r.name, { name: r.name, riverId: r.riverId, reaches: [], userReaches: [] })
     const m = map.get(r.name)!
     m.reaches.push(...r.reaches)
     m.userReaches.push(...r.userReaches)
