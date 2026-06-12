@@ -384,7 +384,11 @@
 <script setup lang="ts">
 import { ref, nextTick, watch, onMounted, onUnmounted } from 'vue'
 import MarkdownIt from 'markdown-it'
-const { user, isAuthenticated, isDataAdmin, signOut } = useAuth()
+const { user, isAuthenticated, isDataAdmin, loadAdminRoles, signOut } = useAuth()
+// Load user_roles-based admin state once, app-wide — gates the admin menu link.
+// Shared via useState in useAuth, so this lights the menu on every page.
+onMounted(() => { if (isAuthenticated.value) loadAdminRoles() })
+watch(isAuthenticated, (v) => { if (v) loadAdminRoles() })
 const router = useRouter()
 const route = useRoute()
 const menuOpen = ref(false)
