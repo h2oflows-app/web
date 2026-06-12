@@ -271,14 +271,22 @@
                       class="flex items-center gap-2 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer"
                       @click="openUserReach(r)"
                     >
-                      <div class="flex items-center gap-1 min-w-0 flex-1">
-                        <div class="min-w-0 flex-1">
-                          <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate block">{{ r.name }}</span>
-                          <span v-if="r.long_name" class="text-xs text-neutral-400 dark:text-neutral-500 truncate block">{{ r.long_name }}</span>
+                      <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-1 min-w-0">
+                          <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate">{{ r.name }}</span>
+                          <!-- Referenced run: fork-to-edit. Own run: edit link. -->
+                          <button v-if="r.is_reference" :disabled="forkingRefId === r.id" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors disabled:opacity-40" title="Fork to edit" @click.stop="forkReferencedRun(r)">
+                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="8" r="2.5"/><path d="M6 8.5v7M18 10.5c0 3-4 3-6 4.5"/></svg>
+                          </button>
+                          <NuxtLink v-else :to="`/my/runs/${r.slug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
+                            <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
+                          </NuxtLink>
                         </div>
-                        <NuxtLink :to="`/my/runs/${r.slug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
-                          <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
-                        </NuxtLink>
+                        <div v-if="r.author_handle || r.long_name" class="flex items-center gap-1 mt-0.5">
+                          <span v-if="r.author_handle" class="text-xs text-neutral-400 dark:text-neutral-500 shrink-0">@{{ r.author_handle }}</span>
+                          <span v-if="r.author_handle && r.long_name" class="text-xs text-neutral-300 dark:text-neutral-600">·</span>
+                          <span v-if="r.long_name" class="text-xs text-neutral-400 dark:text-neutral-500 truncate">{{ r.long_name }}</span>
+                        </div>
                       </div>
                       <div class="w-44 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
                         <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" compact />
@@ -306,13 +314,20 @@
                             <span class="text-base font-semibold truncate">{{ r.name }}</span>
                             <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', urBadgeClass(r)]">{{ urBandLabel(r) }}</span>
                           </div>
-                          <p v-if="r.long_name" class="text-xs text-neutral-400 dark:text-neutral-500 truncate mt-0.5">{{ r.long_name }}</p>
+                          <div v-if="r.author_handle || r.long_name" class="flex items-center gap-1 mt-0.5">
+                            <span v-if="r.author_handle" class="text-xs text-neutral-400 dark:text-neutral-500 shrink-0">@{{ r.author_handle }}</span>
+                            <span v-if="r.author_handle && r.long_name" class="text-xs text-neutral-300 dark:text-neutral-600">·</span>
+                            <span v-if="r.long_name" class="text-xs text-neutral-400 dark:text-neutral-500 truncate">{{ r.long_name }}</span>
+                          </div>
                         </div>
                         <div class="shrink-0 flex items-center gap-1">
                           <span class="font-bold tabular-nums leading-none text-3xl" :style="{ color: urBandHex(r) }">
                             {{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-500 dark:text-neutral-400 ml-0.5">cfs</span>
                           </span>
-                          <NuxtLink :to="`/my/runs/${r.slug}`" class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
+                          <button v-if="r.is_reference" :disabled="forkingRefId === r.id" class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors disabled:opacity-40" title="Fork to edit" @click.stop="forkReferencedRun(r)">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="8" r="2.5"/><path d="M6 8.5v7M18 10.5c0 3-4 3-6 4.5"/></svg>
+                          </button>
+                          <NuxtLink v-else :to="`/my/runs/${r.slug}`" class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
                             <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
                           </NuxtLink>
                           <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
@@ -660,7 +675,11 @@ interface UserReachSummary {
   current_cfs: number | null; flow_band: string | null
   flow_status: 'runnable' | 'caution' | 'flood' | 'unknown'
   last_reading_at: string | null; gauge_id: string | null
+  gauge_external_id: string | null; gauge_source: string | null; gauge_name: string | null
   custom_gauge_id: string | null; custom_gauge_slug: string | null; custom_gauge_name: string | null
+  author_handle: string | null
+  // True when this row is another user's public run added by reference (read-only).
+  is_reference?: boolean
 }
 
 function reachBadgeClass(r: UserReachSummary): string {
@@ -703,6 +722,17 @@ function openStandaloneCustomGauge(cg: CustomGaugeSummary) {
 
 // Click a user reach card → open appropriate modal or navigate.
 function openUserReach(r: UserReachSummary) {
+  // Referenced run — read-only. Custom-gauge runs can't open the owner-only
+  // custom gauge modal, so open the gauge modal when there's a real gauge,
+  // else view the owner's public run page.
+  if (r.is_reference) {
+    if (r.gauge_id && r.gauge_external_id && r.gauge_source) {
+      openGauge(synthGaugeForReach(r), 'reach')
+      return
+    }
+    router.push(`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`)
+    return
+  }
   if (r.custom_gauge_id && r.custom_gauge_slug) {
     customGaugeModalProps.value = {
       reachName:  r.name,
@@ -720,8 +750,57 @@ function openUserReach(r: UserReachSummary) {
     const gauge = store.gauges.find(g => g.id === r.gauge_id && g.contextReachSlug === r.slug)
               ?? store.gauges.find(g => g.id === r.gauge_id)
     if (gauge) { openGauge(gauge, 'reach'); return }
+    // Run's gauge isn't in the watchlist store (the run carries it, not a separate
+    // watchlist add). Build a synthetic WatchedGauge from the run summary so the
+    // modal opens in reach mode instead of falling through to navigation.
+    if (r.gauge_external_id && r.gauge_source) {
+      openGauge(synthGaugeForReach(r), 'reach')
+      return
+    }
   }
-  router.push(`/my/runs/${r.slug}`)
+  router.push(`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`)
+}
+
+// Minimal WatchedGauge built from a user-reach summary — only the fields
+// GaugeDetailModal reads in reach mode are populated.
+function synthGaugeForReach(r: UserReachSummary): WatchedGauge {
+  return {
+    id: r.gauge_id!,
+    externalId: r.gauge_external_id ?? '',
+    source: r.gauge_source ?? '',
+    name: r.gauge_name ?? null,
+    contextReachSlug: r.slug,
+    contextReachCommonName: r.name,
+    contextReachFullName: r.long_name,
+    contextReachRiverName: r.river_name,
+    contextReachBasinGroup: r.basin_group,
+    contextReachCenterLng: null,
+    contextReachRiverOrder: null,
+    contextReachAuthorHandle: r.author_handle,
+    contextReachPermitRequired: false,
+    contextReachMultiDayDays: 0,
+    reachId: null,
+    reachName: r.name,
+    reachNames: [r.name],
+    reachSlug: r.slug,
+    reachSlugs: [r.slug],
+    reachCommonNames: [r.name],
+    reachRelationship: null,
+    watershedName: null,
+    basinName: r.basin_group,
+    riverName: r.river_name,
+    stateAbbr: r.state_abbr,
+    lat: null,
+    lng: null,
+    currentCfs: r.current_cfs,
+    flowStatus: r.flow_status,
+    flowBandLabel: r.flow_band,
+    lastReadingAt: r.last_reading_at,
+    pollHealth: null,
+    lastPollSuccessAt: null,
+    watchState: 'saved',
+    activeSince: null,
+  }
 }
 const userReaches = ref<UserReachSummary[]>([])
 async function loadUserReaches() {
@@ -733,6 +812,21 @@ async function loadUserReaches() {
   if (!res?.ok) return
   userReaches.value = await res.json() ?? []
   for (const r of userReaches.value) prefetchBand(r.slug)
+}
+
+// Referenced runs: other users' public runs the caller added by reference.
+// Keyed per-dashboard (the endpoint filters by dashboard_id), rendered read-only.
+const referencedReaches = ref<UserReachSummary[]>([])
+async function loadReferencedRuns(dashboardId: string, runIds: string[]) {
+  if (runIds.length === 0) { referencedReaches.value = []; return }
+  const token = await getToken()
+  if (!token) return
+  const res = await fetch(`${apiBase}/api/v1/me/referenced-runs?dashboard_id=${encodeURIComponent(dashboardId)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).catch(() => null)
+  if (!res?.ok) { referencedReaches.value = []; return }
+  const data: UserReachSummary[] = await res.json() ?? []
+  referencedReaches.value = data.map(r => ({ ...r, is_reference: true }))
 }
 
 function loadSet(key: string): Set<string> {
@@ -773,6 +867,20 @@ function showReach(id: string) {
   hiddenReaches.value = s; saveSet(hiddenReachesKey.value, s)
 }
 async function removeUserReach(r: UserReachSummary) {
+  // Referenced (other-user) run — drop the reference, keyed by run id.
+  if (r.is_reference) {
+    referencedReaches.value = referencedReaches.value.filter(x => x.id !== r.id)
+    const dashboardId = db.activeDashboard.value?.id
+    if (!dashboardId) return
+    const token = await getToken()
+    if (!token) return
+    const qs = `?kind=reference&dashboard_id=${encodeURIComponent(dashboardId)}`
+    fetch(`${apiBase}/api/v1/watchlist/${encodeURIComponent(r.id)}${qs}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {})
+    return
+  }
   // Remove from dashboardReachSlugs immediately (reactive — no page reload needed)
   dashboardReachSlugs.value = dashboardReachSlugs.value.filter(s => s !== r.slug)
   // Clear any stale localStorage hidden flag for this reach
@@ -788,6 +896,26 @@ async function removeUserReach(r: UserReachSummary) {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   }).catch(() => {})
+}
+
+// Fork a referenced run into the caller's namespace, then open the editor.
+const forkingRefId = ref<string | null>(null)
+async function forkReferencedRun(r: UserReachSummary) {
+  if (forkingRefId.value) return
+  forkingRefId.value = r.id
+  try {
+    const token = await getToken()
+    if (!token) return
+    const res = await fetch(`${apiBase}/api/v1/user-runs/${encodeURIComponent(r.id)}/fork`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => null)
+    if (!res?.ok) return
+    const { slug } = await res.json()
+    if (slug) router.push(`/my/runs/${slug}`)
+  } finally {
+    forkingRefId.value = null
+  }
 }
 function hideCustomGauge(id: string) {
   hiddenCustomGauges.value = new Set([...hiddenCustomGauges.value, id])
@@ -822,6 +950,11 @@ const activeCustomGauges = computed(() =>
 const activeUserReaches = computed(() =>
   userReaches.value.filter(r => dashboardReachSlugs.value.includes(r.slug))
 )
+// Referenced runs are already scoped to the active dashboard by the endpoint;
+// just apply the local hidden set (keyed by run id).
+const activeReferencedReaches = computed(() =>
+  referencedReaches.value.filter(r => !hiddenReaches.value.has(r.id))
+)
 
 // After applying the localStorage hidden-set: what actually renders.
 const visibleUserReaches  = computed(() => activeUserReaches.value.filter(r => !hiddenReaches.value.has(r.id)))
@@ -829,7 +962,8 @@ const visibleCustomGauges = computed(() => activeCustomGauges.value.filter(cg =>
 
 // Whether there's anything to render anywhere on the page.
 const hasAnyContent = computed(() =>
-  store.gauges.length > 0 || visibleUserReaches.value.length > 0 || visibleCustomGauges.value.length > 0
+  store.gauges.length > 0 || visibleUserReaches.value.length > 0
+  || visibleCustomGauges.value.length > 0 || activeReferencedReaches.value.length > 0
 )
 
 async function loadCustomGauges() {
@@ -845,9 +979,10 @@ async function loadCustomGauges() {
 
 // Wrapper: load dashboard watchlist + update per-dashboard filter lists.
 async function activateDashboard(id: string) {
-  const { customGaugeIds, reachSlugs } = await loadForDashboard(id)
+  const { customGaugeIds, reachSlugs, referencedRunIds } = await loadForDashboard(id)
   dashboardCustomGaugeIds.value = customGaugeIds
   dashboardReachSlugs.value = reachSlugs
+  await loadReferencedRuns(id, referencedRunIds)
 }
 onUnmounted(() => { serverSynced = false; if (refreshTimer) clearInterval(refreshTimer) })
 
@@ -901,6 +1036,20 @@ const byStateTree = computed<StateGroup[]>(() => {
     const state = ur.state_abbr ?? '—'
     const basin = cleanBasinName(ur.basin_group) ?? 'Other'
     const river = ur.river_name ?? 'My Runs'
+    if (!stateMap.has(state)) stateMap.set(state, new Map())
+    const basinMap = stateMap.get(state)!
+    if (!basinMap.has(basin)) basinMap.set(basin, { rivers: new Map(), standalone: [] })
+    const entry = basinMap.get(basin)!
+    if (!entry.rivers.has(river)) entry.rivers.set(river, { gaugeReaches: [], userReaches: [] })
+    entry.rivers.get(river)!.userReaches.push(ur)
+  }
+
+  // Fold referenced runs (other users' public runs) into the same river groups —
+  // they render read-only in the userReaches list, flagged via is_reference.
+  for (const ur of activeReferencedReaches.value) {
+    const state = ur.state_abbr ?? '—'
+    const basin = cleanBasinName(ur.basin_group) ?? 'Other'
+    const river = ur.river_name ?? 'Shared Runs'
     if (!stateMap.has(state)) stateMap.set(state, new Map())
     const basinMap = stateMap.get(state)!
     if (!basinMap.has(basin)) basinMap.set(basin, { rivers: new Map(), standalone: [] })
@@ -1228,7 +1377,11 @@ function splitReachGroups(reaches: WatchedGauge[]): SplitGroups {
   const gaugeGroups: GaugeGroup[] = []
   const ungrouped: WatchedGauge[] = []
   for (const all of map.values()) {
-    gaugeGroups.push({ lead: all[0]!, all })
+    if (all.length > 1) {
+      gaugeGroups.push({ lead: all[0]!, all })
+    } else {
+      ungrouped.push(...all)
+    }
   }
   return { gaugeGroups, ungrouped }
 }

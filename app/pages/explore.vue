@@ -435,6 +435,26 @@ const { isAuthenticated, getToken } = useAuth()
 const db = useDashboards()
 const { addReachToWatchlist, addUserReachToWatchlist, addReferenceToWatchlist } = useWatchlistSync()
 
+// Current user's handle — used to decide reference (other user's run) vs slug-add
+// (own run). Fetched once when authenticated.
+const myHandle = ref<string | null>(null)
+async function loadMyHandle() {
+  const token = await getToken()
+  if (!token) return
+  const res = await fetch(`${apiBase}/api/v1/me/profile`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).catch(() => null)
+  if (!res?.ok) return
+  const data = await res.json().catch(() => null)
+  myHandle.value = data?.handle ?? null
+}
+// A run owned by someone other than the current user → add by reference, not fork.
+function isOtherUsersRun(ownerHandle: string | null | undefined): boolean {
+  if (!ownerHandle) return false
+  if (!myHandle.value) return true   // unknown self → never fork another's run
+  return ownerHandle.toLowerCase() !== myHandle.value.toLowerCase()
+}
+
 // ── Tab control ───────────────────────────────────────────────────────────────
 type TabId = 'mine' | 'browse'
 const TABS: { id: TabId; label: string }[] = [
@@ -489,7 +509,13 @@ async function addBrowseReference(reach: ReachListItem, dashId: string | null) {
   addingRefId.value = reach.slug
   browseRefDropdownId.value = null
   try {
-    await addReachToWatchlist(reach.slug, dashId)
+    // Browse lists one user's runs (browseHandle). Another user's run → reference
+    // (keeps their ownership, read-only). Own run → slug add (editable).
+    if (reach.id && isOtherUsersRun(reach.author_handle ?? browseHandle.value)) {
+      await addReferenceToWatchlist(reach.id, dashId)
+    } else {
+      await addReachToWatchlist(reach.slug, dashId)
+    }
     addedRefIds.value = new Set([...addedRefIds.value, reach.slug])
     setTimeout(() => {
       addedRefIds.value = new Set([...addedRefIds.value].filter(x => x !== reach.slug))
@@ -523,6 +549,7 @@ onMounted(async () => {
 
   if (isAuthenticated.value) {
     db.load()
+    loadMyHandle()
     await initMapToken()
     if (localStorage.getItem('sharing-banner-dismissed') !== 'true') {
       showSharingBanner.value = true
@@ -780,7 +807,12 @@ async function addPopupRunToDashboard(dashId: string | null) {
   if (!popupRun.value) return
   const p = popupRun.value
   popupRun.value = null
-  await addReachToWatchlist(p.slug, dashId)
+  // Another user's run → reference; own run → slug add.
+  if (p.id && isOtherUsersRun(p.authorHandle)) {
+    await addReferenceToWatchlist(p.id, dashId)
+  } else {
+    await addReachToWatchlist(p.slug, dashId)
+  }
 }
 
 async function reloadMap() {

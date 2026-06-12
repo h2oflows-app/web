@@ -20,8 +20,11 @@ export function useAuth() {
 
   // isDataAdmin is loaded from the API and reflects the user_roles table.
   // Resolves to true for site_admins too (server-side check is authoritative).
-  const _dataAdminLoaded = ref(false)
-  const _isDataAdmin = ref(false)
+  // Shared across all useAuth() callers via useState so loading it once (e.g. in
+  // AppHeader) lights the admin menu everywhere — plain refs here would be
+  // per-call and never shared.
+  const _dataAdminLoaded = useState('auth:dataAdminLoaded', () => false)
+  const _isDataAdmin = useState('auth:isDataAdmin', () => false)
 
   async function loadAdminRoles() {
     if (!user.value) return

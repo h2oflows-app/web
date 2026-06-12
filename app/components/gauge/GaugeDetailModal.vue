@@ -8,11 +8,13 @@
             <NuxtLink
               v-if="reachNavPath"
               :to="reachNavPath"
-              class="text-lg font-bold text-neutral-900 dark:text-white truncate leading-tight hover:text-primary-600 dark:hover:text-primary-400 transition-colors block"
+              class="text-lg font-bold text-neutral-900 dark:text-white truncate leading-tight hover:text-primary-600 dark:hover:text-primary-400 transition-colors block focus:outline-none"
               @click="open = false"
             >{{ reachTitle }}</NuxtLink>
             <h2 v-else class="text-lg font-bold text-neutral-900 dark:text-white truncate leading-tight">{{ reachTitle }}</h2>
-            <p class="text-xs text-neutral-400 truncate mt-0.5">
+            <p class="text-xs text-neutral-400 truncate mt-0.5 flex items-center gap-1 flex-wrap">
+              <span v-if="gauge.contextReachAuthorHandle" class="text-neutral-500 dark:text-neutral-400">@{{ gauge.contextReachAuthorHandle }}</span>
+              <span v-if="gauge.contextReachAuthorHandle" class="opacity-40">·</span>
               {{ gaugeName }} ·
               <a :href="sourceUrl" target="_blank" rel="noopener" class="hover:text-primary-400 underline underline-offset-2">
                 {{ gauge.source.toUpperCase() }} {{ gauge.externalId }}
@@ -44,9 +46,8 @@
             </svg>
           </NuxtLink>
           <button
-            class="p-1 rounded-md text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors focus:outline-none"
+            class="p-1 rounded-md text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors focus:outline-none focus-visible:outline-none"
             aria-label="Close"
-            autofocus
             @click="open = false"
           >
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -67,11 +68,11 @@
             </span>
             <span class="text-sm text-neutral-500">cfs</span>
             <TrendArrow v-if="displayCfs != null" :gauge-id="gauge.id" class="text-lg" />
-            <!-- Flow band badge — reach mode only -->
+            <!-- Flow band badge — reach mode, uses live band when available -->
             <span
-              v-if="mode === 'reach' && (gauge.flowStatus !== 'unknown' || gauge.flowBandLabel)"
-              :class="['inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium', bandBadgeClass(gauge.flowBandLabel, gauge.flowStatus)]"
-            >{{ flowBandLabel(gauge.flowBandLabel, gauge.flowStatus) }}</span>
+              v-if="mode === 'reach' && (liveBand?.flowStatus !== 'unknown' || liveBand?.flowBandLabel || gauge.flowStatus !== 'unknown' || gauge.flowBandLabel)"
+              :class="['inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium', bandBadgeClass(liveBand?.flowBandLabel ?? gauge.flowBandLabel, liveBand?.flowStatus ?? gauge.flowStatus)]"
+            >{{ flowBandLabel(liveBand?.flowBandLabel ?? gauge.flowBandLabel, liveBand?.flowStatus ?? gauge.flowStatus) }}</span>
           </div>
           <p v-if="gauge.lastReadingAt" class="text-xs text-neutral-400 mt-0.5">Last reading {{ lastReadingRelative }}</p>
         </div>
@@ -102,11 +103,13 @@
           :gauge-id="gauge.id"
           :current-cfs="displayCfs"
           :reach-slug="graphReachSlug"
+          :flow-ranges-url="graphFlowRangesUrl"
           :no-ranges="mode !== 'reach'"
           :color="mode !== 'reach' ? '#3b82f6' : undefined"
           :height="280"
           hide-diurnal
           @latest-cfs="liveCfs = $event"
+          @live-flow-band="liveBand = $event"
           @diurnal="diurnalData = $event"
         />
 
@@ -131,8 +134,9 @@ const props = defineProps<{
 }>()
 
 const liveCfs    = ref<number | null>(null)
+const liveBand   = ref<{ flowBandLabel: string | null; flowStatus: string } | null>(null)
 const diurnalData = ref<DiurnalPattern | null>(null)
-watch(open, (v) => { if (!v) { liveCfs.value = null; diurnalData.value = null } })
+watch(open, (v) => { if (!v) { liveCfs.value = null; liveBand.value = null; diurnalData.value = null } })
 
 const displayCfs = computed(() => liveCfs.value ?? props.gauge.currentCfs)
 
@@ -170,6 +174,24 @@ const graphReachSlug = computed(() =>
     ? (props.gauge.contextReachSlug ?? props.gauge.reachSlug ?? null)
     : null
 )
+
+// User runs store flow ranges under the run, not the curated /reaches/{slug}
+// endpoint. When the reach has an author handle it's a user run:
+//  - my own run  → /me/runs/{slug}/flow-ranges (authed, works at any visibility)
+//  - another's   → /users/{handle}/runs/{slug}/flow-ranges (public-only)
+// Null falls back to GaugeGraph's curated default.
+const { apiBase } = useRuntimeConfig().public
+const { load: loadMyProfile, isMine } = useMyProfile()
+loadMyProfile()
+const graphFlowRangesUrl = computed(() => {
+  if (props.mode !== 'reach') return null
+  const slug = props.gauge.contextReachSlug ?? props.gauge.reachSlug
+  const handle = props.gauge.contextReachAuthorHandle
+  if (!slug || !handle) return null
+  return isMine(handle)
+    ? `${apiBase}/api/v1/me/runs/${slug}/flow-ranges`
+    : `${apiBase}/api/v1/users/${handle}/runs/${slug}/flow-ranges`
+})
 
 // ── Diurnal helpers ───────────────────────────────────────────────────────
 const diurnalPhaseLabel = computed(() => {

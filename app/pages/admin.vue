@@ -1024,7 +1024,7 @@ async function saveEditRiver() {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        basin: editingRiver.value.basin || null,
+        basin:      editingRiver.value.basin      || null,
         state_abbr: editingRiver.value.state_abbr || null,
       }),
     })

@@ -53,16 +53,16 @@ export function useWatchlistSync() {
    * Returns the list of custom_gauge_ids on this dashboard so the caller can
    * filter the custom gauges section accordingly.
    */
-  async function loadForDashboard(dashboardId: string): Promise<{ customGaugeIds: string[]; reachSlugs: string[] }> {
+  async function loadForDashboard(dashboardId: string): Promise<{ customGaugeIds: string[]; reachSlugs: string[]; referencedRunIds: string[] }> {
     const token = await getToken()
-    if (!token) return { customGaugeIds: [], reachSlugs: [] }
+    if (!token) return { customGaugeIds: [], reachSlugs: [], referencedRunIds: [] }
     store.clearGauges()
     const res = await fetch(`${apiBase}/api/v1/watchlist?dashboard_id=${encodeURIComponent(dashboardId)}`, {
       headers: { Authorization: `Bearer ${token}` },
     }).catch(() => null)
-    if (!res?.ok) return { customGaugeIds: [], reachSlugs: [] }
+    if (!res?.ok) return { customGaugeIds: [], reachSlugs: [], referencedRunIds: [] }
     const data = await res.json()
-    const allItems: { gauge_id: string | null; custom_gauge_id: string | null; reach_slug: string | null }[] = data.items ?? []
+    const allItems: { gauge_id: string | null; custom_gauge_id: string | null; reach_slug: string | null; referenced_user_reach_id: string | null }[] = data.items ?? []
 
     const customGaugeIds = allItems
       .filter(item => item.custom_gauge_id != null && item.reach_slug == null)
@@ -72,6 +72,11 @@ export function useWatchlistSync() {
     const reachSlugs = allItems
       .filter(item => item.reach_slug != null)
       .map(item => item.reach_slug as string)
+
+    // referenced_user_reach_id items are other users' public runs added by reference.
+    const referencedRunIds = allItems
+      .filter(item => item.referenced_user_reach_id != null)
+      .map(item => item.referenced_user_reach_id as string)
 
     const serverItems = allItems.filter(item => item.gauge_id != null) as { gauge_id: string; reach_slug: string | null }[]
     if (serverItems.length > 0) {
@@ -89,7 +94,7 @@ export function useWatchlistSync() {
       }
     }
 
-    return { customGaugeIds, reachSlugs }
+    return { customGaugeIds, reachSlugs, referencedRunIds }
   }
 
   /**

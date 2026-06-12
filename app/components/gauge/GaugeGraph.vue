@@ -91,6 +91,7 @@ interface Reading {
 const props = defineProps<{
   gaugeId: string
   reachSlug?: string | null
+  flowRangesUrl?: string | null  // override the reach-mode flow-ranges endpoint (e.g. user runs)
   currentCfs?: number | null
   noRanges?: boolean
   color?: string          // override line color
@@ -115,6 +116,7 @@ const flowBands = ref<FlowBands | null>(null)
 let chart: uPlot | null = null
 
 const { apiBase } = useRuntimeConfig().public
+const { getToken } = useAuth()
 
 // ---- Data fetching ----------------------------------------------------------
 
@@ -130,12 +132,20 @@ async function load() {
       if (rdRes.ok) readings.value = await rdRes.json()
       flowBands.value = null
     } else {
-      const flowRangesUrl = props.reachSlug
-        ? `${apiBase}/api/v1/reaches/${props.reachSlug}/flow-ranges`
-        : `${apiBase}/api/v1/gauges/${props.gaugeId}/flow-ranges`
+      const flowRangesUrl = props.flowRangesUrl
+        ? props.flowRangesUrl
+        : props.reachSlug
+          ? `${apiBase}/api/v1/reaches/${props.reachSlug}/flow-ranges`
+          : `${apiBase}/api/v1/gauges/${props.gaugeId}/flow-ranges`
+      // /me/ flow-ranges (own runs, any visibility) need the bearer token.
+      const frHeaders: Record<string, string> = {}
+      if (flowRangesUrl.includes('/api/v1/me/')) {
+        const token = await getToken()
+        if (token) frHeaders.Authorization = `Bearer ${token}`
+      }
       const [rdRes, frRes] = await Promise.all([
         fetch(`${apiBase}/api/v1/gauges/${props.gaugeId}/readings?since=${since}&limit=500`),
-        fetch(flowRangesUrl),
+        fetch(flowRangesUrl, { headers: frHeaders }),
       ])
       if (rdRes.ok) readings.value = await rdRes.json()
       if (frRes.ok) flowBands.value = await frRes.json()
@@ -360,6 +370,7 @@ const bandRegions = computed(() => {
 watch(hours, load)
 watch(() => props.gaugeId, load)
 watch(() => props.reachSlug, load)
+watch(() => props.flowRangesUrl, load)
 watch(() => props.currentCfs, async () => { await nextTick(); buildChart() })
 
 let resizeObserver: ResizeObserver | null = null
