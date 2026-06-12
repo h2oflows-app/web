@@ -91,6 +91,7 @@ interface Reading {
 const props = defineProps<{
   gaugeId: string
   reachSlug?: string | null
+  flowRangesUrl?: string | null  // override the reach-mode flow-ranges endpoint (e.g. user runs)
   currentCfs?: number | null
   noRanges?: boolean
   color?: string          // override line color
@@ -130,9 +131,11 @@ async function load() {
       if (rdRes.ok) readings.value = await rdRes.json()
       flowBands.value = null
     } else {
-      const flowRangesUrl = props.reachSlug
-        ? `${apiBase}/api/v1/reaches/${props.reachSlug}/flow-ranges`
-        : `${apiBase}/api/v1/gauges/${props.gaugeId}/flow-ranges`
+      const flowRangesUrl = props.flowRangesUrl
+        ? props.flowRangesUrl
+        : props.reachSlug
+          ? `${apiBase}/api/v1/reaches/${props.reachSlug}/flow-ranges`
+          : `${apiBase}/api/v1/gauges/${props.gaugeId}/flow-ranges`
       const [rdRes, frRes] = await Promise.all([
         fetch(`${apiBase}/api/v1/gauges/${props.gaugeId}/readings?since=${since}&limit=500`),
         fetch(flowRangesUrl),
@@ -360,6 +363,7 @@ const bandRegions = computed(() => {
 watch(hours, load)
 watch(() => props.gaugeId, load)
 watch(() => props.reachSlug, load)
+watch(() => props.flowRangesUrl, load)
 watch(() => props.currentCfs, async () => { await nextTick(); buildChart() })
 
 let resizeObserver: ResizeObserver | null = null

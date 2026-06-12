@@ -597,10 +597,6 @@
             </p>
           </div>
 
-          <UFormField label="GNIS ID">
-            <UInput v-model="editingRiver.gnis_id" placeholder="1172865" class="max-w-40" />
-          </UFormField>
-
           <UFormField label="State (2-letter)">
             <UInput v-model="editingRiver.state_abbr" placeholder="CO" class="max-w-24" :maxlength="2" />
           </UFormField>
@@ -1028,7 +1024,6 @@ async function saveEditRiver() {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        gnis_id:    editingRiver.value.gnis_id    || null,
         basin:      editingRiver.value.basin      || null,
         state_abbr: editingRiver.value.state_abbr || null,
       }),

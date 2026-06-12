@@ -103,6 +103,7 @@
           :gauge-id="gauge.id"
           :current-cfs="displayCfs"
           :reach-slug="graphReachSlug"
+          :flow-ranges-url="graphFlowRangesUrl"
           :no-ranges="mode !== 'reach'"
           :color="mode !== 'reach' ? '#3b82f6' : undefined"
           :height="280"
@@ -173,6 +174,19 @@ const graphReachSlug = computed(() =>
     ? (props.gauge.contextReachSlug ?? props.gauge.reachSlug ?? null)
     : null
 )
+
+// User runs store flow ranges under the run, not the curated /reaches/{slug}
+// endpoint. When the reach has an author handle it's a user run — point the graph
+// at the public-by-handle flow-ranges endpoint so own + referenced runs color.
+// Null falls back to GaugeGraph's curated default.
+const { apiBase } = useRuntimeConfig().public
+const graphFlowRangesUrl = computed(() => {
+  if (props.mode !== 'reach') return null
+  const slug = props.gauge.contextReachSlug ?? props.gauge.reachSlug
+  const handle = props.gauge.contextReachAuthorHandle
+  if (slug && handle) return `${apiBase}/api/v1/users/${handle}/runs/${slug}/flow-ranges`
+  return null
+})
 
 // ── Diurnal helpers ───────────────────────────────────────────────────────
 const diurnalPhaseLabel = computed(() => {
