@@ -261,6 +261,7 @@ export function featureToWatchedGauge(
     contextReachCommonName: p.context_reach_common_name ?? null,
     contextReachFullName:   p.context_reach_full_name ?? null,
     contextReachRiverName:  p.context_reach_river_name ?? null,
+    contextReachRiverId:    p.context_reach_river_id ?? null,
     contextReachBasinGroup:     p.context_reach_basin_group ?? null,
     contextReachCenterLng:      p.context_reach_center_lng ?? null,
     contextReachRiverOrder:     p.context_reach_river_order ?? null,
