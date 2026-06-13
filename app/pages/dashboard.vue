@@ -201,8 +201,8 @@
                       <path d="M4 22c3-6 6-9 8-9s5 9 8 9 5-9 8-9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
                     </svg>
                     <span class="text-base font-semibold text-primary-600 dark:text-primary-400 shrink-0">{{ river.name }}</span>
-                    <!-- Inline basin-reassignment editor (only for rivers with user runs) -->
-                    <template v-if="river.riverId">
+                    <!-- Inline basin-reassignment editor (only when basin grouping is on) -->
+                    <template v-if="river.riverId && groupByBasin">
                       <template v-if="editingRiverId === river.riverId">
                         <input
                           v-model="editingRiverBasinName"
@@ -229,6 +229,7 @@
                           <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
                         </button>
                         <button
+                          v-if="editingRiverBasinName === editingRiverBasinInitial"
                           class="shrink-0 p-0.5 rounded text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 transition-colors"
                           title="Cancel"
                           @click="cancelRiverBasinEdit"
@@ -1061,18 +1062,21 @@ const riverNameBasinOverrides = computed(() => {
 })
 
 // Inline river-basin editor state
-const editingRiverId       = ref<string | null>(null)
-const editingRiverBasinName = ref('')
+const editingRiverId            = ref<string | null>(null)
+const editingRiverBasinName     = ref('')
+const editingRiverBasinInitial  = ref('')  // value at open; cancel hidden when input differs
 
 function startRiverBasinEdit(river: RiverGroup) {
   if (!river.riverId) return
-  editingRiverId.value       = river.riverId
-  editingRiverBasinName.value = riverBasinOverrides.value.get(river.riverId) ?? ''
+  editingRiverId.value          = river.riverId
+  editingRiverBasinName.value   = riverBasinOverrides.value.get(river.riverId) ?? ''
+  editingRiverBasinInitial.value = editingRiverBasinName.value
 }
 
 function cancelRiverBasinEdit() {
-  editingRiverId.value       = null
-  editingRiverBasinName.value = ''
+  editingRiverId.value          = null
+  editingRiverBasinName.value   = ''
+  editingRiverBasinInitial.value = ''
 }
 
 async function saveRiverBasinOverride(river: RiverGroup) {
