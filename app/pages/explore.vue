@@ -386,37 +386,6 @@
     @added-external="reloadMap"
   />
 
-  <!-- New reach modal (admin only) -->
-  <Teleport to="body">
-    <Transition
-      enter-active-class="transition-opacity duration-150"
-      enter-from-class="opacity-0"
-      enter-to-class="opacity-100"
-      leave-active-class="transition-opacity duration-100"
-      leave-from-class="opacity-100"
-      leave-to-class="opacity-0"
-    >
-      <div
-        v-if="authorModalOpen"
-        class="fixed inset-0 z-50 flex flex-col bg-neutral-50 dark:bg-neutral-950 overflow-y-auto"
-      >
-        <div class="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-white/90 dark:bg-neutral-950/90 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
-          <h2 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">New Run</h2>
-          <button
-            class="p-1.5 rounded-md text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-            @click="authorModalOpen = false"
-          >
-            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <path d="M6 6l8 8M14 6l-8 8"/>
-            </svg>
-          </button>
-        </div>
-        <div class="flex-1 max-w-5xl w-full mx-auto px-4 py-6">
-          <RunAuthor @created="onAuthorCreated" @cancel="authorModalOpen = false" />
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -474,15 +443,9 @@ function setTab(id: TabId) {
 }
 
 // ── New reach / import / search modals ───────────────────────────────────────
-const authorModalOpen       = ref(false)
 const importModalOpen       = ref(false)
 const searchModalOpen       = ref(false)
 const searchModalInitialTab = ref<'mine' | 'discover'>('mine')
-
-function onAuthorCreated(slug: string, asH2oflows: boolean) {
-  authorModalOpen.value = false
-  router.push(asH2oflows ? `/runs/h2oflows/${slug}` : `/my/runs/${slug}`)
-}
 
 // ── Demo banner ───────────────────────────────────────────────────────────────
 const showDemoBanner = ref(false)
