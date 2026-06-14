@@ -479,9 +479,9 @@ const importModalOpen       = ref(false)
 const searchModalOpen       = ref(false)
 const searchModalInitialTab = ref<'mine' | 'discover'>('mine')
 
-function onAuthorCreated(slug: string) {
+function onAuthorCreated(slug: string, asH2oflows: boolean) {
   authorModalOpen.value = false
-  router.push(`/my/runs/${slug}`)
+  router.push(asH2oflows ? `/runs/h2oflows/${slug}` : `/my/runs/${slug}`)
 }
 
 // ── Demo banner ───────────────────────────────────────────────────────────────

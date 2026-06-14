@@ -196,9 +196,15 @@
 
       <div v-if="submitError" class="text-xs text-red-500">{{ submitError }}</div>
 
+      <!-- Admin-only: publish as the official h2oflows curator account -->
+      <label v-if="isDataAdmin" class="flex items-center gap-2 rounded-md border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200 cursor-pointer">
+        <input v-model="authorAsH2oflows" type="checkbox" class="rounded border-amber-400" />
+        <span>Author as <strong>h2oflows</strong> (official curator content — public)</span>
+      </label>
+
       <div class="flex gap-2 justify-end pt-1">
         <UButton size="sm" variant="ghost" color="neutral" @click="emit('cancel')">Cancel</UButton>
-        <UButton size="sm" :disabled="!form.name.trim() || (dupeRuns.length > 0 && !dupeDismissed)" :loading="saving" @click="submit">Save Run</UButton>
+        <UButton size="sm" :disabled="!form.name.trim() || (dupeRuns.length > 0 && !dupeDismissed)" :loading="saving" @click="submit">{{ (isDataAdmin && authorAsH2oflows) ? 'Save as h2oflows' : 'Save Run' }}</UButton>
       </div>
     </div>
 
@@ -212,12 +218,15 @@ import { ref, computed, watch, onMounted } from 'vue'
 import type { FlowBands } from '~/utils/flowBand'
 
 const emit = defineEmits<{
-  created: [slug: string]
+  created: [slug: string, asH2oflows: boolean]
   cancel:  []
 }>()
 
-const { getToken } = useAuth()
+const { getToken, isDataAdmin } = useAuth()
 const { apiBase }  = useRuntimeConfig().public
+
+// Admin-only: author this run as the official h2oflows curator account.
+const authorAsH2oflows = ref(false)
 
 const pickMode            = ref(false)
 const anchorSnapping      = ref(false)
@@ -506,7 +515,13 @@ async function submit() {
     if (form.value.classMax != null) body.class_max  = form.value.classMax
     body.flow_bands = form.value.flowBands
 
-    const res = await fetch(`${apiBase}/api/v1/me/reaches`, {
+    // Admins may author official h2oflows curator content via ?as=h2oflows
+    // (server validates data_admin role; ignored otherwise). Must ride along on
+    // every create-flow call so the follow-ups resolve the sentinel-owned run.
+    const authoredAsH2oflows = isDataAdmin.value && authorAsH2oflows.value
+    const asQuery = authoredAsH2oflows ? '?as=h2oflows' : ''
+
+    const res = await fetch(`${apiBase}/api/v1/me/reaches${asQuery}`, {
       method: 'POST', headers, body: JSON.stringify(body),
     })
     const data = await res.json()
@@ -515,7 +530,7 @@ async function submit() {
 
     // Store centerline.
     if (previewGeoJSON.value) {
-      await fetch(`${apiBase}/api/v1/me/runs/${slug}/centerline`, {
+      await fetch(`${apiBase}/api/v1/me/runs/${slug}/centerline${asQuery}`, {
         method: 'POST', headers,
         body: JSON.stringify({ geojson: previewGeoJSON.value }),
       }).catch(() => { /* non-fatal */ })
@@ -530,14 +545,14 @@ async function submit() {
         (f: any) => f.properties.external_id === externalId && f.properties.source === source
       )
       if (feature) {
-        await fetch(`${apiBase}/api/v1/me/runs/${slug}/gauge`, {
+        await fetch(`${apiBase}/api/v1/me/runs/${slug}/gauge${asQuery}`, {
           method: 'PUT', headers,
           body: JSON.stringify({ gauge_id: feature.properties.id }),
         }).catch(() => { /* non-fatal */ })
       }
     }
 
-    emit('created', slug)
+    emit('created', slug, authoredAsH2oflows)
   } catch (e: any) {
     submitError.value = e.message ?? 'Failed to create reach.'
   } finally {
