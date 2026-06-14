@@ -218,7 +218,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import type { FlowBands } from '~/utils/flowBand'
 
 const emit = defineEmits<{
-  created: [slug: string]
+  created: [slug: string, asH2oflows: boolean]
   cancel:  []
 }>()
 
@@ -518,7 +518,8 @@ async function submit() {
     // Admins may author official h2oflows curator content via ?as=h2oflows
     // (server validates data_admin role; ignored otherwise). Must ride along on
     // every create-flow call so the follow-ups resolve the sentinel-owned run.
-    const asQuery = (isDataAdmin.value && authorAsH2oflows.value) ? '?as=h2oflows' : ''
+    const authoredAsH2oflows = isDataAdmin.value && authorAsH2oflows.value
+    const asQuery = authoredAsH2oflows ? '?as=h2oflows' : ''
 
     const res = await fetch(`${apiBase}/api/v1/me/reaches${asQuery}`, {
       method: 'POST', headers, body: JSON.stringify(body),
@@ -551,7 +552,7 @@ async function submit() {
       }
     }
 
-    emit('created', slug)
+    emit('created', slug, authoredAsH2oflows)
   } catch (e: any) {
     submitError.value = e.message ?? 'Failed to create reach.'
   } finally {

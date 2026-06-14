@@ -44,7 +44,7 @@ const authReady = ref(false)
 
 onMounted(() => { authReady.value = true })
 
-function onCreated(slug: string) {
-  router.push(`/my/runs/${slug}`)
+function onCreated(slug: string, asH2oflows: boolean) {
+  router.push(asH2oflows ? `/runs/h2oflows/${slug}` : `/my/runs/${slug}`)
 }
 </script>
