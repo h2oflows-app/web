@@ -57,13 +57,6 @@ export function useRunNotes(reachSlug: string) {
       existing.push(entry)
       localStorage.setItem(NOTES_KEY, JSON.stringify(existing.slice(-100)))
     } catch { /* ignore */ }
-
-    // Fire-and-forget POST (backend deferred — fails silently)
-    fetch(`${apiBase}/api/v1/reaches/${reachSlug}/contributions`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(entry),
-    }).catch(() => { /* backend not yet deployed */ })
   }
 
   return { submit }

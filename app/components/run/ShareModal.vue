@@ -219,6 +219,7 @@ const open = defineModel<boolean>('open', { default: false })
 
 const config = useRuntimeConfig()
 const toast  = useToast()
+const { getToken } = useAuth()
 
 // ---- State ------------------------------------------------------------------
 
@@ -267,17 +268,23 @@ async function submitTripReport() {
   submitting.value  = true
   submitError.value = null
   try {
-    const body: Record<string, any> = {
-      body:                  formBody.value || undefined,
-      title:                 formTitle.value || undefined,
-      flow_impression:       formImpression.value ?? undefined,
-      observed_at:           formDate.value ? new Date(formDate.value).toISOString() : undefined,
-      share_consent_h2oflows: shareConsent.value,
-      published:             formPublish.value,
+    let content = formBody.value?.trim() ?? ''
+    if (formImpression.value) content = `Flow felt: ${formImpression.value}\n${content}`
+    if (!content) {
+      submitError.value = 'Please add a description.'
+      return
     }
+    const body: Record<string, any> = {
+      name:        formTitle.value?.trim() || 'Trip report',
+      report_date: formDate.value ? new Date(formDate.value).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+      content,
+      paddled:     true,
+    }
+    const token = await getToken()
+    if (!token) { submitError.value = 'Please sign in to submit a report.'; return }
     const res = await fetch(
-      `${config.public.apiBase}/api/v1/reaches/${props.reachSlug}/trip-reports`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+      `${config.public.apiBase}/api/v1/reaches/${props.reachSlug}/reports`,
+      { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
     )
     const json = await res.json()
     if (!res.ok) throw new Error(json.error ?? `Server error ${res.status}`)
@@ -296,20 +303,24 @@ async function submitContribution() {
   submitting.value  = true
   submitError.value = null
   try {
-    const typeMap: Record<string, string> = {
-      flow_update:  'flow_update',
-      hazard_alert: 'hazard_alert',
+    let content = formBody.value?.trim() ?? ''
+    if (formImpression.value) content = `Flow felt: ${formImpression.value}\n${content}`
+    if (selectedDest.value === 'hazard_alert') content = `⚠ Hazard\n${content}`
+    if (!content) {
+      submitError.value = 'Please add a description.'
+      return
     }
     const body: Record<string, any> = {
-      contribution_type:     typeMap[selectedDest.value!] ?? 'general',
-      body:                  formBody.value || undefined,
-      flow_impression:       formImpression.value ?? undefined,
-      observed_at:           formDate.value ? new Date(formDate.value).toISOString() : undefined,
-      share_consent_h2oflows: shareConsent.value,
+      name:        selectedDest.value === 'hazard_alert' ? 'Hazard alert' : 'Flow update',
+      report_date: formDate.value ? new Date(formDate.value).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+      content,
+      paddled:     false,
     }
+    const token = await getToken()
+    if (!token) { submitError.value = 'Please sign in to submit a report.'; return }
     const res = await fetch(
-      `${config.public.apiBase}/api/v1/reaches/${props.reachSlug}/contributions`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+      `${config.public.apiBase}/api/v1/reaches/${props.reachSlug}/reports`,
+      { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
     )
     const json = await res.json()
     if (!res.ok) throw new Error(json.error ?? `Server error ${res.status}`)
