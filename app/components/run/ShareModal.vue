@@ -219,6 +219,7 @@ const open = defineModel<boolean>('open', { default: false })
 
 const config = useRuntimeConfig()
 const toast  = useToast()
+const { getToken } = useAuth()
 
 // ---- State ------------------------------------------------------------------
 
@@ -279,9 +280,11 @@ async function submitTripReport() {
       content,
       paddled:     true,
     }
+    const token = await getToken()
+    if (!token) { submitError.value = 'Please sign in to submit a report.'; return }
     const res = await fetch(
       `${config.public.apiBase}/api/v1/reaches/${props.reachSlug}/reports`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+      { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
     )
     const json = await res.json()
     if (!res.ok) throw new Error(json.error ?? `Server error ${res.status}`)
@@ -313,9 +316,11 @@ async function submitContribution() {
       content,
       paddled:     false,
     }
+    const token = await getToken()
+    if (!token) { submitError.value = 'Please sign in to submit a report.'; return }
     const res = await fetch(
       `${config.public.apiBase}/api/v1/reaches/${props.reachSlug}/reports`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+      { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
     )
     const json = await res.json()
     if (!res.ok) throw new Error(json.error ?? `Server error ${res.status}`)
