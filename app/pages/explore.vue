@@ -320,16 +320,16 @@
               </div>
               <div class="flex items-center gap-2">
                 <!-- Add to dashboard -->
-                <div class="relative flex-1 browse-ref-anchor">
+                <div class="relative flex-1 popup-ref-anchor">
                   <button
                     class="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-xs font-medium transition-colors"
-                    @click="db.dashboards.value.length <= 1 ? addPopupRunToDashboard(db.dashboards.value[0]?.id ?? null) : (browseRefDropdownId = browseRefDropdownId === popupRun?.slug ? null : (popupRun?.slug ?? null))"
+                    @click="db.dashboards.value.length <= 1 ? addPopupRunToDashboard(db.dashboards.value[0]?.id ?? null) : (popupDropdownOpen = !popupDropdownOpen)"
                   >
                     <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="14"/><line x1="6" y1="10" x2="14" y2="10"/></svg>
                     Add +
                   </button>
                   <div
-                    v-if="browseRefDropdownId === popupRun?.slug && db.dashboards.value.length > 1"
+                    v-if="popupDropdownOpen && db.dashboards.value.length > 1"
                     class="absolute left-0 top-full mt-1 z-40 min-w-40 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden"
                   >
                     <button
@@ -492,6 +492,7 @@ function onDocClick(e: MouseEvent) {
   const target = e.target as HTMLElement
   if (dropdownSlug.value && !target.closest('.dashboard-dropdown-anchor')) dropdownSlug.value = null
   if (browseRefDropdownId.value && !target.closest('.browse-ref-anchor')) browseRefDropdownId.value = null
+  if (popupDropdownOpen.value && !target.closest('.popup-ref-anchor')) popupDropdownOpen.value = false
 }
 
 onMounted(async () => {
@@ -731,6 +732,10 @@ function onMapHover(slug: string | null) {
 // ── Map click popup ───────────────────────────────────────────────────────────
 interface PopupRun { slug: string; name: string; id: string | null; authorHandle: string | null; viewUrl: string; point?: { x: number; y: number } }
 const popupRun = ref<PopupRun | null>(null)
+// Popup's own dashboard-picker state — kept separate from the sidebar's
+// slug-keyed browseRefDropdownId so opening it here doesn't also open the
+// matching sidebar row's dropdown.
+const popupDropdownOpen = ref(false)
 
 const popupStyle = computed((): Record<string, string> => {
   const pt = popupRun.value?.point
@@ -754,6 +759,7 @@ function onReachClick(payload: ReachClickPayload) {
   }
 
   // Show popup with add/view options
+  popupDropdownOpen.value = false
   popupRun.value = {
     slug:         payload.slug,
     name:         payload.name ?? payload.slug,
@@ -764,12 +770,13 @@ function onReachClick(payload: ReachClickPayload) {
   }
 }
 
-function dismissPopup() { popupRun.value = null }
+function dismissPopup() { popupRun.value = null; popupDropdownOpen.value = false }
 
 async function addPopupRunToDashboard(dashId: string | null) {
   if (!popupRun.value) return
   const p = popupRun.value
   popupRun.value = null
+  popupDropdownOpen.value = false
   // Another user's run → reference; own run → slug add.
   if (p.id && isOtherUsersRun(p.authorHandle)) {
     await addReferenceToWatchlist(p.id, dashId)

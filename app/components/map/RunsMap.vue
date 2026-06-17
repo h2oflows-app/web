@@ -561,12 +561,16 @@ function updateLayers(features: ReachFeature[]) {
       })
     })
 
-    // Hover → sync sidebar + tooltip
-    map.on('mouseenter', 'reach-lines-hit', e => {
+    // Hover → sync sidebar + tooltip.
+    // Content is (re)built on every mousemove keyed by the top feature's slug, so
+    // sliding from one run straight onto an adjacent run (without the cursor ever
+    // leaving the layer, so mouseenter never re-fires) still swaps the tooltip to
+    // the new run instead of keeping the first one's data. (#221)
+    let tooltipSlug: string | null = null
+
+    const updateReachTooltip = (e: maplibregl.MapLayerMouseEvent) => {
       if (!map || !e.features?.length) return
-      map.getCanvas().style.cursor = 'pointer'
       const p = e.features[0].properties as any
-      emit('hover-changed', p.slug)
       const allAtPoint = map.queryRenderedFeatures(e.point, { layers: ['reach-lines-hit'] })
       const seen = new Set<string>()
       const unique = allAtPoint.filter(f => {
@@ -575,31 +579,46 @@ function updateLayers(features: ReachFeature[]) {
         seen.add(s)
         return true
       })
-      let html: string
-      if (unique.length > 1) {
-        const names = unique.map(f => `<div>${(f.properties as any).common_name ?? (f.properties as any).name}</div>`).join('')
-        html = `<div style="opacity:0.7;font-size:0.7rem;margin-bottom:3px">${unique.length} runs here — click to pick</div>${names}`
-      } else {
-        const displayName = p.common_name ?? p.name
-        const subtitle = p.river_name
-          ? `<br><span style="opacity:0.6;font-size:0.7rem;font-weight:400">${p.river_name}</span>`
-          : ''
-        let attribution = ''
-        if (p.is_official) {
-          attribution = `<br><span style="opacity:0.7;font-size:0.7rem;font-weight:500">H2OFlows ⭐</span>`
-        } else if (p.author_handle) {
-          attribution = `<br><span style="opacity:0.7;font-size:0.7rem;font-weight:400">by @${p.author_handle}</span>`
+      // Key the tooltip on what's actually shown: the picker list (when stacked)
+      // or the single run's slug. Only rebuild HTML + re-sync the sidebar when it
+      // changes — repositioning still happens every move below.
+      const key = unique.length > 1
+        ? unique.map(f => (f.properties as any).slug).sort().join(',')
+        : (p.slug as string)
+      if (key !== tooltipSlug) {
+        tooltipSlug = key
+        emit('hover-changed', unique.length > 1 ? null : p.slug)
+        let html: string
+        if (unique.length > 1) {
+          const names = unique.map(f => `<div>${(f.properties as any).common_name ?? (f.properties as any).name}</div>`).join('')
+          html = `<div style="opacity:0.7;font-size:0.7rem;margin-bottom:3px">${unique.length} runs here — click to pick</div>${names}`
+        } else {
+          const displayName = p.common_name ?? p.name
+          const subtitle = p.river_name
+            ? `<br><span style="opacity:0.6;font-size:0.7rem;font-weight:400">${p.river_name}</span>`
+            : ''
+          let attribution = ''
+          if (p.is_official) {
+            attribution = `<br><span style="opacity:0.7;font-size:0.7rem;font-weight:500">H2OFlows ⭐</span>`
+          } else if (p.author_handle) {
+            attribution = `<br><span style="opacity:0.7;font-size:0.7rem;font-weight:400">by @${p.author_handle}</span>`
+          }
+          html = `<strong>${displayName}</strong>${subtitle}${attribution}`
         }
-        html = `<strong>${displayName}</strong>${subtitle}${attribution}`
+        reachTooltip.setHTML(html).addTo(map!)
       }
-      reachTooltip.setLngLat(e.lngLat).setHTML(html).addTo(map!)
-    })
-    map.on('mousemove', 'reach-lines-hit', e => {
       reachTooltip.setLngLat(e.lngLat)
+    }
+
+    map.on('mouseenter', 'reach-lines-hit', e => {
+      if (map) map.getCanvas().style.cursor = 'pointer'
+      updateReachTooltip(e)
     })
+    map.on('mousemove', 'reach-lines-hit', updateReachTooltip)
     map.on('mouseleave', 'reach-lines-hit', () => {
       if (map) map.getCanvas().style.cursor = ''
       reachTooltip.remove()
+      tooltipSlug = null
       emit('hover-changed', null)
     })
   }
