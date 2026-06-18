@@ -22,6 +22,12 @@
       </div>
     </div>
 
+    <!-- Admin sentinel banner — shown when editing an h2oflows-owned run as admin -->
+    <div v-if="reach?.author_handle === 'h2oflows'" class="flex items-center gap-2 px-4 py-1.5 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-800/60 text-xs text-amber-700 dark:text-amber-400">
+      <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+      Editing <strong class="font-semibold">@h2oflows</strong> run as admin — changes affect the canonical version
+    </div>
+
     <!-- Fork attribution — single inline line -->
     <div v-if="reach?.original_forked_at || reach?.forked_from_slug" class="px-4 pt-2 text-xs text-neutral-400 dark:text-neutral-500">
       Forked from {{ reach.forked_from_name ?? reach.forked_from_slug ?? '' }}<template v-if="reach.original_author_handle"> · <NuxtLink :to="`/explore?browse=${reach.original_author_handle}`" class="hover:text-primary-500 transition-colors">@{{ reach.original_author_handle }}</NuxtLink></template><template v-if="forkDate"> {{ forkDate }}</template>
@@ -644,6 +650,7 @@ interface UserReachDetail {
   note:              string | null
   is_private:        boolean
   visibility:        string
+  author_handle:     string | null
   forked_from_slug:  string | null
   forked_from_name:  string | null
   original_author_handle:     string | null

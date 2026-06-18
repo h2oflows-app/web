@@ -261,6 +261,7 @@
                           :density="viewMode"
                           :hide-river-name="true"
                           @open="(g, mode) => openGauge(g, mode)"
+                          @remove-item="(g) => handleGaugeItemRemove(g, group)"
                           @remove-group="removeExtGaugeGroup(group)"
                         />
                       </div>
@@ -1650,6 +1651,12 @@ function removeExtGaugeGroup(group: ExtGaugeGroup) {
     }
   }
   for (const ur of group.userReachItems) removeUserReach(ur)
+}
+
+// Per-item removal inside a gauge group — routes to the right handler.
+function handleGaugeItemRemove(item: WatchedGauge, group: ExtGaugeGroup) {
+  const ur = group.userReachItems.find(ur => ur.slug === item.contextReachSlug)
+  if (ur) { removeUserReach(ur) } else { removeAndSync(item.id, item.contextReachSlug) }
 }
 
 const cardGridClass = computed(() =>

@@ -64,7 +64,7 @@
           v-if="displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)"
           :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', colorKeyToBadgeClass(displayBandColor(item))]"
         >{{ displayFlowBandLabel(item) }}</span>
-        <TrashButton label="Remove" @click="removeAndSync(item.id, item.contextReachSlug)" />
+        <TrashButton label="Remove" @click.stop="$emit('remove-item', item)" />
       </div>
     </div>
     <div v-else class="border-t border-neutral-100 dark:border-neutral-800 pl-8 pr-3 py-1.5 text-xs text-neutral-400 italic">
@@ -188,7 +188,7 @@
           v-if="displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)"
           :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', colorKeyToBadgeClass(displayBandColor(item))]"
         >{{ displayFlowBandLabel(item) }}</span>
-        <TrashButton label="Remove" @click="removeAndSync(item.id, item.contextReachSlug)" />
+        <TrashButton label="Remove" @click.stop="$emit('remove-item', item)" />
       </div>
       <div v-if="reachItems.length === 0" class="px-3 py-1.5 text-xs text-neutral-400 italic">
         No related reaches
@@ -213,10 +213,10 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'open', gauge: WatchedGauge, mode: 'gauge' | 'reach'): void
   (e: 'remove-group'): void
+  (e: 'remove-item', item: WatchedGauge): void
 }>()
 
 useFlowBandPalette()
-const { removeAndSync } = useWatchlistSync()
 
 const liveCfs = ref<number | null>(null)
 
