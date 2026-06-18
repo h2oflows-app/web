@@ -309,7 +309,7 @@
                     </div>
                   </template>
                 <!-- User reaches inline — flat for non-gauge-grouped items -->
-                <template v-for="visibleUrs in [visibleUserReaches(river)]" :key="'urs'">
+                <template v-for="visibleUrs in [ungroupedUserReaches(river)]" :key="'urs'">
                 <template v-if="visibleUrs.length > 0">
                   <div v-if="viewMode === 'list'" class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden mt-1.5">
                     <div
@@ -1632,8 +1632,8 @@ function splitReachGroupsAll(
   return { gaugeGroups, ungrouped }
 }
 
-// Returns user reaches that are NOT absorbed into a gauge group, for flat rendering.
-function visibleUserReaches(river: RiverGroup): UserReachSummary[] {
+// Returns river.userReaches NOT absorbed into a gauge group, for flat rendering.
+function ungroupedUserReaches(river: RiverGroup): UserReachSummary[] {
   if (!groupByGauge.value) return river.userReaches
   const grouped = new Set(
     splitReachGroupsAll(river.reaches, river.userReaches)
