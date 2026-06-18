@@ -164,7 +164,7 @@
 
         <!-- Author badge -->
         <div class="mt-2 flex flex-wrap items-center gap-2">
-          <RunAuthorBadge :is-official="run.is_official" :author-handle="run.author_handle" />
+          <RunAuthorBadge v-if="!isOwnRun || run.is_official" :is-official="run.is_official" :author-handle="run.author_handle" />
           <!-- Lineage credit (V15) — forked from canonical run -->
           <span v-if="run.forked_from_name || run.original_author_handle" class="text-xs text-neutral-400 dark:text-neutral-500">
             Forked from

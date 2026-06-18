@@ -314,24 +314,19 @@
                     <div
                       v-for="r in river.userReaches"
                       :key="r.id"
-                      class="flex items-center gap-2 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer"
-                      @click="openUserReach(r)"
+                      class="flex items-center gap-2 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0"
                     >
                       <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-1 min-w-0">
-                          <span class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate">{{ r.name }}</span>
-                          <!-- Referenced run: fork-to-edit. Own run: edit link. -->
+                          <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors">{{ r.name || r.long_name || r.slug }}</NuxtLink>
+                          <!-- Referenced run: fork-to-edit + @handle. Own run: edit pencil. -->
                           <button v-if="r.is_reference" :disabled="forkingRefId === r.id" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors disabled:opacity-40" title="Fork to edit" @click.stop="forkReferencedRun(r)">
                             <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="8" r="2.5"/><path d="M6 8.5v7M18 10.5c0 3-4 3-6 4.5"/></svg>
                           </button>
-                          <NuxtLink v-else :to="`/my/runs/${r.slug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
-                            <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
+                          <span v-if="r.is_reference && r.author_handle" class="text-xs text-neutral-400 shrink-0">@{{ r.author_handle }}</span>
+                          <NuxtLink v-if="!r.is_reference" :to="`/my/runs/${r.slug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
+                            <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
                           </NuxtLink>
-                        </div>
-                        <div v-if="r.author_handle || r.long_name" class="flex items-center gap-1 mt-0.5">
-                          <span v-if="r.author_handle" class="text-xs text-neutral-400 dark:text-neutral-500 shrink-0">@{{ r.author_handle }}</span>
-                          <span v-if="r.author_handle && r.long_name" class="text-xs text-neutral-300 dark:text-neutral-600">·</span>
-                          <span v-if="r.long_name" class="text-xs text-neutral-400 dark:text-neutral-500 truncate">{{ r.long_name }}</span>
                         </div>
                       </div>
                       <div class="w-44 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
@@ -351,19 +346,16 @@
                     <div
                       v-for="r in river.userReaches"
                       :key="r.id"
-                      class="relative rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-3 transition-all duration-200 cursor-pointer overflow-hidden"
-                      @click="openUserReach(r)"
+                      class="relative rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-3 transition-all duration-200 overflow-hidden"
                     >
                       <div class="flex items-start gap-3 mb-2">
                         <div class="min-w-0 flex-1">
                           <div class="flex items-center gap-1.5 min-w-0">
-                            <span class="text-base font-semibold truncate">{{ r.name }}</span>
+                            <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-base font-semibold truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors">{{ r.name || r.long_name || r.slug }}</NuxtLink>
                             <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', urBadgeClass(r)]">{{ urBandLabel(r) }}</span>
                           </div>
-                          <div v-if="r.author_handle || r.long_name" class="flex items-center gap-1 mt-0.5">
-                            <span v-if="r.author_handle" class="text-xs text-neutral-400 dark:text-neutral-500 shrink-0">@{{ r.author_handle }}</span>
-                            <span v-if="r.author_handle && r.long_name" class="text-xs text-neutral-300 dark:text-neutral-600">·</span>
-                            <span v-if="r.long_name" class="text-xs text-neutral-400 dark:text-neutral-500 truncate">{{ r.long_name }}</span>
+                          <div v-if="r.is_reference && r.author_handle" class="mt-0.5">
+                            <span class="text-xs text-neutral-400 dark:text-neutral-500 shrink-0">@{{ r.author_handle }}</span>
                           </div>
                         </div>
                         <div class="shrink-0 flex items-center gap-1">
@@ -373,9 +365,6 @@
                           <button v-if="r.is_reference" :disabled="forkingRefId === r.id" class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors disabled:opacity-40" title="Fork to edit" @click.stop="forkReferencedRun(r)">
                             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="8" r="2.5"/><path d="M6 8.5v7M18 10.5c0 3-4 3-6 4.5"/></svg>
                           </button>
-                          <NuxtLink v-else :to="`/my/runs/${r.slug}`" class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
-                            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
-                          </NuxtLink>
                           <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
                         </div>
                       </div>
@@ -617,6 +606,7 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useWatchlistStore, type WatchedGauge } from '~/stores/watchlist'
 import { cleanBasinName, slugifyBasin } from '~/utils/basin'
 import { flowBandLabel, colorKeyToHex, colorKeyToBadgeClass } from '~/utils/flowBand'
+import { featureToWatchedGauge } from '~/composables/useWatchlistSync'
 
 definePageMeta({ ssr: false })
 
@@ -698,14 +688,26 @@ async function syncWithServer() {
   }
 }
 
-watch(isAuthenticated, (val) => { if (val) { syncWithServer(); loadUserReaches(); loadCustomGauges(); loadRiverBasinOverrides() } })
+watch(isAuthenticated, async (val) => {
+  if (val) {
+    await Promise.all([syncWithServer(), loadUserReaches()])
+    backfillGaugesFromUserReaches()
+    loadCustomGauges()
+    loadRiverBasinOverrides()
+  }
+})
 
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
-onMounted(() => {
-  if (isAuthenticated.value) { syncWithServer(); loadUserReaches(); loadCustomGauges(); loadRiverBasinOverrides() }
+onMounted(async () => {
   refresh()
   refreshTimer = setInterval(refresh, 60_000)
+  if (isAuthenticated.value) {
+    await Promise.all([syncWithServer(), loadUserReaches()])
+    backfillGaugesFromUserReaches()
+    loadCustomGauges()
+    loadRiverBasinOverrides()
+  }
 })
 
 // My Reaches and Custom Gauges are not dashboard-scoped in the backend, so show
@@ -858,6 +860,7 @@ async function loadUserReaches() {
   if (!res?.ok) return
   userReaches.value = await res.json() ?? []
   for (const r of userReaches.value) prefetchBand(r.slug)
+  backfillGaugesFromUserReaches()
 }
 
 // Referenced runs: other users' public runs the caller added by reference.
@@ -1029,7 +1032,30 @@ async function activateDashboard(id: string) {
   dashboardCustomGaugeIds.value = customGaugeIds
   dashboardReachSlugs.value = reachSlugs
   await loadReferencedRuns(id, referencedRunIds)
+  backfillGaugesFromUserReaches()
 }
+
+async function backfillGaugesFromUserReaches() {
+  const token = await getToken()
+  if (!token) return
+  const missing = userReaches.value.filter(r =>
+    r.gauge_id &&
+    !store.gauges.some(g => g.id === r.gauge_id && g.contextReachSlug === r.slug)
+  )
+  if (missing.length === 0) return
+  const ids = missing.map(r => `${r.gauge_id}:${r.slug}`)
+  const res = await fetch(`${apiBase}/api/v1/gauges/batch`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  }).catch(() => null)
+  if (!res?.ok) return
+  const data = await res.json()
+  for (const f of data.features ?? []) {
+    store.addGauge(featureToWatchedGauge(f.properties, f.geometry?.coordinates as [number, number] | undefined))
+  }
+}
+
 onUnmounted(() => { serverSynced = false; if (refreshTimer) clearInterval(refreshTimer) })
 
 // ── River basin overrides ─────────────────────────────────────────────────────
