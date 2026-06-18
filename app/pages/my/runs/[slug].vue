@@ -1305,7 +1305,8 @@ async function save() {
       note:       form.value.note.trim()      || null,
       class_min:  form.value.classMin,
       class_max:  form.value.classMax,
-      visibility: form.value.visibility,
+      // API rejects visibility:"public" via PATCH (must use /publish); omit if already public
+      ...(form.value.visibility !== 'public' ? { visibility: form.value.visibility } : {}),
       gnis_id:    nldiGnisId.value ?? undefined,
     }
     if (repinFlowlinesDirty.value && repinUpComID.value && repinDownComID.value) {
