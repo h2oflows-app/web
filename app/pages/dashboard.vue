@@ -1052,7 +1052,10 @@ async function activateDashboard(id: string) {
 async function backfillGaugesFromUserReaches() {
   const token = await getToken()
   if (!token) return
-  const missing = userReaches.value.filter(r =>
+  // Combine own runs + referenced runs — both need to appear in store.gauges
+  // so the map populates and group-by-gauge can group across all run sources.
+  const allRuns = [...userReaches.value, ...referencedReaches.value]
+  const missing = allRuns.filter(r =>
     r.gauge_id &&
     !store.gauges.some(g => g.id === r.gauge_id && g.contextReachSlug === r.slug)
   )
@@ -1225,8 +1228,8 @@ const byStateTree = computed<StateGroup[]>(() => {
   }
 
   // Fold referenced runs (other users' public runs) into the same river groups —
-  // they render read-only in the userReaches list, flagged via is_reference.
-  for (const ur of activeReferencedReaches.value) {
+  // skip any whose slug is already in store.gauges (backfill put them in river.reaches).
+  for (const ur of activeReferencedReaches.value.filter(r => !gaugeReachSlugs.has(r.slug))) {
     const state = ur.state_abbr ?? '—'
     const basin = resolveBasinForRun(ur, state)
     const rawKey = ur.basin_group ?? ''
