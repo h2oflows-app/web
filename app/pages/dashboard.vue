@@ -314,11 +314,12 @@
                     <div
                       v-for="r in river.userReaches"
                       :key="r.id"
-                      class="flex items-center gap-2 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0"
+                      class="flex items-center gap-2 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer"
+                      @click="openUserReach(r)"
                     >
                       <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-1 min-w-0">
-                          <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors">{{ r.name || r.long_name || r.slug }}</NuxtLink>
+                          <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
                           <!-- Referenced run: fork-to-edit + @handle. Own run: edit pencil. -->
                           <button v-if="r.is_reference" :disabled="forkingRefId === r.id" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors disabled:opacity-40" title="Fork to edit" @click.stop="forkReferencedRun(r)">
                             <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="8" r="2.5"/><path d="M6 8.5v7M18 10.5c0 3-4 3-6 4.5"/></svg>
@@ -339,19 +340,20 @@
                           {{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-400 dark:text-neutral-500"> cfs</span>
                         </span>
                       </div>
-                      <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
+                      <TrashButton label="Remove from dashboard" @click.stop="removeUserReach(r)" />
                     </div>
                   </div>
                   <div v-else :class="[cardGridClass, 'mt-1.5']">
                     <div
                       v-for="r in river.userReaches"
                       :key="r.id"
-                      class="relative rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-3 transition-all duration-200 overflow-hidden"
+                      class="relative rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-3 transition-all duration-200 overflow-hidden cursor-pointer"
+                      @click="openUserReach(r)"
                     >
                       <div class="flex items-start gap-3 mb-2">
                         <div class="min-w-0 flex-1">
                           <div class="flex items-center gap-1.5 min-w-0">
-                            <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-base font-semibold truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors">{{ r.name || r.long_name || r.slug }}</NuxtLink>
+                            <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-base font-semibold truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
                             <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', urBadgeClass(r)]">{{ urBandLabel(r) }}</span>
                           </div>
                           <div v-if="r.is_reference && r.author_handle" class="mt-0.5">
@@ -365,11 +367,13 @@
                           <button v-if="r.is_reference" :disabled="forkingRefId === r.id" class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors disabled:opacity-40" title="Fork to edit" @click.stop="forkReferencedRun(r)">
                             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="8" r="2.5"/><path d="M6 8.5v7M18 10.5c0 3-4 3-6 4.5"/></svg>
                           </button>
-                          <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
+                          <TrashButton label="Remove from dashboard" @click.stop="removeUserReach(r)" />
                         </div>
                       </div>
-                      <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" :compact="viewMode !== 'full'" class="mb-1 opacity-70" />
-                      <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" :compact="viewMode !== 'full'" :color="urBandHex(r)" class="mb-1 opacity-70" />
+                      <div v-if="r.gauge_id || r.custom_gauge_slug" class="mb-1 opacity-70 cursor-pointer" @click.stop="openUserReachGaugeTab(r)">
+                        <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" :compact="viewMode !== 'full'" />
+                        <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" :compact="viewMode !== 'full'" :color="urBandHex(r)" />
+                      </div>
                       <p v-if="r.last_reading_at" class="text-xs text-neutral-400 mt-0.5">{{ reachLastUpdated(r) }}</p>
                     </div>
                   </div>
@@ -807,6 +811,14 @@ function openUserReach(r: UserReachSummary) {
     }
   }
   router.push(`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`)
+}
+
+function openUserReachGaugeTab(r: UserReachSummary) {
+  if (!r.gauge_id) return
+  const gauge = store.gauges.find(g => g.id === r.gauge_id && g.contextReachSlug === r.slug)
+            ?? store.gauges.find(g => g.id === r.gauge_id)
+  if (gauge) { openGauge(gauge, 'gauge'); return }
+  if (r.gauge_external_id && r.gauge_source) openGauge(synthGaugeForReach(r), 'gauge')
 }
 
 // Minimal WatchedGauge built from a user-reach summary — only the fields
