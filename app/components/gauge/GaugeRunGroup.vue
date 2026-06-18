@@ -245,7 +245,7 @@ function reachLabel(item: WatchedGauge): string {
 
 function prefetchAll() {
   for (const r of props.reachItems) {
-    if (r.contextReachSlug) prefetch(r.contextReachSlug)
+    if (r.contextReachSlug) prefetch(r.contextReachSlug, r.contextReachAuthorHandle)
   }
 }
 

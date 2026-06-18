@@ -6,13 +6,18 @@ export function useRunFlowBand() {
   const { getToken } = useAuth()
   const cache = reactive<Record<string, FlowBands>>({})
 
-  async function prefetch(slug: string) {
+  async function prefetch(slug: string, handle?: string | null) {
     if (slug in cache) return
     try {
       const token = await getToken()
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
-      const res = await fetch(`${apiBase}/api/v1/me/runs/${slug}/flow-ranges`, { headers })
-      if (res.ok) cache[slug] = await res.json()
+      const meRes = await fetch(`${apiBase}/api/v1/me/runs/${slug}/flow-ranges`, { headers })
+      if (meRes.ok) { cache[slug] = await meRes.json(); return }
+      // Not the caller's own run — fall back to public handle-scoped endpoint.
+      if (handle) {
+        const pubRes = await fetch(`${apiBase}/api/v1/users/${handle}/runs/${slug}/flow-ranges`)
+        if (pubRes.ok) cache[slug] = await pubRes.json()
+      }
     } catch {}
   }
 

@@ -859,7 +859,7 @@ async function loadUserReaches() {
   }).catch(() => null)
   if (!res?.ok) return
   userReaches.value = await res.json() ?? []
-  for (const r of userReaches.value) prefetchBand(r.slug)
+  for (const r of userReaches.value) prefetchBand(r.slug, r.author_handle)
   backfillGaugesFromUserReaches()
 }
 

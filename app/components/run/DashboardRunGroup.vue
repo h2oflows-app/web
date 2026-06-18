@@ -176,7 +176,7 @@ function displayFlowStatus(reach: WatchedGauge): string {
 
 function prefetchAll() {
   for (const r of props.reaches) {
-    if (r.contextReachSlug) prefetch(r.contextReachSlug)
+    if (r.contextReachSlug) prefetch(r.contextReachSlug, r.contextReachAuthorHandle)
   }
 }
 
