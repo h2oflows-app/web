@@ -1435,7 +1435,7 @@ function sectionHasVisibleContent(sec: DisplaySection): boolean {
 // pref refs are rehydrated from the new dashboard's blob.
 type ViewMode = 'list' | 'comfortable' | 'full'
 const VIEW_MODES = [
-  { key: 'list',        label: 'List'        },
+  { key: 'list',        label: 'Compact'     },
   { key: 'comfortable', label: 'Comfortable' },
   { key: 'full',        label: 'Full'        },
 ] as const

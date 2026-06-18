@@ -94,8 +94,9 @@
           </div>
           <TrashButton label="Remove" @click="$emit('remove', reach)" />
         </div>
-        <div class="opacity-70 cursor-pointer" @click.stop="$emit('open', reach, 'gauge')">
+        <div class="relative opacity-70 cursor-pointer" @click.stop="$emit('open', reach, 'gauge')">
           <GaugeSparkline :gauge-id="reach.id" flow-status="unknown" :color="sparklineColor(reach)" :compact="false" :poll-health="reach.pollHealth" :last-reading-at="reach.lastReadingAt" @latest-cfs="(v) => setLiveCfs(reach, v)" />
+          <div class="absolute inset-0 z-10" />
         </div>
       </template>
 
@@ -119,8 +120,9 @@
           </div>
           <TrashButton label="Remove" @click="$emit('remove', reach)" />
         </div>
-        <div class="opacity-70 cursor-pointer" @click.stop="$emit('open', reach, 'gauge')">
+        <div class="relative opacity-70 cursor-pointer" @click.stop="$emit('open', reach, 'gauge')">
           <GaugeSparkline :gauge-id="reach.id" flow-status="unknown" :color="sparklineColor(reach)" :compact="false" :poll-health="reach.pollHealth" :last-reading-at="reach.lastReadingAt" @latest-cfs="(v) => setLiveCfs(reach, v)" />
+          <div class="absolute inset-0 z-10" />
         </div>
       </template>
     </div>
