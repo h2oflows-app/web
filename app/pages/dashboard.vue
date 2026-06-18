@@ -876,6 +876,7 @@ async function loadReferencedRuns(dashboardId: string, runIds: string[]) {
   if (!res?.ok) { referencedReaches.value = []; return }
   const data: UserReachSummary[] = await res.json() ?? []
   referencedReaches.value = data.map(r => ({ ...r, is_reference: true }))
+  for (const r of data) prefetchBand(r.slug, r.author_handle)
 }
 
 function loadSet(key: string): Set<string> {
