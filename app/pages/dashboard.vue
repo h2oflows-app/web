@@ -251,7 +251,7 @@
                   </div>
                   <!-- Cards wrapper -->
                   <template v-if="groupByGauge">
-                    <template v-for="split in [splitReachGroups(river.reaches)]" :key="'split'">
+                    <template v-for="split in [splitReachGroupsAll(river.reaches, river.userReaches)]" :key="'split'">
                       <div v-if="split.gaugeGroups.length > 0" :class="viewMode === 'list' ? 'space-y-1.5' : cardGridClass">
                         <GaugeRunGroup
                           v-for="group in split.gaugeGroups"
@@ -261,7 +261,7 @@
                           :density="viewMode"
                           :hide-river-name="true"
                           @open="(g, mode) => openGauge(g, mode)"
-                          @remove-group="group.all.forEach(g => removeAndSync(g.id, g.contextReachSlug))"
+                          @remove-group="removeExtGaugeGroup(group)"
                         />
                       </div>
                       <!-- Ungrouped: list = one card; card modes = individual cards in grid -->
@@ -308,11 +308,12 @@
                       />
                     </div>
                   </template>
-                <!-- User reaches inline — always flat, no gauge grouping -->
-                <template v-if="river.userReaches.length > 0">
+                <!-- User reaches inline — flat for non-gauge-grouped items -->
+                <template v-for="visibleUrs in [visibleUserReaches(river)]" :key="'urs'">
+                <template v-if="visibleUrs.length > 0">
                   <div v-if="viewMode === 'list'" class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden mt-1.5">
                     <div
-                      v-for="r in river.userReaches"
+                      v-for="r in visibleUrs"
                       :key="r.id"
                       class="flex items-center gap-2 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer"
                       @click="openUserReach(r)"
@@ -345,7 +346,7 @@
                   </div>
                   <div v-else :class="[cardGridClass, 'mt-1.5']">
                     <div
-                      v-for="r in river.userReaches"
+                      v-for="r in visibleUrs"
                       :key="r.id"
                       class="relative rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-3 transition-all duration-200 overflow-hidden cursor-pointer"
                       @click="openUserReach(r)"
@@ -378,7 +379,8 @@
                       <p v-if="r.last_reading_at" class="text-xs text-neutral-400 mt-0.5">{{ reachLastUpdated(r) }}</p>
                     </div>
                   </div>
-                </template><!-- end river.userReaches -->
+                </template><!-- end visibleUrs -->
+                </template><!-- end v-for visibleUrs -->
                 </div><!-- end riverHasVisibleContent -->
                 </template><!-- end v-for river -->
               </div>
@@ -1575,6 +1577,7 @@ const groupingOptions = computed(() => [
 
 interface GaugeGroup { lead: WatchedGauge; all: WatchedGauge[] }
 interface SplitGroups { gaugeGroups: GaugeGroup[]; ungrouped: WatchedGauge[] }
+interface ExtGaugeGroup extends GaugeGroup { userReachItems: UserReachSummary[] }
 
 function splitReachGroups(reaches: WatchedGauge[]): SplitGroups {
   const map = new Map<string, WatchedGauge[]>()
@@ -1592,6 +1595,61 @@ function splitReachGroups(reaches: WatchedGauge[]): SplitGroups {
     }
   }
   return { gaugeGroups, ungrouped }
+}
+
+// Groups river.reaches + gauge-backed river.userReaches together by gauge_id.
+// Avoids dependency on async backfill and works across river-name mismatches.
+function splitReachGroupsAll(
+  reaches: WatchedGauge[],
+  urs: UserReachSummary[],
+): { gaugeGroups: ExtGaugeGroup[]; ungrouped: WatchedGauge[] } {
+  const wgByGauge = new Map<string, WatchedGauge[]>()
+  for (const r of reaches) {
+    if (!wgByGauge.has(r.id)) wgByGauge.set(r.id, [])
+    wgByGauge.get(r.id)!.push(r)
+  }
+  const urByGauge = new Map<string, UserReachSummary[]>()
+  for (const ur of urs) {
+    if (!ur.gauge_id) continue
+    if (!urByGauge.has(ur.gauge_id)) urByGauge.set(ur.gauge_id, [])
+    urByGauge.get(ur.gauge_id)!.push(ur)
+  }
+  const allGaugeIds = new Set([...wgByGauge.keys(), ...urByGauge.keys()])
+  const gaugeGroups: ExtGaugeGroup[] = []
+  const ungrouped: WatchedGauge[] = []
+  for (const gaugeId of allGaugeIds) {
+    const wgs = wgByGauge.get(gaugeId) ?? []
+    const urItems = urByGauge.get(gaugeId) ?? []
+    const synthetic = urItems.map(synthGaugeForReach)
+    const all = [...wgs, ...synthetic]
+    if (all.length > 1) {
+      gaugeGroups.push({ lead: wgs[0] ?? synthetic[0]!, all, userReachItems: urItems })
+    } else if (wgs.length === 1) {
+      ungrouped.push(wgs[0]!)
+    }
+    // single ur with no wg pair → stays in the flat userReaches block
+  }
+  return { gaugeGroups, ungrouped }
+}
+
+// Returns user reaches that are NOT absorbed into a gauge group, for flat rendering.
+function visibleUserReaches(river: RiverGroup): UserReachSummary[] {
+  if (!groupByGauge.value) return river.userReaches
+  const grouped = new Set(
+    splitReachGroupsAll(river.reaches, river.userReaches)
+      .gaugeGroups.flatMap(g => g.userReachItems.map(ur => ur.slug)),
+  )
+  return river.userReaches.filter(ur => !grouped.has(ur.slug))
+}
+
+// Removes all items in an extended gauge group (real watchlist + user reach refs).
+function removeExtGaugeGroup(group: ExtGaugeGroup) {
+  for (const g of group.all) {
+    if (!group.userReachItems.some(ur => ur.slug === g.contextReachSlug)) {
+      removeAndSync(g.id, g.contextReachSlug)
+    }
+  }
+  for (const ur of group.userReachItems) removeUserReach(ur)
 }
 
 const cardGridClass = computed(() =>
