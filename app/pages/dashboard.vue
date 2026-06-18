@@ -370,9 +370,10 @@
                           <TrashButton label="Remove from dashboard" @click.stop="removeUserReach(r)" />
                         </div>
                       </div>
-                      <div v-if="r.gauge_id || r.custom_gauge_slug" class="mb-1 opacity-70 cursor-pointer" @click.stop="openUserReachGaugeTab(r)">
+                      <div v-if="r.gauge_id || r.custom_gauge_slug" class="relative mb-1 opacity-70 cursor-pointer" @click.stop="openUserReachGaugeTab(r)">
                         <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" :compact="viewMode !== 'full'" />
                         <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" :compact="viewMode !== 'full'" :color="urBandHex(r)" />
+                        <div class="absolute inset-0 z-10" />
                       </div>
                       <p v-if="r.last_reading_at" class="text-xs text-neutral-400 mt-0.5">{{ reachLastUpdated(r) }}</p>
                     </div>
