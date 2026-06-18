@@ -126,7 +126,10 @@ watch(() => props.controlledHours, h => { if (h && h !== hours.value) { hours.va
 async function load() {
   loading.value = true
   try {
-    const since = new Date(Date.now() - hours.value * 3_600_000).toISOString()
+    // Fetch at least 48h so useDiurnalPattern has yesterday+today windows.
+    // buildChart filters to hours.value for the displayed range.
+    const fetchHours = Math.max(hours.value, 48)
+    const since = new Date(Date.now() - fetchHours * 3_600_000).toISOString()
     if (props.noRanges) {
       const rdRes = await fetch(`${apiBase}/api/v1/gauges/${props.gaugeId}/readings?since=${since}&limit=500`)
       if (rdRes.ok) readings.value = await rdRes.json()
@@ -158,7 +161,7 @@ async function load() {
       emit('latestCfs', latestCfs)
       if (flowBands.value) {
         const band = bandForCfs(latestCfs, flowBands.value)
-        emit('liveFlowBand', { flowBandLabel: band.label, flowStatus: flowStatusForColorKey(band.color) })
+        emit('liveFlowBand', { flowBandLabel: band?.label ?? null, flowStatus: flowStatusForColorKey(band?.color) })
       } else {
         emit('liveFlowBand', { flowBandLabel: null, flowStatus: 'unknown' })
       }
@@ -177,7 +180,10 @@ function buildChart() {
   chart = null
 
   // API returns newest-first; uPlot needs ascending timestamps.
-  const sorted = [...readings.value].reverse()
+  // Filter to the display window (hours.value) — we may have fetched more for diurnal detection.
+  const cutoffMs = Date.now() - hours.value * 3_600_000
+  const sorted = [...readings.value].reverse().filter(r => new Date(r.timestamp).getTime() >= cutoffMs)
+  if (sorted.length === 0) return
   const xs = new Float64Array(sorted.map(r => new Date(r.timestamp).getTime() / 1000))
   const ys = new Float64Array(sorted.map(r => r.cfs))
 
@@ -322,7 +328,7 @@ function drawCurrentMarker(u: uPlot, cfs: number | null) {
 function lineColor(bands: FlowBands | null, cfs: number | null): string {
   if (props.color) return props.color
   if (cfs == null || !bands) return '#6b7280'
-  return colorKeyToHex(bandForCfs(cfs, bands).color)
+  return colorKeyToHex(bandForCfs(cfs, bands)?.color ?? '')
 }
 
 // ---- Diurnal cycle ----------------------------------------------------------

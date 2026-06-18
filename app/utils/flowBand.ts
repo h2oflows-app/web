@@ -99,7 +99,9 @@ export function flowStatusForColorKey(key?: string | null): FlowStatus {
 }
 
 // V9: highest threshold where cfs >= value; else base.
-export function bandForCfs(cfs: number, bands: FlowBands): { label: string; color: string } {
+// Returns null when no thresholds are defined — run has no configured flow bands.
+export function bandForCfs(cfs: number, bands: FlowBands): { label: string; color: string } | null {
+  if (bands.thresholds.length === 0) return null
   const sorted = [...bands.thresholds].sort((a, b) => b.value - a.value)
   for (const t of sorted) {
     if (cfs >= t.value) return { label: t.label, color: t.color }
