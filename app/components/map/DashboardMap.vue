@@ -178,110 +178,113 @@ async function refreshData() {
     [g.reachSlug, ...(g.reachSlugs ?? [])].filter((s): s is string => !!s)
   ))
 
+  // Best-effort load of user-run centerlines (for the line layer + a marker
+  // position fallback). A failure here must NOT block gauge marker placement —
+  // gauges with GPS coords still render below.
   let bySlug = new Map<string, any>()
   try {
-    // Load user runs map (user_reaches) for centerline fallback — slugs match contextReachSlug
     const token = await getToken()
     const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {}
     const res = await fetch(`${apiBase}/api/v1/me/runs/map/all`, { headers })
-    if (!res.ok) return
-    const fc = await res.json()
     if (seq !== fetchSeq) return          // a newer call superseded us — discard
+    if (res.ok) {
+      const fc = await res.json()
+      if (seq !== fetchSeq) return
+      const allFeatures: any[] = fc.features ?? []
+      bySlug = new Map(allFeatures.map((f: any) => [f.properties.slug, f]))
 
-    const allFeatures: any[] = fc.features ?? []
-    bySlug = new Map(allFeatures.map((f: any) => [f.properties.slug, f]))
+      // Update the single source with all features; opacity expression dims non-dashboard lines
+      const dashSlugs = [...slugSet]
+      ;(m.getSource('dash-reaches') as maplibregl.GeoJSONSource | undefined)
+        ?.setData({ type: 'FeatureCollection', features: allFeatures })
 
-    // Update the single source with all features; opacity expression dims non-dashboard lines
-    const dashSlugs = [...slugSet]
-    ;(m.getSource('dash-reaches') as maplibregl.GeoJSONSource | undefined)
-      ?.setData({ type: 'FeatureCollection', features: allFeatures })
-
-    // Update opacity paint properties to highlight dashboard reaches
-    if (m.getLayer('dash-glow')) {
-      m.setPaintProperty('dash-glow',  'line-opacity', dashOpacityExpr(dashSlugs, 0.15, 0.08))
-      m.setPaintProperty('dash-glow',  'line-width',
-        ['interpolate', ['linear'], ['zoom'], 6,
-          ['match', ['get', 'slug'], dashSlugs, 5, 3],
-          12,
-          ['match', ['get', 'slug'], dashSlugs, 10, 6],
-        ])
-      m.setPaintProperty('dash-lines', 'line-opacity', dashOpacityExpr(dashSlugs, 0.95, 0.65))
-      m.setPaintProperty('dash-lines', 'line-width',
-        ['interpolate', ['linear'], ['zoom'], 6,
-          ['match', ['get', 'slug'], dashSlugs, 2.0, 1.5],
-          12,
-          ['match', ['get', 'slug'], dashSlugs, 4.0, 3.0],
-        ])
-    }
-
-    clearMarkers()
-
-    // Place a marker for each gauge.
-    // Prefer the gauge's own GPS location; fall back to midpoint of an associated reach centerline.
-    const gaugePoints: [number, number][] = []
-    for (const gauge of props.gauges) {
-      let pos: [number, number] | null = null
-      if (gauge.lng != null && gauge.lat != null
-          && (Math.abs(gauge.lng) > 0.001 || Math.abs(gauge.lat) > 0.001)) {
-        pos = [gauge.lng, gauge.lat]
+      // Update opacity paint properties to highlight dashboard reaches
+      if (m.getLayer('dash-glow')) {
+        m.setPaintProperty('dash-glow',  'line-opacity', dashOpacityExpr(dashSlugs, 0.15, 0.08))
+        m.setPaintProperty('dash-glow',  'line-width',
+          ['interpolate', ['linear'], ['zoom'], 6,
+            ['match', ['get', 'slug'], dashSlugs, 5, 3],
+            12,
+            ['match', ['get', 'slug'], dashSlugs, 10, 6],
+          ])
+        m.setPaintProperty('dash-lines', 'line-opacity', dashOpacityExpr(dashSlugs, 0.95, 0.65))
+        m.setPaintProperty('dash-lines', 'line-width',
+          ['interpolate', ['linear'], ['zoom'], 6,
+            ['match', ['get', 'slug'], dashSlugs, 2.0, 1.5],
+            12,
+            ['match', ['get', 'slug'], dashSlugs, 4.0, 3.0],
+          ])
       }
-      if (!pos) {
-        const slugsToTry = [gauge.reachSlug, ...(gauge.reachSlugs ?? [])].filter((s): s is string => !!s)
-        for (const slug of slugsToTry) {
-          const feature = bySlug.get(slug)
-          if (feature) { pos = midpoint(feature.geometry); break }
-        }
-      }
-      if (!pos) continue
-
-      gaugePoints.push(pos)
-      const marker = new maplibregl.Marker({ element: makeGaugePinEl(gauge, pos), anchor: 'bottom' })
-        .setLngLat(pos)
-        .addTo(m)
-      activeMarkers.push(marker)
-    }
-
-    // When the user adds a new gauge, zoom to that gauge + its reach centerline
-    // so they immediately see the run they just bookmarked. On initial mount or
-    // after a removal, fall back to fitting the full set of saved gauges.
-    const validPoints = gaugePoints.filter(p => Number.isFinite(p[0]) && Number.isFinite(p[1]))
-    let fitPoints: [number, number][] | null = null
-    if (addedIds.length > 0) {
-      const focusPts: [number, number][] = []
-      for (const gauge of props.gauges) {
-        if (!addedIds.includes(gauge.id)) continue
-        if (Number.isFinite(gauge.lng) && Number.isFinite(gauge.lat)) {
-          focusPts.push([gauge.lng as number, gauge.lat as number])
-        }
-        const slugsToTry = [gauge.reachSlug, ...(gauge.reachSlugs ?? [])].filter((s): s is string => !!s)
-        for (const slug of slugsToTry) {
-          const feature = bySlug.get(slug)
-          if (feature) {
-            // Guard against null/zero coordinates from OSM data that would
-            // send fitBounds to null island or an extreme zoom-out.
-            const validCoords = allCoordsOf(feature.geometry)
-              .filter(c => Number.isFinite(c[0]) && Number.isFinite(c[1])
-                        && (Math.abs(c[0]) > 0.001 || Math.abs(c[1]) > 0.001))
-            focusPts.push(...validCoords)
-          }
-        }
-      }
-      if (focusPts.length > 0) fitPoints = focusPts
-    }
-    if (!fitPoints && (idsChanged || !hasFitBounds) && validPoints.length > 0) {
-      fitPoints = validPoints
-    }
-    if (fitPoints) {
-      const lngs = fitPoints.map(c => c[0])
-      const lats = fitPoints.map(c => c[1])
-      m.fitBounds(
-        [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
-        { padding: 80, maxZoom: 13, duration: 800 },
-      )
-      hasFitBounds = true
     }
   } catch (e) {
-    console.warn('[DashboardMap] fetch:', e)
+    console.warn('[DashboardMap] runs/map fetch:', e)
+  }
+
+  clearMarkers()
+
+  // Place a marker for each gauge.
+  // Prefer the gauge's own GPS location; fall back to midpoint of an associated reach centerline.
+  const gaugePoints: [number, number][] = []
+  for (const gauge of props.gauges) {
+    let pos: [number, number] | null = null
+    if (gauge.lng != null && gauge.lat != null
+        && (Math.abs(gauge.lng) > 0.001 || Math.abs(gauge.lat) > 0.001)) {
+      pos = [gauge.lng, gauge.lat]
+    }
+    if (!pos) {
+      const slugsToTry = [gauge.reachSlug, ...(gauge.reachSlugs ?? [])].filter((s): s is string => !!s)
+      for (const slug of slugsToTry) {
+        const feature = bySlug.get(slug)
+        if (feature) { pos = midpoint(feature.geometry); break }
+      }
+    }
+    if (!pos) continue
+
+    gaugePoints.push(pos)
+    const marker = new maplibregl.Marker({ element: makeGaugePinEl(gauge, pos), anchor: 'bottom' })
+      .setLngLat(pos)
+      .addTo(m)
+    activeMarkers.push(marker)
+  }
+
+  // When the user adds a new gauge, zoom to that gauge + its reach centerline
+  // so they immediately see the run they just bookmarked. On initial mount or
+  // after a removal, fall back to fitting the full set of saved gauges.
+  const validPoints = gaugePoints.filter(p => Number.isFinite(p[0]) && Number.isFinite(p[1]))
+  let fitPoints: [number, number][] | null = null
+  if (addedIds.length > 0) {
+    const focusPts: [number, number][] = []
+    for (const gauge of props.gauges) {
+      if (!addedIds.includes(gauge.id)) continue
+      if (Number.isFinite(gauge.lng) && Number.isFinite(gauge.lat)) {
+        focusPts.push([gauge.lng as number, gauge.lat as number])
+      }
+      const slugsToTry = [gauge.reachSlug, ...(gauge.reachSlugs ?? [])].filter((s): s is string => !!s)
+      for (const slug of slugsToTry) {
+        const feature = bySlug.get(slug)
+        if (feature) {
+          // Guard against null/zero coordinates from OSM data that would
+          // send fitBounds to null island or an extreme zoom-out.
+          const validCoords = allCoordsOf(feature.geometry)
+            .filter(c => Number.isFinite(c[0]) && Number.isFinite(c[1])
+                      && (Math.abs(c[0]) > 0.001 || Math.abs(c[1]) > 0.001))
+          focusPts.push(...validCoords)
+        }
+      }
+    }
+    if (focusPts.length > 0) fitPoints = focusPts
+  }
+  if (!fitPoints && (idsChanged || !hasFitBounds) && validPoints.length > 0) {
+    fitPoints = validPoints
+  }
+  if (fitPoints) {
+    const lngs = fitPoints.map(c => c[0])
+    const lats = fitPoints.map(c => c[1])
+    m.fitBounds(
+      [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+      { padding: 80, maxZoom: 13, duration: 800 },
+    )
+    hasFitBounds = true
   }
 }
 
