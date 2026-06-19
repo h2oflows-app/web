@@ -356,26 +356,30 @@
                         <div class="min-w-0 flex-1">
                           <div class="flex items-center gap-1.5 min-w-0">
                             <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-base font-semibold truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
-                            <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', urBadgeClass(r)]">{{ urBandLabel(r) }}</span>
+                            <!-- Own run: edit pencil -->
+                            <NuxtLink v-if="!r.is_reference" :to="`/my/runs/${r.slug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
+                              <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
+                            </NuxtLink>
+                            <!-- Referenced run: fork button -->
+                            <button v-if="r.is_reference" :disabled="forkingRefId === r.id" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors disabled:opacity-40" title="Fork to edit" @click.stop="forkReferencedRun(r)">
+                              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="8" r="2.5"/><path d="M6 8.5v7M18 10.5c0 3-4 3-6 4.5"/></svg>
+                            </button>
                           </div>
                           <div v-if="r.is_reference && r.author_handle" class="mt-0.5">
                             <span class="text-xs text-neutral-400 dark:text-neutral-500 shrink-0">@{{ r.author_handle }}</span>
                           </div>
                         </div>
                         <div class="shrink-0 flex items-center gap-1">
+                          <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', urBadgeClass(r)]">{{ urBandLabel(r) }}</span>
                           <span class="font-bold tabular-nums leading-none text-3xl" :style="{ color: urBandHex(r) }">
                             {{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-500 dark:text-neutral-400 ml-0.5">cfs</span>
                           </span>
-                          <button v-if="r.is_reference" :disabled="forkingRefId === r.id" class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors disabled:opacity-40" title="Fork to edit" @click.stop="forkReferencedRun(r)">
-                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="8" r="2.5"/><path d="M6 8.5v7M18 10.5c0 3-4 3-6 4.5"/></svg>
-                          </button>
                           <TrashButton label="Remove from dashboard" @click.stop="removeUserReach(r)" />
                         </div>
                       </div>
-                      <div v-if="r.gauge_id || r.custom_gauge_slug" class="relative mb-1 opacity-70 cursor-pointer" @click.stop="openUserReachGaugeTab(r)">
+                      <div v-if="r.gauge_id || r.custom_gauge_slug" class="relative mb-1 opacity-70" @click.stop>
                         <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" :compact="viewMode !== 'full'" />
                         <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" :compact="viewMode !== 'full'" :color="urBandHex(r)" />
-                        <div class="absolute inset-0 z-10" />
                       </div>
                       <p v-if="r.last_reading_at" class="text-xs text-neutral-400 mt-0.5">{{ reachLastUpdated(r) }}</p>
                     </div>
@@ -864,6 +868,7 @@ function synthGaugeForReach(r: UserReachSummary): WatchedGauge {
     lastPollSuccessAt: null,
     watchState: 'saved',
     activeSince: null,
+    contextIsReference: r.is_reference ?? false,
   }
 }
 const userReaches = ref<UserReachSummary[]>([])
@@ -1653,10 +1658,16 @@ function removeExtGaugeGroup(group: ExtGaugeGroup) {
   for (const ur of group.userReachItems) removeUserReach(ur)
 }
 
-// Per-item removal inside a gauge group — routes to the right handler.
+// Per-item removal inside a gauge group — always remove from watchlist store AND
+// also remove the associated user reach if one matches.
 function handleGaugeItemRemove(item: WatchedGauge, group: ExtGaugeGroup) {
-  const ur = group.userReachItems.find(ur => ur.slug === item.contextReachSlug)
-  if (ur) { removeUserReach(ur) } else { removeAndSync(item.id, item.contextReachSlug) }
+  removeAndSync(item.id, item.contextReachSlug)
+  if (item.contextReachSlug) {
+    const ur = group.userReachItems.find(ur => ur.slug === item.contextReachSlug)
+      ?? userReaches.value.find(r => r.slug === item.contextReachSlug)
+      ?? referencedReaches.value.find(r => r.slug === item.contextReachSlug)
+    if (ur) removeUserReach(ur)
+  }
 }
 
 const cardGridClass = computed(() =>

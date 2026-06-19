@@ -53,12 +53,13 @@
           <span class="min-w-0 text-sm text-neutral-700 dark:text-neutral-300 truncate">
             {{ reachLabel(item) }}
           </span>
-          <NuxtLink :to="`/my/runs/${item.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="Edit" title="Edit" @click.stop>
+          <NuxtLink v-if="!item.contextIsReference" :to="`/my/runs/${item.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="Edit" title="Edit" @click.stop>
             <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
           </NuxtLink>
           <NuxtLink :to="`/runs/${item.contextReachAuthorHandle ?? 'h2oflows'}/${item.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View" title="View" @click.stop>
             <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
           </NuxtLink>
+          <span v-if="item.contextIsReference && item.contextReachAuthorHandle" class="text-xs text-neutral-400 dark:text-neutral-500 shrink-0">@{{ item.contextReachAuthorHandle }}</span>
         </div>
         <span
           v-if="displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)"
@@ -142,12 +143,15 @@
               <span v-if="riverDisplayName && !hideRiverName" class="text-xs text-neutral-400 dark:text-neutral-500 truncate block leading-tight">{{ riverDisplayName }}</span>
             </div>
           </div>
-          <div class="text-right shrink-0">
-            <div class="font-bold tabular-nums leading-none text-3xl text-neutral-700 dark:text-neutral-300">
-              {{ currentCfs != null ? Math.round(currentCfs).toLocaleString() : '—' }}
+          <div class="flex items-center gap-1 shrink-0">
+            <div class="text-right">
+              <div class="font-bold tabular-nums leading-none text-3xl text-neutral-700 dark:text-neutral-300">
+                {{ currentCfs != null ? Math.round(currentCfs).toLocaleString() : '—' }}
+              </div>
+              <div class="text-xs text-neutral-400 mt-0.5">cfs</div>
+              <TrendArrow v-if="currentCfs != null" :gauge-id="leadGauge.id" class="text-base justify-end mt-0.5" />
             </div>
-            <div class="text-xs text-neutral-400 mt-0.5">cfs</div>
-            <TrendArrow v-if="currentCfs != null" :gauge-id="leadGauge.id" class="text-base justify-end mt-0.5" />
+            <TrashButton label="Remove gauge group" @click.stop="$emit('remove-group')" />
           </div>
         </div>
         <div class="opacity-70">
@@ -172,22 +176,26 @@
         class="flex items-center gap-1.5 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer"
         @click.stop="$emit('open', item, 'reach')"
       >
-        <!-- Name + link button side-by-side -->
+        <!-- Name + link buttons -->
         <div class="flex items-center gap-1 min-w-0 flex-1">
           <span class="min-w-0 text-sm text-neutral-700 dark:text-neutral-300 truncate">
             {{ reachLabel(item) }}
           </span>
-          <NuxtLink :to="`/my/runs/${item.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="Edit" title="Edit" @click.stop>
+          <NuxtLink v-if="!item.contextIsReference" :to="`/my/runs/${item.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="Edit" title="Edit" @click.stop>
             <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
           </NuxtLink>
           <NuxtLink :to="`/runs/${item.contextReachAuthorHandle ?? 'h2oflows'}/${item.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View" title="View" @click.stop>
             <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
           </NuxtLink>
+          <span v-if="item.contextIsReference && item.contextReachAuthorHandle" class="text-xs text-neutral-400 dark:text-neutral-500 shrink-0">@{{ item.contextReachAuthorHandle }}</span>
         </div>
-        <span
-          v-if="displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)"
-          :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', colorKeyToBadgeClass(displayBandColor(item))]"
-        >{{ displayFlowBandLabel(item) }}</span>
+        <!-- Fixed-width badge slot so trash column always aligns -->
+        <div class="w-20 shrink-0 text-right">
+          <span
+            v-if="displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)"
+            :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', colorKeyToBadgeClass(displayBandColor(item))]"
+          >{{ displayFlowBandLabel(item) }}</span>
+        </div>
         <TrashButton label="Remove" @click.stop="$emit('remove-item', item)" />
       </div>
       <div v-if="reachItems.length === 0" class="px-3 py-1.5 text-xs text-neutral-400 italic">

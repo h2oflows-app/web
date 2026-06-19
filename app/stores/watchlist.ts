@@ -31,6 +31,7 @@ export interface WatchedGauge {
   contextReachAuthorHandle: string | null  // owner of the context run — for /runs/{handle}/{slug}
   contextReachPermitRequired: boolean
   contextReachMultiDayDays: number
+  contextIsReference?: boolean  // true when this item represents another user's run
   // All reaches associated with this gauge (for informational display)
   reachId: string | null
   reachName: string | null          // combined display string e.g. "Bailey / Foxton"
