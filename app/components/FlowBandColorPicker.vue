@@ -48,7 +48,7 @@
 <script setup lang="ts">
 import { COLOR_KEY_HEX, colorKeyToHex } from '~/utils/flowBand'
 
-const HUES = ['red', 'orange', 'yellow', 'green', 'blue', 'purple'] as const
+const HUES = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'neutral'] as const
 const LEVELS = [1, 2, 3, 4, 5] as const
 
 // swatch size 24px + gap 4px = 28px per cell; padding 8px each side

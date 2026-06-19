@@ -296,7 +296,7 @@ const form = ref({
   note:      '',
   classMin:  null as number | null,
   classMax:  null as number | null,
-  flowBands: { base_label: 'Too Low', base_color: 'red-3', thresholds: [] } as FlowBands,
+  flowBands: { base_label: 'Too Low', base_color: 'neutral-3', thresholds: [] } as FlowBands,
 })
 
 const putInPin = computed(() =>
@@ -342,7 +342,7 @@ function reset() {
   form.value = {
     name: '', longName: '', riverName: '', note: '',
     classMin: null, classMax: null,
-    flowBands: { base_label: 'Too Low', base_color: 'red-3', thresholds: [] },
+    flowBands: { base_label: 'Too Low', base_color: 'neutral-3', thresholds: [] },
   }
 }
 

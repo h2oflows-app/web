@@ -273,7 +273,7 @@
                           density="list"
                           :class="split.gaugeGroups.length > 0 ? 'mt-1.5' : ''"
                           @open="(g, mode) => openGauge(g, mode)"
-                          @remove="(g) => removeAndSync(g.id, g.contextReachSlug)"
+                          @remove="handleRemove"
                         />
                         <div v-else :class="[cardGridClass, split.gaugeGroups.length > 0 ? 'mt-1.5' : '']">
                           <DashboardRunGroup
@@ -282,7 +282,7 @@
                             :reaches="[reach]"
                             :density="viewMode"
                               @open="(g, mode) => openGauge(g, mode)"
-                            @remove="(g) => removeAndSync(g.id, g.contextReachSlug)"
+                            @remove="handleRemove"
                           />
                         </div>
                       </template>
@@ -295,7 +295,7 @@
                       :reaches="river.reaches"
                       density="list"
                       @open="(g, mode) => openGauge(g, mode)"
-                      @remove="(g) => removeAndSync(g.id, g.contextReachSlug)"
+                      @remove="handleRemove"
                     />
                     <!-- Card modes: each reach = own card in grid -->
                     <div v-else-if="viewMode !== 'list' && river.reaches.length > 0" :class="cardGridClass">
@@ -305,7 +305,7 @@
                         :reaches="[reach]"
                         :density="viewMode"
                           @open="(g, mode) => openGauge(g, mode)"
-                        @remove="(g) => removeAndSync(g.id, g.contextReachSlug)"
+                        @remove="handleRemove"
                       />
                     </div>
                   </template>
@@ -1679,8 +1679,18 @@ function removeExtGaugeGroup(group: ExtGaugeGroup) {
   for (const ur of group.userReachItems) removeUserReach(ur)
 }
 
-// Per-item removal inside a gauge group — always remove from watchlist store AND
-// also remove the associated user reach if one matches.
+// Per-item removal — always remove from watchlist store AND remove the associated
+// user reach if one matches. Used by both DashboardRunGroup (no ExtGaugeGroup context)
+// and GaugeRunGroup (has ExtGaugeGroup for fast lookup).
+function handleRemove(item: WatchedGauge) {
+  removeAndSync(item.id, item.contextReachSlug)
+  if (item.contextReachSlug) {
+    const ur = userReaches.value.find(r => r.slug === item.contextReachSlug)
+      ?? referencedReaches.value.find(r => r.slug === item.contextReachSlug)
+    if (ur) removeUserReach(ur)
+  }
+}
+
 function handleGaugeItemRemove(item: WatchedGauge, group: ExtGaugeGroup) {
   removeAndSync(item.id, item.contextReachSlug)
   if (item.contextReachSlug) {

@@ -22,7 +22,7 @@
         </div>
       </div>
       <div class="flex items-center gap-2 shrink-0">
-        <div class="w-28 shrink-0 hidden sm:block opacity-60">
+        <div class="w-28 shrink-0 hidden sm:block opacity-60 pointer-events-none">
           <GaugeSparkline
             :gauge-id="leadGauge.id"
             flow-status="unknown"
@@ -117,7 +117,7 @@
           <TrendArrow v-if="currentCfs != null" :gauge-id="leadGauge.id" class="text-base shrink-0" />
           <TrashButton label="Remove gauge group" @click.stop="$emit('remove-group')" />
         </div>
-        <div class="opacity-70">
+        <div class="opacity-70 pointer-events-none">
           <GaugeSparkline
             :gauge-id="leadGauge.id"
             flow-status="unknown"
@@ -154,7 +154,7 @@
             <TrashButton label="Remove gauge group" @click.stop="$emit('remove-group')" />
           </div>
         </div>
-        <div class="opacity-70">
+        <div class="opacity-70 pointer-events-none">
           <GaugeSparkline
             :gauge-id="leadGauge.id"
             flow-status="unknown"
