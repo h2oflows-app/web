@@ -1,6 +1,6 @@
 <template>
   <button
-    class="rounded p-1 text-neutral-300 dark:text-neutral-600 hover:text-red-400 dark:hover:text-red-400 transition-colors shrink-0"
+    class="rounded p-1 cursor-pointer text-neutral-300 dark:text-neutral-600 hover:text-red-400 dark:hover:text-red-400 transition-colors shrink-0"
     :aria-label="label ?? 'Remove'"
     @click.stop="$emit('click')"
   >
