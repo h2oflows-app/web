@@ -566,9 +566,9 @@
           </div>
           <ClientOnly>
             <DashboardMap
-              :gauges="store.gauges"
+              :gauges="mapGauges"
               @remove-gauge="removeAndSync($event)"
-              @open-gauge="(id) => { const g = store.gauges.find(x => x.id === id); if (g) openGauge(g, 'gauge') }"
+              @open-gauge="(id) => { const g = mapGauges.find(x => x.id === id); if (g) openGauge(g, 'gauge') }"
             />
           </ClientOnly>
         </section>
@@ -736,6 +736,7 @@ interface UserReachSummary {
   flow_status: 'runnable' | 'caution' | 'flood' | 'unknown'
   last_reading_at: string | null; gauge_id: string | null
   gauge_external_id: string | null; gauge_source: string | null; gauge_name: string | null
+  gauge_lat: number | null; gauge_lng: number | null
   custom_gauge_id: string | null; custom_gauge_slug: string | null; custom_gauge_name: string | null
   author_handle: string | null
   // True when this row is another user's public run added by reference (read-only).
@@ -858,8 +859,8 @@ function synthGaugeForReach(r: UserReachSummary): WatchedGauge {
     basinName: r.basin_group,
     riverName: r.river_name,
     stateAbbr: r.state_abbr,
-    lat: null,
-    lng: null,
+    lat: r.gauge_lat ?? null,
+    lng: r.gauge_lng ?? null,
     currentCfs: r.current_cfs,
     flowStatus: r.flow_status,
     flowBandLabel: r.flow_band,
@@ -1030,6 +1031,26 @@ const activeReferencedReaches = computed(() =>
 // After applying the localStorage hidden-set: what actually renders.
 const visibleUserReaches  = computed(() => activeUserReaches.value.filter(r => !hiddenReaches.value.has(r.id)))
 const visibleCustomGauges = computed(() => activeCustomGauges.value.filter(cg => !hiddenCustomGauges.value.has(cg.id)))
+
+// Gauges to plot on the map. Combines real watchlist gauges (store.gauges)
+// with synthetic gauges derived directly from user runs (own + referenced).
+// Using the gauge coords now carried on each run summary means the map no
+// longer depends on the fragile backfill (gauges/batch) populating store.gauges.
+const mapGauges = computed<WatchedGauge[]>(() => {
+  const out = [...store.gauges]
+  const seen = new Set(out.map(g => `${g.id}::${g.contextReachSlug ?? ''}`))
+  const runsWithGauge = [
+    ...visibleUserReaches.value,
+    ...activeReferencedReaches.value,
+  ].filter(r => r.gauge_id && r.gauge_lat != null && r.gauge_lng != null)
+  for (const r of runsWithGauge) {
+    const key = `${r.gauge_id}::${r.slug}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(synthGaugeForReach(r))
+  }
+  return out
+})
 
 // Whether there's anything to render anywhere on the page.
 const hasAnyContent = computed(() =>
