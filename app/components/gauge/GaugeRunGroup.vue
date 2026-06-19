@@ -65,7 +65,7 @@
           v-if="displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)"
           :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', colorKeyToBadgeClass(displayBandColor(item))]"
         >{{ displayFlowBandLabel(item) }}</span>
-        <TrashButton label="Remove" @click.stop="$emit('remove-item', item)" />
+        <TrashButton label="Remove" @click="$emit('remove-item', item)" />
       </div>
     </div>
     <div v-else class="border-t border-neutral-100 dark:border-neutral-800 pl-8 pr-3 py-1.5 text-xs text-neutral-400 italic">
@@ -115,7 +115,7 @@
             <div class="text-xs text-neutral-400">cfs</div>
           </div>
           <TrendArrow v-if="currentCfs != null" :gauge-id="leadGauge.id" class="text-base shrink-0" />
-          <TrashButton label="Remove gauge group" @click.stop="$emit('remove-group')" />
+          <TrashButton label="Remove gauge group" @click="$emit('remove-group')" />
         </div>
         <div class="opacity-70 pointer-events-none">
           <GaugeSparkline
@@ -151,7 +151,7 @@
               <div class="text-xs text-neutral-400 mt-0.5">cfs</div>
               <TrendArrow v-if="currentCfs != null" :gauge-id="leadGauge.id" class="text-base justify-end mt-0.5" />
             </div>
-            <TrashButton label="Remove gauge group" @click.stop="$emit('remove-group')" />
+            <TrashButton label="Remove gauge group" @click="$emit('remove-group')" />
           </div>
         </div>
         <div class="opacity-70 pointer-events-none">
@@ -196,7 +196,7 @@
             :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', colorKeyToBadgeClass(displayBandColor(item))]"
           >{{ displayFlowBandLabel(item) }}</span>
         </div>
-        <TrashButton label="Remove" @click.stop="$emit('remove-item', item)" />
+        <TrashButton label="Remove" @click="$emit('remove-item', item)" />
       </div>
       <div v-if="reachItems.length === 0" class="px-3 py-1.5 text-xs text-neutral-400 italic">
         No related reaches

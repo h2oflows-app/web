@@ -342,7 +342,7 @@
                           {{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-400 dark:text-neutral-500"> cfs</span>
                         </span>
                       </div>
-                      <TrashButton label="Remove from dashboard" @click.stop="removeUserReach(r)" />
+                      <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
                     </div>
                   </div>
                   <div v-else :class="[cardGridClass, 'mt-1.5']">
@@ -374,7 +374,7 @@
                           <span class="font-bold tabular-nums leading-none text-3xl" :style="{ color: urBandHex(r) }">
                             {{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-500 dark:text-neutral-400 ml-0.5">cfs</span>
                           </span>
-                          <TrashButton label="Remove from dashboard" @click.stop="removeUserReach(r)" />
+                          <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
                         </div>
                       </div>
                       <div v-if="r.gauge_id || r.custom_gauge_slug" class="relative mb-1 opacity-70 pointer-events-none">
