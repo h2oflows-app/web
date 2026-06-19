@@ -52,6 +52,11 @@ export const COLOR_KEY_HEX: Record<string, string> = {
   'purple-3': '#a855f7', // purple-500
   'purple-4': '#9333ea', // purple-600
   'purple-5': '#7e22ce', // purple-700
+  'neutral-1': '#e5e7eb', // gray-200
+  'neutral-2': '#d1d5db', // gray-300
+  'neutral-3': '#9ca3af', // gray-400
+  'neutral-4': '#6b7280', // gray-500
+  'neutral-5': '#4b5563', // gray-600
 }
 
 function colorKeyHue(key: string): string {
