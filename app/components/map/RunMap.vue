@@ -154,11 +154,11 @@ interface RapidFeature {
 
 interface AccessFeature {
   id: string
-  access_type: string
+  type: string
   name: string | null
   notes: string | null
-  water_lng: number | null
-  water_lat: number | null
+  lng: number | null
+  lat: number | null
 }
 
 interface GaugeProp {
@@ -225,14 +225,14 @@ function gaugeSourceUrl(g: GaugeProp): string | null {
 // Normalised list items for the sidebar
 const accessFeatures = computed(() =>
   props.access
-    .filter(a => a.water_lng != null && a.water_lat != null)
+    .filter(a => a.lng != null && a.lat != null)
     .map(a => ({
       id:    a.id,
-      type:  a.access_type,
-      label: a.name ?? accessTypeLabel(a.access_type),
+      type:  a.type,
+      label: a.name ?? accessTypeLabel(a.type),
       notes: a.notes ?? '',
-      lng:   a.water_lng!,
-      lat:   a.water_lat!,
+      lng:   a.lng!,
+      lat:   a.lat!,
     }))
 )
 
@@ -1068,15 +1068,15 @@ function gaugeRelLabel(rel: string | null | undefined): string {
 }
 
 function accessTypeLabel(type: string): string {
-  return { put_in: 'Put-in', take_out: 'Take-out', shuttle_drop: 'Shuttle', intermediate: 'Access', parking: 'Parking', camp: 'Camp' }[type] ?? type
+  return { put_in: 'Put-in', take_out: 'Take-out', shuttle_drop: 'Shuttle', intermediate: 'Access', parking: 'Parking', camp: 'Camp', boat_ramp: 'Boat Ramp' }[type] ?? type
 }
 
 function accessColor(type: string): string {
-  return { put_in: '#22c55e', take_out: '#ef4444', shuttle_drop: '#a855f7', intermediate: '#94a3b8', parking: '#dc2626', camp: '#f59e0b' }[type] ?? '#94a3b8'
+  return { put_in: '#22c55e', take_out: '#ef4444', shuttle_drop: '#a855f7', intermediate: '#94a3b8', parking: '#dc2626', camp: '#f59e0b', boat_ramp: '#0ea5e9' }[type] ?? '#94a3b8'
 }
 
 function accessIcon(type: string): string {
-  return { put_in: '↓', take_out: '↑', shuttle_drop: 'S', intermediate: '◆', parking: 'P', camp: '⛺' }[type] ?? '·'
+  return { put_in: '↓', take_out: '↑', shuttle_drop: 'S', intermediate: '◆', parking: 'P', camp: '⛺', boat_ramp: '⛵' }[type] ?? '·'
 }
 
 function rebuildLayers() {

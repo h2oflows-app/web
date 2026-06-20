@@ -220,6 +220,27 @@
         </div>
       </section>
 
+      <!-- Flow bands scale -->
+      <section v-if="flowBandDisplay.length">
+        <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 px-4 py-3">
+          <div class="text-[10px] text-neutral-400 uppercase tracking-wide mb-2">Flow Scale (cfs)</div>
+          <div class="flex flex-wrap gap-1.5">
+            <div
+              v-for="band in flowBandDisplay" :key="band.label"
+              class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors"
+              :style="isActiveBand(band)
+                ? `background:${colorKeyToHex(band.color)}22;color:${colorKeyToHex(band.color)};border-color:${colorKeyToHex(band.color)}`
+                : `background:${colorKeyToHex(band.color)}12;color:${colorKeyToHex(band.color)}99;border-color:${colorKeyToHex(band.color)}40`"
+            >
+              <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="`background:${colorKeyToHex(band.color)}`"/>
+              {{ band.label }}
+              <span class="opacity-60 font-normal">{{ bandRangeLabel(band) }}</span>
+              <span v-if="isActiveBand(band) && run.current_cfs != null" class="font-bold ml-0.5">← {{ run.current_cfs.toLocaleString() }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Note / description -->
       <section v-if="run.note">
         <div class="prose prose-sm dark:prose-invert max-w-none text-neutral-700 dark:text-neutral-300 whitespace-pre-line leading-relaxed">
@@ -231,6 +252,7 @@
       <section>
         <ClientOnly>
           <RunMap
+            ref="runMapRef"
             :name="run.name"
             :class-max="run.class_max"
             :centerline="run.centerline"
@@ -244,7 +266,7 @@
         </ClientOnly>
       </section>
 
-      <!-- Rapids & Access Points (fixes #199) -->
+      <!-- Rapids & Access Points (fixes #199, #248) -->
       <section v-if="run.rapids.length > 0 || run.access_points.length > 0">
         <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-4 space-y-4">
           <h2 class="text-sm font-semibold text-neutral-800 dark:text-neutral-200">Features</h2>
@@ -252,10 +274,16 @@
           <!-- Rapids -->
           <div v-if="run.rapids.length > 0" class="space-y-2">
             <p class="text-xs font-medium text-neutral-500 uppercase tracking-wide">Rapids &amp; Hazards</p>
-            <div v-for="r in run.rapids" :key="r.id" class="flex items-start gap-2.5 py-1.5 border-b border-neutral-100 dark:border-neutral-800 last:border-0">
+            <button
+              v-for="r in run.rapids" :key="r.id"
+              class="w-full text-left flex items-start gap-2.5 py-1.5 border-b border-neutral-100 dark:border-neutral-800 last:border-0 rounded hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors px-1 -mx-1"
+              :class="(r.lng != null && r.lat != null) ? 'cursor-pointer' : 'cursor-default'"
+              @click="r.lng != null && r.lat != null && runMapRef?.selectFeature(r.id, r.lng, r.lat)"
+            >
               <span
-                class="mt-0.5 shrink-0 w-2 h-2 rounded-full"
-                :class="r.is_permanent_hazard ? 'bg-red-500' : r.is_surf_wave ? 'bg-sky-400' : 'bg-amber-400'"
+                class="shrink-0 drop-shadow-sm"
+                :style="r.is_permanent_hazard ? 'width:20px;height:20px;margin-top:2px' : 'width:18px;height:23px;margin-top:1px'"
+                v-html="featureListPin({ isHazard: r.is_permanent_hazard, isRapid: !r.is_permanent_hazard && !r.is_surf_wave, isSurf: r.is_surf_wave })"
               />
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2 flex-wrap">
@@ -267,20 +295,29 @@
                 </div>
                 <p v-if="r.description" class="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5 leading-relaxed">{{ r.description }}</p>
               </div>
-            </div>
+            </button>
           </div>
 
           <!-- Access Points -->
           <div v-if="run.access_points.length > 0" class="space-y-2">
             <p class="text-xs font-medium text-neutral-500 uppercase tracking-wide">Access Points</p>
-            <div v-for="a in run.access_points" :key="a.id" class="flex items-start gap-2.5 py-1.5 border-b border-neutral-100 dark:border-neutral-800 last:border-0">
-              <span class="mt-0.5 shrink-0 w-2 h-2 rounded-full bg-emerald-500" />
+            <button
+              v-for="a in run.access_points" :key="a.id"
+              class="w-full text-left flex items-start gap-2.5 py-1.5 border-b border-neutral-100 dark:border-neutral-800 last:border-0 rounded hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors px-1 -mx-1"
+              :class="(a.lng != null && a.lat != null) ? 'cursor-pointer' : 'cursor-default'"
+              @click="a.lng != null && a.lat != null && runMapRef?.selectFeature(a.id, a.lng, a.lat)"
+            >
+              <span
+                class="shrink-0 drop-shadow-sm"
+                style="width:18px;height:23px;margin-top:1px"
+                v-html="featureListPin({ type: a.access_type })"
+              />
               <div class="min-w-0">
-                <span class="text-sm font-medium text-neutral-800 dark:text-neutral-200 capitalize">{{ a.access_type.replace('_', ' ') }}</span>
+                <span class="text-sm font-medium text-neutral-800 dark:text-neutral-200 capitalize">{{ accessTypeDisplayLabel(a.access_type) }}</span>
                 <span v-if="a.name" class="text-sm text-neutral-500 dark:text-neutral-400"> · {{ a.name }}</span>
                 <p v-if="a.notes" class="text-xs text-neutral-400 mt-0.5">{{ a.notes }}</p>
               </div>
-            </div>
+            </button>
           </div>
         </div>
       </section>
@@ -416,6 +453,7 @@
 <script setup lang="ts">
 import { classRange } from '~/utils/classRating'
 import { bandForCfs as computeBandForCfs, colorKeyToHex, colorKeyToBadgeClass } from '~/utils/flowBand'
+import { featureListPin } from '~/utils/featureIcons'
 
 const route  = useRoute()
 const router = useRouter()
@@ -474,6 +512,8 @@ async function authHeaders(): Promise<Record<string, string>> {
   const token = await getToken()
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
+
+const runMapRef = ref<{ selectFeature: (id: string, lng: number, lat: number) => void } | null>(null)
 
 const run     = ref<PublicRunDetail | null>(null)
 const pending = ref(true)
@@ -618,6 +658,44 @@ const liveBand = computed(() => {
   if (!r || r.current_cfs == null || !r.flow_bands) return null
   return computeBandForCfs(r.current_cfs, r.flow_bands)
 })
+
+const ACCESS_LABELS: Record<string, string> = {
+  put_in: 'Put-in', take_out: 'Take-out', shuttle_drop: 'Shuttle',
+  intermediate: 'Access', parking: 'Parking', camp: 'Camp', boat_ramp: 'Boat Ramp',
+}
+function accessTypeDisplayLabel(type: string): string {
+  return ACCESS_LABELS[type] ?? type.replace(/_/g, ' ')
+}
+
+interface FlowBandEntry {
+  label: string
+  color: string
+  min: number | null
+  max: number | null
+}
+const flowBandDisplay = computed((): FlowBandEntry[] => {
+  const fb = run.value?.flow_bands
+  if (!fb?.thresholds?.length) return []
+  const sorted = [...fb.thresholds].sort((a, b) => a.value - b.value)
+  return [
+    { label: fb.base_label, color: fb.base_color, min: null, max: sorted[0].value },
+    ...sorted.map((t, i) => ({
+      label: t.label,
+      color: t.color,
+      min: t.value,
+      max: sorted[i + 1]?.value ?? null,
+    })),
+  ]
+})
+function isActiveBand(band: FlowBandEntry): boolean {
+  if (!liveBand.value) return false
+  return liveBand.value.label === band.label && liveBand.value.color === band.color
+}
+function bandRangeLabel(band: FlowBandEntry): string {
+  if (band.min == null) return `< ${band.max?.toLocaleString()}`
+  if (band.max == null) return `${band.min.toLocaleString()}+`
+  return `${band.min.toLocaleString()}–${band.max.toLocaleString()}`
+}
 
 const mapRapids = computed(() => (run.value?.rapids ?? []).map(r => ({
   id: r.id, name: r.name, description: r.description,
