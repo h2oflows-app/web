@@ -220,6 +220,27 @@
         </div>
       </section>
 
+      <!-- Flow bands scale -->
+      <section v-if="flowBandDisplay.length">
+        <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 px-4 py-3">
+          <div class="text-[10px] text-neutral-400 uppercase tracking-wide mb-2">Flow Scale (cfs)</div>
+          <div class="flex flex-wrap gap-1.5">
+            <div
+              v-for="band in flowBandDisplay" :key="band.label"
+              class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors"
+              :style="isActiveBand(band)
+                ? `background:${colorKeyToHex(band.color)}22;color:${colorKeyToHex(band.color)};border-color:${colorKeyToHex(band.color)}`
+                : `background:${colorKeyToHex(band.color)}12;color:${colorKeyToHex(band.color)}99;border-color:${colorKeyToHex(band.color)}40`"
+            >
+              <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="`background:${colorKeyToHex(band.color)}`"/>
+              {{ band.label }}
+              <span class="opacity-60 font-normal">{{ bandRangeLabel(band) }}</span>
+              <span v-if="isActiveBand(band) && run.current_cfs != null" class="font-bold ml-0.5">← {{ run.current_cfs.toLocaleString() }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Note / description -->
       <section v-if="run.note">
         <div class="prose prose-sm dark:prose-invert max-w-none text-neutral-700 dark:text-neutral-300 whitespace-pre-line leading-relaxed">
@@ -260,9 +281,9 @@
               @click="r.lng != null && r.lat != null && runMapRef?.selectFeature(r.id, r.lng, r.lat)"
             >
               <span
-                class="mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center"
-                :style="r.is_permanent_hazard ? 'background:#dc2626' : r.is_surf_wave ? 'background:#3b82f6' : 'background:#f59e0b'"
-                v-html="r.is_permanent_hazard ? hazardFeatureIcon() : rapidFeatureIcon(r.is_surf_wave)"
+                class="shrink-0 drop-shadow-sm"
+                :style="r.is_permanent_hazard ? 'width:20px;height:20px;margin-top:2px' : 'width:18px;height:23px;margin-top:1px'"
+                v-html="featureListPin({ isHazard: r.is_permanent_hazard, isRapid: !r.is_permanent_hazard && !r.is_surf_wave, isSurf: r.is_surf_wave })"
               />
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2 flex-wrap">
@@ -287,9 +308,9 @@
               @click="a.lng != null && a.lat != null && runMapRef?.selectFeature(a.id, a.lng, a.lat)"
             >
               <span
-                class="mt-0.5 shrink-0 w-5 h-5 rounded-full flex items-center justify-center"
-                :style="accessIconStyle(a.access_type)"
-                v-html="accessFeatureIcon(a.access_type)"
+                class="shrink-0 drop-shadow-sm"
+                style="width:18px;height:23px;margin-top:1px"
+                v-html="featureListPin({ type: a.access_type })"
               />
               <div class="min-w-0">
                 <span class="text-sm font-medium text-neutral-800 dark:text-neutral-200 capitalize">{{ accessTypeDisplayLabel(a.access_type) }}</span>
@@ -432,7 +453,7 @@
 <script setup lang="ts">
 import { classRange } from '~/utils/classRating'
 import { bandForCfs as computeBandForCfs, colorKeyToHex, colorKeyToBadgeClass } from '~/utils/flowBand'
-import { accessFeatureIcon, rapidFeatureIcon, hazardFeatureIcon } from '~/utils/featureIcons'
+import { featureListPin } from '~/utils/featureIcons'
 
 const route  = useRoute()
 const router = useRouter()
@@ -638,19 +659,42 @@ const liveBand = computed(() => {
   return computeBandForCfs(r.current_cfs, r.flow_bands)
 })
 
-const ACCESS_COLORS: Record<string, string> = {
-  put_in: '#22c55e', take_out: '#ef4444', shuttle_drop: '#a855f7',
-  intermediate: '#94a3b8', parking: '#dc2626', camp: '#f59e0b', boat_ramp: '#0ea5e9',
-}
 const ACCESS_LABELS: Record<string, string> = {
   put_in: 'Put-in', take_out: 'Take-out', shuttle_drop: 'Shuttle',
   intermediate: 'Access', parking: 'Parking', camp: 'Camp', boat_ramp: 'Boat Ramp',
 }
-function accessIconStyle(type: string): string {
-  return `background:${ACCESS_COLORS[type] ?? '#94a3b8'}`
-}
 function accessTypeDisplayLabel(type: string): string {
   return ACCESS_LABELS[type] ?? type.replace(/_/g, ' ')
+}
+
+interface FlowBandEntry {
+  label: string
+  color: string
+  min: number | null
+  max: number | null
+}
+const flowBandDisplay = computed((): FlowBandEntry[] => {
+  const fb = run.value?.flow_bands
+  if (!fb?.thresholds?.length) return []
+  const sorted = [...fb.thresholds].sort((a, b) => a.value - b.value)
+  return [
+    { label: fb.base_label, color: fb.base_color, min: null, max: sorted[0].value },
+    ...sorted.map((t, i) => ({
+      label: t.label,
+      color: t.color,
+      min: t.value,
+      max: sorted[i + 1]?.value ?? null,
+    })),
+  ]
+})
+function isActiveBand(band: FlowBandEntry): boolean {
+  if (!liveBand.value) return false
+  return liveBand.value.label === band.label && liveBand.value.color === band.color
+}
+function bandRangeLabel(band: FlowBandEntry): string {
+  if (band.min == null) return `< ${band.max?.toLocaleString()}`
+  if (band.max == null) return `${band.min.toLocaleString()}+`
+  return `${band.min.toLocaleString()}–${band.max.toLocaleString()}`
 }
 
 const mapRapids = computed(() => (run.value?.rapids ?? []).map(r => ({
