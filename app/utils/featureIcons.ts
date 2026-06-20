@@ -30,6 +30,9 @@ export function accessFeatureIcon(type: string): string {
       return svg(`<text fill="white" font-size="11" font-weight="900" font-family="system-ui,sans-serif" text-anchor="middle" dominant-baseline="middle" x="8" y="9">P</text>`)
     case 'shuttle_drop':
       return svg(`<text fill="white" font-size="11" font-weight="900" font-family="system-ui,sans-serif" text-anchor="middle" dominant-baseline="middle" x="8" y="9">S</text>`)
+    case 'boat_ramp':
+      // Boat hull + mast
+      return svg(`<path ${S} d="M2 10h12l-2 3H4L2 10z"/><path ${S} d="M8 10V5"/><path ${S} d="M8 5l3 2"/>`)
     default:
       // access / intermediate — solid diamond
       return svg(`<path fill="white" stroke="none" d="M8 3l3.5 5L8 13l-3.5-5z"/>`)
