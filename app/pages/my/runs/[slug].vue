@@ -1336,10 +1336,11 @@ async function save() {
       repinFlowlinesDirty.value = false
     }
 
-    await fetch(`${apiBase}/api/v1/me/runs/${slug.value}/flow-ranges`, {
+    const fbRes = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}/flow-ranges`, {
       method: 'PUT', headers,
       body: JSON.stringify(form.value.flowBands),
     })
+    if (!fbRes.ok) throw new Error(`Flow bands save failed: ${fbRes.status}`)
 
     if (reach.value) {
       reach.value = {
@@ -1367,6 +1368,10 @@ async function confirmDelete() {
   if (!confirm(`Delete "${reach.value?.name}"? This cannot be undone.`)) return
   const headers = await authHeaders()
   const res = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}`, { method: 'DELETE', headers })
-  if (res.ok) router.push('/dashboard')
+  if (res.ok) {
+    router.push('/dashboard')
+  } else {
+    alert(`Delete failed (${res.status}). Try again.`)
+  }
 }
 </script>
