@@ -154,7 +154,7 @@ interface RapidFeature {
 
 interface AccessFeature {
   id: string
-  access_type: string
+  type: string
   name: string | null
   notes: string | null
   lng: number | null
@@ -228,8 +228,8 @@ const accessFeatures = computed(() =>
     .filter(a => a.lng != null && a.lat != null)
     .map(a => ({
       id:    a.id,
-      type:  a.access_type,
-      label: a.name ?? accessTypeLabel(a.access_type),
+      type:  a.type,
+      label: a.name ?? accessTypeLabel(a.type),
       notes: a.notes ?? '',
       lng:   a.lng!,
       lat:   a.lat!,
