@@ -30,7 +30,7 @@
 
     <!-- Fork attribution — single inline line -->
     <div v-if="reach?.original_forked_at || reach?.forked_from_slug" class="px-4 pt-2 text-xs text-neutral-400 dark:text-neutral-500">
-      Forked from {{ reach.forked_from_name ?? reach.forked_from_slug ?? '' }}<template v-if="reach.original_author_handle"> · <NuxtLink :to="`/explore?browse=${reach.original_author_handle}`" class="hover:text-primary-500 transition-colors">@{{ reach.original_author_handle }}</NuxtLink></template><template v-if="forkDate"> {{ forkDate }}</template>
+      Forked from {{ reach.forked_from_name ?? reach.forked_from_slug ?? '' }}<template v-if="reach.original_author_handle"> · <NuxtLink :to="`/explore?browse=${reach.original_author_handle}`" class="hover:text-primary-500 transition-colors">@{{ reach.original_author_handle }}</NuxtLink></template><template v-if="forkDate"> · {{ forkDate }}</template>
     </div>
 
     <!-- Run heading (no card chrome) -->
@@ -151,7 +151,7 @@
               <template v-else-if="slugAvailability === 'available'">Available</template>
               <template v-else-if="slugAvailability === 'taken'">Already in use</template>
               <template v-else-if="slugAvailability === 'invalid'">Lowercase letters, numbers, hyphens only</template>
-              <template v-else>run URL: /runs/{{ form.slug || '…' }}</template>
+              <template v-else>Current URL: /my/runs/{{ form.slug || '…' }}</template>
             </p>
           </div>
 
@@ -167,9 +167,9 @@
               >{{ riverNameLooking ? 'Looking up…' : 'Lookup from NLDI' }}</button>
             </div>
             <input v-model="form.riverName" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="e.g. South Platte River" />
-            <div v-if="reach?.river_state_abbr || reach?.river_basin" class="mt-1 text-xs text-neutral-400 space-y-0.5">
-              <p v-if="reach?.river_state_abbr">{{ reach.river_state_abbr }}</p>
-              <p v-if="reach?.river_basin">{{ reach.river_basin }}</p>
+            <div v-if="reach?.river_state_abbr || reach?.river_basin" class="mt-1 text-xs text-neutral-400 flex gap-3">
+              <span v-if="reach?.river_state_abbr">State: {{ reach.river_state_abbr }}</span>
+              <span v-if="reach?.river_basin">Basin: {{ reach.river_basin }}</span>
             </div>
           </div>
 
@@ -229,7 +229,7 @@
           </div>
 
           <!-- ComID toggles (put-in + take-out only) -->
-          <div v-if="repinAnchorSnap || repinDownstream || repinUpComID || repinDownComID" class="flex items-center gap-2 text-xs flex-wrap">
+          <div class="flex items-center gap-2 text-xs flex-wrap">
             <span class="text-neutral-500 shrink-0">Click map for:</span>
             <button
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm font-medium transition-colors"
@@ -1140,6 +1140,7 @@ async function linkCustomGauge(cg: CustomGaugeSummary) {
 // ── Load ──────────────────────────────────────────────────────────────────────
 
 function populateForm(r: UserReachDetail) {
+  slugManuallyEdited.value = true  // block name watcher from overriding stored slug
   form.value.name       = r.name
   form.value.slug       = r.slug
   form.value.riverName  = r.river_name ?? ''
