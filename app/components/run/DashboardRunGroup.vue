@@ -57,8 +57,8 @@
       <!-- Compact: sparkline left, fixed-width badge for alignment -->
       <template v-if="density === 'compact'">
         <div class="flex items-center gap-2">
-          <!-- Sparkline left-side — all rows same width, lines up vertically -->
-          <div class="w-20 shrink-0 hidden sm:block h-5 opacity-50 pointer-events-none">
+          <!-- Sparkline left-side — fixed width so position never shifts with badge state -->
+          <div class="w-20 shrink-0 h-5 opacity-50 pointer-events-none">
             <GaugeSparkline :gauge-id="reach.id" flow-status="unknown" :color="sparklineColor(reach)" compact :poll-health="reach.pollHealth" :last-reading-at="reach.lastReadingAt" @latest-cfs="(v) => setLiveCfs(reach, v)" />
           </div>
           <!-- Name + optional river sub-line + icons -->

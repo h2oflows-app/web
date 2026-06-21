@@ -271,7 +271,7 @@
                           v-if="viewMode === 'list'"
                           :reaches="split.ungrouped"
                           density="list"
-                          :show-river-name="!showRivers"
+                          :show-river-name="!showRivers || !groupByBasin"
                           :class="split.gaugeGroups.length > 0 ? 'mt-1.5' : ''"
                           @open="(g, mode) => openGauge(g, mode)"
                           @remove="handleRemove"
@@ -282,7 +282,7 @@
                             :key="`${reach.id}::${reach.contextReachSlug}`"
                             :reaches="[reach]"
                             :density="viewMode"
-                            :show-river-name="!showRivers"
+                            :show-river-name="!showRivers || !groupByBasin"
                             @open="(g, mode) => openGauge(g, mode)"
                             @remove="handleRemove"
                           />
@@ -296,7 +296,7 @@
                       v-if="viewMode === 'list' && river.reaches.length > 0"
                       :reaches="river.reaches"
                       density="list"
-                      :show-river-name="!showRivers"
+                      :show-river-name="!showRivers || !groupByBasin"
                       @open="(g, mode) => openGauge(g, mode)"
                       @remove="handleRemove"
                     />
@@ -307,7 +307,7 @@
                         :key="`${reach.id}::${reach.contextReachSlug}`"
                         :reaches="[reach]"
                         :density="viewMode"
-                        :show-river-name="!showRivers"
+                        :show-river-name="!showRivers || !groupByBasin"
                         @open="(g, mode) => openGauge(g, mode)"
                         @remove="handleRemove"
                       />
