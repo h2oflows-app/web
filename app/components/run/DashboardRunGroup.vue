@@ -14,6 +14,7 @@
         <span class="min-w-0 text-sm text-neutral-700 dark:text-neutral-300 truncate">
           {{ reachLabel(reach) }}
         </span>
+        <span v-if="showRiverName && reach.contextReachRiverName" class="text-xs text-neutral-400 dark:text-neutral-500 truncate hidden sm:inline shrink-0">· {{ reach.contextReachRiverName }}</span>
         <NuxtLink :to="`/my/runs/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="Edit" title="Edit" @click.stop>
           <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
         </NuxtLink>
@@ -24,10 +25,13 @@
       <div class="w-44 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
         <GaugeSparkline :gauge-id="reach.id" flow-status="unknown" :color="sparklineColor(reach)" compact :poll-health="reach.pollHealth" :last-reading-at="reach.lastReadingAt" @latest-cfs="(v) => setLiveCfs(reach, v)" />
       </div>
-      <span
-        v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)"
-        :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', colorKeyToBadgeClass(displayBandColor(reach))]"
-      >{{ displayFlowBandLabel(reach) }}</span>
+      <!-- Fixed-width badge wrapper keeps CFS column aligned when badge absent -->
+      <div class="w-20 shrink-0 text-center">
+        <span
+          v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)"
+          :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', colorKeyToBadgeClass(displayBandColor(reach))]"
+        >{{ displayFlowBandLabel(reach) }}</span>
+      </div>
       <div class="w-20 shrink-0 text-right">
         <span class="whitespace-nowrap text-base font-bold tabular-nums" :style="{ color: colorKeyToHex(displayBandColor(reach)) }">
           {{ displayCfs(reach) != null ? Math.round(displayCfs(reach)!).toLocaleString() : '—' }}
@@ -50,22 +54,33 @@
       :class="density === 'compact' ? 'px-2.5 py-2' : density === 'comfortable' ? 'px-3 py-2.5' : 'px-4 py-3'"
       @click="$emit('open', reach, 'reach')"
     >
-      <!-- Compact: single horizontal row (unchanged) -->
+      <!-- Compact: sparkline left, fixed-width badge for alignment -->
       <template v-if="density === 'compact'">
         <div class="flex items-center gap-2">
-          <div class="flex items-center gap-1 min-w-0 flex-1">
-            <span class="min-w-0 text-sm font-semibold text-neutral-800 dark:text-neutral-100 truncate">{{ reachLabel(reach) }}</span>
-            <NuxtLink :to="`/my/runs/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="Edit" title="Edit" @click.stop>
-              <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
-            </NuxtLink>
-            <NuxtLink :to="`/runs/${reach.contextReachAuthorHandle ?? 'h2oflows'}/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View" title="View" @click.stop>
-              <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
-            </NuxtLink>
+          <!-- Sparkline left-side — all rows same width, lines up vertically -->
+          <div class="w-20 shrink-0 hidden sm:block h-5 opacity-50 pointer-events-none">
+            <GaugeSparkline :gauge-id="reach.id" flow-status="unknown" :color="sparklineColor(reach)" compact :poll-health="reach.pollHealth" :last-reading-at="reach.lastReadingAt" @latest-cfs="(v) => setLiveCfs(reach, v)" />
           </div>
-          <span
-            v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)"
-            :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', colorKeyToBadgeClass(displayBandColor(reach))]"
-          >{{ displayFlowBandLabel(reach) }}</span>
+          <!-- Name + optional river sub-line + icons -->
+          <div class="flex flex-col min-w-0 flex-1">
+            <div class="flex items-center gap-1 min-w-0">
+              <span class="min-w-0 text-sm font-semibold text-neutral-800 dark:text-neutral-100 truncate">{{ reachLabel(reach) }}</span>
+              <NuxtLink :to="`/my/runs/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="Edit" title="Edit" @click.stop>
+                <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
+              </NuxtLink>
+              <NuxtLink :to="`/runs/${reach.contextReachAuthorHandle ?? 'h2oflows'}/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View" title="View" @click.stop>
+                <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
+              </NuxtLink>
+            </div>
+            <span v-if="showRiverName && reach.contextReachRiverName" class="text-xs text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ reach.contextReachRiverName }}</span>
+          </div>
+          <!-- Fixed-width badge wrapper — keeps CFS column aligned when badge absent -->
+          <div class="w-20 shrink-0 text-center">
+            <span
+              v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)"
+              :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', colorKeyToBadgeClass(displayBandColor(reach))]"
+            >{{ displayFlowBandLabel(reach) }}</span>
+          </div>
           <span class="text-lg font-bold tabular-nums shrink-0 leading-none" :style="{ color: colorKeyToHex(displayBandColor(reach)) }">
             {{ displayCfs(reach) != null ? Math.round(displayCfs(reach)!).toLocaleString() : '—' }}
           </span>
@@ -77,11 +92,14 @@
       <!-- Full: header row + full-width sparkline below -->
       <template v-else-if="density === 'full'">
         <div class="flex items-center gap-2 mb-2">
-          <div class="flex-1 min-w-0 flex items-center gap-1">
-            <span class="min-w-0 text-base font-semibold text-neutral-800 dark:text-neutral-100 truncate">{{ reachLabel(reach) }}</span>
-            <NuxtLink :to="`/my/runs/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="Edit" title="Edit" @click.stop>
-              <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
-            </NuxtLink>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1 min-w-0">
+              <span class="min-w-0 text-base font-semibold text-neutral-800 dark:text-neutral-100 truncate">{{ reachLabel(reach) }}</span>
+              <NuxtLink :to="`/my/runs/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="Edit" title="Edit" @click.stop>
+                <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
+              </NuxtLink>
+            </div>
+            <span v-if="showRiverName && reach.contextReachRiverName" class="text-xs text-neutral-400 dark:text-neutral-500 truncate block">{{ reach.contextReachRiverName }}</span>
           </div>
           <div class="flex items-center gap-2 shrink-0">
             <span v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', colorKeyToBadgeClass(displayBandColor(reach))]">{{ displayFlowBandLabel(reach) }}</span>
@@ -102,11 +120,14 @@
       <!-- Comfortable: name+CFS header row, full-width sparkline below -->
       <template v-else>
         <div class="flex items-center gap-2 mb-2">
-          <div class="flex-1 min-w-0 flex items-center gap-1">
-            <span class="min-w-0 text-base font-semibold text-neutral-800 dark:text-neutral-100 truncate">{{ reachLabel(reach) }}</span>
-            <NuxtLink :to="`/my/runs/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="Edit" title="Edit" @click.stop>
-              <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
-            </NuxtLink>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1 min-w-0">
+              <span class="min-w-0 text-base font-semibold text-neutral-800 dark:text-neutral-100 truncate">{{ reachLabel(reach) }}</span>
+              <NuxtLink :to="`/my/runs/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="Edit" title="Edit" @click.stop>
+                <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
+              </NuxtLink>
+            </div>
+            <span v-if="showRiverName && reach.contextReachRiverName" class="text-xs text-neutral-400 dark:text-neutral-500 truncate block">{{ reach.contextReachRiverName }}</span>
           </div>
           <div class="flex items-center gap-2 shrink-0">
             <span v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', colorKeyToBadgeClass(displayBandColor(reach))]">{{ displayFlowBandLabel(reach) }}</span>
@@ -135,6 +156,7 @@ import { colorKeyToHex, colorKeyToBadgeClass } from '~/utils/flowBand'
 const props = defineProps<{
   reaches: WatchedGauge[]
   density?: 'compact' | 'comfortable' | 'full' | 'list'
+  showRiverName?: boolean
 }>()
 
 const emit = defineEmits<{
