@@ -101,11 +101,11 @@
             :pick-mode="repinPickMode"
             :put-in-pin="repinPutInPin"
             :take-out-pin="repinTakeOutPin"
-            :comid-select-mode="!!repinAnchorSnap && !repinPickMode && !repinGaugeSelectMode"
+            :comid-select-mode="repinComIDEditMode !== null && !repinPickMode && !repinGaugeSelectMode"
             :comid-select-slot="repinComIDEditMode"
             :selected-up-comid="repinUpComID"
             :selected-down-comid="repinDownComID"
-            :preview-centerline="repinPreviewCenterline ?? reach.centerline ?? null"
+            :preview-centerline="repinPreviewCenterline ?? (repinCenterlineHidden ? null : reach.centerline) ?? null"
             :gauge-select-mode="repinGaugeSelectMode"
             :disable-auto-fit="anyPickMode"
             map-height="100%"
@@ -238,19 +238,11 @@
 
           <p v-if="repinFlowlinesLoading" class="text-xs text-primary-500 animate-pulse">Loading downstream mainstem…</p>
 
-          <!-- Status / revert -->
-          <div v-if="repinPreviewLoading || repinError || repinSuccess || repinFlowlinesDirty" class="flex items-center gap-2 pt-1 flex-wrap">
+          <!-- Status messages -->
+          <div v-if="repinPreviewLoading || repinError || repinSuccess" class="flex items-center gap-2 pt-1 flex-wrap">
             <span v-if="repinPreviewLoading" class="text-xs text-primary-500 animate-pulse">Computing centerline…</span>
             <span v-if="repinError" class="text-xs text-red-500">{{ repinError }}</span>
             <span v-if="repinSuccess" class="text-xs text-green-600 dark:text-green-400">{{ repinSuccess }}</span>
-            <div class="flex-1" />
-            <UButton
-              v-if="repinFlowlinesDirty"
-              size="xs"
-              variant="outline"
-              color="neutral"
-              @click="revertComIDs"
-            >Revert</UButton>
           </div>
         </div>
 
@@ -623,13 +615,13 @@ const repinFlowlinesLoading = ref(false)
 const repinComIDEditMode   = ref<ComIDEditMode>(null)
 const repinUpComID         = ref<string | null>(null)
 const repinDownComID       = ref<string | null>(null)
-const repinOrigUpComID     = ref<string | null>(null)
-const repinOrigDownComID   = ref<string | null>(null)
 const repinStartLat        = ref<number | null>(null)
 const repinStartLng        = ref<number | null>(null)
 const repinEndLat          = ref<number | null>(null)
 const repinEndLng          = ref<number | null>(null)
-const repinFlowlinesDirty  = ref(false)
+const repinFlowlinesDirty    = ref(false)
+const repinCenterlineHidden  = ref(false)
+const repinPendingComIDSlot  = ref<'up' | 'down' | null>(null)
 const repinPreviewCenterline = ref<object | null>(null)
 const repinPreviewLoading  = ref(false)
 const repinError           = ref('')
@@ -933,52 +925,27 @@ async function lookupRiverName(comidOverride?: string, latOverride?: number, lng
 
 // ── Geometry pick handlers ────────────────────────────────────────────────────
 
-function resetGeometryState() {
-  repinPickMode.value       = false
-  repinAnchorSnap.value     = null
-  repinAnchorSnapping.value = false
-  repinAnchorError.value    = ''
-  repinTributaries.value    = null
-  repinDownstream.value     = null
-  repinComIDEditMode.value  = null
-  repinStartLat.value       = null
-  repinStartLng.value       = null
-  repinEndLat.value         = null
-  repinEndLng.value         = null
-  repinPreviewCenterline.value = null
-  repinFlowlinesDirty.value = false
-  repinError.value          = ''
-  repinSuccess.value        = ''
-}
-
-function revertComIDs() {
-  repinUpComID.value       = repinOrigUpComID.value
-  repinDownComID.value     = repinOrigDownComID.value
-  repinComIDEditMode.value = null
-  repinStartLat.value      = null
-  repinStartLng.value      = null
-  repinEndLat.value        = null
-  repinEndLng.value        = null
-  repinPreviewCenterline.value = null
-  repinFlowlinesDirty.value = false
-  repinError.value         = ''
-  repinSuccess.value       = ''
-}
-
 function togglePickMode() {
   if (repinPickMode.value) { repinPickMode.value = false; repinAnchorError.value = ''; return }
-  // Clear existing snap/flowlines before entering pick mode so map resets
-  repinAnchorSnap.value        = null
-  repinTributaries.value       = null
-  repinDownstream.value        = null
+  // Clear ComIDs, pins, and centerline — keep flowlines so user can re-pick directly
+  repinUpComID.value           = null
+  repinDownComID.value         = null
+  repinStartLat.value          = null
+  repinStartLng.value          = null
+  repinEndLat.value            = null
+  repinEndLng.value            = null
   repinPreviewCenterline.value = null
+  repinCenterlineHidden.value  = true
   repinComIDEditMode.value     = null
+  repinFlowlinesDirty.value    = false
   repinError.value             = ''
   repinSuccess.value           = ''
-  repinFlowlinesDirty.value    = false
-  repinGaugeSelectMode.value   = false
-  repinPickMode.value          = true
   repinAnchorError.value       = ''
+  // Enter pick mode only when there are no flowlines to click on yet
+  if (!repinTributaries.value && !repinDownstream.value) {
+    repinGaugeSelectMode.value = false
+    repinPickMode.value        = true
+  }
 }
 
 async function onAnchorPick(lat: number, lng: number) {
@@ -993,7 +960,9 @@ async function onAnchorPick(lat: number, lng: number) {
     const snap = await fetchTributaries(lat, lng)
     if (!snap) return
     repinAnchorSnap.value    = snap
-    repinComIDEditMode.value = 'up'
+    repinCenterlineHidden.value = true
+    repinComIDEditMode.value = repinPendingComIDSlot.value ?? 'up'
+    repinPendingComIDSlot.value = null
     await fetchDownstream(snap.comid)
     fetchNearbyGauges(lat, lng, snap.comid)
     // Auto-populate river name from NLDI if form field is empty
@@ -1009,12 +978,13 @@ function onComIDSelect(comid: string, lat: number, lng: number) {
     repinUpComID.value      = comid
     repinStartLat.value     = lat
     repinStartLng.value     = lng
-    repinComIDEditMode.value = 'down'  // auto-advance to take-out
+    // Auto-advance to take-out only when it isn't already set
+    repinComIDEditMode.value = repinDownComID.value ? null : 'down'
   } else {
-    repinDownComID.value = comid
-    repinEndLat.value    = lat
-    repinEndLng.value    = lng
-    // no auto-advance after take-out — user toggles manually
+    repinDownComID.value     = comid
+    repinEndLat.value        = lat
+    repinEndLng.value        = lng
+    repinComIDEditMode.value = null  // done — button reverts to "Set Take-Out"
   }
   repinFlowlinesDirty.value    = true
   repinPreviewCenterline.value = null
@@ -1022,7 +992,14 @@ function onComIDSelect(comid: string, lat: number, lng: number) {
 
 function onToggleComID(slot: 'up' | 'down') {
   repinGaugeSelectMode.value = false
-  repinComIDEditMode.value = repinComIDEditMode.value === slot ? null : slot
+  if (repinComIDEditMode.value === slot) { repinComIDEditMode.value = null; return }
+  // No flowlines on map yet — enter pick mode first, then auto-set slot
+  if (!repinTributaries.value && !repinDownstream.value) {
+    repinPendingComIDSlot.value = slot
+    repinPickMode.value         = true
+    return
+  }
+  repinComIDEditMode.value = slot
 }
 
 async function previewCenterline() {
@@ -1135,10 +1112,8 @@ async function load() {
     populateForm(data)
 
     // Seed ComID state from saved reach data.
-    repinUpComID.value       = data.up_comid
-    repinDownComID.value     = data.down_comid
-    repinOrigUpComID.value   = data.up_comid
-    repinOrigDownComID.value = data.down_comid
+    repinUpComID.value   = data.up_comid
+    repinDownComID.value = data.down_comid
 
     // Auto-load NHD network when saved ComIDs exist.
     if (data.up_comid && data.put_in_lat != null) {
@@ -1216,9 +1191,8 @@ async function save() {
         body: JSON.stringify({ geojson: repinPreviewCenterline.value }),
       })
       if (!clRes.ok) throw new Error(`Centerline save failed: ${clRes.status}`)
-      repinOrigUpComID.value    = repinUpComID.value
-      repinOrigDownComID.value  = repinDownComID.value
-      repinFlowlinesDirty.value = false
+      repinFlowlinesDirty.value   = false
+      repinCenterlineHidden.value = false
     }
 
     const fbRes = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}/flow-ranges`, {
