@@ -229,8 +229,7 @@
           </div>
 
           <!-- ComID toggles (put-in + take-out only) -->
-          <div class="flex items-center gap-2 text-xs flex-wrap">
-            <span class="text-neutral-500 shrink-0">Click map for:</span>
+          <div class="flex items-center gap-2 flex-wrap">
             <button
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm font-medium transition-colors"
               :class="repinComIDEditMode === 'up' && !repinGaugeSelectMode
@@ -1149,9 +1148,7 @@ function populateForm(r: UserReachDetail) {
   form.value.classMax   = r.class_max ?? null
   form.value.visibility = (r.visibility as Visibility) ?? (r.is_private ? 'private' : 'public')
   form.value.flowBands  = r.flow_bands ?? { base_label: 'Too Low', base_color: 'red-3', thresholds: [] }
-  nldiGnisId.value       = null
-  slugManuallyEdited.value = false
-  slugAvailability.value   = 'unknown'
+  nldiGnisId.value = null
 }
 
 async function load() {
