@@ -78,20 +78,6 @@
       </div>
     </div>
 
-    <!-- River confirmation banner -->
-    <div v-if="riverConfirmBannerVisible" class="px-4 pt-2">
-      <div class="rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 flex flex-wrap items-center gap-3">
-        <svg class="w-4 h-4 text-emerald-500 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-        <p class="text-sm text-emerald-800 dark:text-emerald-200 flex-1 min-w-0">
-          Looks like <strong>{{ reach.river_name }}</strong><template v-if="reach.river_state_abbr || reach.river_basin"> ({{ [reach.river_state_abbr, reach.river_basin].filter(Boolean).join(' · ') }})</template> — is this correct?
-        </p>
-        <div class="flex items-center gap-2 shrink-0">
-          <UButton size="xs" color="success" variant="solid" @click="confirmRiver">Yes</UButton>
-          <UButton size="xs" color="neutral" variant="outline" @click="riverCorrectionOpen = true">No, fix...</UButton>
-        </div>
-      </div>
-    </div>
-
     <!-- Loading -->
     <div v-if="loading" class="flex-1 flex items-center justify-center">
       <div class="w-6 h-6 rounded-full border-2 border-primary-500 border-t-transparent animate-spin" />
@@ -139,7 +125,7 @@
           <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Run details</p>
 
           <div>
-            <label class="block text-xs text-neutral-500 mb-1">Local name <span class="text-red-400">*</span></label>
+            <label class="block text-xs text-neutral-500 mb-1">Short Name <span class="text-red-400">*</span></label>
             <input v-model="form.name" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="e.g. Foxton" />
           </div>
 
@@ -160,12 +146,10 @@
               >{{ riverNameLooking ? 'Looking up…' : 'Lookup from NLDI' }}</button>
             </div>
             <input v-model="form.riverName" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="e.g. South Platte River" />
-            <p
-              v-if="reach?.river_basin || reach?.river_state_abbr"
-              class="mt-1 text-xs text-neutral-400"
-            >
-              {{ [reach.river_state_abbr, reach.river_basin].filter(Boolean).join(' · ') }}
-            </p>
+            <div v-if="reach?.river_state_abbr || reach?.river_basin" class="mt-1 text-xs text-neutral-400 space-y-0.5">
+              <p v-if="reach?.river_state_abbr">{{ reach.river_state_abbr }}</p>
+              <p v-if="reach?.river_basin">{{ reach.river_basin }}</p>
+            </div>
           </div>
 
           <div>
@@ -223,46 +207,32 @@
             <span v-if="repinAnchorError" class="text-xs text-red-500">{{ repinAnchorError }}</span>
           </div>
 
-          <!-- Anchor snap card -->
-          <div v-if="repinAnchorSnap" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary-50 dark:bg-primary-950 border border-primary-200 dark:border-primary-800 text-xs">
-            <span class="w-2.5 h-2.5 rounded-full bg-primary-600 shrink-0" />
-            <span class="font-medium text-primary-800 dark:text-primary-200">Anchor ComID {{ repinAnchorSnap.comid }}</span>
-            <span v-if="repinAnchorSnap.name" class="text-primary-600 dark:text-primary-300 truncate">{{ repinAnchorSnap.name }}</span>
-          </div>
-
-          <!-- "Looks like X — correct?" river name suggestion -->
-          <div
-            v-if="repinAnchorSnap?.name && !repinRiverNameConfirmed"
-            class="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-200"
-          >
-            <svg class="w-3.5 h-3.5 shrink-0 text-emerald-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-            <span class="flex-1">Looks like <strong>{{ repinAnchorSnap.name }}</strong> — correct?</span>
-            <button class="text-emerald-700 dark:text-emerald-300 hover:underline font-medium" @click="applyAnchorRiverName">Yes, use it</button>
-            <button class="text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-300 px-1" @click="repinRiverNameConfirmed = true">✕</button>
-          </div>
-
           <!-- ComID toggles (put-in + take-out only) -->
-          <div v-if="repinAnchorSnap || repinDownstream" class="flex items-center gap-2 text-xs flex-wrap">
+          <div v-if="repinAnchorSnap || repinDownstream || repinUpComID || repinDownComID" class="flex items-center gap-2 text-xs flex-wrap">
             <span class="text-neutral-500 shrink-0">Click map for:</span>
             <button
-              class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm font-medium transition-colors"
               :class="repinComIDEditMode === 'up' && !repinGaugeSelectMode
-                ? 'border-green-500 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 font-medium'
-                : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
+                ? 'border-green-500 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300'
+                : repinUpComID
+                  ? 'border-green-300 dark:border-green-700 text-green-700 dark:text-green-300 hover:border-green-500'
+                  : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-neutral-400'"
               @click="onToggleComID('up')"
             >
               <span class="w-2 h-2 rounded-full bg-green-500 shrink-0" />
-              Put-In<template v-if="repinUpComID"> · <span class="font-mono">{{ repinUpComID }}</span></template>
+              {{ repinComIDEditMode === 'up' && !repinGaugeSelectMode ? 'Click map…' : 'Set Put-In' }}
             </button>
             <button
-              class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm font-medium transition-colors"
               :class="repinComIDEditMode === 'down' && !repinGaugeSelectMode
-                ? 'border-red-500 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 font-medium'
-                : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
+                ? 'border-red-500 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300'
+                : repinDownComID
+                  ? 'border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 hover:border-red-500'
+                  : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-neutral-400'"
               @click="onToggleComID('down')"
             >
               <span class="w-2 h-2 rounded-full bg-red-500 shrink-0" />
-              Take-Out<template v-if="repinDownComID"> · <span class="font-mono">{{ repinDownComID }}</span></template>
+              {{ repinComIDEditMode === 'down' && !repinGaugeSelectMode ? 'Click map…' : 'Set Take-Out' }}
             </button>
           </div>
 
@@ -291,23 +261,24 @@
         <div class="p-4 space-y-3">
           <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Flows</p>
 
-          <!-- Gauge select toggle (only available when flow lines anchor is set) -->
-          <div v-if="repinAnchorSnap || repinDownstream" class="flex items-center gap-2 text-xs flex-wrap">
+          <!-- Gauge select toggle -->
+          <div class="flex items-center gap-2 text-sm flex-wrap">
             <button
-              class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border font-medium transition-colors"
               :class="reach.custom_gauge_id
                 ? 'border-neutral-200 dark:border-neutral-700 text-neutral-400 cursor-default'
                 : repinGaugeSelectMode
-                  ? 'border-amber-500 bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 font-medium'
-                  : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
+                  ? 'border-amber-500 bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
+                  : reach.gauge_id
+                    ? 'border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:border-amber-500'
+                    : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-neutral-400'"
               :disabled="!!reach.custom_gauge_id"
               @click="!reach.custom_gauge_id && (repinGaugeSelectMode = !repinGaugeSelectMode, repinComIDEditMode = null, !repinGaugeSelectMode && (repinPendingGauge = null))"
             >
               <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
               <template v-if="reach.custom_gauge_id">Custom Gauge</template>
               <template v-else-if="repinGaugeSelectMode">Cancel</template>
-              <template v-else-if="reach.gauge_id">Gauge · <span class="font-mono">{{ reach.gauge_external_id }}</span></template>
-              <template v-else>Select gauge</template>
+              <template v-else>Set Gauge</template>
             </button>
             <button
               v-if="reach.gauge_id && !repinGaugeSelectMode"
@@ -461,48 +432,6 @@
   </div>
 
   <!-- Share modal -->
-  <UModal v-model:open="riverCorrectionOpen" title="Suggest a correction">
-    <template #body>
-      <p class="text-sm text-neutral-600 dark:text-neutral-400 mb-4">What's wrong with the river info for <strong>{{ reach?.river_name }}</strong>?</p>
-      <div class="space-y-3">
-        <div>
-          <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">Field to correct</label>
-          <div class="flex gap-4">
-            <label class="flex items-center gap-1.5 text-sm cursor-pointer">
-              <input type="radio" v-model="correctionField" value="basin" class="accent-primary-500" /> Basin
-            </label>
-            <label class="flex items-center gap-1.5 text-sm cursor-pointer">
-              <input type="radio" v-model="correctionField" value="state_abbr" class="accent-primary-500" /> State
-            </label>
-          </div>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">Correct value</label>
-          <input
-            v-model="correctionValue"
-            type="text"
-            class="w-full rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-            :placeholder="correctionField === 'basin' ? 'e.g. Arkansas' : 'e.g. CO'"
-          />
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">Note <span class="text-neutral-400">(optional)</span></label>
-          <textarea
-            v-model="correctionNote"
-            rows="2"
-            class="w-full rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
-            placeholder="Why is this wrong?"
-          />
-        </div>
-        <p v-if="correctionError" class="text-xs text-red-500">{{ correctionError }}</p>
-      </div>
-      <div class="flex justify-end gap-2 mt-4">
-        <UButton size="xs" variant="outline" color="neutral" @click="riverCorrectionOpen = false">Cancel</UButton>
-        <UButton size="xs" :disabled="!correctionValue.trim() || correctionSubmitting" :loading="correctionSubmitting" @click="submitRiverCorrection">Submit</UButton>
-      </div>
-    </template>
-  </UModal>
-
   <ShareLinkModal
     :open="shareOpen"
     title="Share run"
@@ -662,6 +591,7 @@ interface UserReachDetail {
   upvote_count:      number
   user_upvoted:      boolean
   centerline:        object | null
+  river_confirmed:   boolean
 }
 
 interface CustomGaugeSummary { id: string; slug: string; name: string }
@@ -710,13 +640,6 @@ const repinGaugeSelectMode     = ref(false)
 const repinPendingGauge        = ref<PendingGauge | null>(null)
 const repinGaugeSaving         = ref(false)
 const repinGaugeError          = ref('')
-const repinRiverNameConfirmed  = ref(false)
-
-function applyAnchorRiverName() {
-  if (repinAnchorSnap.value?.name) form.value.riverName = repinAnchorSnap.value.name
-  repinRiverNameConfirmed.value = true
-}
-
 const riverNameLooking = ref(false)
 const nldiGnisId       = ref<string | null>(null)
 
@@ -749,7 +672,7 @@ const visibilityDescription = computed(() => {
   switch (form.value.visibility) {
     case 'private':  return 'Only you can see this run.'
     case 'unlisted': return 'Accessible via link — not in explore or search.'
-    case 'public':   return 'On explore, searchable, and up-votable. Cannot be made private again.'
+    case 'public':   return 'Run is searchable, up-votable, and can be found by other users. Cannot unlist or make private again.'
     default:         return ''
   }
 })
@@ -787,19 +710,6 @@ async function confirmPublish() {
     publishing.value = false
   }
 }
-
-// ── River confirmation banner ──────────────────────────────────────────────────
-
-const riverConfirmed       = ref(false)
-const riverCorrectionOpen  = ref(false)
-const correctionField      = ref<'basin' | 'state_abbr'>('basin')
-const correctionValue      = ref('')
-const correctionNote       = ref('')
-const correctionError      = ref('')
-const correctionSubmitting = ref(false)
-
-const riverConfirmBannerVisible = computed(() =>
-  !!(reach.value?.river_name && reach.value?.river_slug && !riverConfirmed.value))
 
 // ── KML import ────────────────────────────────────────────────────────────────
 
@@ -860,40 +770,6 @@ async function loadCluster() {
   } catch {}
 }
 
-function confirmRiver() {
-  if (!reach.value) return
-  localStorage.setItem(`river-confirmed-${reach.value.id}`, '1')
-  riverConfirmed.value = true
-}
-
-async function submitRiverCorrection() {
-  if (!reach.value?.river_slug || !correctionValue.value.trim()) return
-  correctionError.value      = ''
-  correctionSubmitting.value = true
-  try {
-    const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) }
-    const res = await fetch(`${apiBase}/api/v1/me/river-corrections`, {
-      method:  'POST',
-      headers,
-      body:    JSON.stringify({
-        river_slug:     reach.value.river_slug,
-        field:          correctionField.value,
-        proposed_value: correctionValue.value.trim(),
-        note:           correctionNote.value.trim() || undefined,
-      }),
-    })
-    if (!res.ok) { correctionError.value = `HTTP ${res.status}`; return }
-    riverCorrectionOpen.value = false
-    correctionValue.value     = ''
-    correctionNote.value      = ''
-    confirmRiver()
-    toast.add({ title: 'Thanks — admin will review.', color: 'success' })
-  } catch (e: any) {
-    correctionError.value = e?.message ?? 'Submit failed'
-  } finally {
-    correctionSubmitting.value = false
-  }
-}
 
 // ── Computed ──────────────────────────────────────────────────────────────────
 
@@ -1035,11 +911,11 @@ async function fetchNearbyGauges(lat: number, lng: number, comid?: string | null
   } catch { /* non-fatal */ }
 }
 
-async function lookupRiverName(): Promise<void> {
-  const comid = repinUpComID.value
+async function lookupRiverName(comidOverride?: string, latOverride?: number, lngOverride?: number): Promise<void> {
+  const comid = comidOverride ?? repinUpComID.value
   if (!comid) return
-  const lat = repinStartLat.value ?? reach.value?.put_in_lat
-  const lng = repinStartLng.value ?? reach.value?.put_in_lng
+  const lat = latOverride ?? repinStartLat.value ?? reach.value?.put_in_lat
+  const lng = lngOverride ?? repinStartLng.value ?? reach.value?.put_in_lng
   riverNameLooking.value = true
   try {
     const params = new URLSearchParams({ comid })
@@ -1073,7 +949,6 @@ function resetGeometryState() {
   repinFlowlinesDirty.value = false
   repinError.value          = ''
   repinSuccess.value        = ''
-  repinRiverNameConfirmed.value = false
 }
 
 function revertComIDs() {
@@ -1092,9 +967,18 @@ function revertComIDs() {
 
 function togglePickMode() {
   if (repinPickMode.value) { repinPickMode.value = false; repinAnchorError.value = ''; return }
-  repinGaugeSelectMode.value = false
-  repinPickMode.value        = true
-  repinAnchorError.value     = ''
+  // Clear existing snap/flowlines before entering pick mode so map resets
+  repinAnchorSnap.value        = null
+  repinTributaries.value       = null
+  repinDownstream.value        = null
+  repinPreviewCenterline.value = null
+  repinComIDEditMode.value     = null
+  repinError.value             = ''
+  repinSuccess.value           = ''
+  repinFlowlinesDirty.value    = false
+  repinGaugeSelectMode.value   = false
+  repinPickMode.value          = true
+  repinAnchorError.value       = ''
 }
 
 async function onAnchorPick(lat: number, lng: number) {
@@ -1112,6 +996,8 @@ async function onAnchorPick(lat: number, lng: number) {
     repinComIDEditMode.value = 'up'
     await fetchDownstream(snap.comid)
     fetchNearbyGauges(lat, lng, snap.comid)
+    // Auto-populate river name from NLDI if form field is empty
+    if (!form.value.riverName) lookupRiverName(snap.comid, lat, lng)
   } finally {
     repinAnchorSnapping.value = false
   }
@@ -1246,7 +1132,6 @@ async function load() {
     if (!res.ok) throw new Error(`${res.status}`)
     const data: UserReachDetail = await res.json()
     reach.value = data
-    riverConfirmed.value = !!localStorage.getItem(`river-confirmed-${data.id}`)
     populateForm(data)
 
     // Seed ComID state from saved reach data.
