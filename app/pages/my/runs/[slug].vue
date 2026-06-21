@@ -30,7 +30,7 @@
 
     <!-- Fork attribution — single inline line -->
     <div v-if="reach?.original_forked_at || reach?.forked_from_slug" class="px-4 pt-2 text-xs text-neutral-400 dark:text-neutral-500">
-      Forked from {{ reach.forked_from_name ?? reach.forked_from_slug ?? '' }}<template v-if="reach.original_author_handle"> · <NuxtLink :to="`/explore?browse=${reach.original_author_handle}`" class="hover:text-primary-500 transition-colors">@{{ reach.original_author_handle }}</NuxtLink></template><template v-if="forkDate"> {{ forkDate }}</template>
+      Forked from {{ reach.forked_from_name ?? reach.forked_from_slug ?? '' }}<template v-if="reach.original_author_handle"> · <NuxtLink :to="`/explore?browse=${reach.original_author_handle}`" class="hover:text-primary-500 transition-colors">@{{ reach.original_author_handle }}</NuxtLink></template><template v-if="forkDate"> · {{ forkDate }}</template>
     </div>
 
     <!-- Run heading (no card chrome) -->
@@ -78,20 +78,6 @@
       </div>
     </div>
 
-    <!-- River confirmation banner -->
-    <div v-if="riverConfirmBannerVisible" class="px-4 pt-2">
-      <div class="rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 flex flex-wrap items-center gap-3">
-        <svg class="w-4 h-4 text-emerald-500 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-        <p class="text-sm text-emerald-800 dark:text-emerald-200 flex-1 min-w-0">
-          Looks like <strong>{{ reach.river_name }}</strong><template v-if="reach.river_state_abbr || reach.river_basin"> ({{ [reach.river_state_abbr, reach.river_basin].filter(Boolean).join(' · ') }})</template> — is this correct?
-        </p>
-        <div class="flex items-center gap-2 shrink-0">
-          <UButton size="xs" color="success" variant="solid" @click="confirmRiver">Yes</UButton>
-          <UButton size="xs" color="neutral" variant="outline" @click="riverCorrectionOpen = true">No, fix...</UButton>
-        </div>
-      </div>
-    </div>
-
     <!-- Loading -->
     <div v-if="loading" class="flex-1 flex items-center justify-center">
       <div class="w-6 h-6 rounded-full border-2 border-primary-500 border-t-transparent animate-spin" />
@@ -115,11 +101,11 @@
             :pick-mode="repinPickMode"
             :put-in-pin="repinPutInPin"
             :take-out-pin="repinTakeOutPin"
-            :comid-select-mode="!!repinAnchorSnap && !repinPickMode && !repinGaugeSelectMode"
+            :comid-select-mode="repinComIDEditMode !== null && !repinPickMode && !repinGaugeSelectMode"
             :comid-select-slot="repinComIDEditMode"
             :selected-up-comid="repinUpComID"
             :selected-down-comid="repinDownComID"
-            :preview-centerline="repinPreviewCenterline ?? reach.centerline ?? null"
+            :preview-centerline="repinPreviewCenterline ?? (repinCenterlineHidden ? null : reach.centerline) ?? null"
             :gauge-select-mode="repinGaugeSelectMode"
             :disable-auto-fit="anyPickMode"
             map-height="100%"
@@ -139,13 +125,34 @@
           <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Run details</p>
 
           <div>
-            <label class="block text-xs text-neutral-500 mb-1">Local name <span class="text-red-400">*</span></label>
+            <label class="block text-xs text-neutral-500 mb-1">Name <span class="text-red-400">*</span></label>
             <input v-model="form.name" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="e.g. Foxton" />
           </div>
 
           <div>
-            <label class="block text-xs text-neutral-500 mb-1">Full name <span class="text-neutral-400 font-normal">(optional)</span></label>
-            <input v-model="form.longName" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="e.g. Buffalo Creek to South Platte Hotel" />
+            <label class="block text-xs text-neutral-500 mb-1">URL slug</label>
+            <div class="relative">
+              <input
+                v-model="form.slug"
+                class="w-full rounded-md border px-2 py-1.5 text-sm bg-white dark:bg-neutral-800 font-mono"
+                :class="slugAvailability === 'taken' || slugAvailability === 'invalid'
+                  ? 'border-red-400 dark:border-red-500'
+                  : slugAvailability === 'available'
+                    ? 'border-green-400 dark:border-green-500'
+                    : 'border-neutral-300 dark:border-neutral-600'"
+                placeholder="e.g. foxton"
+                @input="slugManuallyEdited = true"
+              />
+            </div>
+            <p class="mt-0.5 text-xs"
+              :class="slugAvailability === 'taken' || slugAvailability === 'invalid' ? 'text-red-500' : slugAvailability === 'available' ? 'text-green-500' : 'text-neutral-400'"
+            >
+              <template v-if="slugAvailability === 'checking'">Checking…</template>
+              <template v-else-if="slugAvailability === 'available'">Available</template>
+              <template v-else-if="slugAvailability === 'taken'">Already in use</template>
+              <template v-else-if="slugAvailability === 'invalid'">Lowercase letters, numbers, hyphens only</template>
+              <template v-else>Current URL: /my/runs/{{ form.slug || '…' }}</template>
+            </p>
           </div>
 
           <div>
@@ -160,12 +167,10 @@
               >{{ riverNameLooking ? 'Looking up…' : 'Lookup from NLDI' }}</button>
             </div>
             <input v-model="form.riverName" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="e.g. South Platte River" />
-            <p
-              v-if="reach?.river_basin || reach?.river_state_abbr"
-              class="mt-1 text-xs text-neutral-400"
-            >
-              {{ [reach.river_state_abbr, reach.river_basin].filter(Boolean).join(' · ') }}
-            </p>
+            <div v-if="reach?.river_state_abbr || reach?.river_basin" class="mt-1 text-xs text-neutral-400 flex gap-3">
+              <span v-if="reach?.river_state_abbr">State: {{ reach.river_state_abbr }}</span>
+              <span v-if="reach?.river_basin">Basin: {{ reach.river_basin }}</span>
+            </div>
           </div>
 
           <div>
@@ -223,64 +228,41 @@
             <span v-if="repinAnchorError" class="text-xs text-red-500">{{ repinAnchorError }}</span>
           </div>
 
-          <!-- Anchor snap card -->
-          <div v-if="repinAnchorSnap" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary-50 dark:bg-primary-950 border border-primary-200 dark:border-primary-800 text-xs">
-            <span class="w-2.5 h-2.5 rounded-full bg-primary-600 shrink-0" />
-            <span class="font-medium text-primary-800 dark:text-primary-200">Anchor ComID {{ repinAnchorSnap.comid }}</span>
-            <span v-if="repinAnchorSnap.name" class="text-primary-600 dark:text-primary-300 truncate">{{ repinAnchorSnap.name }}</span>
-          </div>
-
-          <!-- "Looks like X — correct?" river name suggestion -->
-          <div
-            v-if="repinAnchorSnap?.name && !repinRiverNameConfirmed"
-            class="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-200"
-          >
-            <svg class="w-3.5 h-3.5 shrink-0 text-emerald-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-            <span class="flex-1">Looks like <strong>{{ repinAnchorSnap.name }}</strong> — correct?</span>
-            <button class="text-emerald-700 dark:text-emerald-300 hover:underline font-medium" @click="applyAnchorRiverName">Yes, use it</button>
-            <button class="text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-300 px-1" @click="repinRiverNameConfirmed = true">✕</button>
-          </div>
-
           <!-- ComID toggles (put-in + take-out only) -->
-          <div v-if="repinAnchorSnap || repinDownstream" class="flex items-center gap-2 text-xs flex-wrap">
-            <span class="text-neutral-500 shrink-0">Click map for:</span>
+          <div class="flex items-center gap-2 flex-wrap">
             <button
-              class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm font-medium transition-colors"
               :class="repinComIDEditMode === 'up' && !repinGaugeSelectMode
-                ? 'border-green-500 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 font-medium'
-                : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
+                ? 'border-green-500 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300'
+                : repinUpComID
+                  ? 'border-green-300 dark:border-green-700 text-green-700 dark:text-green-300 hover:border-green-500'
+                  : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-neutral-400'"
               @click="onToggleComID('up')"
             >
               <span class="w-2 h-2 rounded-full bg-green-500 shrink-0" />
-              Put-In<template v-if="repinUpComID"> · <span class="font-mono">{{ repinUpComID }}</span></template>
+              {{ repinComIDEditMode === 'up' && !repinGaugeSelectMode ? 'Click map…' : 'Set Put-In' }}
             </button>
             <button
-              class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm font-medium transition-colors"
               :class="repinComIDEditMode === 'down' && !repinGaugeSelectMode
-                ? 'border-red-500 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 font-medium'
-                : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
+                ? 'border-red-500 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300'
+                : repinDownComID
+                  ? 'border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 hover:border-red-500'
+                  : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-neutral-400'"
               @click="onToggleComID('down')"
             >
               <span class="w-2 h-2 rounded-full bg-red-500 shrink-0" />
-              Take-Out<template v-if="repinDownComID"> · <span class="font-mono">{{ repinDownComID }}</span></template>
+              {{ repinComIDEditMode === 'down' && !repinGaugeSelectMode ? 'Click map…' : 'Set Take-Out' }}
             </button>
           </div>
 
           <p v-if="repinFlowlinesLoading" class="text-xs text-primary-500 animate-pulse">Loading downstream mainstem…</p>
 
-          <!-- Status / revert -->
-          <div v-if="repinPreviewLoading || repinError || repinSuccess || repinFlowlinesDirty" class="flex items-center gap-2 pt-1 flex-wrap">
+          <!-- Status messages -->
+          <div v-if="repinPreviewLoading || repinError || repinSuccess" class="flex items-center gap-2 pt-1 flex-wrap">
             <span v-if="repinPreviewLoading" class="text-xs text-primary-500 animate-pulse">Computing centerline…</span>
             <span v-if="repinError" class="text-xs text-red-500">{{ repinError }}</span>
             <span v-if="repinSuccess" class="text-xs text-green-600 dark:text-green-400">{{ repinSuccess }}</span>
-            <div class="flex-1" />
-            <UButton
-              v-if="repinFlowlinesDirty"
-              size="xs"
-              variant="outline"
-              color="neutral"
-              @click="revertComIDs"
-            >Revert</UButton>
           </div>
         </div>
 
@@ -291,23 +273,24 @@
         <div class="p-4 space-y-3">
           <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Flows</p>
 
-          <!-- Gauge select toggle (only available when flow lines anchor is set) -->
-          <div v-if="repinAnchorSnap || repinDownstream" class="flex items-center gap-2 text-xs flex-wrap">
+          <!-- Gauge select toggle -->
+          <div class="flex items-center gap-2 text-sm flex-wrap">
             <button
-              class="flex items-center gap-1.5 px-2 py-1 rounded-md border transition-colors"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md border font-medium transition-colors"
               :class="reach.custom_gauge_id
                 ? 'border-neutral-200 dark:border-neutral-700 text-neutral-400 cursor-default'
                 : repinGaugeSelectMode
-                  ? 'border-amber-500 bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 font-medium'
-                  : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
+                  ? 'border-amber-500 bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
+                  : reach.gauge_id
+                    ? 'border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:border-amber-500'
+                    : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-neutral-400'"
               :disabled="!!reach.custom_gauge_id"
               @click="!reach.custom_gauge_id && (repinGaugeSelectMode = !repinGaugeSelectMode, repinComIDEditMode = null, !repinGaugeSelectMode && (repinPendingGauge = null))"
             >
               <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
               <template v-if="reach.custom_gauge_id">Custom Gauge</template>
               <template v-else-if="repinGaugeSelectMode">Cancel</template>
-              <template v-else-if="reach.gauge_id">Gauge · <span class="font-mono">{{ reach.gauge_external_id }}</span></template>
-              <template v-else>Select gauge</template>
+              <template v-else>Set Gauge</template>
             </button>
             <button
               v-if="reach.gauge_id && !repinGaugeSelectMode"
@@ -461,48 +444,6 @@
   </div>
 
   <!-- Share modal -->
-  <UModal v-model:open="riverCorrectionOpen" title="Suggest a correction">
-    <template #body>
-      <p class="text-sm text-neutral-600 dark:text-neutral-400 mb-4">What's wrong with the river info for <strong>{{ reach?.river_name }}</strong>?</p>
-      <div class="space-y-3">
-        <div>
-          <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">Field to correct</label>
-          <div class="flex gap-4">
-            <label class="flex items-center gap-1.5 text-sm cursor-pointer">
-              <input type="radio" v-model="correctionField" value="basin" class="accent-primary-500" /> Basin
-            </label>
-            <label class="flex items-center gap-1.5 text-sm cursor-pointer">
-              <input type="radio" v-model="correctionField" value="state_abbr" class="accent-primary-500" /> State
-            </label>
-          </div>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">Correct value</label>
-          <input
-            v-model="correctionValue"
-            type="text"
-            class="w-full rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-            :placeholder="correctionField === 'basin' ? 'e.g. Arkansas' : 'e.g. CO'"
-          />
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">Note <span class="text-neutral-400">(optional)</span></label>
-          <textarea
-            v-model="correctionNote"
-            rows="2"
-            class="w-full rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500"
-            placeholder="Why is this wrong?"
-          />
-        </div>
-        <p v-if="correctionError" class="text-xs text-red-500">{{ correctionError }}</p>
-      </div>
-      <div class="flex justify-end gap-2 mt-4">
-        <UButton size="xs" variant="outline" color="neutral" @click="riverCorrectionOpen = false">Cancel</UButton>
-        <UButton size="xs" :disabled="!correctionValue.trim() || correctionSubmitting" :loading="correctionSubmitting" @click="submitRiverCorrection">Submit</UButton>
-      </div>
-    </template>
-  </UModal>
-
   <ShareLinkModal
     :open="shareOpen"
     title="Share run"
@@ -662,6 +603,7 @@ interface UserReachDetail {
   upvote_count:      number
   user_upvoted:      boolean
   centerline:        object | null
+  river_confirmed:   boolean
 }
 
 interface CustomGaugeSummary { id: string; slug: string; name: string }
@@ -672,13 +614,42 @@ const reach = ref<UserReachDetail | null>(null)
 
 const form = ref({
   name:       '',
-  longName:   '' as string,
+  slug:       '',
   riverName:  '',
   note:       '',
   classMin:   null as number | null,
   classMax:   null as number | null,
   visibility: 'private' as 'private' | 'unlisted' | 'public',
   flowBands:  { base_label: 'Too Low', base_color: 'red-3', thresholds: [] } as FlowBands,
+})
+
+const slugManuallyEdited = ref(false)
+const slugAvailability   = ref<'unknown' | 'checking' | 'available' | 'taken' | 'invalid'>('unknown')
+let   slugCheckTimer: ReturnType<typeof setTimeout> | null = null
+
+function deriveSlug(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80)
+}
+
+watch(() => form.value.name, (name) => {
+  if (slugManuallyEdited.value) return
+  form.value.slug = deriveSlug(name)
+  slugAvailability.value = 'unknown'
+})
+
+watch(() => form.value.slug, (s) => {
+  if (slugCheckTimer) clearTimeout(slugCheckTimer)
+  if (!s || s === reach.value?.slug) { slugAvailability.value = 'unknown'; return }
+  const slugRe = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/
+  if (!slugRe.test(s)) { slugAvailability.value = 'invalid'; return }
+  slugAvailability.value = 'checking'
+  slugCheckTimer = setTimeout(async () => {
+    try {
+      const headers = await authHeaders()
+      const res = await fetch(`${apiBase}/api/v1/me/runs/slug-check?slug=${encodeURIComponent(s)}&exclude=${encodeURIComponent(reach.value?.slug ?? '')}`, { headers })
+      if (res.ok) slugAvailability.value = (await res.json()).available ? 'available' : 'taken'
+    } catch { slugAvailability.value = 'unknown' }
+  }, 400)
 })
 
 // ── Repin state (mirrors admin RunEditor) ───────────────────────────────────
@@ -693,13 +664,12 @@ const repinFlowlinesLoading = ref(false)
 const repinComIDEditMode   = ref<ComIDEditMode>(null)
 const repinUpComID         = ref<string | null>(null)
 const repinDownComID       = ref<string | null>(null)
-const repinOrigUpComID     = ref<string | null>(null)
-const repinOrigDownComID   = ref<string | null>(null)
 const repinStartLat        = ref<number | null>(null)
 const repinStartLng        = ref<number | null>(null)
 const repinEndLat          = ref<number | null>(null)
 const repinEndLng          = ref<number | null>(null)
-const repinFlowlinesDirty  = ref(false)
+const repinFlowlinesDirty    = ref(false)
+const repinCenterlineHidden  = ref(false)
 const repinPreviewCenterline = ref<object | null>(null)
 const repinPreviewLoading  = ref(false)
 const repinError           = ref('')
@@ -710,13 +680,6 @@ const repinGaugeSelectMode     = ref(false)
 const repinPendingGauge        = ref<PendingGauge | null>(null)
 const repinGaugeSaving         = ref(false)
 const repinGaugeError          = ref('')
-const repinRiverNameConfirmed  = ref(false)
-
-function applyAnchorRiverName() {
-  if (repinAnchorSnap.value?.name) form.value.riverName = repinAnchorSnap.value.name
-  repinRiverNameConfirmed.value = true
-}
-
 const riverNameLooking = ref(false)
 const nldiGnisId       = ref<string | null>(null)
 
@@ -749,7 +712,7 @@ const visibilityDescription = computed(() => {
   switch (form.value.visibility) {
     case 'private':  return 'Only you can see this run.'
     case 'unlisted': return 'Accessible via link — not in explore or search.'
-    case 'public':   return 'On explore, searchable, and up-votable. Cannot be made private again.'
+    case 'public':   return 'Run is searchable, up-votable, and can be found by other users. Cannot unlist or make private again.'
     default:         return ''
   }
 })
@@ -787,19 +750,6 @@ async function confirmPublish() {
     publishing.value = false
   }
 }
-
-// ── River confirmation banner ──────────────────────────────────────────────────
-
-const riverConfirmed       = ref(false)
-const riverCorrectionOpen  = ref(false)
-const correctionField      = ref<'basin' | 'state_abbr'>('basin')
-const correctionValue      = ref('')
-const correctionNote       = ref('')
-const correctionError      = ref('')
-const correctionSubmitting = ref(false)
-
-const riverConfirmBannerVisible = computed(() =>
-  !!(reach.value?.river_name && reach.value?.river_slug && !riverConfirmed.value))
 
 // ── KML import ────────────────────────────────────────────────────────────────
 
@@ -860,40 +810,6 @@ async function loadCluster() {
   } catch {}
 }
 
-function confirmRiver() {
-  if (!reach.value) return
-  localStorage.setItem(`river-confirmed-${reach.value.id}`, '1')
-  riverConfirmed.value = true
-}
-
-async function submitRiverCorrection() {
-  if (!reach.value?.river_slug || !correctionValue.value.trim()) return
-  correctionError.value      = ''
-  correctionSubmitting.value = true
-  try {
-    const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) }
-    const res = await fetch(`${apiBase}/api/v1/me/river-corrections`, {
-      method:  'POST',
-      headers,
-      body:    JSON.stringify({
-        river_slug:     reach.value.river_slug,
-        field:          correctionField.value,
-        proposed_value: correctionValue.value.trim(),
-        note:           correctionNote.value.trim() || undefined,
-      }),
-    })
-    if (!res.ok) { correctionError.value = `HTTP ${res.status}`; return }
-    riverCorrectionOpen.value = false
-    correctionValue.value     = ''
-    correctionNote.value      = ''
-    confirmRiver()
-    toast.add({ title: 'Thanks — admin will review.', color: 'success' })
-  } catch (e: any) {
-    correctionError.value = e?.message ?? 'Submit failed'
-  } finally {
-    correctionSubmitting.value = false
-  }
-}
 
 // ── Computed ──────────────────────────────────────────────────────────────────
 
@@ -1035,11 +951,11 @@ async function fetchNearbyGauges(lat: number, lng: number, comid?: string | null
   } catch { /* non-fatal */ }
 }
 
-async function lookupRiverName(): Promise<void> {
-  const comid = repinUpComID.value
+async function lookupRiverName(comidOverride?: string, latOverride?: number, lngOverride?: number): Promise<void> {
+  const comid = comidOverride ?? repinUpComID.value
   if (!comid) return
-  const lat = repinStartLat.value ?? reach.value?.put_in_lat
-  const lng = repinStartLng.value ?? reach.value?.put_in_lng
+  const lat = latOverride ?? repinStartLat.value ?? reach.value?.put_in_lat
+  const lng = lngOverride ?? repinStartLng.value ?? reach.value?.put_in_lng
   riverNameLooking.value = true
   try {
     const params = new URLSearchParams({ comid })
@@ -1057,44 +973,27 @@ async function lookupRiverName(): Promise<void> {
 
 // ── Geometry pick handlers ────────────────────────────────────────────────────
 
-function resetGeometryState() {
-  repinPickMode.value       = false
-  repinAnchorSnap.value     = null
-  repinAnchorSnapping.value = false
-  repinAnchorError.value    = ''
-  repinTributaries.value    = null
-  repinDownstream.value     = null
-  repinComIDEditMode.value  = null
-  repinStartLat.value       = null
-  repinStartLng.value       = null
-  repinEndLat.value         = null
-  repinEndLng.value         = null
-  repinPreviewCenterline.value = null
-  repinFlowlinesDirty.value = false
-  repinError.value          = ''
-  repinSuccess.value        = ''
-  repinRiverNameConfirmed.value = false
-}
-
-function revertComIDs() {
-  repinUpComID.value       = repinOrigUpComID.value
-  repinDownComID.value     = repinOrigDownComID.value
-  repinComIDEditMode.value = null
-  repinStartLat.value      = null
-  repinStartLng.value      = null
-  repinEndLat.value        = null
-  repinEndLng.value        = null
-  repinPreviewCenterline.value = null
-  repinFlowlinesDirty.value = false
-  repinError.value         = ''
-  repinSuccess.value       = ''
-}
-
 function togglePickMode() {
   if (repinPickMode.value) { repinPickMode.value = false; repinAnchorError.value = ''; return }
-  repinGaugeSelectMode.value = false
-  repinPickMode.value        = true
-  repinAnchorError.value     = ''
+  // Full reset — clear anchor, flowlines, ComIDs, pins, centerline
+  repinAnchorSnap.value        = null
+  repinTributaries.value       = null
+  repinDownstream.value        = null
+  repinUpComID.value           = null
+  repinDownComID.value         = null
+  repinStartLat.value          = null
+  repinStartLng.value          = null
+  repinEndLat.value            = null
+  repinEndLng.value            = null
+  repinPreviewCenterline.value = null
+  repinCenterlineHidden.value  = true
+  repinComIDEditMode.value     = null
+  repinFlowlinesDirty.value    = false
+  repinError.value             = ''
+  repinSuccess.value           = ''
+  repinAnchorError.value       = ''
+  repinGaugeSelectMode.value   = false
+  repinPickMode.value          = true
 }
 
 async function onAnchorPick(lat: number, lng: number) {
@@ -1108,10 +1007,18 @@ async function onAnchorPick(lat: number, lng: number) {
   try {
     const snap = await fetchTributaries(lat, lng)
     if (!snap) return
-    repinAnchorSnap.value    = snap
-    repinComIDEditMode.value = 'up'
+    repinAnchorSnap.value        = snap
+    repinCenterlineHidden.value  = true
+    // Auto-set put-in from anchor snap; advance directly to take-out selection
+    repinUpComID.value           = snap.comid
+    repinStartLat.value          = lat
+    repinStartLng.value          = lng
+    repinFlowlinesDirty.value    = true
+    repinComIDEditMode.value     = 'down'
     await fetchDownstream(snap.comid)
     fetchNearbyGauges(lat, lng, snap.comid)
+    // Auto-populate river name from NLDI if form field is empty
+    if (!form.value.riverName) lookupRiverName(snap.comid, lat, lng)
   } finally {
     repinAnchorSnapping.value = false
   }
@@ -1123,12 +1030,13 @@ function onComIDSelect(comid: string, lat: number, lng: number) {
     repinUpComID.value      = comid
     repinStartLat.value     = lat
     repinStartLng.value     = lng
-    repinComIDEditMode.value = 'down'  // auto-advance to take-out
+    // Auto-advance to take-out only when it isn't already set
+    repinComIDEditMode.value = repinDownComID.value ? null : 'down'
   } else {
-    repinDownComID.value = comid
-    repinEndLat.value    = lat
-    repinEndLng.value    = lng
-    // no auto-advance after take-out — user toggles manually
+    repinDownComID.value     = comid
+    repinEndLat.value        = lat
+    repinEndLng.value        = lng
+    repinComIDEditMode.value = null  // done — button reverts to "Set Take-Out"
   }
   repinFlowlinesDirty.value    = true
   repinPreviewCenterline.value = null
@@ -1136,7 +1044,13 @@ function onComIDSelect(comid: string, lat: number, lng: number) {
 
 function onToggleComID(slot: 'up' | 'down') {
   repinGaugeSelectMode.value = false
-  repinComIDEditMode.value = repinComIDEditMode.value === slot ? null : slot
+  if (repinComIDEditMode.value === slot) { repinComIDEditMode.value = null; return }
+  // No flowlines yet — enter pick mode; onAnchorPick will auto-set put-in and advance
+  if (!repinTributaries.value && !repinDownstream.value) {
+    repinPickMode.value = true
+    return
+  }
+  repinComIDEditMode.value = slot
 }
 
 async function previewCenterline() {
@@ -1225,8 +1139,9 @@ async function linkCustomGauge(cg: CustomGaugeSummary) {
 // ── Load ──────────────────────────────────────────────────────────────────────
 
 function populateForm(r: UserReachDetail) {
+  slugManuallyEdited.value = true  // block name watcher from overriding stored slug
   form.value.name       = r.name
-  form.value.longName   = r.long_name ?? ''
+  form.value.slug       = r.slug
   form.value.riverName  = r.river_name ?? ''
   form.value.note       = r.note ?? ''
   form.value.classMin   = r.class_min ?? null
@@ -1246,14 +1161,11 @@ async function load() {
     if (!res.ok) throw new Error(`${res.status}`)
     const data: UserReachDetail = await res.json()
     reach.value = data
-    riverConfirmed.value = !!localStorage.getItem(`river-confirmed-${data.id}`)
     populateForm(data)
 
     // Seed ComID state from saved reach data.
-    repinUpComID.value       = data.up_comid
-    repinDownComID.value     = data.down_comid
-    repinOrigUpComID.value   = data.up_comid
-    repinOrigDownComID.value = data.down_comid
+    repinUpComID.value   = data.up_comid
+    repinDownComID.value = data.down_comid
 
     // Auto-load NHD network when saved ComIDs exist.
     if (data.up_comid && data.put_in_lat != null) {
@@ -1300,7 +1212,6 @@ async function save() {
     // Build combined patch: metadata + flow lines if dirty
     const patchBody: Record<string, unknown> = {
       name:       form.value.name.trim(),
-      long_name:  form.value.longName.trim()  || null,
       river_name: form.value.riverName.trim() || null,
       note:       form.value.note.trim()      || null,
       class_min:  form.value.classMin,
@@ -1308,6 +1219,15 @@ async function save() {
       // API rejects visibility:"public" via PATCH (must use /publish); omit if already public
       ...(form.value.visibility !== 'public' ? { visibility: form.value.visibility } : {}),
       gnis_id:    nldiGnisId.value ?? undefined,
+    }
+    // Include slug if user changed it (and it's valid/available)
+    const slugChanged = form.value.slug && form.value.slug !== reach.value?.slug
+    if (slugChanged) {
+      if (slugAvailability.value === 'taken' || slugAvailability.value === 'invalid') {
+        saveError.value = 'Fix the URL slug before saving.'
+        return
+      }
+      patchBody.slug = form.value.slug
     }
     if (repinFlowlinesDirty.value && repinUpComID.value && repinDownComID.value) {
       const putIn   = repinPutInPin.value
@@ -1322,21 +1242,25 @@ async function save() {
       method: 'PATCH', headers,
       body: JSON.stringify(patchBody),
     })
-    if (!patchRes.ok) throw new Error(`Save failed: ${patchRes.status}`)
+    if (!patchRes.ok) {
+      if (patchRes.status === 409) { saveError.value = 'URL slug already in use.'; return }
+      throw new Error(`Save failed: ${patchRes.status}`)
+    }
+    const patchData = await patchRes.json().catch(() => ({}))
+    const returnedSlug: string = patchData.slug ?? slug.value
 
-    // Persist centerline if dirty
+    // Persist centerline if dirty (use returnedSlug in case it changed)
     if (repinFlowlinesDirty.value && repinPreviewCenterline.value) {
-      const clRes = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}/centerline`, {
+      const clRes = await fetch(`${apiBase}/api/v1/me/runs/${returnedSlug}/centerline`, {
         method: 'POST', headers,
         body: JSON.stringify({ geojson: repinPreviewCenterline.value }),
       })
       if (!clRes.ok) throw new Error(`Centerline save failed: ${clRes.status}`)
-      repinOrigUpComID.value    = repinUpComID.value
-      repinOrigDownComID.value  = repinDownComID.value
-      repinFlowlinesDirty.value = false
+      repinFlowlinesDirty.value   = false
+      repinCenterlineHidden.value = false
     }
 
-    const fbRes = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}/flow-ranges`, {
+    const fbRes = await fetch(`${apiBase}/api/v1/me/runs/${returnedSlug}/flow-ranges`, {
       method: 'PUT', headers,
       body: JSON.stringify(form.value.flowBands),
     })
@@ -1345,8 +1269,8 @@ async function save() {
     if (reach.value) {
       reach.value = {
         ...reach.value,
+        slug:        returnedSlug,
         name:        form.value.name.trim(),
-        long_name:   form.value.longName.trim()  || null,
         river_name:  form.value.riverName.trim() || null,
         note:        form.value.note.trim()      || null,
         is_private:  form.value.visibility !== 'public',
@@ -1354,7 +1278,12 @@ async function save() {
         flow_bands:  form.value.flowBands,
       }
     }
+    slugAvailability.value = 'unknown'
     void loadCluster()
+    // Redirect to new URL when slug changed
+    if (returnedSlug !== slug.value) {
+      await navigateTo(`/my/runs/${returnedSlug}`, { replace: true })
+    }
   } catch (e: any) {
     saveError.value = e.message ?? 'Save failed.'
   } finally {
