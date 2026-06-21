@@ -125,13 +125,34 @@
           <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Run details</p>
 
           <div>
-            <label class="block text-xs text-neutral-500 mb-1">Short Name <span class="text-red-400">*</span></label>
+            <label class="block text-xs text-neutral-500 mb-1">Name <span class="text-red-400">*</span></label>
             <input v-model="form.name" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="e.g. Foxton" />
           </div>
 
           <div>
-            <label class="block text-xs text-neutral-500 mb-1">Full name <span class="text-neutral-400 font-normal">(optional)</span></label>
-            <input v-model="form.longName" class="w-full rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm" placeholder="e.g. Buffalo Creek to South Platte Hotel" />
+            <label class="block text-xs text-neutral-500 mb-1">URL slug</label>
+            <div class="relative">
+              <input
+                v-model="form.slug"
+                class="w-full rounded-md border px-2 py-1.5 text-sm bg-white dark:bg-neutral-800 font-mono"
+                :class="slugAvailability === 'taken' || slugAvailability === 'invalid'
+                  ? 'border-red-400 dark:border-red-500'
+                  : slugAvailability === 'available'
+                    ? 'border-green-400 dark:border-green-500'
+                    : 'border-neutral-300 dark:border-neutral-600'"
+                placeholder="e.g. foxton"
+                @input="slugManuallyEdited = true"
+              />
+            </div>
+            <p class="mt-0.5 text-xs"
+              :class="slugAvailability === 'taken' || slugAvailability === 'invalid' ? 'text-red-500' : slugAvailability === 'available' ? 'text-green-500' : 'text-neutral-400'"
+            >
+              <template v-if="slugAvailability === 'checking'">Checking…</template>
+              <template v-else-if="slugAvailability === 'available'">Available</template>
+              <template v-else-if="slugAvailability === 'taken'">Already in use</template>
+              <template v-else-if="slugAvailability === 'invalid'">Lowercase letters, numbers, hyphens only</template>
+              <template v-else>run URL: /runs/{{ form.slug || '…' }}</template>
+            </p>
           </div>
 
           <div>
@@ -594,13 +615,42 @@ const reach = ref<UserReachDetail | null>(null)
 
 const form = ref({
   name:       '',
-  longName:   '' as string,
+  slug:       '',
   riverName:  '',
   note:       '',
   classMin:   null as number | null,
   classMax:   null as number | null,
   visibility: 'private' as 'private' | 'unlisted' | 'public',
   flowBands:  { base_label: 'Too Low', base_color: 'red-3', thresholds: [] } as FlowBands,
+})
+
+const slugManuallyEdited = ref(false)
+const slugAvailability   = ref<'unknown' | 'checking' | 'available' | 'taken' | 'invalid'>('unknown')
+let   slugCheckTimer: ReturnType<typeof setTimeout> | null = null
+
+function deriveSlug(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80)
+}
+
+watch(() => form.value.name, (name) => {
+  if (slugManuallyEdited.value) return
+  form.value.slug = deriveSlug(name)
+  slugAvailability.value = 'unknown'
+})
+
+watch(() => form.value.slug, (s) => {
+  if (slugCheckTimer) clearTimeout(slugCheckTimer)
+  if (!s || s === reach.value?.slug) { slugAvailability.value = 'unknown'; return }
+  const slugRe = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/
+  if (!slugRe.test(s)) { slugAvailability.value = 'invalid'; return }
+  slugAvailability.value = 'checking'
+  slugCheckTimer = setTimeout(async () => {
+    try {
+      const headers = await authHeaders()
+      const res = await fetch(`${apiBase}/api/v1/me/runs/slug-check?slug=${encodeURIComponent(s)}&exclude=${encodeURIComponent(reach.value?.slug ?? '')}`, { headers })
+      if (res.ok) slugAvailability.value = (await res.json()).available ? 'available' : 'taken'
+    } catch { slugAvailability.value = 'unknown' }
+  }, 400)
 })
 
 // ── Repin state (mirrors admin RunEditor) ───────────────────────────────────
@@ -621,7 +671,6 @@ const repinEndLat          = ref<number | null>(null)
 const repinEndLng          = ref<number | null>(null)
 const repinFlowlinesDirty    = ref(false)
 const repinCenterlineHidden  = ref(false)
-const repinPendingComIDSlot  = ref<'up' | 'down' | null>(null)
 const repinPreviewCenterline = ref<object | null>(null)
 const repinPreviewLoading  = ref(false)
 const repinError           = ref('')
@@ -927,7 +976,10 @@ async function lookupRiverName(comidOverride?: string, latOverride?: number, lng
 
 function togglePickMode() {
   if (repinPickMode.value) { repinPickMode.value = false; repinAnchorError.value = ''; return }
-  // Clear ComIDs, pins, and centerline — keep flowlines so user can re-pick directly
+  // Full reset — clear anchor, flowlines, ComIDs, pins, centerline
+  repinAnchorSnap.value        = null
+  repinTributaries.value       = null
+  repinDownstream.value        = null
   repinUpComID.value           = null
   repinDownComID.value         = null
   repinStartLat.value          = null
@@ -941,11 +993,8 @@ function togglePickMode() {
   repinError.value             = ''
   repinSuccess.value           = ''
   repinAnchorError.value       = ''
-  // Enter pick mode only when there are no flowlines to click on yet
-  if (!repinTributaries.value && !repinDownstream.value) {
-    repinGaugeSelectMode.value = false
-    repinPickMode.value        = true
-  }
+  repinGaugeSelectMode.value   = false
+  repinPickMode.value          = true
 }
 
 async function onAnchorPick(lat: number, lng: number) {
@@ -959,10 +1008,14 @@ async function onAnchorPick(lat: number, lng: number) {
   try {
     const snap = await fetchTributaries(lat, lng)
     if (!snap) return
-    repinAnchorSnap.value    = snap
-    repinCenterlineHidden.value = true
-    repinComIDEditMode.value = repinPendingComIDSlot.value ?? 'up'
-    repinPendingComIDSlot.value = null
+    repinAnchorSnap.value        = snap
+    repinCenterlineHidden.value  = true
+    // Auto-set put-in from anchor snap; advance directly to take-out selection
+    repinUpComID.value           = snap.comid
+    repinStartLat.value          = lat
+    repinStartLng.value          = lng
+    repinFlowlinesDirty.value    = true
+    repinComIDEditMode.value     = 'down'
     await fetchDownstream(snap.comid)
     fetchNearbyGauges(lat, lng, snap.comid)
     // Auto-populate river name from NLDI if form field is empty
@@ -993,10 +1046,9 @@ function onComIDSelect(comid: string, lat: number, lng: number) {
 function onToggleComID(slot: 'up' | 'down') {
   repinGaugeSelectMode.value = false
   if (repinComIDEditMode.value === slot) { repinComIDEditMode.value = null; return }
-  // No flowlines on map yet — enter pick mode first, then auto-set slot
+  // No flowlines yet — enter pick mode; onAnchorPick will auto-set put-in and advance
   if (!repinTributaries.value && !repinDownstream.value) {
-    repinPendingComIDSlot.value = slot
-    repinPickMode.value         = true
+    repinPickMode.value = true
     return
   }
   repinComIDEditMode.value = slot
@@ -1089,14 +1141,16 @@ async function linkCustomGauge(cg: CustomGaugeSummary) {
 
 function populateForm(r: UserReachDetail) {
   form.value.name       = r.name
-  form.value.longName   = r.long_name ?? ''
+  form.value.slug       = r.slug
   form.value.riverName  = r.river_name ?? ''
   form.value.note       = r.note ?? ''
   form.value.classMin   = r.class_min ?? null
   form.value.classMax   = r.class_max ?? null
   form.value.visibility = (r.visibility as Visibility) ?? (r.is_private ? 'private' : 'public')
   form.value.flowBands  = r.flow_bands ?? { base_label: 'Too Low', base_color: 'red-3', thresholds: [] }
-  nldiGnisId.value = null
+  nldiGnisId.value       = null
+  slugManuallyEdited.value = false
+  slugAvailability.value   = 'unknown'
 }
 
 async function load() {
@@ -1160,7 +1214,6 @@ async function save() {
     // Build combined patch: metadata + flow lines if dirty
     const patchBody: Record<string, unknown> = {
       name:       form.value.name.trim(),
-      long_name:  form.value.longName.trim()  || null,
       river_name: form.value.riverName.trim() || null,
       note:       form.value.note.trim()      || null,
       class_min:  form.value.classMin,
@@ -1168,6 +1221,15 @@ async function save() {
       // API rejects visibility:"public" via PATCH (must use /publish); omit if already public
       ...(form.value.visibility !== 'public' ? { visibility: form.value.visibility } : {}),
       gnis_id:    nldiGnisId.value ?? undefined,
+    }
+    // Include slug if user changed it (and it's valid/available)
+    const slugChanged = form.value.slug && form.value.slug !== reach.value?.slug
+    if (slugChanged) {
+      if (slugAvailability.value === 'taken' || slugAvailability.value === 'invalid') {
+        saveError.value = 'Fix the URL slug before saving.'
+        return
+      }
+      patchBody.slug = form.value.slug
     }
     if (repinFlowlinesDirty.value && repinUpComID.value && repinDownComID.value) {
       const putIn   = repinPutInPin.value
@@ -1182,11 +1244,16 @@ async function save() {
       method: 'PATCH', headers,
       body: JSON.stringify(patchBody),
     })
-    if (!patchRes.ok) throw new Error(`Save failed: ${patchRes.status}`)
+    if (!patchRes.ok) {
+      if (patchRes.status === 409) { saveError.value = 'URL slug already in use.'; return }
+      throw new Error(`Save failed: ${patchRes.status}`)
+    }
+    const patchData = await patchRes.json().catch(() => ({}))
+    const returnedSlug: string = patchData.slug ?? slug.value
 
-    // Persist centerline if dirty
+    // Persist centerline if dirty (use returnedSlug in case it changed)
     if (repinFlowlinesDirty.value && repinPreviewCenterline.value) {
-      const clRes = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}/centerline`, {
+      const clRes = await fetch(`${apiBase}/api/v1/me/runs/${returnedSlug}/centerline`, {
         method: 'POST', headers,
         body: JSON.stringify({ geojson: repinPreviewCenterline.value }),
       })
@@ -1195,7 +1262,7 @@ async function save() {
       repinCenterlineHidden.value = false
     }
 
-    const fbRes = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}/flow-ranges`, {
+    const fbRes = await fetch(`${apiBase}/api/v1/me/runs/${returnedSlug}/flow-ranges`, {
       method: 'PUT', headers,
       body: JSON.stringify(form.value.flowBands),
     })
@@ -1204,8 +1271,8 @@ async function save() {
     if (reach.value) {
       reach.value = {
         ...reach.value,
+        slug:        returnedSlug,
         name:        form.value.name.trim(),
-        long_name:   form.value.longName.trim()  || null,
         river_name:  form.value.riverName.trim() || null,
         note:        form.value.note.trim()      || null,
         is_private:  form.value.visibility !== 'public',
@@ -1213,7 +1280,12 @@ async function save() {
         flow_bands:  form.value.flowBands,
       }
     }
+    slugAvailability.value = 'unknown'
     void loadCluster()
+    // Redirect to new URL when slug changed
+    if (returnedSlug !== slug.value) {
+      await navigateTo(`/my/runs/${returnedSlug}`, { replace: true })
+    }
   } catch (e: any) {
     saveError.value = e.message ?? 'Save failed.'
   } finally {
