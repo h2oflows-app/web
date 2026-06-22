@@ -53,7 +53,7 @@
           <template v-else>
             <!-- My runs mode: show title + browse picker -->
             <span class="text-xs font-medium text-neutral-700 dark:text-neutral-300">My Runs</span>
-            <RunUserHandlePicker />
+            <UserHandlePicker />
           </template>
         </div>
 
