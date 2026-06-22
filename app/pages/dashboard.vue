@@ -310,7 +310,7 @@
                           :lead-gauge="group.lead"
                           :reach-items="group.all"
                           :density="viewMode"
-                          :hide-river-name="true"
+                          :hide-river-name="showRivers"
                           @open="(g, mode) => openGauge(g, mode)"
                           @remove-item="(g) => handleGaugeItemRemove(g, group)"
                           @remove-group="removeExtGaugeGroup(group)"
@@ -322,7 +322,7 @@
                           v-if="viewMode === 'list'"
                           :reaches="split.ungrouped"
                           density="list"
-                          :show-river-name="!showRivers || !groupByBasin"
+                          :show-river-name="!showRivers"
                           :class="split.gaugeGroups.length > 0 ? 'mt-1.5' : ''"
                           @open="(g, mode) => openGauge(g, mode)"
                           @remove="handleRemove"
@@ -333,7 +333,7 @@
                             :key="`${reach.id}::${reach.contextReachSlug}`"
                             :reaches="[reach]"
                             :density="viewMode"
-                            :show-river-name="!showRivers || !groupByBasin"
+                            :show-river-name="!showRivers"
                             @open="(g, mode) => openGauge(g, mode)"
                             @remove="handleRemove"
                           />
@@ -347,7 +347,7 @@
                       v-if="viewMode === 'list' && river.reaches.length > 0"
                       :reaches="river.reaches"
                       density="list"
-                      :show-river-name="!showRivers || !groupByBasin"
+                      :show-river-name="!showRivers"
                       @open="(g, mode) => openGauge(g, mode)"
                       @remove="handleRemove"
                     />
@@ -358,7 +358,7 @@
                         :key="`${reach.id}::${reach.contextReachSlug}`"
                         :reaches="[reach]"
                         :density="viewMode"
-                        :show-river-name="!showRivers || !groupByBasin"
+                        :show-river-name="!showRivers"
                         @open="(g, mode) => openGauge(g, mode)"
                         @remove="handleRemove"
                       />
@@ -379,12 +379,12 @@
                       <div class="flex flex-col min-w-0 flex-1">
                         <div class="flex items-center gap-1 min-w-0">
                           <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
-                          <span v-if="(!showRivers || !groupByBasin) && r.river_name" class="hidden sm:inline text-xs text-neutral-400 dark:text-neutral-500 shrink-0 truncate">· {{ r.river_name }}</span>
+                          <span v-if="!showRivers && r.river_name" class="hidden sm:inline text-xs text-neutral-400 dark:text-neutral-500 shrink-0 truncate">· {{ r.river_name }}</span>
                           <!-- Reference: group icon instead of fork button + @handle -->
                           <svg v-if="r.is_reference" class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" title="Shared run"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                         </div>
                         <!-- River name sub-line on mobile -->
-                        <span v-if="(!showRivers || !groupByBasin) && r.river_name" class="sm:hidden text-xs text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ r.river_name }}</span>
+                        <span v-if="!showRivers && r.river_name" class="sm:hidden text-xs text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ r.river_name }}</span>
                       </div>
                       <!-- Sparkline next to badge, hidden on mobile -->
                       <div class="w-44 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
@@ -423,7 +423,7 @@
                             <svg v-if="r.is_reference" class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" title="Shared run"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                           </div>
                           <!-- River name sub-line (shown when river not grouped above) -->
-                          <div v-if="(!showRivers || !groupByBasin) && r.river_name" class="mt-0.5">
+                          <div v-if="!showRivers && r.river_name" class="mt-0.5">
                             <span class="text-xs text-neutral-400 dark:text-neutral-500 truncate">{{ r.river_name }}</span>
                           </div>
                         </div>

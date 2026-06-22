@@ -48,23 +48,18 @@
         class="flex items-center gap-2 pl-5 pr-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer"
         @click.stop="$emit('open', item, 'reach')"
       >
-        <!-- Name + link button side-by-side -->
+        <!-- Name only — compact view omits edit/view/@user icons (row click opens) -->
         <div class="flex items-center gap-1 min-w-0 flex-1">
           <span class="min-w-0 text-sm text-neutral-700 dark:text-neutral-300 truncate">
             {{ reachLabel(item) }}
           </span>
-          <NuxtLink v-if="!item.contextIsReference" :to="`/my/runs/${item.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="Edit" title="Edit" @click.stop>
-            <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
-          </NuxtLink>
-          <NuxtLink :to="`/runs/${item.contextReachAuthorHandle ?? 'h2oflows'}/${item.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View" title="View" @click.stop>
-            <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
-          </NuxtLink>
-          <span v-if="item.contextIsReference && item.contextReachAuthorHandle" class="text-xs text-neutral-400 dark:text-neutral-500 shrink-0">@{{ item.contextReachAuthorHandle }}</span>
+          <!-- Reference run: group icon -->
+          <svg v-if="item.contextIsReference" class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" title="Shared run"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         </div>
-        <span
-          v-if="displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)"
-          :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', colorKeyToBadgeClass(displayBandColor(item))]"
-        >{{ displayFlowBandLabel(item) }}</span>
+        <!-- Badge always rendered (– when no thresholds) so trash column aligns -->
+        <div class="w-20 shrink-0 text-center">
+          <span :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', (displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)) ? colorKeyToBadgeClass(displayBandColor(item)) : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500']">{{ (displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)) ? displayFlowBandLabel(item) : '–' }}</span>
+        </div>
         <TrashButton label="Remove" @click="$emit('remove-item', item)" />
       </div>
     </div>
