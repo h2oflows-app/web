@@ -198,7 +198,7 @@
                       <div class="flex items-center gap-1 min-w-0">
                         <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
                         <span v-if="r.river_name" class="hidden sm:inline text-xs text-neutral-400 dark:text-neutral-500 shrink-0 truncate">· {{ r.river_name }}</span>
-                        <svg v-if="r.is_reference" class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" :title="r.author_handle ? '@' + r.author_handle : 'Shared run'"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        <UTooltip v-if="r.is_reference" :text="r.author_handle ? '@' + r.author_handle : 'Shared run'" class="shrink-0 inline-flex"><svg class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></UTooltip>
                       </div>
                       <span v-if="r.river_name" class="sm:hidden text-xs text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ r.river_name }}</span>
                     </div>
@@ -222,7 +222,7 @@
                         <div class="flex items-center gap-1.5 min-w-0">
                           <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-base font-semibold truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
                           <NuxtLink v-if="!r.is_reference" :to="`/my/runs/${r.slug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop><svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg></NuxtLink>
-                          <svg v-if="r.is_reference" class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" :title="r.author_handle ? '@' + r.author_handle : 'Shared run'"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                          <UTooltip v-if="r.is_reference" :text="r.author_handle ? '@' + r.author_handle : 'Shared run'" class="shrink-0 inline-flex"><svg class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></UTooltip>
                         </div>
                         <div v-if="r.river_name" class="mt-0.5"><span class="text-xs text-neutral-400 dark:text-neutral-500 truncate">{{ r.river_name }}</span></div>
                       </div>
@@ -381,7 +381,7 @@
                           <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
                           <span v-if="!showRivers && r.river_name" class="hidden sm:inline text-xs text-neutral-400 dark:text-neutral-500 shrink-0 truncate">· {{ r.river_name }}</span>
                           <!-- Reference: group icon instead of fork button + @handle -->
-                          <svg v-if="r.is_reference" class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" :title="r.author_handle ? '@' + r.author_handle : 'Shared run'"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                          <UTooltip v-if="r.is_reference" :text="r.author_handle ? '@' + r.author_handle : 'Shared run'" class="shrink-0 inline-flex"><svg class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></UTooltip>
                         </div>
                         <!-- River name sub-line on mobile -->
                         <span v-if="!showRivers && r.river_name" class="sm:hidden text-xs text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ r.river_name }}</span>
@@ -420,7 +420,7 @@
                               <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
                             </NuxtLink>
                             <!-- Reference: group icon -->
-                            <svg v-if="r.is_reference" class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" :title="r.author_handle ? '@' + r.author_handle : 'Shared run'"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            <UTooltip v-if="r.is_reference" :text="r.author_handle ? '@' + r.author_handle : 'Shared run'" class="shrink-0 inline-flex"><svg class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></UTooltip>
                           </div>
                           <!-- River name sub-line (shown when river not grouped above) -->
                           <div v-if="!showRivers && r.river_name" class="mt-0.5">
@@ -565,7 +565,7 @@
                 <span class="text-sm font-medium truncate">{{ cg.name }}</span>
                 <span v-if="cg.any_input_unhealthy" class="hidden sm:inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 shrink-0">Stale</span>
               </div>
-              <div class="w-32 shrink-0 hidden sm:block opacity-60">
+              <div class="w-32 shrink-0 hidden sm:block opacity-60 pointer-events-none">
                 <CustomGaugeSparkline :gauge-slug="cg.slug" compact class="h-full w-full" />
               </div>
               <span class="text-base font-bold tabular-nums text-neutral-900 dark:text-white shrink-0">
@@ -598,7 +598,7 @@
                 </div>
               </div>
               <!-- Sparkline -->
-              <div class="mt-2 opacity-70">
+              <div class="mt-2 opacity-70 pointer-events-none">
                 <CustomGaugeSparkline :gauge-slug="cg.slug" :compact="viewMode !== 'full'" />
               </div>
               <!-- Calculated origin badge + stale indicator -->
@@ -1307,7 +1307,7 @@ const byStateTree = computed<StateGroup[]>(() => {
     const state = ur.state_abbr ?? '—'
     const basin = resolveBasinForRun(ur, state)
     const rawKey = ur.basin_group ?? ''
-    const river = ur.river_name ?? 'My Runs'
+    const river = ur.river_name ?? 'Unknown River'
     if (!stateMap.has(state)) stateMap.set(state, new Map())
     const basinMap = stateMap.get(state)!
     if (!basinMap.has(basin)) basinMap.set(basin, { rivers: new Map(), standalone: [], rawKey })
@@ -1322,7 +1322,7 @@ const byStateTree = computed<StateGroup[]>(() => {
     const state = ur.state_abbr ?? '—'
     const basin = resolveBasinForRun(ur, state)
     const rawKey = ur.basin_group ?? ''
-    const river = ur.river_name ?? 'Shared Runs'
+    const river = ur.river_name ?? 'Unknown River'
     if (!stateMap.has(state)) stateMap.set(state, new Map())
     const basinMap = stateMap.get(state)!
     if (!basinMap.has(basin)) basinMap.set(basin, { rivers: new Map(), standalone: [], rawKey })

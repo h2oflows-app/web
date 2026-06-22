@@ -116,9 +116,9 @@
               {{ upvoteCount }}
             </button>
 
-            <!-- Fork (auth, non-owner) -->
+            <!-- Fork (auth, non-owner — or official run, so admins can fork h2oflows runs) -->
             <button
-              v-if="isAuthenticated && !isOwnRun"
+              v-if="isAuthenticated && (!isOwnRun || run.is_official)"
               :disabled="forking"
               class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors disabled:opacity-40"
               title="Fork this run — create your own copy"
