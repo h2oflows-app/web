@@ -194,10 +194,6 @@
               <div v-if="flatAllUserReaches.length > 0" class="mb-2">
                 <div v-if="viewMode === 'list'" class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden">
                   <div v-for="r in flatAllUserReaches" :key="r.id" class="flex items-center gap-2 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer" @click="openUserReach(r)">
-                    <div class="w-20 shrink-0 h-6 opacity-60 pointer-events-none">
-                      <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" compact />
-                      <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" compact :color="urBandHex(r)" />
-                    </div>
                     <div class="flex flex-col min-w-0 flex-1">
                       <div class="flex items-center gap-1 min-w-0">
                         <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
@@ -206,9 +202,15 @@
                       </div>
                       <span v-if="r.river_name" class="sm:hidden text-xs text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ r.river_name }}</span>
                     </div>
-                    <div class="shrink-0 flex items-center gap-1.5">
-                      <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['inline-flex items-center rounded-full px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold', urBadgeClass(r)]">{{ urBandLabel(r) }}</span>
-                      <span class="font-bold tabular-nums leading-none text-sm sm:text-base" :style="{ color: urBandHex(r) }">{{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-[10px] sm:text-xs font-normal text-neutral-400 dark:text-neutral-500"> cfs</span></span>
+                    <div class="w-44 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
+                      <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" compact />
+                      <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" compact :color="urBandHex(r)" />
+                    </div>
+                    <div class="w-20 shrink-0 text-center">
+                      <span :class="['inline-flex items-center rounded-full px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold', (r.flow_status !== 'unknown' || r.flow_band) ? urBadgeClass(r) : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500']">{{ (r.flow_status !== 'unknown' || r.flow_band) ? urBandLabel(r) : '–' }}</span>
+                    </div>
+                    <div class="w-20 shrink-0 text-right">
+                      <span class="font-bold tabular-nums leading-none text-sm sm:text-base whitespace-nowrap" :style="{ color: urBandHex(r) }">{{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-[10px] sm:text-xs font-normal text-neutral-400 dark:text-neutral-500"> cfs</span></span>
                     </div>
                     <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
                   </div>
@@ -373,11 +375,6 @@
                       class="flex items-center gap-2 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer"
                       @click="openUserReach(r)"
                     >
-                      <!-- Sparkline LEFT — fixed w-20 so column never shifts -->
-                      <div class="w-20 shrink-0 h-6 opacity-60 pointer-events-none">
-                        <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" compact />
-                        <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" compact :color="urBandHex(r)" />
-                      </div>
                       <!-- Name + river name (sub-line on mobile, inline on sm+) -->
                       <div class="flex flex-col min-w-0 flex-1">
                         <div class="flex items-center gap-1 min-w-0">
@@ -389,10 +386,17 @@
                         <!-- River name sub-line on mobile -->
                         <span v-if="(!showRivers || !groupByBasin) && r.river_name" class="sm:hidden text-xs text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ r.river_name }}</span>
                       </div>
-                      <!-- Badge + CFS together; badge smaller on mobile -->
-                      <div class="shrink-0 flex items-center gap-1.5">
-                        <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['inline-flex items-center rounded-full px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold', urBadgeClass(r)]">{{ urBandLabel(r) }}</span>
-                        <span class="font-bold tabular-nums leading-none text-sm sm:text-base" :style="{ color: urBandHex(r) }">
+                      <!-- Sparkline next to badge, hidden on mobile -->
+                      <div class="w-44 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
+                        <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" compact />
+                        <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" compact :color="urBandHex(r)" />
+                      </div>
+                      <!-- Badge always rendered (– when no thresholds) so CFS column aligns -->
+                      <div class="w-20 shrink-0 text-center">
+                        <span :class="['inline-flex items-center rounded-full px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold', (r.flow_status !== 'unknown' || r.flow_band) ? urBadgeClass(r) : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500']">{{ (r.flow_status !== 'unknown' || r.flow_band) ? urBandLabel(r) : '–' }}</span>
+                      </div>
+                      <div class="w-20 shrink-0 text-right">
+                        <span class="font-bold tabular-nums leading-none text-sm sm:text-base whitespace-nowrap" :style="{ color: urBandHex(r) }">
                           {{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-[10px] sm:text-xs font-normal text-neutral-400 dark:text-neutral-500"> cfs</span>
                         </span>
                       </div>
