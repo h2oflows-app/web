@@ -15,7 +15,7 @@
     <NuxtLink
       to="/explore"
       class="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors"
-      :class="route.path === '/explore'
+      :class="route.path.startsWith('/explore')
         ? 'text-primary-600 dark:text-primary-400'
         : 'text-neutral-500 dark:text-neutral-400'"
     >

@@ -4,7 +4,7 @@
     <AppHeader>
       <template v-if="run">
         <span class="text-neutral-300 dark:text-neutral-700 shrink-0">/</span>
-        <NuxtLink :to="`/explore?browse=${handle}`" class="text-sm font-medium text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors">@{{ handle }}</NuxtLink>
+        <NuxtLink :to="`/explore/${handle}`" class="text-sm font-medium text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors">@{{ handle }}</NuxtLink>
         <span class="text-neutral-300 dark:text-neutral-700 shrink-0">/</span>
         <span class="text-sm font-medium truncate text-neutral-700 dark:text-neutral-200">{{ run.name }}</span>
       </template>

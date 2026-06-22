@@ -30,7 +30,7 @@
 
     <!-- Fork attribution — single inline line -->
     <div v-if="reach?.original_forked_at || reach?.forked_from_slug" class="px-4 pt-2 text-xs text-neutral-400 dark:text-neutral-500">
-      Forked from {{ reach.forked_from_name ?? reach.forked_from_slug ?? '' }}<template v-if="reach.original_author_handle"> · <NuxtLink :to="`/explore?browse=${reach.original_author_handle}`" class="hover:text-primary-500 transition-colors">@{{ reach.original_author_handle }}</NuxtLink></template><template v-if="forkDate"> · {{ forkDate }}</template>
+      Forked from {{ reach.forked_from_name ?? reach.forked_from_slug ?? '' }}<template v-if="reach.original_author_handle"> · <NuxtLink :to="`/explore/${reach.original_author_handle}`" class="hover:text-primary-500 transition-colors">@{{ reach.original_author_handle }}</NuxtLink></template><template v-if="forkDate"> · {{ forkDate }}</template>
     </div>
 
     <!-- Run heading (no card chrome) -->

@@ -34,21 +34,30 @@
           ? 'absolute sm:relative inset-0 sm:inset-auto z-30 sm:z-auto w-full sm:w-80'
           : 'hidden sm:flex sm:w-80'"
       >
-        <!-- Tab segmented control -->
-        <div class="shrink-0 px-3 pt-2.5 pb-0">
-          <div class="flex rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden text-xs font-medium">
-            <button
-              v-for="tab in TABS" :key="tab.id"
-              class="flex-1 py-1.5 transition-colors"
-              :class="activeTab === tab.id
-                ? 'bg-primary-600 text-white'
-                : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-900'"
-              @click="setTab(tab.id)"
-            >{{ tab.label }}</button>
-          </div>
+        <!-- Sidebar header: "← My runs" when browsing a handle, else picker -->
+        <div class="shrink-0 px-3 pt-2.5 pb-2 flex items-center justify-between gap-2 border-b border-neutral-100 dark:border-neutral-800">
+          <template v-if="handle">
+            <!-- Browsing a handle: show handle label + back link -->
+            <div class="flex items-center gap-1.5 min-w-0">
+              <NuxtLink
+                to="/explore"
+                class="shrink-0 flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+              >
+                <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 4 10l8 6"/></svg>
+                My runs
+              </NuxtLink>
+              <span class="text-neutral-300 dark:text-neutral-700 text-xs">·</span>
+              <span class="text-xs font-medium text-neutral-700 dark:text-neutral-300 truncate">@{{ handle }}</span>
+            </div>
+          </template>
+          <template v-else>
+            <!-- My runs mode: show title + browse picker -->
+            <span class="text-xs font-medium text-neutral-700 dark:text-neutral-300">My Runs</span>
+            <RunUserHandlePicker />
+          </template>
         </div>
 
-        <!-- Search + mobile map toggle (all tabs) -->
+        <!-- Search + mobile map toggle (all modes) -->
         <div class="px-3 py-2 shrink-0 flex items-center gap-2">
           <input
             v-model="query"
@@ -81,53 +90,15 @@
           <span class="text-xs text-neutral-400 tabular-nums">{{ sidebarCount }} runs</span>
         </div>
 
-        <!-- Dashboard filter (My Runs tab) -->
-
-        <!-- Browse User: handle input in sidebar -->
-        <div v-if="activeTab === 'browse'" class="shrink-0 border-b border-neutral-100 dark:border-neutral-800 px-3 py-2 space-y-1.5">
-          <div class="flex gap-1 items-center">
-            <input
-              v-model="browseInput"
-              type="text"
-              placeholder="@h2oflows"
-              class="flex-1 text-sm bg-neutral-100 dark:bg-neutral-900 rounded-md px-3 py-1.5 text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-primary-500 min-w-0"
-              @keydown.enter.prevent="browseUser"
-            />
-            <button
-              class="shrink-0 px-3 py-1.5 rounded-md text-xs font-medium bg-primary-500 hover:bg-primary-600 text-white transition-colors disabled:opacity-50"
-              :disabled="browseLoading"
-              @click="browseUser"
-            >
-              <svg v-if="browseLoading" class="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="31.4" stroke-dashoffset="10" stroke-linecap="round"/></svg>
-              <span v-else>Go</span>
-            </button>
-          </div>
-          <div v-if="userSuggestions.length > 0" class="rounded border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden">
-            <button
-              v-for="h in userSuggestions"
-              :key="h"
-              class="w-full text-left px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-              @click="selectSuggestion(h)"
-            >@{{ h }}</button>
-          </div>
-          <p v-if="browseError" class="text-xs text-red-500">{{ browseError }}</p>
-          <p v-if="browseHandle" class="text-xs text-neutral-400">
-            Showing <span class="font-medium text-neutral-700 dark:text-neutral-300">@{{ browseHandle }}</span>'s runs
-            <button class="ml-1 text-primary-500 hover:underline" @click="clearBrowse">clear</button>
-          </p>
-        </div>
-
         <!-- Loading / error / empty states -->
-        <div v-if="!isAuthenticated && activeTab !== 'browse'" class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-neutral-400">
+        <div v-if="!isAuthenticated && !handle" class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-neutral-400">
           <span>Sign in to see your runs.</span>
           <NuxtLink to="/login" class="text-primary-500 hover:underline">Sign in →</NuxtLink>
         </div>
-        <div v-else-if="mapReaches.length === 0 && activeTab === 'browse' && !browseHandle" class="flex-1 flex items-center justify-center text-sm text-neutral-400 px-4 text-center">
-          Enter a handle and press Go to browse another user's runs.
-        </div>
-        <div v-else-if="sidebarReaches.length === 0 && isAuthenticated" class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-neutral-400">
-          <span>{{ activeTab === 'browse' ? 'No public runs found.' : 'No runs yet.' }}</span>
-          <NuxtLink v-if="activeTab !== 'browse'" to="/my/runs/new" class="text-primary-500 hover:underline">Create your first run →</NuxtLink>
+        <div v-else-if="sidebarReaches.length === 0 && (isAuthenticated || handle)" class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-neutral-400">
+          <span v-if="handle">No public runs for @{{ handle }}.</span>
+          <span v-else>No runs yet.</span>
+          <NuxtLink v-if="!handle" to="/my/runs/new" class="text-primary-500 hover:underline">Create your first run →</NuxtLink>
         </div>
         <div v-else-if="query.length >= 2 && filteredSidebarGroups.length === 0" class="flex-1 flex items-center justify-center text-sm text-neutral-400 px-4 text-center">
           No results for "{{ query }}"
@@ -179,13 +150,13 @@
                 :style="{ color: bandSolid(null, reach.flow_status) }"
               >{{ Math.round(reach.current_cfs).toLocaleString() }}</span>
               <span v-else class="text-xs text-neutral-300 dark:text-neutral-600 shrink-0">—</span>
-              <!-- Add to dashboard: own runs = membership picker; browse = reference-add -->
-              <!-- Browse user run: reference-add "+" -->
+              <!-- Add to dashboard: use isOtherUsersRun to decide reference vs own-add -->
               <div
-                v-if="isAuthenticated && activeTab === 'browse' && reach.id"
+                v-if="isAuthenticated && reach.id && isOtherUsersRun(reach.author_handle ?? handle ?? undefined)"
                 class="browse-ref-anchor shrink-0 relative"
                 @click.stop
               >
+                <!-- Reference-add (another user's run) -->
                 <button
                   class="p-1 rounded transition-colors"
                   :class="addedRefIds.has(reach.slug) ? 'text-primary-500' : 'text-neutral-400 dark:text-neutral-500 hover:text-primary-500 dark:hover:text-primary-400'"
@@ -212,7 +183,7 @@
               </div>
               <!-- Own runs: membership picker -->
               <div
-                v-if="isAuthenticated && activeTab !== 'browse'"
+                v-else-if="isAuthenticated && !isOtherUsersRun(reach.author_handle ?? handle ?? undefined)"
                 class="dashboard-dropdown-anchor shrink-0 relative"
                 @click.stop
               >
@@ -249,15 +220,15 @@
                   </button>
                 </div>
               </div>
-              <!-- Edit (mine) / View (browse) link -->
+              <!-- Edit (mine) / View (browsing) link -->
               <NuxtLink
-                :to="activeTab === 'browse' ? `/runs/${browseHandle}/${reach.slug}` : `/my/runs/${reach.slug}`"
+                :to="handle ? `/runs/${handle}/${reach.slug}` : `/my/runs/${reach.slug}`"
                 class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-opacity opacity-60 sm:opacity-0 sm:group-hover:opacity-100 hover:opacity-100"
-                :aria-label="activeTab === 'browse' ? 'View run' : 'Edit run'"
+                :aria-label="handle ? 'View run' : 'Edit run'"
                 @click.stop
               >
                 <!-- Pencil for edit (mine), external-link for browse -->
-                <svg v-if="activeTab !== 'browse'" class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg v-if="!handle" class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/>
                 </svg>
                 <svg v-else class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
@@ -272,23 +243,6 @@
 
       <!-- ── Right panel: map ──────────────────────────────────────────────── -->
       <div class="flex-1 min-w-0 relative flex flex-col">
-
-        <!-- Browsing banner (Browse User tab with active handle) -->
-        <div
-          v-if="activeTab === 'browse' && browseHandle"
-          class="shrink-0 bg-primary-50 dark:bg-primary-950 border-b border-primary-200 dark:border-primary-800 px-3 py-1.5 flex items-center justify-between gap-3 text-xs z-10"
-        >
-          <span class="text-primary-700 dark:text-primary-300 font-medium truncate">
-            Browsing <span class="font-bold">@{{ browseHandle }}</span>'s runs
-          </span>
-          <button
-            class="shrink-0 flex items-center gap-1 text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 transition-colors font-medium"
-            @click="clearBrowse(); setTab('mine')"
-          >
-            <svg class="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4 4 12M4 4l8 8"/></svg>
-            My Runs
-          </button>
-        </div>
 
         <div class="flex-1 relative">
           <ClientOnly>
@@ -404,6 +358,10 @@ const { isAuthenticated, getToken } = useAuth()
 const db = useDashboards()
 const { addReachToWatchlist, addUserReachToWatchlist, addReferenceToWatchlist } = useWatchlistSync()
 
+// ── Route-driven handle ───────────────────────────────────────────────────────
+// handle is truthy when browsing /explore/{handle}; falsy = my runs (/explore)
+const handle = computed(() => (route.params.handle as string | undefined) || undefined)
+
 // Current user's handle — used to decide reference (other user's run) vs slug-add
 // (own run). Fetched once when authenticated.
 const myHandle = ref<string | null>(null)
@@ -422,24 +380,6 @@ function isOtherUsersRun(ownerHandle: string | null | undefined): boolean {
   if (!ownerHandle) return false
   if (!myHandle.value) return true   // unknown self → never fork another's run
   return ownerHandle.toLowerCase() !== myHandle.value.toLowerCase()
-}
-
-// ── Tab control ───────────────────────────────────────────────────────────────
-type TabId = 'mine' | 'browse'
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'mine',   label: 'My Runs'     },
-  { id: 'browse', label: 'Browse User' },
-]
-const TAB_STORAGE_KEY = 'h2o-explore-tab'
-const activeTab = ref<TabId>('mine')
-
-function setTab(id: TabId) {
-  activeTab.value = id
-  try { localStorage.setItem(TAB_STORAGE_KEY, id) } catch {}
-  if (id === 'browse' && !browseHandle.value) {
-    browseInput.value = '@h2oflows'
-    browseUser()
-  }
 }
 
 // ── New reach / import / search modals ───────────────────────────────────────
@@ -472,9 +412,9 @@ async function addBrowseReference(reach: ReachListItem, dashId: string | null) {
   addingRefId.value = reach.slug
   browseRefDropdownId.value = null
   try {
-    // Browse lists one user's runs (browseHandle). Another user's run → reference
+    // Browse lists one user's runs (handle). Another user's run → reference
     // (keeps their ownership, read-only). Own run → slug add (editable).
-    if (reach.id && isOtherUsersRun(reach.author_handle ?? browseHandle.value)) {
+    if (reach.id && isOtherUsersRun(reach.author_handle ?? handle.value)) {
       await addReferenceToWatchlist(reach.id, dashId)
     } else {
       await addReachToWatchlist(reach.slug, dashId)
@@ -499,18 +439,6 @@ onMounted(async () => {
   showDemoBanner.value = localStorage.getItem('demo-banner-dismissed') !== 'true'
   document.addEventListener('click', onDocClick)
 
-  // Restore persisted tab (map legacy 'all'/'dashboards' → 'mine')
-  try {
-    const saved = localStorage.getItem(TAB_STORAGE_KEY)
-    if (saved === 'browse') {
-      activeTab.value = 'browse'
-      browseInput.value = '@h2oflows'
-      browseUser()  // auto-load h2oflows on restore to browse tab
-    } else if (saved === 'mine' || saved === 'all' || saved === 'dashboards') {
-      activeTab.value = 'mine'
-    }
-  } catch {}
-
   if (isAuthenticated.value) {
     db.load()
     loadMyHandle()
@@ -518,25 +446,30 @@ onMounted(async () => {
     if (localStorage.getItem('sharing-banner-dismissed') !== 'true') {
       showSharingBanner.value = true
     }
+  } else if (!handle.value) {
+    // Logged-out user on bare /explore — redirect to /explore/h2oflows once
+    // auth state is resolved. Guard against loop by checking we're not already there.
+    router.replace('/explore/h2oflows')
+    return
   }
 
-  // wizard paths
-  if (route.query.import === 'true') {
-    importModalOpen.value = true
-    router.replace({ query: {} })
-  } else if (route.query.discover === 'true') {
-    searchModalInitialTab.value = 'discover'
-    searchModalOpen.value = true
-    router.replace({ query: {} })
+  // wizard paths (only relevant on bare /explore, i.e. my-runs mode)
+  if (!handle.value) {
+    if (route.query.import === 'true') {
+      importModalOpen.value = true
+      router.replace({ query: {} })
+    } else if (route.query.discover === 'true') {
+      searchModalInitialTab.value = 'discover'
+      searchModalOpen.value = true
+      router.replace({ query: {} })
+    }
   }
 
-  // ?browse=handle query param
+  // Back-compat: ?browse=handle query param → redirect to /explore/{handle}
   if (route.query.browse) {
-    const handle = (route.query.browse as string).replace(/^@/, '').toLowerCase()
-    browseInput.value = handle
-    activeTab.value = 'browse'
-    browseHandle.value = handle
-    router.replace({ query: {} })
+    const browseTarget = (route.query.browse as string).replace(/^@/, '').toLowerCase()
+    router.replace(`/explore/${browseTarget}`)
+    return
   }
 })
 onUnmounted(() => document.removeEventListener('click', onDocClick))
@@ -554,76 +487,16 @@ async function initMapToken() {
   mapToken.value = token
 }
 
+// Include auth header only for my-runs (no handle); public user runs need no auth
 const mapSourceHeaders = computed((): Record<string, string> => {
-  if (activeTab.value === 'browse') return {}
+  if (handle.value) return {}
   return mapToken.value ? { Authorization: `Bearer ${mapToken.value}` } : {}
 })
 
-// ── Browse User mode ──────────────────────────────────────────────────────────
-const browseHandle    = ref<string | null>(null)
-const browseInput     = ref('@h2oflows')
-const browseLoading   = ref(false)
-const browseError     = ref('')
-const userSuggestions = ref<string[]>([])
-let   suggestTimer: ReturnType<typeof setTimeout> | null = null
-
-watch(browseInput, (val) => {
-  if (suggestTimer) clearTimeout(suggestTimer)
-  const q = val.trim().replace(/^@/, '')
-  if (q.length < 2) { userSuggestions.value = []; return }
-  suggestTimer = setTimeout(async () => {
-    try {
-      const res = await fetch(`${apiBase}/api/v1/users/search?q=${encodeURIComponent(q)}`)
-      if (res.ok) {
-        const data = await res.json() as { handle: string }[]
-        userSuggestions.value = data.map(d => d.handle)
-      }
-    } catch {}
-  }, 250)
-})
-
-async function browseUser() {
-  // cancel pending suggestion fetch — avoids race with GO
-  if (suggestTimer) { clearTimeout(suggestTimer); suggestTimer = null }
-  userSuggestions.value = []
-  const raw = browseInput.value.trim().replace(/^@/, '').toLowerCase()
-  if (!raw) return
-  browseLoading.value = true
-  browseError.value = ''
-  try {
-    const res = await fetch(`${apiBase}/api/v1/users/${encodeURIComponent(raw)}`)
-    if (!res.ok) { browseError.value = 'User not found'; return }
-    if (browseHandle.value !== raw) {
-      browseHandle.value = raw  // triggers mapSourceUrl change → RunsMap watch auto-reloads
-    } else {
-      await mapRef.value?.reloadSource()  // same handle: force refresh
-    }
-  } catch {
-    browseError.value = 'Failed to reach server'
-  } finally {
-    browseLoading.value = false
-  }
-}
-
-function clearBrowse() {
-  browseHandle.value = null
-  browseInput.value = '@h2oflows'
-  browseError.value = ''
-  userSuggestions.value = []
-  // stay on browse tab; map clears to blank (null sourceUrl)
-}
-
-function selectSuggestion(handle: string) {
-  browseInput.value = handle
-  userSuggestions.value = []
-  browseUser()
-}
-
 // ── Map source URL ────────────────────────────────────────────────────────────
 const mapSourceUrl = computed((): string | null => {
-  if (activeTab.value === 'browse') {
-    if (!browseHandle.value) return null
-    return `${apiBase}/api/v1/users/${encodeURIComponent(browseHandle.value)}/runs/map/all`
+  if (handle.value) {
+    return `${apiBase}/api/v1/users/${encodeURIComponent(handle.value)}/runs/map/all`
   }
   if (!mapToken.value) return null
   return `${apiBase}/api/v1/me/runs/map/all`
@@ -653,9 +526,6 @@ const filteredSidebarGroups = computed((): ReachGroup[] => {
     .map(([name, reaches]) => ({ name, reaches }))
 })
 
-// keep for legacy compat (showReachList uses this)
-const filteredMapGroups = filteredSidebarGroups
-
 // count shown in sidebar badge: filtered total when search active, else full sidebar
 const sidebarCount = computed(() => {
   if (query.value.trim().length >= 2) {
@@ -665,8 +535,7 @@ const sidebarCount = computed(() => {
 })
 
 const showReachList = computed(() => {
-  if (!isAuthenticated.value && activeTab.value !== 'browse') return false
-  if (activeTab.value === 'browse' && !browseHandle.value) return false
+  if (!isAuthenticated.value && !handle.value) return false
   if (sidebarReaches.value.length === 0) return false
   if (query.value.length >= 2 && filteredSidebarGroups.value.length === 0) return false
   return true
@@ -747,8 +616,10 @@ const popupStyle = computed((): Record<string, string> => {
 })
 
 function onReachClick(payload: ReachClickPayload) {
-  const viewUrl = activeTab.value === 'browse' && browseHandle.value
-    ? `/runs/${browseHandle.value}/${payload.slug}`
+  // When browsing a handle, use that handle for the run URL.
+  // Otherwise use the run's own authorHandle if available, else my-runs path.
+  const viewUrl = handle.value
+    ? `/runs/${handle.value}/${payload.slug}`
     : payload.authorHandle
       ? `/runs/${payload.authorHandle}/${payload.slug}`
       : `/my/runs/${payload.slug}`
@@ -764,7 +635,7 @@ function onReachClick(payload: ReachClickPayload) {
     slug:         payload.slug,
     name:         payload.name ?? payload.slug,
     id:           payload.id ?? null,
-    authorHandle: payload.authorHandle ?? (activeTab.value === 'browse' ? (browseHandle.value ?? null) : null),
+    authorHandle: payload.authorHandle ?? (handle.value ?? null),
     viewUrl,
     point:        payload.point,
   }

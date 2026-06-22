@@ -29,7 +29,7 @@
       <NuxtLink
         to="/explore"
         class="shrink-0 hidden sm:flex items-center gap-1 p-1.5 rounded-md transition-colors"
-        :class="route.path === '/explore'
+        :class="route.path.startsWith('/explore')
           ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/50'
           : 'text-neutral-500 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-neutral-50 dark:hover:bg-neutral-900'"
         title="Explore Rivers"
@@ -233,7 +233,7 @@
       <NuxtLink
         to="/explore"
         class="text-left px-3 py-2 rounded-md text-sm flex items-center gap-2 transition-colors"
-        :class="route.path === '/explore'
+        :class="route.path.startsWith('/explore')
           ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/50'
           : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-900'"
         @click="menuOpen = false"
