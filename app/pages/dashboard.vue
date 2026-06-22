@@ -190,8 +190,59 @@
               </div>
 
               <template v-if="!sub.name || !collapsedSections.has(sub.key)">
-              <!-- Reaches grouped by river -->
-              <div v-if="sub.rivers.some(r => riverHasVisibleContent(r))" class="mb-2">
+              <!-- Flat mode: all user runs in one group when no grouping (state/basin/river) is active -->
+              <div v-if="flatAllUserReaches.length > 0" class="mb-2">
+                <div v-if="viewMode === 'list'" class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden">
+                  <div v-for="r in flatAllUserReaches" :key="r.id" class="flex items-center gap-2 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer" @click="openUserReach(r)">
+                    <div class="flex flex-col min-w-0 flex-1">
+                      <div class="flex items-center gap-1 min-w-0">
+                        <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
+                        <span v-if="r.river_name" class="hidden sm:inline text-xs text-neutral-400 dark:text-neutral-500 shrink-0 truncate">· {{ r.river_name }}</span>
+                        <svg v-if="r.is_reference" class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" :title="r.author_handle ? '@' + r.author_handle : 'Shared run'"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                      </div>
+                      <span v-if="r.river_name" class="sm:hidden text-xs text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ r.river_name }}</span>
+                    </div>
+                    <div class="w-44 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
+                      <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" compact />
+                      <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" compact :color="urBandHex(r)" />
+                    </div>
+                    <div class="w-20 shrink-0 text-center">
+                      <span :class="['inline-flex items-center justify-center min-w-14 rounded-full px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold', (r.flow_status !== 'unknown' || r.flow_band) ? urBadgeClass(r) : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500']">{{ (r.flow_status !== 'unknown' || r.flow_band) ? urBandLabel(r) : '–' }}</span>
+                    </div>
+                    <div class="w-20 shrink-0 text-right">
+                      <span class="font-bold tabular-nums leading-none text-sm sm:text-base whitespace-nowrap" :style="{ color: urBandHex(r) }">{{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-[10px] sm:text-xs font-normal text-neutral-400 dark:text-neutral-500"> cfs</span></span>
+                    </div>
+                    <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
+                  </div>
+                </div>
+                <div v-else :class="cardGridClass">
+                  <div v-for="r in flatAllUserReaches" :key="r.id" class="relative rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-3 transition-all duration-200 overflow-hidden cursor-pointer" @click="openUserReach(r)">
+                    <div class="flex items-start gap-3 mb-2">
+                      <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                          <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-base font-semibold truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
+                          <NuxtLink v-if="!r.is_reference" :to="`/my/runs/${r.slug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop><svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg></NuxtLink>
+                          <svg v-if="r.is_reference" class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" :title="r.author_handle ? '@' + r.author_handle : 'Shared run'"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        </div>
+                        <div v-if="r.river_name" class="mt-0.5"><span class="text-xs text-neutral-400 dark:text-neutral-500 truncate">{{ r.river_name }}</span></div>
+                      </div>
+                      <div class="shrink-0 flex items-center gap-1">
+                        <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', urBadgeClass(r)]">{{ urBandLabel(r) }}</span>
+                        <span class="font-bold tabular-nums leading-none text-3xl" :style="{ color: urBandHex(r) }">{{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-500 dark:text-neutral-400 ml-0.5">cfs</span></span>
+                        <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
+                      </div>
+                    </div>
+                    <div v-if="r.gauge_id || r.custom_gauge_slug" class="relative mb-1 opacity-70 pointer-events-none">
+                      <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" :compact="viewMode !== 'full'" />
+                      <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" :compact="viewMode !== 'full'" :color="urBandHex(r)" />
+                    </div>
+                    <p v-if="viewMode === 'full' && r.gauge_source && r.gauge_external_id" class="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">{{ r.gauge_source.toUpperCase() }} {{ r.gauge_external_id }}</p>
+                    <p v-if="r.last_reading_at" class="text-xs text-neutral-400 mt-0.5">{{ reachLastUpdated(r) }}</p>
+                  </div>
+                </div>
+              </div>
+              <!-- Reaches grouped by river (hidden when flat mode active) -->
+              <div v-else-if="sub.rivers.some(r => riverHasVisibleContent(r))" class="mb-2">
                 <template v-for="river in sub.rivers" :key="river.name">
                 <div v-if="riverHasVisibleContent(river)" class="first:mt-0" :class="showRivers ? 'mt-4' : 'mt-1.5'">
                   <!-- River section divider -->
@@ -259,7 +310,7 @@
                           :lead-gauge="group.lead"
                           :reach-items="group.all"
                           :density="viewMode"
-                          :hide-river-name="true"
+                          :hide-river-name="showRivers"
                           @open="(g, mode) => openGauge(g, mode)"
                           @remove-item="(g) => handleGaugeItemRemove(g, group)"
                           @remove-group="removeExtGaugeGroup(group)"
@@ -271,6 +322,7 @@
                           v-if="viewMode === 'list'"
                           :reaches="split.ungrouped"
                           density="list"
+                          :show-river-name="!showRivers"
                           :class="split.gaugeGroups.length > 0 ? 'mt-1.5' : ''"
                           @open="(g, mode) => openGauge(g, mode)"
                           @remove="handleRemove"
@@ -281,7 +333,8 @@
                             :key="`${reach.id}::${reach.contextReachSlug}`"
                             :reaches="[reach]"
                             :density="viewMode"
-                              @open="(g, mode) => openGauge(g, mode)"
+                            :show-river-name="!showRivers"
+                            @open="(g, mode) => openGauge(g, mode)"
                             @remove="handleRemove"
                           />
                         </div>
@@ -294,6 +347,7 @@
                       v-if="viewMode === 'list' && river.reaches.length > 0"
                       :reaches="river.reaches"
                       density="list"
+                      :show-river-name="!showRivers"
                       @open="(g, mode) => openGauge(g, mode)"
                       @remove="handleRemove"
                     />
@@ -304,7 +358,8 @@
                         :key="`${reach.id}::${reach.contextReachSlug}`"
                         :reaches="[reach]"
                         :density="viewMode"
-                          @open="(g, mode) => openGauge(g, mode)"
+                        :show-river-name="!showRivers"
+                        @open="(g, mode) => openGauge(g, mode)"
                         @remove="handleRemove"
                       />
                     </div>
@@ -312,6 +367,7 @@
                 <!-- User reaches inline — flat for non-gauge-grouped items -->
                 <template v-for="visibleUrs in [ungroupedUserReaches(river)]" :key="'urs'">
                 <template v-if="visibleUrs.length > 0">
+                  <!-- List (compact) view -->
                   <div v-if="viewMode === 'list'" class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden mt-1.5">
                     <div
                       v-for="r in visibleUrs"
@@ -319,32 +375,35 @@
                       class="flex items-center gap-2 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer"
                       @click="openUserReach(r)"
                     >
-                      <div class="min-w-0 flex-1">
+                      <!-- Name + river name (sub-line on mobile, inline on sm+) -->
+                      <div class="flex flex-col min-w-0 flex-1">
                         <div class="flex items-center gap-1 min-w-0">
                           <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
-                          <!-- Referenced run: fork-to-edit + @handle. Own run: edit pencil. -->
-                          <button v-if="r.is_reference" :disabled="forkingRefId === r.id" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors disabled:opacity-40" title="Fork to edit" @click.stop="forkReferencedRun(r)">
-                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="8" r="2.5"/><path d="M6 8.5v7M18 10.5c0 3-4 3-6 4.5"/></svg>
-                          </button>
-                          <span v-if="r.is_reference && r.author_handle" class="text-xs text-neutral-400 shrink-0">@{{ r.author_handle }}</span>
-                          <NuxtLink v-if="!r.is_reference" :to="`/my/runs/${r.slug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
-                            <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
-                          </NuxtLink>
+                          <span v-if="!showRivers && r.river_name" class="hidden sm:inline text-xs text-neutral-400 dark:text-neutral-500 shrink-0 truncate">· {{ r.river_name }}</span>
+                          <!-- Reference: group icon instead of fork button + @handle -->
+                          <svg v-if="r.is_reference" class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" :title="r.author_handle ? '@' + r.author_handle : 'Shared run'"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                         </div>
+                        <!-- River name sub-line on mobile -->
+                        <span v-if="!showRivers && r.river_name" class="sm:hidden text-xs text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ r.river_name }}</span>
                       </div>
+                      <!-- Sparkline next to badge, hidden on mobile -->
                       <div class="w-44 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
                         <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" compact />
                         <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" compact :color="urBandHex(r)" />
                       </div>
-                      <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold shrink-0', urBadgeClass(r)]">{{ urBandLabel(r) }}</span>
+                      <!-- Badge always rendered (– when no thresholds) so CFS column aligns -->
+                      <div class="w-20 shrink-0 text-center">
+                        <span :class="['inline-flex items-center justify-center min-w-14 rounded-full px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold', (r.flow_status !== 'unknown' || r.flow_band) ? urBadgeClass(r) : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500']">{{ (r.flow_status !== 'unknown' || r.flow_band) ? urBandLabel(r) : '–' }}</span>
+                      </div>
                       <div class="w-20 shrink-0 text-right">
-                        <span class="whitespace-nowrap text-base font-bold tabular-nums" :style="{ color: urBandHex(r) }">
-                          {{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-400 dark:text-neutral-500"> cfs</span>
+                        <span class="font-bold tabular-nums leading-none text-sm sm:text-base whitespace-nowrap" :style="{ color: urBandHex(r) }">
+                          {{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-[10px] sm:text-xs font-normal text-neutral-400 dark:text-neutral-500"> cfs</span>
                         </span>
                       </div>
                       <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
                     </div>
                   </div>
+                  <!-- Comfortable / full card view -->
                   <div v-else :class="[cardGridClass, 'mt-1.5']">
                     <div
                       v-for="r in visibleUrs"
@@ -356,17 +415,16 @@
                         <div class="min-w-0 flex-1">
                           <div class="flex items-center gap-1.5 min-w-0">
                             <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-base font-semibold truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
-                            <!-- Own run: edit pencil -->
+                            <!-- Own run: edit pencil (kept in card view) -->
                             <NuxtLink v-if="!r.is_reference" :to="`/my/runs/${r.slug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
                               <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
                             </NuxtLink>
-                            <!-- Referenced run: fork button -->
-                            <button v-if="r.is_reference" :disabled="forkingRefId === r.id" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors disabled:opacity-40" title="Fork to edit" @click.stop="forkReferencedRun(r)">
-                              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="8" r="2.5"/><path d="M6 8.5v7M18 10.5c0 3-4 3-6 4.5"/></svg>
-                            </button>
+                            <!-- Reference: group icon -->
+                            <svg v-if="r.is_reference" class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" :title="r.author_handle ? '@' + r.author_handle : 'Shared run'"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                           </div>
-                          <div v-if="r.is_reference && r.author_handle" class="mt-0.5">
-                            <span class="text-xs text-neutral-400 dark:text-neutral-500 shrink-0">@{{ r.author_handle }}</span>
+                          <!-- River name sub-line (shown when river not grouped above) -->
+                          <div v-if="!showRivers && r.river_name" class="mt-0.5">
+                            <span class="text-xs text-neutral-400 dark:text-neutral-500 truncate">{{ r.river_name }}</span>
                           </div>
                         </div>
                         <div class="shrink-0 flex items-center gap-1">
@@ -381,6 +439,8 @@
                         <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" :compact="viewMode !== 'full'" />
                         <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" :compact="viewMode !== 'full'" :color="urBandHex(r)" />
                       </div>
+                      <!-- Gauge ID: shown in full view -->
+                      <p v-if="viewMode === 'full' && r.gauge_source && r.gauge_external_id" class="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">{{ r.gauge_source.toUpperCase() }} {{ r.gauge_external_id }}</p>
                       <p v-if="r.last_reading_at" class="text-xs text-neutral-400 mt-0.5">{{ reachLastUpdated(r) }}</p>
                     </div>
                   </div>
@@ -1660,6 +1720,12 @@ function splitReachGroupsAll(
 }
 
 // Returns river.userReaches NOT absorbed into a gauge group, for flat rendering.
+// All user reaches in one flat list — active when no grouping option is on.
+const flatAllUserReaches = computed<UserReachSummary[]>(() => {
+  if (groupByState.value || groupByBasin.value || showRivers.value) return []
+  return byStateTree.value.flatMap(s => s.basins.flatMap(b => b.rivers.flatMap(r => r.userReaches)))
+})
+
 function ungroupedUserReaches(river: RiverGroup): UserReachSummary[] {
   if (!groupByGauge.value) return river.userReaches
   const grouped = new Set(
