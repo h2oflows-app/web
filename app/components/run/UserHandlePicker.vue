@@ -62,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, nextTick } from 'vue'
+import { ref, watch, computed, nextTick, onUnmounted } from 'vue'
 
 const router = useRouter()
 const { apiBase } = useRuntimeConfig().public
@@ -120,8 +120,15 @@ function pick(handle: string) {
   expanded.value = false
   inputVal.value = ''
   suggestions.value = []
+  if (!clean) return
+  // Already viewing this user — just collapse (avoids redundant navigation).
+  if (router.currentRoute.value.path === `/explore/${clean}`) return
   router.push(`/explore/${clean}`)
 }
+
+onUnmounted(() => {
+  if (debounceTimer) clearTimeout(debounceTimer)
+})
 
 function navigate() {
   const q = inputVal.value.trim().replace(/^@/, '').toLowerCase()

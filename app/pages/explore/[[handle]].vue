@@ -152,7 +152,7 @@
               <span v-else class="text-xs text-neutral-300 dark:text-neutral-600 shrink-0">—</span>
               <!-- Add to dashboard: use isOtherUsersRun to decide reference vs own-add -->
               <div
-                v-if="isAuthenticated && reach.id && isOtherUsersRun(reach.author_handle ?? handle ?? undefined)"
+                v-if="isAuthenticated && reach.id && reachIsOthers(reach.author_handle)"
                 class="browse-ref-anchor shrink-0 relative"
                 @click.stop
               >
@@ -183,7 +183,7 @@
               </div>
               <!-- Own runs: membership picker -->
               <div
-                v-else-if="isAuthenticated && !isOtherUsersRun(reach.author_handle ?? handle ?? undefined)"
+                v-else-if="isAuthenticated && !reachIsOthers(reach.author_handle)"
                 class="dashboard-dropdown-anchor shrink-0 relative"
                 @click.stop
               >
@@ -381,6 +381,14 @@ function isOtherUsersRun(ownerHandle: string | null | undefined): boolean {
   if (!myHandle.value) return true   // unknown self → never fork another's run
   return ownerHandle.toLowerCase() !== myHandle.value.toLowerCase()
 }
+// On bare /explore (my runs) every listed run is the current user's, so it's never
+// "someone else's". Only when browsing /explore/{handle} can a run belong to another
+// user. Gating on handle.value also avoids a wrong add-button flash before myHandle
+// resolves on the my-runs view.
+function reachIsOthers(ownerHandle: string | null | undefined): boolean {
+  if (!handle.value) return false
+  return isOtherUsersRun(ownerHandle ?? handle.value)
+}
 
 // ── New reach / import / search modals ───────────────────────────────────────
 const importModalOpen       = ref(false)
@@ -414,7 +422,7 @@ async function addBrowseReference(reach: ReachListItem, dashId: string | null) {
   try {
     // Browse lists one user's runs (handle). Another user's run → reference
     // (keeps their ownership, read-only). Own run → slug add (editable).
-    if (reach.id && isOtherUsersRun(reach.author_handle ?? handle.value)) {
+    if (reach.id && reachIsOthers(reach.author_handle)) {
       await addReferenceToWatchlist(reach.id, dashId)
     } else {
       await addReachToWatchlist(reach.slug, dashId)
@@ -439,18 +447,34 @@ onMounted(async () => {
   showDemoBanner.value = localStorage.getItem('demo-banner-dismissed') !== 'true'
   document.addEventListener('click', onDocClick)
 
-  if (isAuthenticated.value) {
+  // Back-compat: ?browse=handle (old links) → canonical /explore/{handle}.
+  // Run before the logged-out redirect so old links resolve to the intended user.
+  if (route.query.browse) {
+    const browseTarget = (route.query.browse as string).replace(/^@/, '').toLowerCase()
+    router.replace(`/explore/${browseTarget}`)
+    return
+  }
+
+  // Resolve auth authoritatively. The Supabase user ref (isAuthenticated) may not
+  // be hydrated yet at mount, so don't trust it for the destructive redirect below;
+  // getToken() awaits getSession() and reflects the real session state.
+  const token = await getToken()
+  const authed = !!token
+
+  if (!authed && !handle.value) {
+    // Logged-out on bare /explore → show official runs. (At /explore/h2oflows
+    // handle is truthy, so this branch can't fire again — no redirect loop.)
+    router.replace('/explore/h2oflows')
+    return
+  }
+
+  if (authed) {
     db.load()
     loadMyHandle()
-    await initMapToken()
+    mapToken.value = token
     if (localStorage.getItem('sharing-banner-dismissed') !== 'true') {
       showSharingBanner.value = true
     }
-  } else if (!handle.value) {
-    // Logged-out user on bare /explore — redirect to /explore/h2oflows once
-    // auth state is resolved. Guard against loop by checking we're not already there.
-    router.replace('/explore/h2oflows')
-    return
   }
 
   // wizard paths (only relevant on bare /explore, i.e. my-runs mode)
@@ -463,13 +487,6 @@ onMounted(async () => {
       searchModalOpen.value = true
       router.replace({ query: {} })
     }
-  }
-
-  // Back-compat: ?browse=handle query param → redirect to /explore/{handle}
-  if (route.query.browse) {
-    const browseTarget = (route.query.browse as string).replace(/^@/, '').toLowerCase()
-    router.replace(`/explore/${browseTarget}`)
-    return
   }
 })
 onUnmounted(() => document.removeEventListener('click', onDocClick))
@@ -649,7 +666,7 @@ async function addPopupRunToDashboard(dashId: string | null) {
   popupRun.value = null
   popupDropdownOpen.value = false
   // Another user's run → reference; own run → slug add.
-  if (p.id && isOtherUsersRun(p.authorHandle)) {
+  if (p.id && reachIsOthers(p.authorHandle)) {
     await addReferenceToWatchlist(p.id, dashId)
   } else {
     await addReachToWatchlist(p.slug, dashId)
