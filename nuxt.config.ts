@@ -8,6 +8,7 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     '@pinia-plugin-persistedstate/nuxt',
     '@nuxtjs/supabase',
+    '@vite-pwa/nuxt',
   ],
 
   fonts: {
@@ -91,8 +92,49 @@ export default defineNuxtConfig({
   app: {
     head: {
       meta: [
-        { name: 'robots', content: 'noindex, nofollow' },
+        { name: 'robots',                           content: 'noindex, nofollow' },
+        { name: 'theme-color',                      content: '#3b82f6' },
+        { name: 'mobile-web-app-capable',           content: 'yes' },
+        { name: 'apple-mobile-web-app-capable',     content: 'yes' },
+        { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
+        { name: 'apple-mobile-web-app-title',       content: 'H2OFlows' },
       ],
+      link: [
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon-180x180.png' },
+      ],
+    },
+  },
+
+  // PWA (fixes #265 — Android Chrome / desktop install prompt)
+  // navigateFallback intentionally omitted to avoid intercepting /confirm OAuth
+  // hash-token callback and /login redirects.
+  pwa: {
+    registerType: 'autoUpdate',
+    manifest: {
+      name:             'H2OFlows',
+      short_name:       'H2OFlows',
+      description:      'Live whitewater flow conditions and run guides',
+      theme_color:      '#3b82f6',
+      background_color: '#ffffff',
+      display:          'standalone',
+      start_url:        '/',
+      icons: [
+        { src: 'pwa-64x64.png',             sizes: '64x64',   type: 'image/png' },
+        { src: 'pwa-192x192.png',           sizes: '192x192', type: 'image/png' },
+        { src: 'pwa-512x512.png',           sizes: '512x512', type: 'image/png' },
+        { src: 'maskable-icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      ],
+    },
+    workbox: {
+      // Precache static assets only — no navigateFallback (see comment above)
+      globPatterns:          ['**/*.{js,css,html,svg,png,ico,woff2}'],
+      cleanupOutdatedCaches: true,
+    },
+    client: {
+      installPrompt: true,
+    },
+    devOptions: {
+      enabled: false,
     },
   },
 

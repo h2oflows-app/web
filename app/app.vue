@@ -6,6 +6,7 @@
     <NuxtPage />
     <ClientOnly><SiteDisclaimerBanner /></ClientOnly>
     <ClientOnly><HandleClaimModal /></ClientOnly>
+    <ClientOnly><PwaInstallPrompt /></ClientOnly>
     <MobileTabBar />
   </UApp>
 </template>
