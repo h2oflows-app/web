@@ -54,11 +54,11 @@
             {{ reachLabel(item) }}
           </span>
           <!-- Reference run: group icon -->
-          <svg v-if="item.contextIsReference" class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" title="Shared run"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <svg v-if="item.contextIsReference" class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" :title="item.contextReachAuthorHandle ? '@' + item.contextReachAuthorHandle : 'Shared run'"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         </div>
         <!-- Badge always rendered (– when no thresholds) so trash column aligns -->
         <div class="w-20 shrink-0 text-center">
-          <span :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', (displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)) ? colorKeyToBadgeClass(displayBandColor(item)) : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500']">{{ (displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)) ? displayFlowBandLabel(item) : '–' }}</span>
+          <span :class="['inline-flex items-center justify-center min-w-14 rounded-full px-2 py-0.5 text-xs font-bold', (displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)) ? colorKeyToBadgeClass(displayBandColor(item)) : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500']">{{ (displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)) ? displayFlowBandLabel(item) : '–' }}</span>
         </div>
         <TrashButton label="Remove" @click="$emit('remove-item', item)" />
       </div>
