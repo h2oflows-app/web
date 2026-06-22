@@ -100,6 +100,9 @@ export default defineNuxtConfig({
         { name: 'apple-mobile-web-app-title',       content: 'H2OFlows' },
       ],
       link: [
+        // @vite-pwa/nuxt doesn't inject this under Nuxt 4 — add it manually
+        // so the browser can discover the manifest (required for install).
+        { rel: 'manifest', href: '/manifest.webmanifest' },
         { rel: 'apple-touch-icon', href: '/apple-touch-icon-180x180.png' },
       ],
     },

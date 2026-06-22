@@ -70,7 +70,7 @@ import { ref, computed, onMounted } from 'vue'
 
 const STORAGE_KEY = 'pwa-install-dismissed'
 
-const { $pwa } = useNuxtApp()
+const { canInstall, install } = usePwaInstall()
 const dismissed = ref(false)
 
 onMounted(() => {
@@ -91,7 +91,7 @@ const isIos = computed(() => {
 /** Show Chromium native install prompt */
 const showChromium = computed(() =>
   !dismissed.value &&
-  !!($pwa as { showInstallPrompt?: boolean } | undefined)?.showInstallPrompt
+  canInstall.value
 )
 
 /** Show iOS manual hint */
@@ -100,10 +100,6 @@ const showIos = computed(() =>
   isIos.value &&
   !showChromium.value
 )
-
-function install() {
-  ($pwa as { install?: () => void } | undefined)?.install?.()
-}
 
 function dismiss() {
   dismissed.value = true
