@@ -101,6 +101,17 @@
             <div class="border-t border-neutral-100 dark:border-neutral-800" />
             <NuxtLink
               v-if="isAuthenticated"
+              to="/my/runs"
+              class="w-full text-left px-3 py-1.5 text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors flex items-center gap-2"
+              @click="userMenuOpen = false"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/><path d="M8 12h8"/><path d="M12 8l4 4-4 4"/>
+              </svg>
+              My Runs
+            </NuxtLink>
+            <NuxtLink
+              v-if="isAuthenticated"
               to="/my/reports"
               class="w-full text-left px-3 py-1.5 text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors flex items-center gap-2"
               @click="userMenuOpen = false"
