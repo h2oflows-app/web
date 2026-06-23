@@ -124,22 +124,6 @@
                       class="shrink-0 text-xs font-medium text-neutral-500 dark:text-neutral-400"
                     >Class {{ classDisplay(run) }}</span>
 
-                    <!-- Visibility badge -->
-                    <span
-                      class="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
-                      :class="run.is_private
-                        ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400'
-                        : 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400'"
-                    >
-                      <svg v-if="run.is_private" class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                      </svg>
-                      <svg v-else class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-                      </svg>
-                      {{ run.is_private ? 'Private' : 'Public' }}
-                    </span>
-
                     <!-- Fork badge -->
                     <span
                       v-if="run.is_fork"
@@ -273,8 +257,6 @@ interface MyRun {
   current_cfs: number | null
   flow_band: string | null
   flow_status: string | null
-  visibility: string | null
-  is_private: boolean
   is_fork: boolean
   fork_count: number
   author_handle: string | null

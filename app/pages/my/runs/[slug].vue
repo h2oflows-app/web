@@ -189,30 +189,6 @@
             </div>
           </div>
 
-          <!-- Visibility toggle (binary: public / private) -->
-          <div class="space-y-1.5">
-            <p class="text-xs font-medium text-neutral-700 dark:text-neutral-300">Visibility</p>
-            <label class="flex items-center gap-2.5 cursor-pointer select-none">
-              <button
-                type="button"
-                role="switch"
-                :aria-checked="form.visibility === 'private'"
-                class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
-                :class="form.visibility === 'private' ? 'bg-primary-500' : 'bg-neutral-200 dark:bg-neutral-700'"
-                @click="togglePrivate"
-              >
-                <span
-                  class="pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform ring-0 transition-transform"
-                  :class="form.visibility === 'private' ? 'translate-x-4' : 'translate-x-0'"
-                />
-              </button>
-              <span class="text-xs font-medium text-neutral-700 dark:text-neutral-300">Make private</span>
-            </label>
-            <p class="text-xs text-neutral-400">{{ visibilityDescription }}</p>
-            <p v-if="form.visibility === 'private' && (reach?.reference_count ?? 0) > 0" class="text-xs text-amber-600 dark:text-amber-400">
-              {{ reach!.reference_count === 1 ? '1 person has' : `${reach!.reference_count} people have` }} this run on a dashboard — making it private removes it from theirs.
-            </p>
-          </div>
         </div>
 
         <!-- Geometry card -->
@@ -573,8 +549,6 @@ interface UserReachDetail {
   current_cfs:       number | null
   flow_band:         string | null
   note:              string | null
-  is_private:        boolean
-  visibility:        string
   author_handle:     string | null
   forked_from_slug:  string | null
   forked_from_name:  string | null
@@ -588,7 +562,6 @@ interface UserReachDetail {
   user_upvoted:      boolean
   centerline:        object | null
   river_confirmed:   boolean
-  reference_count:   number
 }
 
 interface CustomGaugeSummary { id: string; slug: string; name: string }
@@ -604,7 +577,6 @@ const form = ref({
   note:       '',
   classMin:   null as number | null,
   classMax:   null as number | null,
-  visibility: 'public' as 'private' | 'public',
   flowBands:  { base_label: 'Too Low', base_color: 'red-3', thresholds: [] } as FlowBands,
 })
 
@@ -675,19 +647,6 @@ const customGaugeSaving      = ref(false)
 const shareOpen           = ref(false)
 const shareLoading        = ref(false)
 const customGaugePayload  = ref<object | null>(null)
-
-// ── Visibility helpers (binary: private | public) ────────────────────────────
-
-type Visibility = 'private' | 'public'
-
-const visibilityDescription = computed(() => {
-  if (form.value.visibility === 'private') return 'Only you can see this run.'
-  return 'Public runs appear on your profile (/explore/your-handle). Private runs are visible only to you.'
-})
-
-function togglePrivate() {
-  form.value.visibility = form.value.visibility === 'private' ? 'public' : 'private'
-}
 
 // ── KML import ────────────────────────────────────────────────────────────────
 
@@ -1084,9 +1043,6 @@ function populateForm(r: UserReachDetail) {
   form.value.note       = r.note ?? ''
   form.value.classMin   = r.class_min ?? null
   form.value.classMax   = r.class_max ?? null
-  // Collapse unlisted → public for toggle display (unlisted is retired).
-  const rawVis = r.visibility ?? (r.is_private ? 'private' : 'public')
-  form.value.visibility = rawVis === 'private' ? 'private' : 'public'
   form.value.flowBands  = r.flow_bands ?? { base_label: 'Too Low', base_color: 'red-3', thresholds: [] }
   nldiGnisId.value = null
 }
@@ -1156,7 +1112,6 @@ async function save() {
       note:       form.value.note.trim()      || null,
       class_min:  form.value.classMin,
       class_max:  form.value.classMax,
-      visibility: form.value.visibility,
       gnis_id:    nldiGnisId.value ?? undefined,
     }
     // Include slug if user changed it (and it's valid/available)
@@ -1212,8 +1167,6 @@ async function save() {
         name:        form.value.name.trim(),
         river_name:  form.value.riverName.trim() || null,
         note:        form.value.note.trim()      || null,
-        is_private:  form.value.visibility !== 'public',
-        visibility:  form.value.visibility,
         flow_bands:  form.value.flowBands,
       }
     }
