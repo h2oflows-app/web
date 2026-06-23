@@ -116,6 +116,31 @@
           </div>
         </div>
 
+        <!-- Add Run + Report — subtle, pinned right -->
+        <template v-if="isAuthenticated">
+          <div class="h-4 w-px bg-neutral-200 dark:bg-neutral-700 mx-0.5 shrink-0" />
+          <button
+            class="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-xs text-neutral-500 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+            title="Add Run"
+            @click="wizard.open()"
+          >
+            <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
+              <line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>
+            </svg>
+            <span class="hidden sm:inline">Add Run</span>
+          </button>
+          <NuxtLink
+            to="/reports/new"
+            class="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-xs text-neutral-500 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+            title="File a Report"
+          >
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
+            </svg>
+            <span class="hidden sm:inline">Report</span>
+          </NuxtLink>
+        </template>
+
         <!-- Add gauge — pinned right, outside scroll group -->
         <ToolbarButton label="Add gauge" title="Add gauge" class="shrink-0 ml-1" @click="searchOpen = true">
           <svg class="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
@@ -701,6 +726,7 @@ function urBandLabel(r: UserReachSummary): string {
   return bandForCfs(r.slug, r.current_cfs)?.label ?? flowBandLabel(r.flow_band, r.flow_status)
 }
 
+const wizard = useRunWizard()
 const router = useRouter()
 const store = useWatchlistStore()
 store.deduplicate()

@@ -40,34 +40,6 @@
         <span class="hidden sm:inline text-xs font-medium">Explore</span>
       </NuxtLink>
 
-      <!-- Report shortcut -->
-      <NuxtLink
-        v-if="isAuthenticated"
-        to="/reports/new"
-        class="shrink-0 hidden sm:flex items-center gap-1 p-1.5 rounded-md transition-colors"
-        :class="route.path === '/reports/new'
-          ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/50'
-          : 'text-neutral-500 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-neutral-50 dark:hover:bg-neutral-900'"
-        title="File a Report"
-      >
-        <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
-        </svg>
-        <span class="hidden sm:inline text-xs font-medium">Report</span>
-      </NuxtLink>
-
-      <!-- + Add Run CTA — desktop (V6) -->
-      <button
-        v-if="isAuthenticated"
-        class="shrink-0 hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white transition-colors shadow-sm"
-        @click="wizardOpen = true"
-      >
-        <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-          <line x1="10" y1="3" x2="10" y2="17"/><line x1="3" y1="10" x2="17" y2="10"/>
-        </svg>
-        <span class="hidden sm:inline text-xs">Add Run</span>
-      </button>
-
       <!-- AI Ask button — left side (icon always visible, text desktop only) -->
       <button
         class="shrink-0 flex items-center gap-1 p-1.5 rounded-md text-neutral-500 dark:text-neutral-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors"
@@ -205,17 +177,6 @@
 
     <!-- Mobile menu dropdown -->
     <div v-if="menuOpen" class="sm:hidden border-t border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-950 px-4 py-3 flex flex-col gap-1">
-      <!-- + Add Run — top item (V6) -->
-      <button
-        v-if="isAuthenticated"
-        class="w-full text-left px-3 py-2.5 rounded-md text-sm font-semibold bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white transition-colors flex items-center gap-2 mb-1"
-        @click="menuOpen = false; wizardOpen = true"
-      >
-        <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-          <line x1="10" y1="3" x2="10" y2="17"/><line x1="3" y1="10" x2="17" y2="10"/>
-        </svg>
-        Add Run
-      </button>
       <!-- Dashboard + Map — mobile -->
       <NuxtLink
         to="/dashboard"
@@ -243,22 +204,6 @@
         </svg>
         Explore
       </NuxtLink>
-      <!-- Report — mobile (auth only) -->
-      <NuxtLink
-        v-if="isAuthenticated"
-        to="/reports/new"
-        class="text-left px-3 py-2 rounded-md text-sm flex items-center gap-2 transition-colors"
-        :class="route.path === '/reports/new'
-          ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/50'
-          : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-900'"
-        @click="menuOpen = false"
-      >
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
-        </svg>
-        Report
-      </NuxtLink>
-
       <div class="border-t border-neutral-100 dark:border-neutral-800 mt-1 pt-2 flex flex-col gap-1">
         <!-- Ask — mobile -->
         <button
@@ -292,10 +237,10 @@
     </div>
   </header>
 
-  <!-- Wizard entry modal (V7/V8/V9/V10/V11/V12) -->
+  <!-- Wizard entry modal — driven by useRunWizard() composable; open() from any page -->
   <WizardEntryModal
-    :open="wizardOpen"
-    @cancel="wizardOpen = false"
+    :open="wizard.isOpen.value"
+    @cancel="wizard.close()"
     @search-fork="handleWizardSearchFork"
     @import="handleWizardImport"
     @draw="handleWizardDraw"
@@ -393,18 +338,18 @@ const router = useRouter()
 const route = useRoute()
 const menuOpen = ref(false)
 const userMenuOpen = ref(false)
-const wizardOpen  = ref(false)
+const wizard = useRunWizard()
 
 function handleWizardSearchFork() {
-  wizardOpen.value = false
+  wizard.close()
   router.push({ path: '/explore', query: { discover: 'true' } })
 }
 function handleWizardImport() {
-  wizardOpen.value = false
+  wizard.close()
   router.push({ path: '/explore', query: { import: 'true' } })
 }
 function handleWizardDraw() {
-  wizardOpen.value = false
+  wizard.close()
   router.push('/my/runs/new')
 }
 
