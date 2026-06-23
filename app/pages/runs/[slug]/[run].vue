@@ -99,22 +99,15 @@
             </button>
 
             <!-- Upvote (non-owner, not tombstoned — V12) -->
-            <button
+            <RunUpvoteButton
               v-if="!isOwnRun && !run.deleted_at"
-              class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-sm font-medium transition-colors"
-              :class="userUpvoted
-                ? 'bg-primary-50 dark:bg-primary-950 border-primary-300 dark:border-primary-700 text-primary-600 dark:text-primary-400'
-                : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:border-primary-300 hover:text-primary-600'"
-              :disabled="upvoteLoading || !isAuthenticated"
-              :title="isAuthenticated ? 'Upvote this run' : 'Sign in to upvote'"
-              @click="toggleUpvote"
-            >
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/>
-                <path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/>
-              </svg>
-              {{ upvoteCount }}
-            </button>
+              :run-id="run.id"
+              :count="upvoteCount"
+              :upvoted="userUpvoted"
+              size="md"
+              @update:count="(c) => { if (run) run.upvote_count = c }"
+              @update:upvoted="(u) => { userUpvoted = u }"
+            />
 
             <!-- Fork (auth, non-owner — or official run, so admins can fork h2oflows runs) -->
             <button
@@ -561,21 +554,7 @@ async function loadCluster() {
 const upvoteCount  = computed(() => run.value?.upvote_count ?? 0)
 const isOwnRun     = computed(() => run.value?.is_own ?? false)
 const userUpvoted  = ref(false)
-const upvoteLoading = ref(false)
 watch(() => run.value?.user_upvoted, v => { if (v != null) userUpvoted.value = v }, { immediate: true })
-
-async function toggleUpvote() {
-  if (!run.value || !isAuthenticated.value) return
-  upvoteLoading.value = true
-  try {
-    const headers = await authHeaders()
-    const res = await fetch(`${apiBase}/api/v1/user-runs/${run.value.id}/upvote`, { method: 'POST', headers })
-    if (!res.ok) return
-    const data = await res.json()
-    userUpvoted.value = data.upvoted
-    if (run.value) run.value.upvote_count = data.upvote_count
-  } catch {} finally { upvoteLoading.value = false }
-}
 
 const deleting = ref(false)
 async function confirmDelete() {

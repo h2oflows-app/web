@@ -57,6 +57,26 @@
           </template>
         </div>
 
+        <!-- N.3 Channel profile header (browse mode only) -->
+        <div v-if="handle" class="shrink-0 px-4 pt-3 pb-3 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40">
+          <div class="flex items-center gap-3">
+            <!-- Generic avatar circle -->
+            <div class="flex items-center justify-center w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400 shrink-0">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/>
+              </svg>
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-semibold text-neutral-800 dark:text-neutral-200 truncate">@{{ handle }}</p>
+              <div class="flex items-center gap-3 mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+                <span><span class="font-medium text-neutral-700 dark:text-neutral-300">{{ channelStats.runCount }}</span> runs</span>
+                <span><span class="font-medium text-neutral-700 dark:text-neutral-300">{{ channelStats.riverCount }}</span> rivers</span>
+                <span><span class="font-medium text-neutral-700 dark:text-neutral-300">{{ channelStats.totalUpvotes }}</span> upvotes</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Search + mobile map toggle (all modes) -->
         <div class="px-3 py-2 shrink-0 flex items-center gap-2">
           <input
@@ -114,6 +134,21 @@
           <span class="text-xs text-neutral-400 tabular-nums">{{ sidebarCount }} runs</span>
         </div>
 
+        <!-- N.6 Sort toggle (browse mode) -->
+        <div v-if="handle" class="px-3 pb-1.5 shrink-0 flex items-center gap-1">
+          <span class="text-xs text-neutral-400 mr-1">Sort:</span>
+          <button
+            class="px-2 py-0.5 rounded text-xs transition-colors"
+            :class="sortMode === 'river' ? 'bg-primary-100 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400 font-medium' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200'"
+            @click="sortMode = 'river'"
+          >By river</button>
+          <button
+            class="px-2 py-0.5 rounded text-xs transition-colors"
+            :class="sortMode === 'upvotes' ? 'bg-primary-100 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400 font-medium' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200'"
+            @click="sortMode = 'upvotes'"
+          >Most upvoted</button>
+        </div>
+
         <!-- Loading / error / empty states -->
         <div v-if="!isAuthenticated && !handle" class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-neutral-400">
           <span>Sign in to see your runs.</span>
@@ -136,6 +171,7 @@
           <div v-for="group in filteredSidebarGroups" :key="group.name">
             <!-- River header (collapsible) -->
             <button
+              v-if="group.name !== '__flat__'"
               class="w-full flex items-center gap-2 px-3 py-1.5 border-b border-neutral-100 dark:border-neutral-800/50 bg-neutral-50 dark:bg-neutral-900/50 text-left hover:bg-neutral-100 dark:hover:bg-neutral-800/60 transition-colors"
               @click="toggleRiverCollapse(group.name)"
             >
@@ -244,6 +280,24 @@
                   </button>
                 </div>
               </div>
+              <!-- N.6 Upvote button (browse mode: interactive; MY mode: count only) -->
+              <template v-if="reach.id">
+                <RunUpvoteButton
+                  v-if="handle"
+                  :run-id="reach.id"
+                  :count="reach.upvote_count ?? 0"
+                  :upvoted="reach.user_upvoted ?? false"
+                  size="sm"
+                  @click.stop
+                  @update:count="(c) => patchReachUpvote(reach.slug, c, null)"
+                  @update:upvoted="(u) => patchReachUpvote(reach.slug, null, u)"
+                />
+                <span
+                  v-else-if="(reach.upvote_count ?? 0) > 0"
+                  class="text-xs text-neutral-300 dark:text-neutral-600 shrink-0 tabular-nums"
+                  title="Upvotes"
+                >▲{{ reach.upvote_count }}</span>
+              </template>
               <!-- Edit (mine) / View (browsing) link -->
               <NuxtLink
                 :to="handle ? `/runs/${handle}/${reach.slug}` : `/my/runs/${reach.slug}`"
@@ -326,6 +380,16 @@
                 >
                   View →
                 </NuxtLink>
+                <!-- N.6 Upvote in popup (browse mode only) -->
+                <RunUpvoteButton
+                  v-if="handle && popupRun.id"
+                  :run-id="popupRun.id"
+                  :count="popupRun.upvoteCount"
+                  :upvoted="popupRun.userUpvoted"
+                  size="sm"
+                  @update:count="(c) => { if (popupRun) { patchReachUpvote(popupRun.slug, c, null) } }"
+                  @update:upvoted="(u) => { if (popupRun) { patchReachUpvote(popupRun.slug, null, u) } }"
+                />
               </div>
             </div>
           </Transition>
@@ -549,6 +613,12 @@ const query = ref('')
 
 interface ReachGroup { name: string; reaches: ReachListItem[] }
 
+// ── Sort mode (N.6) ───────────────────────────────────────────────────────
+const sortMode = ref<'river' | 'upvotes'>('river')
+
+// Reset sort mode when handle changes
+watch(handle, () => { sortMode.value = 'river' })
+
 const filteredSidebarGroups = computed((): ReachGroup[] => {
   const q = query.value.trim().toLowerCase()
   const items = q.length >= 2
@@ -557,6 +627,12 @@ const filteredSidebarGroups = computed((): ReachGroup[] => {
         (r.river_name?.toLowerCase().includes(q) ?? false)
       )
     : sidebarReaches.value
+
+  if (sortMode.value === 'upvotes') {
+    const sorted = [...items].sort((a, b) => (b.upvote_count ?? 0) - (a.upvote_count ?? 0))
+    return [{ name: '__flat__', reaches: sorted }]
+  }
+
   const grouped = new Map<string, ReachListItem[]>()
   for (const r of items) {
     const key = r.river_name ?? 'No River'
@@ -631,6 +707,27 @@ function onAllReachesUpdated(r: ReachListItem[]) {
   allReaches.value = r
 }
 
+// ── Channel stats (N.3) — computed from allReaches ────────────────────────
+const channelStats = computed(() => {
+  const runs = allReaches.value
+  const runCount = runs.length
+  const rivers = new Set(runs.map(r => r.river_name).filter((n): n is string => !!n))
+  const totalUpvotes = runs.reduce((sum, r) => sum + (r.upvote_count ?? 0), 0)
+  return { runCount, riverCount: rivers.size, totalUpvotes }
+})
+
+// Patch upvote state back into allReaches + mapReaches
+function patchReachUpvote(slug: string, count: number | null, upvoted: boolean | null) {
+  const patch = (arr: ReachListItem[]) => {
+    const r = arr.find(x => x.slug === slug)
+    if (!r) return
+    if (count !== null) r.upvote_count = count
+    if (upvoted !== null) r.user_upvoted = upvoted
+  }
+  patch(allReaches.value)
+  patch(mapReaches.value)
+}
+
 function onMapHover(slug: string | null) {
   hoveredSlug.value = slug
   if (slug) {
@@ -641,7 +738,7 @@ function onMapHover(slug: string | null) {
 }
 
 // ── Map click popup ───────────────────────────────────────────────────────────
-interface PopupRun { slug: string; name: string; id: string | null; authorHandle: string | null; viewUrl: string; point?: { x: number; y: number } }
+interface PopupRun { slug: string; name: string; id: string | null; authorHandle: string | null; viewUrl: string; point?: { x: number; y: number }; upvoteCount: number; userUpvoted: boolean }
 const popupRun = ref<PopupRun | null>(null)
 // Popup's own dashboard-picker state — kept separate from the sidebar's
 // slug-keyed browseRefDropdownId so opening it here doesn't also open the
@@ -673,6 +770,7 @@ function onReachClick(payload: ReachClickPayload) {
 
   // Show popup with add/view options
   popupDropdownOpen.value = false
+  const reachData = allReaches.value.find(r => r.slug === payload.slug)
   popupRun.value = {
     slug:         payload.slug,
     name:         payload.name ?? payload.slug,
@@ -680,6 +778,8 @@ function onReachClick(payload: ReachClickPayload) {
     authorHandle: payload.authorHandle ?? (handle.value ?? null),
     viewUrl,
     point:        payload.point,
+    upvoteCount:  reachData?.upvote_count ?? 0,
+    userUpvoted:  reachData?.user_upvoted ?? false,
   }
 }
 
