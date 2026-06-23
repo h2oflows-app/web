@@ -189,25 +189,29 @@
             </div>
           </div>
 
-          <!-- Visibility pills (V1/V2/V3) -->
+          <!-- Visibility toggle (binary: public / private) -->
           <div class="space-y-1.5">
             <p class="text-xs font-medium text-neutral-700 dark:text-neutral-300">Visibility</p>
-            <div class="flex items-center gap-1.5 flex-wrap">
+            <label class="flex items-center gap-2.5 cursor-pointer select-none">
               <button
-                v-for="opt in visibilityOptions"
-                :key="opt.value"
                 type="button"
-                :disabled="opt.disabled"
-                class="px-2.5 py-1 rounded-full text-xs font-medium border transition-colors"
-                :class="form.visibility === opt.value
-                  ? 'bg-primary-500 text-white border-primary-500'
-                  : opt.disabled
-                    ? 'border-neutral-200 dark:border-neutral-700 text-neutral-300 dark:text-neutral-600 cursor-default'
-                    : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400'"
-                @click="setVisibility(opt.value)"
-              >{{ opt.label }}</button>
-            </div>
+                role="switch"
+                :aria-checked="form.visibility === 'private'"
+                class="relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                :class="form.visibility === 'private' ? 'bg-primary-500' : 'bg-neutral-200 dark:bg-neutral-700'"
+                @click="togglePrivate"
+              >
+                <span
+                  class="pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform ring-0 transition-transform"
+                  :class="form.visibility === 'private' ? 'translate-x-4' : 'translate-x-0'"
+                />
+              </button>
+              <span class="text-xs font-medium text-neutral-700 dark:text-neutral-300">Make private</span>
+            </label>
             <p class="text-xs text-neutral-400">{{ visibilityDescription }}</p>
+            <p v-if="form.visibility === 'private' && (reach?.reference_count ?? 0) > 0" class="text-xs text-amber-600 dark:text-amber-400">
+              {{ reach!.reference_count === 1 ? '1 person has' : `${reach!.reference_count} people have` }} this run on a dashboard — making it private removes it from theirs.
+            </p>
           </div>
         </div>
 
@@ -453,26 +457,6 @@
     @close="shareOpen = false; customGaugePayload = null"
   />
 
-  <!-- Publish confirm gate (V5) — irreversible warning -->
-  <UModal v-model:open="publishConfirmOpen" title="Make this run public?">
-    <template #body>
-      <div class="space-y-3">
-        <p class="text-sm text-neutral-700 dark:text-neutral-300">
-          Publishing is <strong>permanent</strong>. Others can add, fork, and up-vote this run.
-          You can only delete it later — people who added it keep a read-only copy.
-        </p>
-        <p class="text-xs text-amber-600 dark:text-amber-400 font-medium">
-          This cannot be undone.
-        </p>
-        <p v-if="publishError" class="text-xs text-red-500">{{ publishError }}</p>
-      </div>
-      <div class="flex justify-end gap-2 mt-4">
-        <UButton size="xs" variant="outline" color="neutral" :disabled="publishing" @click="publishConfirmOpen = false">Cancel</UButton>
-        <UButton size="xs" color="primary" :loading="publishing" @click="confirmPublish">Make Public</UButton>
-      </div>
-    </template>
-  </UModal>
-
   <!-- KML import modal -->
   <UModal v-model:open="kmlModalOpen" title="Import KML / KMZ">
     <template #body>
@@ -604,6 +588,7 @@ interface UserReachDetail {
   user_upvoted:      boolean
   centerline:        object | null
   river_confirmed:   boolean
+  reference_count:   number
 }
 
 interface CustomGaugeSummary { id: string; slug: string; name: string }
@@ -619,7 +604,7 @@ const form = ref({
   note:       '',
   classMin:   null as number | null,
   classMax:   null as number | null,
-  visibility: 'private' as 'private' | 'unlisted' | 'public',
+  visibility: 'public' as 'private' | 'public',
   flowBands:  { base_label: 'Too Low', base_color: 'red-3', thresholds: [] } as FlowBands,
 })
 
@@ -691,64 +676,17 @@ const shareOpen           = ref(false)
 const shareLoading        = ref(false)
 const customGaugePayload  = ref<object | null>(null)
 
-const publishConfirmOpen  = ref(false)
-const publishing          = ref(false)
-const publishError        = ref('')
+// ── Visibility helpers (binary: private | public) ────────────────────────────
 
-// ── Visibility helpers (V1/V2/V3/V5) ─────────────────────────────────────────
-
-type Visibility = 'private' | 'unlisted' | 'public'
-
-const visibilityOptions = computed(() => {
-  const isPublished = form.value.visibility === 'public'
-  return [
-    { value: 'private'  as Visibility, label: 'Private',  disabled: isPublished },
-    { value: 'unlisted' as Visibility, label: 'Unlisted', disabled: isPublished },
-    { value: 'public'   as Visibility, label: 'Public',   disabled: false },
-  ]
-})
+type Visibility = 'private' | 'public'
 
 const visibilityDescription = computed(() => {
-  switch (form.value.visibility) {
-    case 'private':  return 'Only you can see this run.'
-    case 'unlisted': return 'Accessible via link — not in explore or search.'
-    case 'public':   return 'Run is searchable, up-votable, and can be found by other users. Cannot unlist or make private again.'
-    default:         return ''
-  }
+  if (form.value.visibility === 'private') return 'Only you can see this run.'
+  return 'Public runs appear on your profile (/explore/your-handle). Private runs are visible only to you.'
 })
 
-function setVisibility(v: Visibility) {
-  if (v === form.value.visibility) return
-  if (v === 'public') {
-    publishError.value = ''
-    publishConfirmOpen.value = true
-    return
-  }
-  // private↔unlisted transitions go through PATCH (API validates V3 ratchet)
-  form.value.visibility = v
-}
-
-async function confirmPublish() {
-  if (!reach.value) return
-  publishing.value  = true
-  publishError.value = ''
-  try {
-    const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) }
-    const res = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}/publish`, { method: 'POST', headers })
-    if (!res.ok) {
-      const msg = await res.json().catch(() => ({}))
-      publishError.value = msg.error ?? `HTTP ${res.status}`
-      return
-    }
-    form.value.visibility = 'public'
-    publishConfirmOpen.value = false
-    toast.add({ title: 'Run is now public.', color: 'success' })
-    await load()
-  } catch (e: any) {
-    publishError.value = e?.message ?? 'Publish failed'
-  } finally {
-    publishing.value = false
-  }
+function togglePrivate() {
+  form.value.visibility = form.value.visibility === 'private' ? 'public' : 'private'
 }
 
 // ── KML import ────────────────────────────────────────────────────────────────
@@ -1146,7 +1084,9 @@ function populateForm(r: UserReachDetail) {
   form.value.note       = r.note ?? ''
   form.value.classMin   = r.class_min ?? null
   form.value.classMax   = r.class_max ?? null
-  form.value.visibility = (r.visibility as Visibility) ?? (r.is_private ? 'private' : 'public')
+  // Collapse unlisted → public for toggle display (unlisted is retired).
+  const rawVis = r.visibility ?? (r.is_private ? 'private' : 'public')
+  form.value.visibility = rawVis === 'private' ? 'private' : 'public'
   form.value.flowBands  = r.flow_bands ?? { base_label: 'Too Low', base_color: 'red-3', thresholds: [] }
   nldiGnisId.value = null
 }
@@ -1216,8 +1156,7 @@ async function save() {
       note:       form.value.note.trim()      || null,
       class_min:  form.value.classMin,
       class_max:  form.value.classMax,
-      // API rejects visibility:"public" via PATCH (must use /publish); omit if already public
-      ...(form.value.visibility !== 'public' ? { visibility: form.value.visibility } : {}),
+      visibility: form.value.visibility,
       gnis_id:    nldiGnisId.value ?? undefined,
     }
     // Include slug if user changed it (and it's valid/available)
