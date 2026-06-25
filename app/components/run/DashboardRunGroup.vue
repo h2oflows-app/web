@@ -27,12 +27,12 @@
       </div>
       <!-- Badge always rendered (– when no thresholds) so CFS column aligns -->
       <div class="w-20 shrink-0 text-center">
-        <span :class="['inline-flex items-center justify-center min-w-14 rounded-full px-2 py-0.5 text-xs font-bold', hasBadge(reach) ? colorKeyToBadgeClass(displayBandColor(reach)) : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500']">{{ hasBadge(reach) ? displayFlowBandLabel(reach) : '–' }}</span>
+        <span :class="['inline-flex items-center justify-center min-w-14 rounded-full px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold', hasBadge(reach) ? colorKeyToBadgeClass(displayBandColor(reach)) : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500']">{{ hasBadge(reach) ? displayFlowBandLabel(reach) : '–' }}</span>
       </div>
       <div class="w-20 shrink-0 text-right">
-        <span class="whitespace-nowrap text-base font-bold tabular-nums" :style="{ color: colorKeyToHex(displayBandColor(reach)) }">
+        <span class="whitespace-nowrap text-sm sm:text-base font-bold tabular-nums" :style="{ color: colorKeyToHex(displayBandColor(reach)) }">
           {{ displayCfs(reach) != null ? Math.round(displayCfs(reach)!).toLocaleString() : '—' }}
-          <span class="text-xs font-normal text-neutral-400">cfs</span>
+          <span class="text-[10px] sm:text-xs font-normal text-neutral-400">cfs</span>
         </span>
       </div>
       <TrashButton label="Remove" @click="$emit('remove', reach)" />

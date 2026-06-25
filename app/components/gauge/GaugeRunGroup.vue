@@ -21,23 +21,26 @@
           <span v-if="riverDisplayName && !hideRiverName" class="text-xs text-neutral-400 dark:text-neutral-500 truncate block leading-tight">{{ riverDisplayName }}</span>
         </div>
       </div>
-      <div class="flex items-center gap-2 shrink-0">
-        <div class="w-28 shrink-0 hidden sm:block opacity-60 pointer-events-none">
-          <GaugeSparkline
-            :gauge-id="leadGauge.id"
-            flow-status="unknown"
-            color="#3b82f6"
-            compact
-            :poll-health="leadGauge.pollHealth"
-            :last-reading-at="leadGauge.lastReadingAt"
-            @latest-cfs="liveCfs = $event"
-          />
-        </div>
-        <span class="shrink-0 whitespace-nowrap text-right text-base font-bold tabular-nums text-neutral-700 dark:text-neutral-300">
-          {{ currentCfs != null ? Math.round(currentCfs).toLocaleString() : '—' }} <span class="text-xs font-normal text-neutral-400 dark:text-neutral-500">cfs</span>
-        </span>
-        <TrashButton label="Remove gauge group" @click="$emit('remove-group')" />
+      <!-- Sparkline + badge slot + CFS — columns match individual run rows so sparklines align down the page -->
+      <div class="w-44 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
+        <GaugeSparkline
+          :gauge-id="leadGauge.id"
+          flow-status="unknown"
+          color="#3b82f6"
+          compact
+          :poll-health="leadGauge.pollHealth"
+          :last-reading-at="leadGauge.lastReadingAt"
+          @latest-cfs="liveCfs = $event"
+        />
       </div>
+      <!-- Empty badge slot — gauge has no flow band; keeps CFS column aligned with run rows -->
+      <div class="w-20 shrink-0" />
+      <div class="w-20 shrink-0 text-right">
+        <span class="whitespace-nowrap text-sm sm:text-base font-bold tabular-nums text-neutral-700 dark:text-neutral-300">
+          {{ currentCfs != null ? Math.round(currentCfs).toLocaleString() : '—' }}<span class="text-[10px] sm:text-xs font-normal text-neutral-400 dark:text-neutral-500"> cfs</span>
+        </span>
+      </div>
+      <TrashButton label="Remove gauge group" @click="$emit('remove-group')" />
     </div>
 
     <!-- Reach sub-rows -->
@@ -58,7 +61,7 @@
         </div>
         <!-- Badge always rendered (– when no thresholds) so trash column aligns -->
         <div class="w-20 shrink-0 text-center">
-          <span :class="['inline-flex items-center justify-center min-w-14 rounded-full px-2 py-0.5 text-xs font-bold', (displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)) ? colorKeyToBadgeClass(displayBandColor(item)) : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500']">{{ (displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)) ? displayFlowBandLabel(item) : '–' }}</span>
+          <span :class="['inline-flex items-center justify-center min-w-14 rounded-full px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold', (displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)) ? colorKeyToBadgeClass(displayBandColor(item)) : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500']">{{ (displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)) ? displayFlowBandLabel(item) : '–' }}</span>
         </div>
         <TrashButton label="Remove" @click="$emit('remove-item', item)" />
       </div>
