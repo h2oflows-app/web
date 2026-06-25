@@ -189,26 +189,6 @@
             </div>
           </div>
 
-          <!-- Visibility pills (V1/V2/V3) -->
-          <div class="space-y-1.5">
-            <p class="text-xs font-medium text-neutral-700 dark:text-neutral-300">Visibility</p>
-            <div class="flex items-center gap-1.5 flex-wrap">
-              <button
-                v-for="opt in visibilityOptions"
-                :key="opt.value"
-                type="button"
-                :disabled="opt.disabled"
-                class="px-2.5 py-1 rounded-full text-xs font-medium border transition-colors"
-                :class="form.visibility === opt.value
-                  ? 'bg-primary-500 text-white border-primary-500'
-                  : opt.disabled
-                    ? 'border-neutral-200 dark:border-neutral-700 text-neutral-300 dark:text-neutral-600 cursor-default'
-                    : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400'"
-                @click="setVisibility(opt.value)"
-              >{{ opt.label }}</button>
-            </div>
-            <p class="text-xs text-neutral-400">{{ visibilityDescription }}</p>
-          </div>
         </div>
 
         <!-- Geometry card -->
@@ -453,26 +433,6 @@
     @close="shareOpen = false; customGaugePayload = null"
   />
 
-  <!-- Publish confirm gate (V5) — irreversible warning -->
-  <UModal v-model:open="publishConfirmOpen" title="Make this run public?">
-    <template #body>
-      <div class="space-y-3">
-        <p class="text-sm text-neutral-700 dark:text-neutral-300">
-          Publishing is <strong>permanent</strong>. Others can add, fork, and up-vote this run.
-          You can only delete it later — people who added it keep a read-only copy.
-        </p>
-        <p class="text-xs text-amber-600 dark:text-amber-400 font-medium">
-          This cannot be undone.
-        </p>
-        <p v-if="publishError" class="text-xs text-red-500">{{ publishError }}</p>
-      </div>
-      <div class="flex justify-end gap-2 mt-4">
-        <UButton size="xs" variant="outline" color="neutral" :disabled="publishing" @click="publishConfirmOpen = false">Cancel</UButton>
-        <UButton size="xs" color="primary" :loading="publishing" @click="confirmPublish">Make Public</UButton>
-      </div>
-    </template>
-  </UModal>
-
   <!-- KML import modal -->
   <UModal v-model:open="kmlModalOpen" title="Import KML / KMZ">
     <template #body>
@@ -589,8 +549,6 @@ interface UserReachDetail {
   current_cfs:       number | null
   flow_band:         string | null
   note:              string | null
-  is_private:        boolean
-  visibility:        string
   author_handle:     string | null
   forked_from_slug:  string | null
   forked_from_name:  string | null
@@ -619,7 +577,6 @@ const form = ref({
   note:       '',
   classMin:   null as number | null,
   classMax:   null as number | null,
-  visibility: 'private' as 'private' | 'unlisted' | 'public',
   flowBands:  { base_label: 'Too Low', base_color: 'red-3', thresholds: [] } as FlowBands,
 })
 
@@ -690,66 +647,6 @@ const customGaugeSaving      = ref(false)
 const shareOpen           = ref(false)
 const shareLoading        = ref(false)
 const customGaugePayload  = ref<object | null>(null)
-
-const publishConfirmOpen  = ref(false)
-const publishing          = ref(false)
-const publishError        = ref('')
-
-// ── Visibility helpers (V1/V2/V3/V5) ─────────────────────────────────────────
-
-type Visibility = 'private' | 'unlisted' | 'public'
-
-const visibilityOptions = computed(() => {
-  const isPublished = form.value.visibility === 'public'
-  return [
-    { value: 'private'  as Visibility, label: 'Private',  disabled: isPublished },
-    { value: 'unlisted' as Visibility, label: 'Unlisted', disabled: isPublished },
-    { value: 'public'   as Visibility, label: 'Public',   disabled: false },
-  ]
-})
-
-const visibilityDescription = computed(() => {
-  switch (form.value.visibility) {
-    case 'private':  return 'Only you can see this run.'
-    case 'unlisted': return 'Accessible via link — not in explore or search.'
-    case 'public':   return 'Run is searchable, up-votable, and can be found by other users. Cannot unlist or make private again.'
-    default:         return ''
-  }
-})
-
-function setVisibility(v: Visibility) {
-  if (v === form.value.visibility) return
-  if (v === 'public') {
-    publishError.value = ''
-    publishConfirmOpen.value = true
-    return
-  }
-  // private↔unlisted transitions go through PATCH (API validates V3 ratchet)
-  form.value.visibility = v
-}
-
-async function confirmPublish() {
-  if (!reach.value) return
-  publishing.value  = true
-  publishError.value = ''
-  try {
-    const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) }
-    const res = await fetch(`${apiBase}/api/v1/me/runs/${slug.value}/publish`, { method: 'POST', headers })
-    if (!res.ok) {
-      const msg = await res.json().catch(() => ({}))
-      publishError.value = msg.error ?? `HTTP ${res.status}`
-      return
-    }
-    form.value.visibility = 'public'
-    publishConfirmOpen.value = false
-    toast.add({ title: 'Run is now public.', color: 'success' })
-    await load()
-  } catch (e: any) {
-    publishError.value = e?.message ?? 'Publish failed'
-  } finally {
-    publishing.value = false
-  }
-}
 
 // ── KML import ────────────────────────────────────────────────────────────────
 
@@ -1146,7 +1043,6 @@ function populateForm(r: UserReachDetail) {
   form.value.note       = r.note ?? ''
   form.value.classMin   = r.class_min ?? null
   form.value.classMax   = r.class_max ?? null
-  form.value.visibility = (r.visibility as Visibility) ?? (r.is_private ? 'private' : 'public')
   form.value.flowBands  = r.flow_bands ?? { base_label: 'Too Low', base_color: 'red-3', thresholds: [] }
   nldiGnisId.value = null
 }
@@ -1216,8 +1112,6 @@ async function save() {
       note:       form.value.note.trim()      || null,
       class_min:  form.value.classMin,
       class_max:  form.value.classMax,
-      // API rejects visibility:"public" via PATCH (must use /publish); omit if already public
-      ...(form.value.visibility !== 'public' ? { visibility: form.value.visibility } : {}),
       gnis_id:    nldiGnisId.value ?? undefined,
     }
     // Include slug if user changed it (and it's valid/available)
@@ -1273,8 +1167,6 @@ async function save() {
         name:        form.value.name.trim(),
         river_name:  form.value.riverName.trim() || null,
         note:        form.value.note.trim()      || null,
-        is_private:  form.value.visibility !== 'public',
-        visibility:  form.value.visibility,
         flow_bands:  form.value.flowBands,
       }
     }

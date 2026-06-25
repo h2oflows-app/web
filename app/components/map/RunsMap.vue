@@ -69,6 +69,8 @@ export interface ReachListItem {
   author_handle: string | null
   river_name:   string | null
   gauge_id:     string | null
+  upvote_count: number
+  user_upvoted: boolean
 }
 
 const props = defineProps<{
@@ -340,6 +342,7 @@ interface ReachFeature {
     author_handle?: string | null
     is_official?: boolean
     upvote_count?: number
+    user_upvoted?: boolean
   }
 }
 
@@ -358,6 +361,8 @@ function emitAllReaches() {
     author_handle: f.properties.author_handle ?? null,
     river_name:    f.properties.river_name ?? null,
     gauge_id:      f.properties.gauge_id ?? null,
+    upvote_count:  f.properties.upvote_count ?? 0,
+    user_upvoted:  f.properties.user_upvoted ?? false,
   })))
 }
 
@@ -440,6 +445,8 @@ function filterVisible() {
     author_handle: f.properties.author_handle ?? null,
     river_name:    f.properties.river_name ?? null,
     gauge_id:      f.properties.gauge_id ?? null,
+    upvote_count:  f.properties.upvote_count ?? 0,
+    user_upvoted:  f.properties.user_upvoted ?? false,
   })))
 }
 
