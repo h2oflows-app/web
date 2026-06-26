@@ -462,7 +462,8 @@ async function deleteRun(run: MyRun) {
       `${config.public.apiBase}/api/v1/me/runs/${encodeURIComponent(run.slug)}`,
       { method: 'DELETE', headers }
     )
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    // 404 = already gone (e.g. a stale tombstoned row). Treat as success and drop it.
+    if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status}`)
     runs.value = runs.value.filter(r => r.id !== run.id)
     toast.add({ title: 'Run deleted', color: 'neutral' })
   } catch (e: any) {
