@@ -15,7 +15,7 @@
       >
         <div class="w-full max-w-sm bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden">
           <div class="px-5 py-4 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
-            <h2 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Add a Run</h2>
+            <h2 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">{{ newRunOnly ? 'New Run' : 'Add a Run' }}</h2>
             <button
               class="p-1 rounded text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
               @click="$emit('cancel')"
@@ -29,6 +29,7 @@
           <div class="p-4 flex flex-col gap-3">
             <!-- Option 1: Search & Fork -->
             <button
+              v-if="!newRunOnly"
               class="flex items-center gap-4 px-4 py-3.5 rounded-xl border border-neutral-200 dark:border-neutral-700 hover:border-primary-400 dark:hover:border-primary-500 hover:bg-primary-50/50 dark:hover:bg-primary-950/30 text-left transition-colors group"
               @click="$emit('search-fork')"
             >
@@ -89,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{ open: boolean }>()
+defineProps<{ open: boolean; newRunOnly?: boolean }>()
 defineEmits<{
   cancel: []
   'search-fork': []

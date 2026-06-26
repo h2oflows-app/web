@@ -248,15 +248,6 @@
     </div>
   </header>
 
-  <!-- Wizard entry modal — driven by useRunWizard() composable; open() from any page -->
-  <WizardEntryModal
-    :open="wizard.isOpen.value"
-    @cancel="wizard.close()"
-    @search-fork="handleWizardSearchFork"
-    @import="handleWizardImport"
-    @draw="handleWizardDraw"
-  />
-
   <!-- Global Ask modal (Teleport so it's above everything) -->
   <Teleport to="body">
     <Transition
@@ -349,21 +340,6 @@ const router = useRouter()
 const route = useRoute()
 const menuOpen = ref(false)
 const userMenuOpen = ref(false)
-const wizard = useRunWizard()
-
-function handleWizardSearchFork() {
-  wizard.close()
-  router.push({ path: '/explore', query: { discover: 'true' } })
-}
-function handleWizardImport() {
-  wizard.close()
-  router.push({ path: '/explore', query: { import: 'true' } })
-}
-function handleWizardDraw() {
-  wizard.close()
-  router.push('/my/runs/new')
-}
-
 const { apiBase } = useRuntimeConfig().public
 
 // Close menus on route change
