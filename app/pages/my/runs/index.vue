@@ -84,9 +84,9 @@
       <div v-else-if="fetchDone" class="space-y-2">
         <div v-for="group in groupedRuns" :key="group.name">
 
-          <!-- River group header (collapsible) -->
+          <!-- River group header (collapsible) — transparent, count inline -->
           <button
-            class="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-800/60 text-left hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors"
+            class="w-full flex items-center gap-2 px-1 py-1.5 text-left group/header transition-colors"
             @click="toggleRiverCollapse(group.name)"
           >
             <svg
@@ -96,8 +96,9 @@
             >
               <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
             </svg>
-            <span class="text-xs font-semibold text-neutral-600 dark:text-neutral-300 flex-1 truncate">{{ group.name }}</span>
-            <span class="text-xs text-neutral-400 shrink-0">{{ group.runs.length }}</span>
+            <span class="text-xs font-semibold text-neutral-600 dark:text-neutral-300 group-hover/header:text-neutral-800 dark:group-hover/header:text-neutral-100 truncate transition-colors">
+              {{ group.name }} <span class="font-normal text-neutral-400">({{ group.runs.length }})</span>
+            </span>
           </button>
 
           <!-- Run rows -->
@@ -105,63 +106,52 @@
             <div
               v-for="run in group.runs"
               :key="run.id"
-              class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 px-4 py-3"
+              class="bg-white dark:bg-neutral-900 rounded-lg border border-neutral-200 dark:border-neutral-700 px-3 py-2"
             >
-              <!-- Top row: name + badges + flow -->
-              <div class="flex items-start gap-2 min-w-0">
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <NuxtLink
-                      :to="`/runs/${run.author_handle ?? 'h2oflows'}/${run.slug}`"
-                      class="text-sm font-medium text-neutral-800 dark:text-neutral-100 hover:text-primary-600 dark:hover:text-primary-400 transition-colors truncate"
-                    >
-                      {{ run.name }}
-                    </NuxtLink>
+              <!-- Line 1: name + class + flow -->
+              <div class="flex items-center gap-2 min-w-0">
+                <NuxtLink
+                  :to="`/runs/${run.author_handle ?? 'h2oflows'}/${run.slug}`"
+                  class="text-sm font-medium text-neutral-800 dark:text-neutral-100 hover:text-primary-600 dark:hover:text-primary-400 transition-colors truncate"
+                >{{ run.name }}</NuxtLink>
 
-                    <!-- Class -->
-                    <span
-                      v-if="classDisplay(run)"
-                      class="shrink-0 text-xs font-medium text-neutral-500 dark:text-neutral-400"
-                    >Class {{ classDisplay(run) }}</span>
+                <!-- Class -->
+                <span
+                  v-if="classDisplay(run)"
+                  class="shrink-0 text-xs font-medium text-neutral-500 dark:text-neutral-400"
+                >Class {{ classDisplay(run) }}</span>
 
-                    <!-- Fork badge -->
-                    <span
-                      v-if="run.is_fork"
-                      class="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400"
-                    >
-                      <svg class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>
-                      </svg>
-                      Fork
-                    </span>
-                  </div>
+                <!-- Fork badge -->
+                <span
+                  v-if="run.is_fork"
+                  class="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400"
+                >
+                  <svg class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>
+                  </svg>
+                  Fork
+                </span>
 
-                  <!-- River + state subtitle -->
-                  <p v-if="run.river_name || run.state_abbr" class="mt-0.5 text-xs text-neutral-400 dark:text-neutral-500 truncate">
-                    {{ [run.river_name, run.state_abbr].filter(Boolean).join(' · ') }}
-                  </p>
-                </div>
-
-                <!-- Current flow -->
-                <div v-if="run.current_cfs != null" class="shrink-0 text-right">
+                <!-- Current flow (right) -->
+                <div v-if="run.current_cfs != null" class="ml-auto shrink-0 flex items-baseline gap-1.5">
                   <span
                     class="text-sm font-medium tabular-nums"
                     :class="flowBandCfsClass(run.flow_band, run.flow_status)"
                   >{{ Math.round(run.current_cfs).toLocaleString() }} cfs</span>
                   <span
                     v-if="run.flow_band"
-                    class="block text-[10px] font-medium mt-0.5"
+                    class="text-[10px] font-medium"
                     :class="flowBandBadgeClass(run.flow_band, run.flow_status)"
                   >{{ flowBandLabel(run.flow_band, run.flow_status) }}</span>
                 </div>
               </div>
 
-              <!-- Actions row -->
-              <div class="mt-2 flex items-center gap-3">
-                <!-- Edit link -->
+              <!-- Line 2: actions — edit · delete · upvotes · dashboard pills -->
+              <div class="mt-1.5 flex items-center gap-x-3 gap-y-1.5 flex-wrap text-xs">
+                <!-- Edit -->
                 <NuxtLink
                   :to="`/my/runs/${run.slug}`"
-                  class="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                  class="inline-flex items-center gap-1 text-neutral-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                 >
                   <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -169,29 +159,52 @@
                   Edit
                 </NuxtLink>
 
-                <!-- Dashboard membership control — lazy dropdown, counts from page-level watchlist -->
-                <div class="membership-anchor relative" @click.stop>
+                <!-- Delete -->
+                <button
+                  class="inline-flex items-center gap-1 text-neutral-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                  @click="deleteRun(run)"
+                >
+                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+                  </svg>
+                  Delete
+                </button>
+
+                <!-- Upvotes -->
+                <span class="inline-flex items-center gap-1 text-neutral-400 tabular-nums" title="Upvotes">
+                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l8 10h-5v6H9v-6H4z"/></svg>
+                  {{ run.upvote_count ?? 0 }}
+                </span>
+
+                <!-- Dashboard membership: pills (monitored on) + add picker -->
+                <div class="membership-anchor relative ml-auto flex items-center gap-1.5 flex-wrap justify-end" @click.stop>
+                  <!-- Pills — click to remove from that dashboard -->
                   <button
-                    class="inline-flex items-center gap-1.5 text-xs transition-colors"
-                    :class="dashboardCountFor(run.slug) > 0
-                      ? 'text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300'
-                      : 'text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400'"
+                    v-for="d in dashboardsFor(run.slug)"
+                    :key="d.id"
+                    class="group/pill inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-50 dark:bg-primary-950/40 text-primary-700 dark:text-primary-300 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                    :disabled="togglingDashboard === d.id + ':' + run.slug"
+                    title="Remove from dashboard"
+                    @click="toggleDashboard(run, d.id)"
+                  >
+                    <span class="truncate max-w-28">{{ d.name }}</span>
+                    <svg class="w-2.5 h-2.5 opacity-0 group-hover/pill:opacity-100 transition-opacity" viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z"/></svg>
+                  </button>
+
+                  <!-- Add-to-dashboard trigger -->
+                  <button
+                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-dashed border-neutral-300 dark:border-neutral-600 text-neutral-400 hover:text-primary-600 hover:border-primary-400 dark:hover:text-primary-400 transition-colors"
+                    title="Add to dashboard"
                     @click="togglePicker(run.slug)"
                   >
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                      <rect x="2" y="3" width="16" height="13" rx="2"/>
-                      <path d="M8 16v2M12 16v2M5 19h10"/>
-                    </svg>
-                    <span v-if="dashboardCountFor(run.slug) > 0" class="tabular-nums">
-                      {{ dashboardCountFor(run.slug) }} dashboard{{ dashboardCountFor(run.slug) === 1 ? '' : 's' }}
-                    </span>
-                    <span v-else>Add to dashboard</span>
+                    <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                    <span v-if="dashboardCountFor(run.slug) === 0">Dashboard</span>
                   </button>
 
                   <!-- Lazy-mounted dashboard picker dropdown (only renders when open) -->
                   <div
                     v-if="openPickerSlug === run.slug"
-                    class="absolute left-0 top-full mt-1 z-40 min-w-44 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden"
+                    class="absolute right-0 top-full mt-1 z-40 min-w-44 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden"
                   >
                     <div v-if="db.dashboards.value.length === 0" class="px-3 py-2 text-xs text-neutral-400">No dashboards yet.</div>
                     <button
@@ -214,11 +227,6 @@
                     </button>
                   </div>
                 </div>
-
-                <!-- Fork count -->
-                <span v-if="run.fork_count > 0" class="ml-auto text-xs text-neutral-400">
-                  {{ run.fork_count }} fork{{ run.fork_count === 1 ? '' : 's' }}
-                </span>
               </div>
             </div>
           </div>
@@ -259,6 +267,7 @@ interface MyRun {
   flow_status: string | null
   is_fork: boolean
   fork_count: number
+  upvote_count: number
   author_handle: string | null
   created_at: string
 }
@@ -335,6 +344,12 @@ function dashboardIdsFor(slug: string): Set<string> {
 
 function dashboardCountFor(slug: string): number {
   return dashboardIdsFor(slug).size
+}
+
+// Dashboard {id,name} objects this run is monitored on — for the membership pills.
+function dashboardsFor(slug: string): { id: string; name: string }[] {
+  const ids = dashboardIdsFor(slug)
+  return db.dashboards.value.filter(d => ids.has(d.id))
 }
 
 // Set of run slugs that appear on at least one dashboard (for scope filter).
@@ -435,6 +450,25 @@ function onDocClick(e: MouseEvent) {
 }
 onMounted(() => document.addEventListener('click', onDocClick))
 onUnmounted(() => document.removeEventListener('click', onDocClick))
+
+// ── Delete ─────────────────────────────────────────────────────────────────────
+async function deleteRun(run: MyRun) {
+  if (!confirm(`Delete "${run.name}"? This cannot be undone.`)) return
+  try {
+    const token = await getToken()
+    const headers: Record<string, string> = {}
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    const res = await fetch(
+      `${config.public.apiBase}/api/v1/me/runs/${encodeURIComponent(run.slug)}`,
+      { method: 'DELETE', headers }
+    )
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    runs.value = runs.value.filter(r => r.id !== run.id)
+    toast.add({ title: 'Run deleted', color: 'neutral' })
+  } catch (e: any) {
+    toast.add({ title: 'Delete failed', description: e?.message, color: 'error' })
+  }
+}
 
 // ── Display helpers ────────────────────────────────────────────────────────────
 function classDisplay(run: MyRun): string {
