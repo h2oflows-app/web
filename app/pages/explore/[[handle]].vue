@@ -97,30 +97,6 @@
           </button>
         </div>
 
-        <!-- Add Run + Report — my-runs mode only, subtle -->
-        <div v-if="!handle && isAuthenticated" class="px-3 pb-1 shrink-0 flex items-center gap-1">
-          <button
-            class="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-neutral-500 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-            title="Add Run"
-            @click="wizard.open()"
-          >
-            <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
-              <line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>
-            </svg>
-            Add Run
-          </button>
-          <NuxtLink
-            to="/reports/new"
-            class="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-neutral-500 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-            title="File a Report"
-          >
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
-            </svg>
-            Report
-          </NuxtLink>
-        </div>
-
         <!-- Zoom & Filter toggle -->
         <div class="px-3 pb-1.5 shrink-0 flex items-center justify-between">
           <label class="flex items-center gap-1.5 cursor-pointer select-none text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200">
@@ -437,7 +413,6 @@ import type { WatchedGauge } from '~/stores/watchlist'
 
 definePageMeta({ ssr: false })
 
-const wizard = useRunWizard()
 const { bandSolid } = useFlowBandPalette()
 const { apiBase } = useRuntimeConfig().public
 const router = useRouter()

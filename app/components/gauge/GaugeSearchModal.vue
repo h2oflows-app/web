@@ -527,6 +527,7 @@ watch(open, (v) => {
     addedCustomIds.value = new Set()
   } else {
     if (db.activeDashboardId.value) selectedDashboardId.value = db.activeDashboardId.value
+    activeTab.value = props.initialTab
     if (activeTab.value === 'mine') loadMyRuns()
     else if (activeTab.value === 'discover') loadDiscoverRuns()
     else if (activeTab.value === 'gauges') loadCustomGauges()
