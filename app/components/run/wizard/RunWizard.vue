@@ -6,6 +6,23 @@
     <!-- App bar overlay -->
     <WizardAppBar />
 
+    <!-- Admin sentinel banner — shown when editing an h2oflows-owned run -->
+    <div
+      v-if="store.mode === 'edit' && store.authorHandle === 'h2oflows'"
+      class="absolute top-12.5 left-0 right-0 z-30 flex items-center gap-2 px-4 py-1.5 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-800/60 text-xs text-amber-700 dark:text-amber-400"
+    >
+      <UIcon name="i-heroicons-exclamation-triangle" class="w-3.5 h-3.5 shrink-0" />
+      Editing <strong class="font-semibold">@h2oflows</strong> run as admin — changes affect the canonical version
+    </div>
+
+    <!-- Fork attribution banner -->
+    <div
+      v-else-if="store.mode === 'edit' && (store.forkedFromName || store.forkedFromSlug)"
+      class="absolute top-12.5 left-0 right-0 z-30 px-4 py-1.5 text-xs text-[--ui-text-muted] bg-[--ui-bg-elevated] border-b border-[--ui-border]"
+    >
+      Forked from {{ store.forkedFromName ?? store.forkedFromSlug ?? '' }}<template v-if="store.originalAuthorHandle"> · <NuxtLink :to="`/explore/${store.originalAuthorHandle}`" class="hover:text-primary-500 transition-colors">@{{ store.originalAuthorHandle }}</NuxtLink></template><template v-if="forkDate"> · {{ forkDate }}</template>
+    </div>
+
     <!-- River name chip -->
     <RiverNameChip />
 
@@ -51,7 +68,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRunWizardStore } from '~/stores/runWizard'
 import length from '@turf/length'
 
@@ -64,6 +81,12 @@ const toast = useToast()
 
 const mapRef = ref<{ confirmPutIn: () => void; confirmTakeOut: () => void } | null>(null)
 const editLoading = ref(false)
+
+const forkDate = computed(() => {
+  const d = store.originalForkedAt
+  if (!d) return ''
+  return new Date(d).toLocaleDateString()
+})
 
 function handleReset() {
   store.reset()
@@ -118,6 +141,26 @@ async function loadEditRun(slug: string) {
         const feature = geom.type === 'Feature' ? geom : { type: 'Feature', geometry: geom, properties: {} }
         store.distanceMi = length(feature, { units: 'miles' })
       } catch { /* non-fatal */ }
+    }
+
+    // Advanced edit fields prefill
+    store.slug = data.slug ?? ''
+    store.authorHandle = data.author_handle ?? null
+    store.forkedFromName = data.forked_from_name ?? null
+    store.forkedFromSlug = data.forked_from_slug ?? null
+    store.originalAuthorHandle = data.original_author_handle ?? null
+    store.originalForkedAt = data.original_forked_at ?? null
+
+    // Custom gauge prefill
+    if (data.custom_gauge_id) {
+      store.customGaugeId = data.custom_gauge_id
+      // Show the custom gauge name in the gauge display row
+      store.loadedGauge = {
+        externalId: data.custom_gauge_id,
+        source: 'custom',
+        name: data.custom_gauge_name ?? 'Custom gauge',
+      }
+      store.gauge = null  // NLDI gauge is separate from custom gauge
     }
 
     // Gauge prefill

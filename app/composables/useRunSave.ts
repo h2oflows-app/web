@@ -108,7 +108,7 @@ export function useRunSave() {
     }
   }
 
-  async function saveEdit(): Promise<{ slug: string } | null> {
+  async function saveEdit(opts?: { slugAvailability?: string }): Promise<{ slug: string } | null> {
     if (!store.name.trim()) {
       toast.add({ title: 'Run name is required', color: 'error' })
       return null
@@ -116,6 +116,16 @@ export function useRunSave() {
     if (!store.editSlug) {
       toast.add({ title: 'No run to edit', color: 'error' })
       return null
+    }
+
+    // Block save if slug is in a bad state
+    const slugChanged = store.slug && store.slug !== store.editSlug
+    if (slugChanged) {
+      const availability = opts?.slugAvailability
+      if (availability === 'taken' || availability === 'invalid') {
+        toast.add({ title: 'Fix the URL slug before saving', color: 'error' })
+        return null
+      }
     }
 
     saving.value = true
@@ -126,7 +136,7 @@ export function useRunSave() {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
       if (token) headers.Authorization = `Bearer ${token}`
 
-      // ── Step 1: PATCH metadata (+ geometry if dirty) ─────────────────────
+      // ── Step 1: PATCH metadata (+ geometry + slug if changed) ────────────
       const patchBody: Record<string, any> = {
         name:       store.name.trim(),
         river_name: store.riverName.trim() || null,
@@ -135,6 +145,11 @@ export function useRunSave() {
         class_max:  store.classMax,
       }
       if (store.gnisId.trim()) patchBody.gnis_id = store.gnisId.trim()
+
+      // Include slug only when changed and not in error state
+      if (slugChanged) {
+        patchBody.slug = store.slug
+      }
 
       if (store.geometryDirty && store.upComID && store.downComID) {
         if (store.putIn)   patchBody.put_in    = { lat: store.putIn.lat,   lng: store.putIn.lng   }
@@ -159,6 +174,12 @@ export function useRunSave() {
       const patchData = await patchRes.json().catch(() => ({}))
       const returnedSlug: string = patchData.slug ?? store.editSlug
 
+      // Update store.editSlug if slug changed so subsequent requests use correct slug
+      if (returnedSlug !== store.editSlug) {
+        store.editSlug = returnedSlug
+        store.slug = returnedSlug
+      }
+
       // ── Step 2: centerline (only if geometry was re-pinned) ───────────────
       if (store.geometryDirty && store.previewCenterline) {
         await fetch(`${apiBase}/api/v1/me/runs/${returnedSlug}/centerline`, {
@@ -178,7 +199,15 @@ export function useRunSave() {
 
       // ── Step 4: gauge (only if changed) ──────────────────────────────────
       if (store.gaugeDirty) {
-        if (store.gauge) {
+        if (store.customGaugeId) {
+          // Custom gauge path: PUT { custom_gauge_id }
+          await fetch(`${apiBase}/api/v1/me/runs/${returnedSlug}/gauge`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({ custom_gauge_id: store.customGaugeId }),
+          }).catch(() => { /* non-fatal */ })
+        } else if (store.gauge) {
+          // NLDI gauge upsert path
           const g = store.gauge
           await fetch(`${apiBase}/api/v1/me/runs/${returnedSlug}/gauge`, {
             method: 'PUT',

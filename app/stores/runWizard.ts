@@ -62,6 +62,15 @@ export const useRunWizardStore = defineStore('runWizard', () => {
   const gaugeDirty = ref(false)
   const loadedGauge = ref<{ externalId: string; source: string; name: string } | null>(null)
 
+  // Advanced edit fields (edit mode only)
+  const slug = ref('')
+  const customGaugeId = ref<string | null>(null)
+  const forkedFromName = ref<string | null>(null)
+  const forkedFromSlug = ref<string | null>(null)
+  const originalAuthorHandle = ref<string | null>(null)
+  const originalForkedAt = ref<string | null>(null)
+  const authorHandle = ref<string | null>(null)
+
   // Derived
   const centerlineColor = computed(() => classColor(classMax.value ?? 0))
 
@@ -114,6 +123,13 @@ export const useRunWizardStore = defineStore('runWizard', () => {
     geometryDirty.value = false
     gaugeDirty.value = false
     loadedGauge.value = null
+    slug.value = ''
+    customGaugeId.value = null
+    forkedFromName.value = null
+    forkedFromSlug.value = null
+    originalAuthorHandle.value = null
+    originalForkedAt.value = null
+    authorHandle.value = null
   }
 
   return {
@@ -128,6 +144,8 @@ export const useRunWizardStore = defineStore('runWizard', () => {
     gauge, gaugeSkipped, nearbyGauges,
     centerlineColor,
     editSlug, geometryDirty, gaugeDirty, loadedGauge,
+    slug, customGaugeId,
+    forkedFromName, forkedFromSlug, originalAuthorHandle, originalForkedAt, authorHandle,
     goPutIn, goTakeOut, goGauge, goDetails, goSaved, back, redoPutIn, reset,
   }
 })

@@ -121,6 +121,9 @@
       />
     </div>
 
+    <!-- Advanced edit panel (edit mode only) -->
+    <AdvancedEditPanel v-if="store.mode === 'edit'" ref="advancedPanelRef" />
+
     <!-- Admin: publish as h2oflows -->
     <label
       v-if="isDataAdmin"
@@ -145,7 +148,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, type Ref } from 'vue'
 import { useRunWizardStore } from '~/stores/runWizard'
 import { classColor, classRange } from '~/utils/classRating'
 import type { FlowBands } from '~/utils/flowBand'
@@ -156,6 +159,7 @@ const { save, saveEdit, saving } = useRunSave()
 
 const showNotes = ref(false)
 const authorAsH2oflows = ref(false)
+const advancedPanelRef = ref<{ slugAvailability: Ref<string> } | null>(null)
 
 // Chip definitions: value, label
 const CLASS_CHIPS = [
@@ -200,7 +204,9 @@ watch(effectiveFlowBands, (v) => { store.flowBands = v }, { deep: true })
 
 async function handleCreate() {
   if (store.mode === 'edit') {
-    const result = await saveEdit()
+    const result = await saveEdit({
+      slugAvailability: advancedPanelRef.value?.slugAvailability.value,
+    })
     if (result) {
       store.goSaved()
     }
