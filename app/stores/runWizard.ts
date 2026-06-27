@@ -9,6 +9,7 @@ export interface WizardGauge {
   name: string
   lat: number
   lng: number
+  distanceMi?: number
 }
 
 export const useRunWizardStore = defineStore('runWizard', () => {
@@ -51,6 +52,9 @@ export const useRunWizardStore = defineStore('runWizard', () => {
   // Gauge (Pass B wires the full object; Pass A it stays null)
   const gauge = ref<WizardGauge | null>(null)
   const gaugeSkipped = ref(false)
+
+  // Nearby gauges populated by the map during the gauge step
+  const nearbyGauges = ref<WizardGauge[]>([])
 
   // Derived
   const centerlineColor = computed(() => classColor(classMax.value ?? 0))
@@ -99,6 +103,7 @@ export const useRunWizardStore = defineStore('runWizard', () => {
     distanceMi.value = 0
     gauge.value = null
     gaugeSkipped.value = false
+    nearbyGauges.value = []
   }
 
   return {
@@ -110,7 +115,7 @@ export const useRunWizardStore = defineStore('runWizard', () => {
     name, longName, classMin, classMax, flowBands, notes,
     savedSlug, savedAsH2oflows,
     basemap, distanceMi,
-    gauge, gaugeSkipped,
+    gauge, gaugeSkipped, nearbyGauges,
     centerlineColor,
     goPutIn, goTakeOut, goGauge, goDetails, goSaved, back, redoPutIn, reset,
   }

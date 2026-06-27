@@ -13,7 +13,9 @@ import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import nearestPointOnLine from '@turf/nearest-point-on-line'
 import length from '@turf/length'
+import distance from '@turf/distance'
 import { useRunWizardStore } from '~/stores/runWizard'
+import type { WizardGauge } from '~/stores/runWizard'
 import { useNHDSnap } from '~/composables/useNHDSnap'
 import { useAuth } from '~/composables/useAuth'
 import { flattenFlowlineCoords, buildLine, snapToLine, sliceMiles } from '~/composables/useFlowlineSnap'
@@ -357,7 +359,7 @@ function onMoveEnd() {
 
 function addSources() {
   if (!map) return
-  const sources = ['wizard-upstream', 'wizard-upstream-dashed', 'wizard-downstream']
+  const sources = ['wizard-upstream', 'wizard-upstream-dashed', 'wizard-downstream', 'wizard-gauges']
   for (const id of sources) {
     map.addSource(id, { type: 'geojson', data: empty() })
   }
@@ -401,6 +403,98 @@ function addLayers() {
       'line-opacity': 0.55,
     },
   })
+
+  // Gauge circles — cyan, visible on gauge step
+  map.addLayer({
+    id: 'wizard-gauges-circle',
+    type: 'circle',
+    source: 'wizard-gauges',
+    filter: ['==', ['geometry-type'], 'Point'],
+    layout: { visibility: 'none' },
+    paint: {
+      'circle-radius': [
+        'case',
+        ['==', ['get', 'selected'], true], 10,
+        6,
+      ],
+      'circle-color': '#0891b2',
+      'circle-stroke-color': '#fff',
+      'circle-stroke-width': [
+        'case',
+        ['==', ['get', 'selected'], true], 3,
+        1.5,
+      ],
+    },
+  })
+
+  // Cursor + click on gauge circles
+  map.on('click', 'wizard-gauges-circle', (e) => {
+    const f = e.features?.[0]
+    if (!f) return
+    const p = f.properties ?? {}
+    const coords = (f.geometry as GeoJSON.Point).coordinates as [number, number]
+    store.gauge = {
+      externalId: p.identifier ?? '',
+      source: p.source ?? '',
+      name: p.name ?? '',
+      lat: coords[1],
+      lng: coords[0],
+      distanceMi: typeof p.distanceMi === 'number' ? p.distanceMi : undefined,
+    }
+    updateGaugeLayers()
+  })
+
+  map.on('mouseenter', 'wizard-gauges-circle', () => {
+    if (map) map.getCanvas().style.cursor = 'pointer'
+  })
+  map.on('mouseleave', 'wizard-gauges-circle', () => {
+    if (map) map.getCanvas().style.cursor = ''
+  })
+}
+
+function updateGaugeLayers() {
+  if (!map || !mapReady.value) return
+  const isGaugeStep = store.step === 'gauge'
+
+  // Show/hide the layer
+  map.setLayoutProperty('wizard-gauges-circle', 'visibility', isGaugeStep ? 'visible' : 'none')
+
+  if (!isGaugeStep) return
+
+  // Build a feature collection from nearbyGauges, marking the selected one
+  const selectedId = store.gauge?.externalId ?? null
+  const fc: GeoJSON.FeatureCollection = {
+    type: 'FeatureCollection',
+    features: store.nearbyGauges.map(g => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: [g.lng, g.lat] },
+      properties: {
+        identifier: g.externalId,
+        source: g.source,
+        name: g.name,
+        distanceMi: g.distanceMi ?? null,
+        selected: g.externalId === selectedId,
+      },
+    })),
+  }
+  setSource('wizard-gauges', fc)
+}
+
+function fitToGaugeStep() {
+  if (!map || !putInLngLat) return
+  // If we have gauges, fit to put-in + nearest gauge so both are visible
+  const nearest = store.nearbyGauges[0]
+  if (!nearest) return
+
+  const coords: [number, number][] = [putInLngLat, [nearest.lng, nearest.lat]]
+  // Also include takeout if set
+  if (takeOutLngLat) coords.push(takeOutLngLat)
+
+  const bounds = coords.reduce(
+    (b, c) => b.extend(c),
+    new maplibregl.LngLatBounds(coords[0]!, coords[0]!)
+  )
+  map.fitBounds(bounds, { padding: 100, maxZoom: 13 })
 }
 
 function initMap() {
@@ -470,9 +564,54 @@ function initMap() {
 // React to store.basemap changes
 watch(() => store.basemap, setBasemapLayers)
 
+// When gauge selection changes from the panel, refresh map highlight
+watch(() => store.gauge, () => {
+  if (mapReady.value && store.step === 'gauge') updateGaugeLayers()
+})
+
 // React to snap data changes — update flowline layers
 watch([snap.tributaries, snap.downstreamFlowlines], () => {
   if (mapReady.value) updateFlowlineLayers()
+}, { deep: true })
+
+// When snap.gauges changes (populated after put-in snap), map features → store.nearbyGauges
+watch(snap.gauges, (fc) => {
+  if (!fc || !fc.features.length) {
+    store.nearbyGauges = []
+    return
+  }
+  const putIn = store.putIn
+  const gauges: WizardGauge[] = fc.features
+    .filter((f: any) => f.geometry?.type === 'Point')
+    .map((f: any) => {
+      const coords = f.geometry.coordinates as [number, number]
+      const g: WizardGauge = {
+        externalId: f.properties?.identifier ?? '',
+        source: f.properties?.source ?? '',
+        name: f.properties?.name ?? '',
+        lat: coords[1],
+        lng: coords[0],
+        distanceMi: undefined,
+      }
+      if (putIn) {
+        const d = distance([putIn.lng, putIn.lat], [g.lng, g.lat], { units: 'miles' })
+        g.distanceMi = Math.round(d * 10) / 10
+      }
+      return g
+    })
+    .sort((a, b) => (a.distanceMi ?? 9999) - (b.distanceMi ?? 9999))
+
+  store.nearbyGauges = gauges
+
+  // If no gauge selected yet, pre-select nearest
+  if (!store.gauge && gauges.length > 0) {
+    store.gauge = gauges[0]!
+  }
+
+  // Refresh map layer if we're on the gauge step
+  if (mapReady.value && store.step === 'gauge') {
+    updateGaugeLayers()
+  }
 }, { deep: true })
 
 // React to step changes
@@ -491,6 +630,14 @@ watch(() => store.step, async (step) => {
     takeOutMarker = null
     takeOutLngLat = null
     updateFlowlineLayers()
+    updateGaugeLayers()
+  } else if (step === 'gauge') {
+    updateGaugeLayers()
+    await nextTick()
+    fitToGaugeStep()
+  } else {
+    // details / saved — hide gauge layer
+    updateGaugeLayers()
   }
 })
 
