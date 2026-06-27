@@ -22,10 +22,7 @@
         @continue="store.goDetails()"
         @skip="() => { store.gaugeSkipped = true; store.goDetails() }"
       />
-      <StepDetails
-        v-else-if="store.step === 'details'"
-        @save="store.goSaved()"
-      />
+      <StepDetails v-else-if="store.step === 'details'" />
     </WizardSheet>
 
     <!-- Saved overlay (above sheet) -->

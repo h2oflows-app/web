@@ -32,6 +32,7 @@ watch(snap.riverNameSuggestion, v => { if (v) store.riverName = v })
 watch(snap.gnisId, v => { if (v) store.gnisId = v })
 watch(snap.upComID, v => { store.upComID = v })
 watch(snap.downComID, v => { store.downComID = v })
+watch(snap.previewCenterline, v => { store.previewCenterline = v })
 
 const container = ref<HTMLDivElement>()
 const mapReady = ref(false)

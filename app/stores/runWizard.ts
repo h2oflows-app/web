@@ -1,6 +1,15 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { classColor } from '~/utils/classRating'
+import type { FlowBands } from '~/utils/flowBand'
+
+export interface WizardGauge {
+  externalId: string
+  source: string
+  name: string
+  lat: number
+  lng: number
+}
 
 export const useRunWizardStore = defineStore('runWizard', () => {
   const mode = ref<'create' | 'edit'>('create')
@@ -18,13 +27,20 @@ export const useRunWizardStore = defineStore('runWizard', () => {
   const riverName = ref('')
   const gnisId = ref('')
 
-  // Run details (stubs for now)
+  // Centerline GeoJSON (fetched by map after both COMIDs set)
+  const previewCenterline = ref<object | null>(null)
+
+  // Run details
   const name = ref('')
   const longName = ref('')
   const classMin = ref<number | null>(null)
   const classMax = ref<number | null>(null)
-  const flowBands = ref<any>(null)
+  const flowBands = ref<FlowBands | null>(null)
   const notes = ref('')
+
+  // Saved slug (stashed after create for SavedOverlay navigation)
+  const savedSlug = ref<string | null>(null)
+  const savedAsH2oflows = ref(false)
 
   // Map state
   const basemap = ref<'street' | 'topo' | 'satellite'>('street')
@@ -32,9 +48,8 @@ export const useRunWizardStore = defineStore('runWizard', () => {
   // Distance computed from turf (updated live during takeout drag)
   const distanceMi = ref(0)
 
-  // Gauge stubs
-  const gaugeId = ref<string | null>(null)
-  const gaugeName = ref('')
+  // Gauge (Pass B wires the full object; Pass A it stays null)
+  const gauge = ref<WizardGauge | null>(null)
   const gaugeSkipped = ref(false)
 
   // Derived
@@ -71,16 +86,18 @@ export const useRunWizardStore = defineStore('runWizard', () => {
     downComID.value = null
     riverName.value = ''
     gnisId.value = ''
+    previewCenterline.value = null
     name.value = ''
     longName.value = ''
     classMin.value = null
     classMax.value = null
     flowBands.value = null
     notes.value = ''
+    savedSlug.value = null
+    savedAsH2oflows.value = false
     basemap.value = 'street'
     distanceMi.value = 0
-    gaugeId.value = null
-    gaugeName.value = ''
+    gauge.value = null
     gaugeSkipped.value = false
   }
 
@@ -89,9 +106,11 @@ export const useRunWizardStore = defineStore('runWizard', () => {
     putIn, takeOut,
     upComID, downComID,
     riverName, gnisId,
+    previewCenterline,
     name, longName, classMin, classMax, flowBands, notes,
+    savedSlug, savedAsH2oflows,
     basemap, distanceMi,
-    gaugeId, gaugeName, gaugeSkipped,
+    gauge, gaugeSkipped,
     centerlineColor,
     goPutIn, goTakeOut, goGauge, goDetails, goSaved, back, redoPutIn, reset,
   }
