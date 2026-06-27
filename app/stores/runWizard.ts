@@ -56,6 +56,12 @@ export const useRunWizardStore = defineStore('runWizard', () => {
   // Nearby gauges populated by the map during the gauge step
   const nearbyGauges = ref<WizardGauge[]>([])
 
+  // Edit mode state
+  const editSlug = ref<string | null>(null)
+  const geometryDirty = ref(false)
+  const gaugeDirty = ref(false)
+  const loadedGauge = ref<{ externalId: string; source: string; name: string } | null>(null)
+
   // Derived
   const centerlineColor = computed(() => classColor(classMax.value ?? 0))
 
@@ -104,6 +110,10 @@ export const useRunWizardStore = defineStore('runWizard', () => {
     gauge.value = null
     gaugeSkipped.value = false
     nearbyGauges.value = []
+    editSlug.value = null
+    geometryDirty.value = false
+    gaugeDirty.value = false
+    loadedGauge.value = null
   }
 
   return {
@@ -117,6 +127,7 @@ export const useRunWizardStore = defineStore('runWizard', () => {
     basemap, distanceMi,
     gauge, gaugeSkipped, nearbyGauges,
     centerlineColor,
+    editSlug, geometryDirty, gaugeDirty, loadedGauge,
     goPutIn, goTakeOut, goGauge, goDetails, goSaved, back, redoPutIn, reset,
   }
 })

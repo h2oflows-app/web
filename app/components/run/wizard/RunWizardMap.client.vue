@@ -174,6 +174,13 @@ async function pickPutIn(lngLat: maplibregl.LngLat) {
   // Reveal flowlines and gauge dots
   updateFlowlineLayers()
   updateGaugeLayers()
+
+  // Mark geometry as changed in edit mode
+  if (store.mode === 'edit') {
+    store.geometryDirty = true
+    // Hide the saved centerline — user is repinning
+    setSource('wizard-centerline', empty())
+  }
 }
 
 /**
@@ -201,6 +208,11 @@ function pickTakeOut(lngLat: maplibregl.LngLat) {
   const comid = findDownstreamComID(snapped)
   if (comid) {
     snap.onComIDSelect(comid, snapped[1], snapped[0])
+  }
+
+  // Mark geometry as changed in edit mode
+  if (store.mode === 'edit') {
+    store.geometryDirty = true
   }
 }
 
@@ -399,7 +411,7 @@ function onMoveEnd() {
 
 function addSources() {
   if (!map) return
-  const sources = ['wizard-upstream', 'wizard-upstream-dashed', 'wizard-downstream', 'wizard-gauges']
+  const sources = ['wizard-upstream', 'wizard-upstream-dashed', 'wizard-downstream', 'wizard-gauges', 'wizard-centerline']
   for (const id of sources) {
     map.addSource(id, { type: 'geojson', data: empty() })
   }
@@ -444,6 +456,19 @@ function addLayers() {
     },
   })
 
+  // Existing run centerline (edit mode — shows saved geometry)
+  map.addLayer({
+    id: 'wizard-centerline-line',
+    type: 'line',
+    source: 'wizard-centerline',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: {
+      'line-color': '#2563eb',
+      'line-width': 4,
+      'line-opacity': 0.75,
+    },
+  })
+
   // Gauge circles — amber, visible from put-in step onward
   map.addLayer({
     id: 'wizard-gauges-circle',
@@ -474,13 +499,22 @@ function addLayers() {
     if (!f || !map) return
     const p = f.properties ?? {}
     const coords = (f.geometry as GeoJSON.Point).coordinates as [number, number]
-    store.gauge = {
+    const selectedGauge = {
       externalId: p.identifier ?? '',
       source: p.source ?? '',
       name: p.name ?? '',
       lat: coords[1],
       lng: coords[0],
       distanceMi: typeof p.distanceMi === 'number' ? p.distanceMi : undefined,
+    }
+    store.gauge = selectedGauge
+    // Mark gauge as changed if different from loaded gauge in edit mode
+    if (store.mode === 'edit') {
+      const loaded = store.loadedGauge
+      const changed = !loaded
+        || loaded.externalId !== selectedGauge.externalId
+        || loaded.source !== selectedGauge.source
+      if (changed) store.gaugeDirty = true
     }
     updateGaugeLayers()
 
@@ -611,8 +645,51 @@ function initMap() {
     mapReady.value = true
     addSources()
     addLayers()
-    // Map starts clear — no markers, no flowlines, no gauges
     setCursorForStep(store.step)
+
+    // Edit mode: render existing geometry from prefilled store state
+    if (store.mode === 'edit' && store.putIn && store.takeOut) {
+      // Place green put-in marker
+      const piLng = store.putIn.lng
+      const piLat = store.putIn.lat
+      putInLngLat = [piLng, piLat]
+      const { marker: piMarker } = makeStaticMarker('#22c55e', 'Put-in')
+      piMarker.setLngLat(putInLngLat).addTo(map)
+      putInMarker = piMarker
+
+      // Place red take-out marker
+      const toLng = store.takeOut.lng
+      const toLat = store.takeOut.lat
+      takeOutLngLat = [toLng, toLat]
+      const { marker: toMarker } = makeStaticMarker('#ef4444', 'Take-out')
+      toMarker.setLngLat(takeOutLngLat).addTo(map)
+      takeOutMarker = toMarker
+
+      // Draw existing centerline
+      if (store.previewCenterline) {
+        const geom = store.previewCenterline as any
+        const fc: GeoJSON.FeatureCollection = {
+          type: 'FeatureCollection',
+          features: [
+            geom.type === 'Feature'
+              ? geom
+              : { type: 'Feature', geometry: geom, properties: {} },
+          ],
+        }
+        setSource('wizard-centerline', fc)
+      }
+
+      // Show gauge dots if gauge is set
+      updateGaugeLayers()
+
+      // Fit map to the run extent
+      const coords: [number, number][] = [putInLngLat, takeOutLngLat]
+      const bounds = coords.reduce(
+        (b, c) => b.extend(c),
+        new maplibregl.LngLatBounds(coords[0]!, coords[0]!)
+      )
+      map.fitBounds(bounds, { padding: 80, maxZoom: 14 })
+    }
   })
 
   // Map click handler: routes to put-in or take-out pick based on step
@@ -645,6 +722,21 @@ watch(() => store.gauge, () => {
 watch([snap.tributaries, snap.downstreamFlowlines], () => {
   if (mapReady.value) updateFlowlineLayers()
 }, { deep: true })
+
+// When a new centerline is computed (after repin in edit mode), update the centerline layer
+watch(snap.previewCenterline, (cl) => {
+  if (!mapReady.value || !cl) return
+  const geom = cl as any
+  const fc: GeoJSON.FeatureCollection = {
+    type: 'FeatureCollection',
+    features: [
+      geom.type === 'Feature'
+        ? geom
+        : { type: 'Feature', geometry: geom, properties: {} },
+    ],
+  }
+  setSource('wizard-centerline', fc)
+})
 
 // When snap.gauges changes (populated after put-in snap), map features → store.nearbyGauges
 watch(snap.gauges, (fc) => {

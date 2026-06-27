@@ -130,9 +130,9 @@
       <span>Publish as <strong>h2oflows</strong> (official curator content — public)</span>
     </label>
 
-    <!-- Create button -->
+    <!-- Create / Save button -->
     <UButton
-      label="Create run"
+      :label="store.mode === 'edit' ? 'Save changes' : 'Create run'"
       leading-icon="i-heroicons-check"
       size="xl"
       block
@@ -152,7 +152,7 @@ import type { FlowBands } from '~/utils/flowBand'
 
 const store = useRunWizardStore()
 const { isDataAdmin } = useAuth()
-const { save, saving } = useRunSave()
+const { save, saveEdit, saving } = useRunSave()
 
 const showNotes = ref(false)
 const authorAsH2oflows = ref(false)
@@ -199,9 +199,16 @@ onMounted(() => {
 watch(effectiveFlowBands, (v) => { store.flowBands = v }, { deep: true })
 
 async function handleCreate() {
-  const result = await save(authorAsH2oflows.value)
-  if (result) {
-    store.goSaved()
+  if (store.mode === 'edit') {
+    const result = await saveEdit()
+    if (result) {
+      store.goSaved()
+    }
+  } else {
+    const result = await save(authorAsH2oflows.value)
+    if (result) {
+      store.goSaved()
+    }
   }
 }
 </script>

@@ -108,5 +108,108 @@ export function useRunSave() {
     }
   }
 
-  return { save, saving, error }
+  async function saveEdit(): Promise<{ slug: string } | null> {
+    if (!store.name.trim()) {
+      toast.add({ title: 'Run name is required', color: 'error' })
+      return null
+    }
+    if (!store.editSlug) {
+      toast.add({ title: 'No run to edit', color: 'error' })
+      return null
+    }
+
+    saving.value = true
+    error.value = null
+
+    try {
+      const token = await getToken()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers.Authorization = `Bearer ${token}`
+
+      // ── Step 1: PATCH metadata (+ geometry if dirty) ─────────────────────
+      const patchBody: Record<string, any> = {
+        name:       store.name.trim(),
+        river_name: store.riverName.trim() || null,
+        note:       store.notes.trim() || null,
+        class_min:  store.classMin,
+        class_max:  store.classMax,
+      }
+      if (store.gnisId.trim()) patchBody.gnis_id = store.gnisId.trim()
+
+      if (store.geometryDirty && store.upComID && store.downComID) {
+        if (store.putIn)   patchBody.put_in    = { lat: store.putIn.lat,   lng: store.putIn.lng   }
+        if (store.takeOut) patchBody.take_out  = { lat: store.takeOut.lat, lng: store.takeOut.lng }
+        patchBody.up_comid   = store.upComID
+        patchBody.down_comid = store.downComID
+      }
+
+      const patchRes = await fetch(`${apiBase}/api/v1/me/runs/${store.editSlug}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(patchBody),
+      })
+      if (!patchRes.ok) {
+        if (patchRes.status === 409) {
+          toast.add({ title: 'Slug conflict', description: 'URL already in use.', color: 'error' })
+          return null
+        }
+        const errData = await patchRes.json().catch(() => ({}))
+        throw new Error(errData.error ?? `PATCH failed: ${patchRes.status}`)
+      }
+      const patchData = await patchRes.json().catch(() => ({}))
+      const returnedSlug: string = patchData.slug ?? store.editSlug
+
+      // ── Step 2: centerline (only if geometry was re-pinned) ───────────────
+      if (store.geometryDirty && store.previewCenterline) {
+        await fetch(`${apiBase}/api/v1/me/runs/${returnedSlug}/centerline`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ geojson: store.previewCenterline }),
+        }).catch(() => { /* non-fatal */ })
+      }
+
+      // ── Step 3: flow ranges (always) ─────────────────────────────────────
+      const fbRes = await fetch(`${apiBase}/api/v1/me/runs/${returnedSlug}/flow-ranges`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(store.flowBands ?? { base_label: 'Too Low', base_color: 'neutral-3', thresholds: [] }),
+      })
+      if (!fbRes.ok) throw new Error(`Flow ranges save failed: ${fbRes.status}`)
+
+      // ── Step 4: gauge (only if changed) ──────────────────────────────────
+      if (store.gaugeDirty) {
+        if (store.gauge) {
+          const g = store.gauge
+          await fetch(`${apiBase}/api/v1/me/runs/${returnedSlug}/gauge`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({
+              external_id: g.externalId,
+              source:      g.source,
+              name:        g.name,
+              lat:         g.lat,
+              lng:         g.lng,
+            }),
+          }).catch(() => { /* non-fatal */ })
+        } else {
+          // Gauge was cleared
+          await fetch(`${apiBase}/api/v1/me/runs/${returnedSlug}/gauge`, {
+            method: 'DELETE',
+            headers,
+          }).catch(() => { /* non-fatal */ })
+        }
+      }
+
+      store.savedSlug = returnedSlug
+      return { slug: returnedSlug }
+    } catch (e: any) {
+      error.value = e.message ?? 'Failed to save run.'
+      toast.add({ title: 'Failed to save run', description: error.value ?? undefined, color: 'error' })
+      return null
+    } finally {
+      saving.value = false
+    }
+  }
+
+  return { save, saveEdit, saving, error }
 }

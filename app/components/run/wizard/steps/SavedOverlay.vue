@@ -13,8 +13,12 @@
 
     <!-- Headline -->
     <div class="text-center">
-      <h2 class="text-2xl font-bold text-[--ui-text-highlighted]" style="font-family: var(--font-heading, inherit)">Run created</h2>
-      <p class="text-sm text-[--ui-text-muted] mt-1">It's live on your dashboard and shared to Explore.</p>
+      <h2 class="text-2xl font-bold text-[--ui-text-highlighted]" style="font-family: var(--font-heading, inherit)">
+        {{ store.mode === 'edit' ? 'Run updated' : 'Run created' }}
+      </h2>
+      <p class="text-sm text-[--ui-text-muted] mt-1">
+        {{ store.mode === 'edit' ? 'Your changes are live.' : "It's live on your dashboard and shared to Explore." }}
+      </p>
     </div>
 
     <!-- Summary card -->
@@ -69,10 +73,20 @@
         @click="$emit('reset')"
       />
       <UButton
+        v-if="store.mode !== 'edit'"
         label="Add another run"
         variant="ghost"
         color="neutral"
         block
+        @click="$emit('reset')"
+      />
+      <UButton
+        v-else
+        label="Done"
+        variant="ghost"
+        color="neutral"
+        block
+        :to="viewRunPath"
         @click="$emit('reset')"
       />
     </div>
