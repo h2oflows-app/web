@@ -444,7 +444,7 @@ function addLayers() {
     },
   })
 
-  // Gauge circles — cyan, visible from put-in step onward
+  // Gauge circles — amber, visible from put-in step onward
   map.addLayer({
     id: 'wizard-gauges-circle',
     type: 'circle',
@@ -457,7 +457,7 @@ function addLayers() {
         ['==', ['get', 'selected'], true], 10,
         6,
       ],
-      'circle-color': '#0891b2',
+      'circle-color': '#f59e0b',
       'circle-stroke-color': '#fff',
       'circle-stroke-width': [
         'case',
@@ -471,7 +471,7 @@ function addLayers() {
   map.on('click', 'wizard-gauges-circle', (e) => {
     if (store.step !== 'gauge') return
     const f = e.features?.[0]
-    if (!f) return
+    if (!f || !map) return
     const p = f.properties ?? {}
     const coords = (f.geometry as GeoJSON.Point).coordinates as [number, number]
     store.gauge = {
@@ -483,6 +483,15 @@ function addLayers() {
       distanceMi: typeof p.distanceMi === 'number' ? p.distanceMi : undefined,
     }
     updateGaugeLayers()
+
+    // Show popup matching NHDExplorerMap style
+    new maplibregl.Popup({ closeButton: false, maxWidth: '220px' })
+      .setLngLat(coords)
+      .setHTML(`<div style="font-size:12px;line-height:1.5">
+        <b>${p.name || p.identifier || 'Gauge'}</b>
+        <div style="color:#6b7280;margin-top:2px">${p.identifier ?? ''}</div>
+      </div>`)
+      .addTo(map)
   })
 
   map.on('mouseenter', 'wizard-gauges-circle', () => {

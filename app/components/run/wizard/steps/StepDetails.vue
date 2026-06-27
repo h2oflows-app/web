@@ -8,7 +8,7 @@
       <h2 class="text-xl font-bold text-[--ui-text-highlighted]" style="font-family: var(--font-heading, inherit)">Run details</h2>
     </div>
 
-    <!-- Summary row (river + distance + edit back) -->
+    <!-- Summary row (difficulty dot + distance) -->
     <div
       class="flex items-center gap-3 px-4 py-3 rounded-xl"
       :style="{ background: 'var(--ui-bg-muted)', border: '1px solid var(--ui-border)' }"
@@ -18,13 +18,9 @@
         class="w-2.5 h-2.5 rounded-full shrink-0"
         :style="{ background: store.classMax ? classColor(store.classMax) : '#6b7280' }"
       />
-      <span class="flex-1 truncate text-sm font-medium text-[--ui-text-highlighted]">
-        {{ store.riverName || 'River' }}
-      </span>
-      <span class="tabular-nums text-sm text-[--ui-text-muted] shrink-0">
+      <span class="flex-1 truncate text-sm text-[--ui-text-muted]">
         {{ store.distanceMi > 0 ? store.distanceMi.toFixed(1) + ' mi' : '—' }}
       </span>
-      <UButton size="xs" variant="ghost" color="neutral" @click="store.back()">Edit</UButton>
     </div>
 
     <!-- Run name -->
@@ -37,6 +33,35 @@
         class="w-full"
       />
     </UFormField>
+
+    <!-- River name (editable — prefilled from NLDI lookup) -->
+    <UFormField label="River">
+      <UInput
+        v-model="store.riverName"
+        placeholder="e.g. South Platte River"
+        size="lg"
+        class="w-full"
+      />
+    </UFormField>
+
+    <!-- Gauge row -->
+    <div
+      class="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+      :style="{ background: 'var(--ui-bg-elevated)', border: '1px solid var(--ui-border)' }"
+    >
+      <template v-if="store.gauge">
+        <span class="w-2 h-2 rounded-full shrink-0" style="background: #f59e0b" />
+        <div class="flex-1 min-w-0">
+          <span class="text-sm font-medium text-[--ui-text-highlighted] truncate block">{{ store.gauge.name }}</span>
+          <span class="text-xs font-mono text-[--ui-text-muted]">{{ store.gauge.source.toUpperCase() }} {{ store.gauge.externalId }}</span>
+        </div>
+        <UButton size="xs" variant="ghost" color="neutral" @click="store.goGauge()">Change gauge</UButton>
+      </template>
+      <template v-else>
+        <span class="text-sm text-[--ui-text-muted] flex-1">No gauge attached</span>
+        <UButton size="xs" variant="ghost" color="neutral" @click="store.goGauge()">Add gauge</UButton>
+      </template>
+    </div>
 
     <!-- Hardest rapid / difficulty chips -->
     <div class="flex flex-col gap-2">
