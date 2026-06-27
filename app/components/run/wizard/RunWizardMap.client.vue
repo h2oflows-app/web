@@ -43,23 +43,23 @@ let map: maplibregl.Map | null = null
 let putInMarker: maplibregl.Marker | null = null
 let takeOutMarker: maplibregl.Marker | null = null
 
-// Track last snapped coords for drag constraint
+// Track last snapped coords
 let putInLngLat: [number, number] | null = null
 let takeOutLngLat: [number, number] | null = null
 
-// Debounce anchor pick on moveend
-let moveendTimer: ReturnType<typeof setTimeout> | null = null
+// Debounce timer for gauge-step viewport-driven loading
+let gaugeViewportTimer: ReturnType<typeof setTimeout> | null = null
 
 function empty(): GeoJSON.FeatureCollection {
   return { type: 'FeatureCollection', features: [] }
 }
 
-function makeDraggableMarker(color: string, label: string): { el: HTMLElement; marker: maplibregl.Marker } {
+function makeStaticMarker(color: string, label: string): { el: HTMLElement; marker: maplibregl.Marker } {
   const el = document.createElement('div')
   el.style.cssText = [
     `width:22px;height:22px;border-radius:50%;`,
     `background:${color};border:3px solid #fff;`,
-    `box-shadow:0 2px 8px rgba(0,0,0,0.4);cursor:grab;`,
+    `box-shadow:0 2px 8px rgba(0,0,0,0.4);cursor:default;`,
     `transition:scale 0.15s ease;`, // scale NOT transform (MapLibre repositions via transform)
   ].join('')
   el.title = label
@@ -83,7 +83,7 @@ function makeDraggableMarker(color: string, label: string): { el: HTMLElement; m
     }
   }
 
-  const marker = new maplibregl.Marker({ element: el, draggable: true })
+  const marker = new maplibregl.Marker({ element: el })
   return { el, marker }
 }
 
@@ -106,7 +106,7 @@ function updateFlowlineLayers() {
   const step = store.step
 
   if (step === 'putin') {
-    // Draw upstream tributaries as blue lines
+    // Draw upstream tributaries as blue lines if put-in is placed
     setSource('wizard-upstream', snap.tributaries.value ?? empty())
     setSource('wizard-downstream', empty())
     setSource('wizard-upstream-dashed', empty())
@@ -146,38 +146,62 @@ function fitToPutInTakeOut() {
   map.fitBounds(bounds, { padding: 80, maxZoom: 14 })
 }
 
-function placePutInMarker() {
-  if (!map) return
-  if (putInMarker) { putInMarker.remove(); putInMarker = null }
+/**
+ * Click handler for the put-in step. Snaps to nearest NHD flowline,
+ * places (or moves) the green marker, reveals flowlines + gauge dots.
+ */
+async function pickPutIn(lngLat: maplibregl.LngLat) {
+  const lat = lngLat.lat
+  const lng = lngLat.lng
 
-  const center = map.getCenter()
-  putInLngLat = [center.lng, center.lat]
+  await snap.onAnchorPick(lat, lng)
 
-  const { marker } = makeDraggableMarker('#22c55e', 'Put-in')
-  marker.setLngLat(putInLngLat).addTo(map)
-  putInMarker = marker
+  if (snap.startLat.value == null || snap.startLng.value == null) return
 
-  marker.on('drag', () => {
-    const ll = marker.getLngLat()
-    // Snap to combined upstream + downstream line
-    const upCoords = flattenFlowlineCoords(snap.tributaries.value)
-    const downCoords = flattenFlowlineCoords(snap.downstreamFlowlines.value)
-    const allCoords = [...upCoords, ...downCoords]
-    const line = buildLine(allCoords)
-    const snapped = snapToLine(line, [ll.lng, ll.lat])
-    putInLngLat = snapped
-    marker.setLngLat(snapped)
-  })
+  const snappedLng = snap.startLng.value
+  const snappedLat = snap.startLat.value
+  putInLngLat = [snappedLng, snappedLat]
 
-  marker.on('dragend', () => {
-    // If dragged far from current flowline, re-snap to NHD at new location
-    if (!putInLngLat) return
-    const upCoords = flattenFlowlineCoords(snap.tributaries.value)
-    if (upCoords.length === 0) {
-      // No flowline yet — trigger a fresh anchor pick
-      void snap.onAnchorPick(putInLngLat[1], putInLngLat[0])
-    }
-  })
+  // Place or move the non-draggable green marker at the snapped point
+  if (putInMarker) {
+    putInMarker.setLngLat(putInLngLat)
+  } else {
+    const { marker } = makeStaticMarker('#22c55e', 'Put-in')
+    marker.setLngLat(putInLngLat).addTo(map!)
+    putInMarker = marker
+  }
+
+  // Reveal flowlines and gauge dots
+  updateFlowlineLayers()
+  updateGaugeLayers()
+}
+
+/**
+ * Click handler for the take-out step. Snaps to the downstream flowline,
+ * moves the red marker, recomputes comid + distance.
+ */
+function pickTakeOut(lngLat: maplibregl.LngLat) {
+  const downCoords = flattenFlowlineCoords(snap.downstreamFlowlines.value)
+  const downLine = buildLine(downCoords)
+  if (!downLine) return
+
+  const snapped = snapToLine(downLine, [lngLat.lng, lngLat.lat])
+  takeOutLngLat = snapped
+
+  if (takeOutMarker) {
+    takeOutMarker.setLngLat(snapped)
+  }
+
+  // Recompute distance
+  if (putInLngLat) {
+    store.distanceMi = sliceMiles(downLine, putInLngLat, snapped)
+  }
+
+  // Resolve downstream COMID at the new take-out point
+  const comid = findDownstreamComID(snapped)
+  if (comid) {
+    snap.onComIDSelect(comid, snapped[1], snapped[0])
+  }
 }
 
 /**
@@ -282,51 +306,9 @@ function placeTakeOutMarker() {
   const fallbackLast = downCoords[downCoords.length - 1]!
   takeOutLngLat = defaultPos ?? [fallbackLast[0] as number, fallbackLast[1] as number]
 
-  const { marker } = makeDraggableMarker('#ef4444', 'Take-out')
+  const { marker } = makeStaticMarker('#ef4444', 'Take-out')
   marker.setLngLat(takeOutLngLat).addTo(map)
   takeOutMarker = marker
-
-  // Pre-compute put-in's location along the down line for lower-fence use
-  let putInLineLocation = 0
-  if (downLine && putInLngLat) {
-    const putInOnLine = nearestPointOnLine(downLine, putInLngLat)
-    putInLineLocation = (putInOnLine.properties?.location ?? 0) as number
-  }
-
-  marker.on('drag', () => {
-    const ll = marker.getLngLat()
-    let snapped = snapToLine(downLine, [ll.lng, ll.lat])
-
-    // Lower-fence: prevent take-out from going upstream of put-in
-    if (downLine && putInLngLat) {
-      const snappedOnLine = nearestPointOnLine(downLine, snapped)
-      const snappedLocation = (snappedOnLine.properties?.location ?? 0) as number
-      if (snappedLocation <= putInLineLocation) {
-        // Clamp to just downstream of put-in — use the put-in snapped point itself as minimum
-        const putInSnapped = nearestPointOnLine(downLine, putInLngLat)
-        const c = putInSnapped.geometry.coordinates
-        snapped = [c[0] ?? putInLngLat[0], c[1] ?? putInLngLat[1]]
-      }
-    }
-
-    takeOutLngLat = snapped
-    marker.setLngLat(snapped)
-
-    // Update live distance (on every drag frame)
-    if (putInLngLat) {
-      store.distanceMi = sliceMiles(downLine, putInLngLat, snapped)
-    }
-  })
-
-  marker.on('dragend', () => {
-    if (!takeOutLngLat) return
-    // Resolve downstream COMID at dragend (not every frame)
-    const comid = findDownstreamComID(takeOutLngLat)
-    if (comid) {
-      // comidSlot is 'down' (set by onAnchorPick) — routes to down slot
-      snap.onComIDSelect(comid, takeOutLngLat[1], takeOutLngLat[0])
-    }
-  })
 
   // Resolve downstream COMID for initial placement
   const initComid = findDownstreamComID(takeOutLngLat)
@@ -340,21 +322,79 @@ function placeTakeOutMarker() {
   }
 }
 
-// Debounced eager anchor pick on moveend (put-in step only)
-function onMoveEnd() {
-  if (store.step !== 'putin') return
-  if (moveendTimer) clearTimeout(moveendTimer)
-  moveendTimer = setTimeout(async () => {
-    if (!map || store.step !== 'putin') return
-    const center = map.getCenter()
-    await snap.onAnchorPick(center.lat, center.lng)
-    // After snap, update put-in marker position to snapped location
-    if (snap.startLat.value != null && snap.startLng.value != null && putInMarker) {
-      putInLngLat = [snap.startLng.value, snap.startLat.value]
-      putInMarker.setLngLat(putInLngLat)
+/**
+ * Viewport-driven gauge loading for the gauge step.
+ * Fetches gauges for the current map view and merges (deduped) into store.nearbyGauges.
+ */
+async function fetchGaugesForViewport() {
+  if (!map || store.step !== 'gauge') return
+
+  const center = map.getCenter()
+  const bounds = map.getBounds()
+
+  // Derive radius from viewport: half the diagonal of the bounding box, capped at 100 miles
+  const ne = bounds.getNorthEast()
+  const sw = bounds.getSouthWest()
+  const diagonalMi = distance([sw.lng, sw.lat], [ne.lng, ne.lat], { units: 'miles' })
+  const radiusMi = Math.min(Math.ceil(diagonalMi / 2), 100)
+
+  const token = await getToken()
+  if (!token) return
+
+  try {
+    const res = await fetch(
+      `${nldiBase}/nearby-gauges?lat=${center.lat}&lng=${center.lng}&distance=${radiusMi}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    )
+    if (!res.ok) return
+    const fc = await res.json() as { type: string; features: any[] }
+    if (!fc?.features?.length) return
+
+    const putIn = store.putIn
+    const newGauges: WizardGauge[] = fc.features
+      .filter((f: any) => f.geometry?.type === 'Point')
+      .map((f: any) => {
+        const coords = f.geometry.coordinates as [number, number]
+        const g: WizardGauge = {
+          externalId: f.properties?.identifier ?? '',
+          source: f.properties?.source ?? '',
+          name: f.properties?.name ?? '',
+          lat: coords[1],
+          lng: coords[0],
+          distanceMi: undefined,
+        }
+        if (putIn) {
+          const d = distance([putIn.lng, putIn.lat], [g.lng, g.lat], { units: 'miles' })
+          g.distanceMi = Math.round(d * 10) / 10
+        }
+        return g
+      })
+
+    // Merge deduped by source|externalId
+    const existing = new Map(store.nearbyGauges.map(g => [`${g.source}|${g.externalId}`, g]))
+    for (const g of newGauges) {
+      const key = `${g.source}|${g.externalId}`
+      if (!existing.has(key)) {
+        existing.set(key, g)
+      }
     }
-    updateFlowlineLayers()
-  }, 800)
+    store.nearbyGauges = Array.from(existing.values())
+      .sort((a, b) => (a.distanceMi ?? 9999) - (b.distanceMi ?? 9999))
+
+    updateGaugeLayers()
+  } catch { /* non-fatal */ }
+}
+
+/**
+ * Moveend handler — only active on the gauge step.
+ * Debounces viewport-driven gauge loading.
+ */
+function onMoveEnd() {
+  if (store.step !== 'gauge') return
+  if (gaugeViewportTimer) clearTimeout(gaugeViewportTimer)
+  gaugeViewportTimer = setTimeout(() => {
+    void fetchGaugesForViewport()
+  }, 600)
 }
 
 function addSources() {
@@ -404,7 +444,7 @@ function addLayers() {
     },
   })
 
-  // Gauge circles — cyan, visible on gauge step
+  // Gauge circles — cyan, visible from put-in step onward
   map.addLayer({
     id: 'wizard-gauges-circle',
     type: 'circle',
@@ -427,8 +467,9 @@ function addLayers() {
     },
   })
 
-  // Cursor + click on gauge circles
+  // Gauge circle click — only selects when on the gauge step
   map.on('click', 'wizard-gauges-circle', (e) => {
+    if (store.step !== 'gauge') return
     const f = e.features?.[0]
     if (!f) return
     const p = f.properties ?? {}
@@ -445,21 +486,23 @@ function addLayers() {
   })
 
   map.on('mouseenter', 'wizard-gauges-circle', () => {
-    if (map) map.getCanvas().style.cursor = 'pointer'
+    if (map && store.step === 'gauge') map.getCanvas().style.cursor = 'pointer'
   })
   map.on('mouseleave', 'wizard-gauges-circle', () => {
-    if (map) map.getCanvas().style.cursor = ''
+    if (map) map.getCanvas().style.cursor = store.step === 'putin' || store.step === 'takeout' ? 'crosshair' : ''
   })
 }
 
 function updateGaugeLayers() {
   if (!map || !mapReady.value) return
-  const isGaugeStep = store.step === 'gauge'
+  // Show gauge dots on put-in, takeout, and gauge steps (when a put-in has been placed)
+  const hasPutIn = putInLngLat != null
+  const showStep = store.step === 'putin' || store.step === 'takeout' || store.step === 'gauge'
+  const shouldShow = hasPutIn && showStep
 
-  // Show/hide the layer
-  map.setLayoutProperty('wizard-gauges-circle', 'visibility', isGaugeStep ? 'visible' : 'none')
+  map.setLayoutProperty('wizard-gauges-circle', 'visibility', shouldShow ? 'visible' : 'none')
 
-  if (!isGaugeStep) return
+  if (!shouldShow) return
 
   // Build a feature collection from nearbyGauges, marking the selected one
   const selectedId = store.gauge?.externalId ?? null
@@ -495,6 +538,16 @@ function fitToGaugeStep() {
     new maplibregl.LngLatBounds(coords[0]!, coords[0]!)
   )
   map.fitBounds(bounds, { padding: 100, maxZoom: 13 })
+}
+
+function setCursorForStep(step: string) {
+  if (!map) return
+  const canvas = map.getCanvas()
+  if (step === 'putin' || step === 'takeout') {
+    canvas.style.cursor = 'crosshair'
+  } else {
+    canvas.style.cursor = ''
+  }
 }
 
 function initMap() {
@@ -549,15 +602,23 @@ function initMap() {
     mapReady.value = true
     addSources()
     addLayers()
-    placePutInMarker()
-    // Trigger first snap eagerly
-    const center = map.getCenter()
-    void snap.onAnchorPick(center.lat, center.lng).then(() => {
-      updateFlowlineLayers()
-    })
+    // Map starts clear — no markers, no flowlines, no gauges
+    setCursorForStep(store.step)
   })
 
+  // Map click handler: routes to put-in or take-out pick based on step
+  map.on('click', (e) => {
+    if (!mapReady.value) return
+    if (store.step === 'putin') {
+      void pickPutIn(e.lngLat)
+    } else if (store.step === 'takeout') {
+      pickTakeOut(e.lngLat)
+    }
+  })
+
+  // Moveend handler: only does gauge-viewport loading (not put-in snap)
   map.on('moveend', onMoveEnd)
+
   map.on('error', (e: any) => console.warn('[RunWizardMap]', e.error?.message ?? e))
 }
 
@@ -566,7 +627,9 @@ watch(() => store.basemap, setBasemapLayers)
 
 // When gauge selection changes from the panel, refresh map highlight
 watch(() => store.gauge, () => {
-  if (mapReady.value && store.step === 'gauge') updateGaugeLayers()
+  if (mapReady.value && (store.step === 'gauge' || store.step === 'putin' || store.step === 'takeout')) {
+    updateGaugeLayers()
+  }
 })
 
 // React to snap data changes — update flowline layers
@@ -608,8 +671,8 @@ watch(snap.gauges, (fc) => {
     store.gauge = gauges[0]!
   }
 
-  // Refresh map layer if we're on the gauge step
-  if (mapReady.value && store.step === 'gauge') {
+  // Refresh map layer — gauges are visible from put-in onward
+  if (mapReady.value) {
     updateGaugeLayers()
   }
 }, { deep: true })
@@ -617,6 +680,8 @@ watch(snap.gauges, (fc) => {
 // React to step changes
 watch(() => store.step, async (step) => {
   if (!mapReady.value) return
+
+  setCursorForStep(step)
 
   if (step === 'takeout') {
     updateFlowlineLayers()
@@ -642,14 +707,17 @@ watch(() => store.step, async (step) => {
 })
 
 function confirmPutIn() {
-  if (!putInLngLat) return
+  if (!putInLngLat) {
+    toast.add({ title: 'Tap the river to place your put-in', timeout: 3000 })
+    return
+  }
   store.putIn = {
     lng: putInLngLat[0],
     lat: putInLngLat[1],
     comid: snap.upComID.value ?? '',
   }
   store.upComID = snap.upComID.value
-  toast.add({ title: 'Drag the take-out downstream · pinch or scroll to zoom', timeout: 3000 })
+  toast.add({ title: 'Click the river downstream to place your take-out', timeout: 3000 })
   store.goTakeOut()
 }
 
@@ -673,7 +741,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  if (moveendTimer) clearTimeout(moveendTimer)
+  if (gaugeViewportTimer) clearTimeout(gaugeViewportTimer)
   putInMarker?.remove()
   takeOutMarker?.remove()
   map?.remove()
