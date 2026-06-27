@@ -535,3 +535,10 @@ onUnmounted(() => {
   takeOutMarker = null
 })
 </script>
+
+<style scoped>
+/* Push the zoom control below the app bar (basemap toggle lives top-right) */
+:deep(.maplibregl-ctrl-top-right) {
+  margin-top: 60px;
+}
+</style>
