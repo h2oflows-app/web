@@ -184,17 +184,9 @@ onMounted(() => {
   resolveSelected()
 })
 
-// Re-resolve when gauge changes (map click picks a new one)
+// Re-resolve when gauge changes (map click picks a new one). Pure tap-to-select —
+// no auto pre-selection; the user must tap an amber dot on the map.
 watch(() => store.gauge, () => {
   resolveSelected()
 })
-
-// Populate nearbyGauges from the viewport data (drives map dots — not the list)
-watch(() => store.nearbyGauges, (gs) => {
-  // Pre-select nearest if nothing selected yet
-  if (gs.length > 0 && !store.gauge) {
-    store.gauge = gs[0]!
-    resolveSelected()
-  }
-}, { deep: true })
 </script>
