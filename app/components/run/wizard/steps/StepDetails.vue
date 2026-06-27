@@ -63,40 +63,12 @@
         >{{ chip.label }}</button>
       </div>
 
-      <!-- Range toggle -->
-      <label class="flex items-center gap-2 text-xs text-[--ui-text-muted] cursor-pointer select-none">
-        <input v-model="showRange" type="checkbox" class="rounded" />
-        Set a class range
-      </label>
-
-      <!-- Min class chip row (only when range is on) -->
-      <template v-if="showRange && store.classMax">
-        <div class="flex gap-1.5 flex-wrap">
-          <button
-            v-for="chip in minChips"
-            :key="chip.value"
-            type="button"
-            class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors"
-            :style="store.classMin === chip.value
-              ? { background: classColor(chip.value), borderColor: classColor(chip.value), color: '#fff' }
-              : { background: 'var(--ui-bg-muted)', borderColor: 'var(--ui-border)', color: 'var(--ui-text-muted)' }"
-            @click="store.classMin = chip.value"
-          >{{ chip.label }}</button>
-        </div>
-      </template>
     </div>
 
     <!-- Flow thresholds -->
     <div class="flex flex-col gap-2">
-      <div class="flex items-center justify-between">
-        <span class="text-sm font-medium text-[--ui-text]">Flow thresholds</span>
-        <label class="flex items-center gap-1.5 text-xs text-[--ui-text-muted] cursor-pointer select-none">
-          <input v-model="skipFlowBands" type="checkbox" class="rounded" />
-          Skip for now
-        </label>
-      </div>
-      <FlowBandEditor v-if="!skipFlowBands && effectiveFlowBands" v-model="effectiveFlowBands" />
-      <p v-else-if="skipFlowBands" class="text-xs text-[--ui-text-dimmed]">Run will show grey until you add flow thresholds.</p>
+      <span class="text-sm font-medium text-[--ui-text]">Flow thresholds</span>
+      <FlowBandEditor v-if="effectiveFlowBands" v-model="effectiveFlowBands" />
     </div>
 
     <!-- Notes (collapsible) -->
@@ -148,7 +120,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRunWizardStore } from '~/stores/runWizard'
 import { classColor, classRange } from '~/utils/classRating'
 import type { FlowBands } from '~/utils/flowBand'
@@ -158,8 +130,6 @@ const { isDataAdmin } = useAuth()
 const { save, saving } = useRunSave()
 
 const showNotes = ref(false)
-const showRange = ref(false)
-const skipFlowBands = ref(false)
 const authorAsH2oflows = ref(false)
 
 // Chip definitions: value, label
@@ -173,25 +143,11 @@ const CLASS_CHIPS = [
   { value: 5,   label: 'V'    },
 ]
 
-// Min chips: only values <= classMax (can't be harder than the hardest rapid)
-const minChips = computed(() =>
-  store.classMax != null
-    ? CLASS_CHIPS.filter(c => c.value <= store.classMax!)
-    : CLASS_CHIPS
-)
-
 function setClassMax(value: number) {
+  // Single difficulty rating from the crux rapid — min mirrors max.
   store.classMax = value
-  // If range is off OR min > max, keep min = max
-  if (!showRange.value || (store.classMin != null && store.classMin > value)) {
-    store.classMin = value
-  }
+  store.classMin = value
 }
-
-// When range is toggled off, collapse min back to max
-watch(showRange, (on) => {
-  if (!on) store.classMin = store.classMax
-})
 
 // Default flow bands seeded on enter (if null or no thresholds)
 const DEFAULT_FLOW_BANDS: FlowBands = {
@@ -216,17 +172,6 @@ onMounted(() => {
 
 // Propagate FlowBandEditor edits → store
 watch(effectiveFlowBands, (v) => { store.flowBands = v }, { deep: true })
-
-// Skip toggle: when enabling skip, collapse thresholds to []
-watch(skipFlowBands, (skip) => {
-  if (skip) {
-    store.flowBands = { base_label: 'Too Low', base_color: 'neutral-3', thresholds: [] }
-  } else {
-    // Restore defaults
-    store.flowBands = { ...DEFAULT_FLOW_BANDS, thresholds: [...DEFAULT_FLOW_BANDS.thresholds] }
-    effectiveFlowBands.value = store.flowBands
-  }
-})
 
 async function handleCreate() {
   const result = await save(authorAsH2oflows.value)
