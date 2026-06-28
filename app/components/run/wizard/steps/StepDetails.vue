@@ -133,6 +133,60 @@
       <span>Publish as <strong>h2oflows</strong> (official curator content — public)</span>
     </label>
 
+    <!-- Dupe warning — geometry overlap detected (V21); blocks submit until dismissed -->
+    <div
+      v-if="store.mode === 'create' && dupeRuns.length > 0 && !dupeDismissed"
+      class="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-4 py-3 space-y-2"
+    >
+      <p class="text-xs font-medium text-amber-800 dark:text-amber-200">
+        Similar run{{ dupeRuns.length !== 1 ? 's' : '' }} already exist on this section:
+      </p>
+      <div v-for="run in dupeRuns.slice(0, 3)" :key="run.id" class="flex items-center gap-2 text-xs">
+        <svg v-if="run.is_official" class="w-3 h-3 text-primary-500 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+        </svg>
+        <span class="w-2 h-2 rounded-full bg-neutral-400 shrink-0" v-else />
+        <span class="font-medium text-amber-800 dark:text-amber-200 truncate flex-1">{{ run.name }}</span>
+        <span v-if="run.class_min != null || run.class_max != null" class="text-amber-600 dark:text-amber-400 shrink-0 font-mono text-[11px]">
+          {{ classRange(run.class_min, run.class_max) }}
+        </span>
+        <span class="text-amber-600 dark:text-amber-400 shrink-0">
+          {{ run.is_official ? 'H2OFlows' : (run.author_handle ? `@${run.author_handle}` : '') }}
+        </span>
+        <NuxtLink
+          :to="`/runs/${run.author_handle ?? 'h2oflows'}/${run.slug}`"
+          class="shrink-0 text-[10px] px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+          target="_blank"
+        >View</NuxtLink>
+      </div>
+      <div class="flex items-center gap-2 pt-1">
+        <p class="text-xs text-amber-700 dark:text-amber-300 flex-1">Modify an existing run or create a new one with different flow lines.</p>
+        <button
+          class="shrink-0 text-xs px-2.5 py-1 rounded-md bg-amber-100 dark:bg-amber-900/40 border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-900/60 font-medium"
+          @click="dupeDismissed = true"
+        >Create anyway</button>
+      </div>
+    </div>
+
+    <!-- Name conflict warning (V22) -->
+    <div
+      v-if="store.mode === 'create' && nameConflictSlug && !nameConflictDismissed"
+      class="rounded-lg border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/40 px-4 py-3 space-y-2"
+    >
+      <p class="text-xs font-medium text-orange-800 dark:text-orange-200">You already have a run with this name.</p>
+      <div class="flex items-center gap-2">
+        <NuxtLink
+          :to="`/my/runs/${nameConflictSlug}`"
+          target="_blank"
+          class="text-xs px-2 py-1 rounded border border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-100 dark:hover:bg-orange-900/30"
+        >Edit existing</NuxtLink>
+        <button
+          class="text-xs px-2 py-1 rounded border border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-100 dark:hover:bg-orange-900/30 font-medium"
+          @click="nameConflictDismissed = true; proceedCreate()"
+        >Save anyway</button>
+      </div>
+    </div>
+
     <!-- Create / Save button -->
     <UButton
       :label="store.mode === 'edit' ? 'Save changes' : 'Create run'"
@@ -140,7 +194,7 @@
       size="xl"
       block
       color="primary"
-      :disabled="!store.name.trim()"
+      :disabled="!store.name.trim() || (store.mode === 'create' && dupeRuns.length > 0 && !dupeDismissed)"
       :loading="saving"
       @click="handleCreate"
     />
@@ -156,6 +210,17 @@ import type { FlowBands } from '~/utils/flowBand'
 const store = useRunWizardStore()
 const { isDataAdmin } = useAuth()
 const { save, saveEdit, saving } = useRunSave()
+
+// Create-mode validation (dupe geometry + name conflict). Fresh per mount — re-created
+// whenever the wizard step re-enters StepDetails (covers "Add another run" resets).
+const {
+  dupeRuns,
+  dupeDismissed,
+  nameConflictSlug,
+  nameConflictDismissed,
+  checkDupes,
+  checkNameConflict,
+} = useCreateRunValidation()
 
 const showNotes = ref(false)
 const authorAsH2oflows = ref(false)
@@ -197,13 +262,27 @@ onMounted(() => {
     store.flowBands = { ...DEFAULT_FLOW_BANDS, thresholds: [...DEFAULT_FLOW_BANDS.thresholds] }
   }
   effectiveFlowBands.value = store.flowBands
+
+  // V21: run dupe-check immediately — geometry is locked by the time we reach this step
+  if (store.mode === 'create' && store.putIn && store.takeOut) {
+    checkDupes()
+  }
 })
 
 // Propagate FlowBandEditor edits → store
 watch(effectiveFlowBands, (v) => { store.flowBands = v }, { deep: true })
 
+// Shared inner create path (called by handleCreate and "Save anyway")
+async function proceedCreate() {
+  const result = await save(authorAsH2oflows.value)
+  if (result) {
+    store.goSaved()
+  }
+}
+
 async function handleCreate() {
   if (store.mode === 'edit') {
+    // Edit mode — no dupe/name checks; unchanged
     const result = await saveEdit({
       slugAvailability: advancedPanelRef.value?.slugAvailability.value,
     })
@@ -211,10 +290,15 @@ async function handleCreate() {
       store.goSaved()
     }
   } else {
-    const result = await save(authorAsH2oflows.value)
-    if (result) {
-      store.goSaved()
+    // Create mode — V22 name-conflict gate
+    if (!nameConflictDismissed.value) {
+      const conflictSlug = await checkNameConflict()
+      if (conflictSlug) {
+        nameConflictSlug.value = conflictSlug
+        return // banner renders; user picks "Edit existing" or "Save anyway"
+      }
     }
+    await proceedCreate()
   }
 }
 </script>
