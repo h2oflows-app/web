@@ -70,7 +70,6 @@
         color="primary"
         leading-icon="i-heroicons-eye"
         :to="viewRunPath"
-        @click="$emit('reset')"
       />
       <UButton
         v-if="store.mode !== 'edit'"
@@ -87,7 +86,6 @@
         color="neutral"
         block
         :to="viewRunPath"
-        @click="$emit('reset')"
       />
     </div>
   </div>
@@ -105,20 +103,26 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRunWizardStore } from '~/stores/runWizard'
 import { classColor, classRange } from '~/utils/classRating'
 
 defineEmits<{ reset: [] }>()
 
 const store = useRunWizardStore()
+const { handle: myHandle, load: loadMyProfile } = useMyProfile()
+onMounted(() => { void loadMyProfile() })
 
-// Mirror UserRunAuthor post-create nav:
-//   - admin-as-h2oflows → /runs/h2oflows/{slug}
-//   - own run            → /my/runs/{slug}
+// The run VIEW page is /runs/{handle}/{slug}. ( /my/runs/{slug} is the EDITOR —
+// navigating there re-enters the wizard, so never use it for "View run". )
+//   - admin-as-h2oflows → handle 'h2oflows'
+//   - edit              → the run's author handle (loaded into the store)
+//   - create            → the current user's handle
 const viewRunPath = computed(() => {
   if (!store.savedSlug) return '/my/runs'
-  if (store.savedAsH2oflows) return `/runs/h2oflows/${store.savedSlug}`
-  return `/my/runs/${store.savedSlug}`
+  const handle = store.savedAsH2oflows
+    ? 'h2oflows'
+    : (store.authorHandle || myHandle.value || 'h2oflows')
+  return `/runs/${handle}/${store.savedSlug}`
 })
 </script>
