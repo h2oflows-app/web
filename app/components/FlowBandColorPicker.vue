@@ -22,7 +22,7 @@
     >
       <div class="flex flex-col gap-1">
         <div
-          v-for="hue in HUES"
+          v-for="hue in activeHues"
           :key="hue"
           class="flex gap-1"
         >
@@ -47,13 +47,11 @@
 
 <script setup lang="ts">
 import { COLOR_KEY_HEX, colorKeyToHex } from '~/utils/flowBand'
+import { themeFlowHues } from '~/utils/flowHarmony'
+import { useThemeStore } from '~/stores/theme'
+import { THEMES } from '../../app.config'
 
-const HUES = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'neutral'] as const
 const LEVELS = [1, 2, 3, 4, 5] as const
-
-// swatch size 24px + gap 4px = 28px per cell; padding 8px each side
-const POP_W = LEVELS.length * 28 + 16
-const POP_H = HUES.length * 28 + 16
 
 const props = defineProps<{
   modelValue: string
@@ -61,6 +59,36 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
+
+const themeStore = useThemeStore()
+
+// Reactively derive the set of hues to display:
+// 1. Square harmony of the active theme's primarySwatch
+// 2. Always include 'neutral'
+// 3. Always include the hue of the current modelValue (so existing selections stay visible)
+const activeHues = computed(() => {
+  const theme = THEMES.find(t => t.id === themeStore.themeId)
+  const harmonyHues = themeFlowHues(theme?.primarySwatch, 'square')
+
+  // Build the deduplicated list: harmony hues first, then neutral, then current-value hue
+  const result: string[] = [...harmonyHues]
+
+  if (!result.includes('neutral')) {
+    result.push('neutral')
+  }
+
+  // Ensure the currently-selected hue is always visible
+  const currentHue = props.modelValue.split('-')[0] ?? ''
+  if (currentHue && !result.includes(currentHue)) {
+    result.push(currentHue)
+  }
+
+  return result
+})
+
+// Popover size is dynamic based on number of active hues
+const popH = computed(() => activeHues.value.length * 28 + 16)
+const POP_W = LEVELS.length * 28 + 16
 
 const open = ref(false)
 const pos = ref<{ top: number; left: number } | null>(null)
@@ -77,7 +105,7 @@ function toggle() {
   if (!btn) return
   const rect = btn.getBoundingClientRect()
   const spaceBelow = window.innerHeight - rect.bottom
-  const top = spaceBelow < POP_H + 8 ? rect.top - POP_H - 4 : rect.bottom + 4
+  const top = spaceBelow < popH.value + 8 ? rect.top - popH.value - 4 : rect.bottom + 4
   const left = Math.min(rect.left, window.innerWidth - POP_W - 8)
   pos.value = { top: Math.max(8, top), left: Math.max(8, left) }
   open.value = true
