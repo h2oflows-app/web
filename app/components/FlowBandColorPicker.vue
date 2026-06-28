@@ -1,5 +1,5 @@
 <template>
-  <!-- Trigger: circular swatch showing current color -->
+  <!-- Trigger: circular swatch showing current color (theme-tinted) -->
   <button
     ref="triggerRef"
     type="button"
@@ -22,22 +22,22 @@
     >
       <div class="flex flex-col gap-1">
         <div
-          v-for="hue in HUES"
-          :key="hue"
+          v-for="(family, fi) in FAMILIES"
+          :key="family"
           class="flex gap-1"
         >
           <button
-            v-for="level in LEVELS"
-            :key="level"
+            v-for="li in [0,1,2,3,4]"
+            :key="li"
             type="button"
             class="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 focus:outline-none"
-            :class="modelValue === `${hue}-${level}`
+            :class="selectedIndex === fi * 5 + li
               ? 'border-neutral-800 dark:border-white scale-110'
               : 'border-white dark:border-neutral-800 hover:border-neutral-400 dark:hover:border-neutral-500'"
-            :style="{ backgroundColor: COLOR_KEY_HEX[`${hue}-${level}`] }"
-            :aria-label="`${hue}-${level}`"
-            :aria-pressed="modelValue === `${hue}-${level}`"
-            @click="select(`${hue}-${level}`)"
+            :style="{ backgroundColor: palette[fi * 5 + li] }"
+            :aria-label="`${family} level ${li + 1}`"
+            :aria-pressed="selectedIndex === fi * 5 + li"
+            @click="select(fi * 5 + li)"
           />
         </div>
       </div>
@@ -46,14 +46,14 @@
 </template>
 
 <script setup lang="ts">
-import { COLOR_KEY_HEX, colorKeyToHex } from '~/utils/flowBand'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { FAMILIES, themePalette, valueToIndex, indexToValue, activePrimaryRef } from '~/utils/flowPalette'
+import { colorKeyToHex } from '~/utils/flowBand'
+import { useThemeStore } from '~/stores/theme'
 
-const HUES = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'neutral'] as const
-const LEVELS = [1, 2, 3, 4, 5] as const
-
-// swatch size 24px + gap 4px = 28px per cell; padding 8px each side
-const POP_W = LEVELS.length * 28 + 16
-const POP_H = HUES.length * 28 + 16
+// 5 columns × 24px + 4px gap = 28px each; padding 8px each side
+const POP_W = 5 * 28 + 16
+const POP_H = 5 * 28 + 16
 
 const props = defineProps<{
   modelValue: string
@@ -62,11 +62,25 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
+const themeStore = useThemeStore()
+
+// Recompute palette whenever theme changes (activePrimaryRef drives this).
+// We also depend on themeStore.themeId to force reactivity through the store.
+const palette = computed(() => {
+  // Reference themeStore.themeId so computed re-runs on theme switch.
+  void themeStore.themeId
+  // activePrimaryRef.value is set by the theme plugin watcher.
+  return themePalette(activePrimaryRef.value)
+})
+
+const selectedIndex = computed(() => valueToIndex(props.modelValue))
+
+// Trigger swatch: use colorKeyToHex which now routes through flowColorHex.
+const currentHex = computed(() => colorKeyToHex(props.modelValue))
+
 const open = ref(false)
 const pos = ref<{ top: number; left: number } | null>(null)
 const triggerRef = ref<HTMLElement | null>(null)
-
-const currentHex = computed(() => colorKeyToHex(props.modelValue))
 
 function toggle() {
   if (open.value) {
@@ -83,8 +97,8 @@ function toggle() {
   open.value = true
 }
 
-function select(key: string) {
-  emit('update:modelValue', key)
+function select(index: number) {
+  emit('update:modelValue', indexToValue(index))
   open.value = false
 }
 
