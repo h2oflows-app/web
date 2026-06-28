@@ -19,13 +19,22 @@ import type { WizardGauge } from '~/stores/runWizard'
 import { useNHDSnap } from '~/composables/useNHDSnap'
 import { useAuth } from '~/composables/useAuth'
 import { flattenFlowlineCoords, buildLine, snapToLine, sliceMiles } from '~/composables/useFlowlineSnap'
+import { useThemeStore } from '~/stores/theme'
+import { THEMES } from '../../../../app.config'
 
 const store = useRunWizardStore()
 const { getToken } = useAuth()
 const config = useRuntimeConfig()
 const toast = useToast()
+const themeStore = useThemeStore()
 
 const nldiBase = `${config.public.apiBase}/api/v1/nldi`
+
+// Theme primary hex for the "primary"-intent map lines (downstream highlight + run line).
+// MapLibre paint can't resolve CSS vars/oklch, so use the theme's primarySwatch hex.
+function primaryHex(): string {
+  return THEMES.find(t => t.id === themeStore.themeId)?.primarySwatch ?? '#3b82f6'
+}
 
 const snap = useNHDSnap({ nldiBase, getToken })
 
@@ -35,6 +44,15 @@ watch(snap.gnisId, v => { if (v) store.gnisId = v })
 watch(snap.upComID, v => { store.upComID = v })
 watch(snap.downComID, v => { store.downComID = v })
 watch(snap.previewCenterline, v => { store.previewCenterline = v })
+
+// Re-tint the primary-intent lines when the theme changes (downstream highlight + run line).
+watch(() => themeStore.themeId, () => {
+  if (!map) return
+  const hex = primaryHex()
+  for (const id of ['wizard-downstream-line', 'wizard-centerline-line']) {
+    if (map.getLayer(id)) map.setPaintProperty(id, 'line-color', hex)
+  }
+})
 
 const container = ref<HTMLDivElement>()
 const mapReady = ref(false)
@@ -450,7 +468,7 @@ function addLayers() {
     source: 'wizard-downstream',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
     paint: {
-      'line-color': '#2563eb',
+      'line-color': primaryHex(),
       'line-width': 6,
       'line-opacity': 0.55,
     },
@@ -463,7 +481,7 @@ function addLayers() {
     source: 'wizard-centerline',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
     paint: {
-      'line-color': '#2563eb',
+      'line-color': primaryHex(),
       'line-width': 4,
       'line-opacity': 0.75,
     },
