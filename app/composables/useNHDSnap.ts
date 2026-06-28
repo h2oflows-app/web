@@ -141,7 +141,9 @@ export function useNHDSnap(opts: {
       startLat.value  = lat
       startLng.value  = lng
       comidSlot.value = 'down'
-      await fetchNearbyGauges(lat, lng, data.snap.comid)
+      // Don't block the put-in snap/reveal on gauges — they're only needed at
+      // the gauge step. Fire-and-forget so the marker + flowlines appear instantly.
+      void fetchNearbyGauges(lat, lng, data.snap.comid)
     } catch (e: any) {
       snapError.value = e.message ?? 'Snap failed'
     } finally {
