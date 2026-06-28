@@ -99,6 +99,7 @@
 <script setup lang="ts">
 import { nextTick } from 'vue'
 import type { FlowBands, FlowBandThreshold } from '~/utils/flowBand'
+import { DEFAULT_COLOR_GREEN } from '~/utils/flowBand'
 
 interface LocalThreshold extends FlowBandThreshold {
   _id: number
@@ -170,7 +171,7 @@ function addThreshold() {
     _id: _nextId++,
     value: maxVal > 0 ? maxVal + 100 : 100,
     label: 'Running',
-    color: 'green-3',
+    color: DEFAULT_COLOR_GREEN,
   })
   emitChange()
 }

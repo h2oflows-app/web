@@ -1,5 +1,6 @@
 import { THEMES, LEGACY_PALETTE_MAP } from '../../app.config'
 import { useThemeStore } from '~/stores/theme'
+import { activePrimaryRef } from '~/utils/flowPalette'
 
 export default defineNuxtPlugin(() => {
   const store = useThemeStore()
@@ -17,9 +18,17 @@ export default defineNuxtPlugin(() => {
     } catch { /* corrupt storage — leave default */ }
   }
 
-  const theme = THEMES.find(t => t.id === store.themeId)
-  if (theme) {
-    appConfig.ui.colors.primary = theme.primary
-    appConfig.ui.colors.neutral = theme.neutral
+  function applyTheme(themeId: string) {
+    const theme = THEMES.find(t => t.id === themeId)
+    if (theme) {
+      appConfig.ui.colors.primary = theme.primary
+      appConfig.ui.colors.neutral = theme.neutral
+      activePrimaryRef.value = theme.primarySwatch
+    }
   }
+
+  applyTheme(store.themeId)
+
+  // Keep activePrimaryRef in sync when the user switches themes at runtime.
+  watch(() => store.themeId, (id) => applyTheme(id))
 })

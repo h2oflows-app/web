@@ -9,7 +9,7 @@ export type FlowStatus = 'runnable' | 'caution' | 'flood' | 'unknown' | string
 export interface FlowBandThreshold {
   value: number
   label: string
-  color: string // color key: ^(red|orange|yellow|green|blue|purple)-[1-5]$
+  color: string // color value: "p<n>" (new) or legacy "family-level" key
 }
 
 export interface FlowBands {
@@ -20,6 +20,7 @@ export interface FlowBands {
 
 // ── Color key lookup (6 hues × 5 levels = 30 entries) ───────────────────────
 // Levels 1→5: light→dark (Tailwind 300→700)
+// Still exported because flowPalette.ts reads canonical hexes from here.
 
 export const COLOR_KEY_HEX: Record<string, string> = {
   'red-1':    '#fca5a5', // red-300
@@ -52,6 +53,11 @@ export const COLOR_KEY_HEX: Record<string, string> = {
   'purple-3': '#a855f7', // purple-500
   'purple-4': '#9333ea', // purple-600
   'purple-5': '#7e22ce', // purple-700
+  'pink-1':   '#f9a8d4', // pink-300
+  'pink-2':   '#f472b6', // pink-400
+  'pink-3':   '#ec4899', // pink-500
+  'pink-4':   '#db2777', // pink-600
+  'pink-5':   '#be185d', // pink-700
   'neutral-1': '#e5e7eb', // gray-200
   'neutral-2': '#d1d5db', // gray-300
   'neutral-3': '#9ca3af', // gray-400
@@ -59,49 +65,72 @@ export const COLOR_KEY_HEX: Record<string, string> = {
   'neutral-5': '#4b5563', // gray-600
 }
 
-function colorKeyHue(key: string): string {
-  return key.split('-')[0] ?? ''
+// ── Palette-backed resolvers ─────────────────────────────────────────────────
+// Import lazily (SSR-safe: activePrimaryRef is a plain ref, no DOM access).
+import { flowColorHex, familyOf } from './flowPalette'
+
+// Map family name to badge/text Tailwind classes.
+// Includes all families in FAMILIES plus legacy yellow/purple aliases.
+const BADGE_NEUTRAL = 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+const TEXT_NEUTRAL  = 'text-gray-400'
+
+const BADGE_BY_FAMILY: Partial<Record<string, string>> = {
+  red:     'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400',
+  orange:  'bg-orange-100 dark:bg-orange-950/50 text-orange-700 dark:text-orange-400',
+  yellow:  'bg-yellow-100 dark:bg-yellow-950/50 text-yellow-700 dark:text-yellow-500',
+  green:   'bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-400',
+  blue:    'bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400',
+  purple:  'bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-400',
+  pink:    'bg-pink-100 dark:bg-pink-950/50 text-pink-700 dark:text-pink-400',
+  neutral: BADGE_NEUTRAL,
 }
 
-const BADGE_BY_HUE: Record<string, string> = {
-  red:    'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400',
-  orange: 'bg-orange-100 dark:bg-orange-950/50 text-orange-700 dark:text-orange-400',
-  yellow: 'bg-yellow-100 dark:bg-yellow-950/50 text-yellow-700 dark:text-yellow-500',
-  green:  'bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-400',
-  blue:   'bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400',
-  purple: 'bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-400',
+const TEXT_BY_FAMILY: Partial<Record<string, string>> = {
+  red:     'text-red-500',
+  orange:  'text-orange-500',
+  yellow:  'text-yellow-500',
+  green:   'text-green-500',
+  blue:    'text-blue-500',
+  purple:  'text-purple-500',
+  pink:    'text-pink-500',
+  neutral: TEXT_NEUTRAL,
 }
 
-const TEXT_BY_HUE: Record<string, string> = {
-  red:    'text-red-500',
-  orange: 'text-orange-500',
-  yellow: 'text-yellow-500',
-  green:  'text-green-500',
-  blue:   'text-blue-500',
-  purple: 'text-purple-500',
-}
-
+// colorKeyToHex: now theme+palette aware.  Accepts "p<n>", "green-3", etc.
 export function colorKeyToHex(key: string): string {
-  return COLOR_KEY_HEX[key] ?? '#9ca3af'
+  if (!key) return '#9ca3af'
+  return flowColorHex(key)
 }
 
 export function colorKeyToBadgeClass(key: string): string {
-  return BADGE_BY_HUE[colorKeyHue(key)] ?? 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+  if (!key) return BADGE_NEUTRAL
+  return BADGE_BY_FAMILY[familyOf(key)] ?? BADGE_NEUTRAL
 }
 
 export function colorKeyToTextClass(key: string): string {
-  return TEXT_BY_HUE[colorKeyHue(key)] ?? 'text-gray-400'
+  if (!key) return TEXT_NEUTRAL
+  return TEXT_BY_FAMILY[familyOf(key)] ?? TEXT_NEUTRAL
 }
 
-// Derive coarse flow status from a color key (red=caution, blue=flood, else runnable).
+// Derive coarse flow status from a color value (index or legacy key).
+// red-family → caution, blue-family → flood, else runnable.
 export function flowStatusForColorKey(key?: string | null): FlowStatus {
   if (!key) return 'unknown'
-  const hue = colorKeyHue(key)
-  if (hue === 'red') return 'caution'
-  if (hue === 'blue') return 'flood'
-  if (COLOR_KEY_HEX[key]) return 'runnable'
+  const fam = familyOf(key)
+  if (fam === 'red') return 'caution'
+  if (fam === 'blue') return 'flood'
+  // orange maps to warning/caution-adjacent but legacy treated it as runnable;
+  // preserve that: any non-red, non-blue known family → runnable.
+  if (fam === 'orange' || fam === 'green' || fam === 'neutral') return 'runnable'
   return 'unknown'
 }
+
+// ── Default index-form color constants ──────────────────────────────────────
+// 8 families: red0 orange1 yellow2 green3 blue4 purple5 pink6 neutral7; index = fam*5 + (level-1)
+// neutral-3 = 7×5 + 2 = p37 · green-3 = 3×5 + 2 = p17 · blue-3 = 4×5 + 2 = p22
+export const DEFAULT_COLOR_NEUTRAL = 'p37' // formerly neutral-3
+export const DEFAULT_COLOR_GREEN   = 'p17' // formerly green-3
+export const DEFAULT_COLOR_BLUE    = 'p22' // formerly blue-3
 
 // V9: highest threshold where cfs >= value; else base.
 // Returns null when no thresholds are defined — run has no configured flow bands.
