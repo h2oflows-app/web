@@ -62,27 +62,15 @@ const emit = defineEmits<{
 
 const themeStore = useThemeStore()
 
-// Reactively derive the set of hues to display:
+// Selectable hues strictly follow the theme:
 // 1. Square harmony of the active theme's primarySwatch
-// 2. Always include 'neutral'
-// 3. Always include the hue of the current modelValue (so existing selections stay visible)
+// 2. Always include 'neutral' (needed for the base / grey band)
+// The current modelValue's hue is NOT force-added — the grid always reflects the
+// theme harmony. The selected color still shows on the swatch trigger regardless.
 const activeHues = computed(() => {
   const theme = THEMES.find(t => t.id === themeStore.themeId)
-  const harmonyHues = themeFlowHues(theme?.primarySwatch, 'square')
-
-  // Build the deduplicated list: harmony hues first, then neutral, then current-value hue
-  const result: string[] = [...harmonyHues]
-
-  if (!result.includes('neutral')) {
-    result.push('neutral')
-  }
-
-  // Ensure the currently-selected hue is always visible
-  const currentHue = props.modelValue.split('-')[0] ?? ''
-  if (currentHue && !result.includes(currentHue)) {
-    result.push(currentHue)
-  }
-
+  const result: string[] = [...themeFlowHues(theme?.primarySwatch, 'square')]
+  if (!result.includes('neutral')) result.push('neutral')
   return result
 })
 
