@@ -225,7 +225,12 @@ function pickTakeOut(lngLat: maplibregl.LngLat) {
   // Resolve downstream COMID at the new take-out point
   const comid = findDownstreamComID(snapped)
   if (comid) {
+    const comidChanged = comid !== snap.downComID.value
     snap.onComIDSelect(comid, snapped[1], snapped[0])
+    // When the COMID is unchanged the [upComID,downComID] watcher won't refetch
+    // the trimmed centerline — do it directly so the run line follows the take-out
+    // within a single COMID. (On change, the watcher already handles it.)
+    if (!comidChanged) void snap.fetchPreviewCenterline()
   }
 
   // Mark geometry as changed in edit mode
