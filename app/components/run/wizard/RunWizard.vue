@@ -28,26 +28,28 @@
 
     <!-- Bottom sheet / side panel -->
     <WizardSheet>
-      <StepPutIn v-if="store.step === 'putin'" @set-putin="mapRef?.confirmPutIn()" />
-      <StepTakeOut
-        v-else-if="store.step === 'takeout'"
-        @set-takeout="mapRef?.confirmTakeOut()"
-        @redo-putin="store.redoPutIn()"
-      />
-      <StepGauge
-        v-else-if="store.step === 'gauge'"
-        @continue="store.goDetails()"
-        @skip="() => {
-          store.gaugeSkipped = true
-          // In edit mode, skipping = removing gauge (if one was loaded)
-          if (store.mode === 'edit' && store.loadedGauge) {
-            store.gauge = null
-            store.gaugeDirty = true
-          }
-          store.goDetails()
-        }"
-      />
-      <StepDetails v-else-if="store.step === 'details'" />
+      <Transition name="wizard-step" mode="out-in">
+        <StepPutIn v-if="store.step === 'putin'" @set-putin="mapRef?.confirmPutIn()" />
+        <StepTakeOut
+          v-else-if="store.step === 'takeout'"
+          @set-takeout="mapRef?.confirmTakeOut()"
+          @redo-putin="store.redoPutIn()"
+        />
+        <StepGauge
+          v-else-if="store.step === 'gauge'"
+          @continue="store.goDetails()"
+          @skip="() => {
+            store.gaugeSkipped = true
+            // In edit mode, skipping = removing gauge (if one was loaded)
+            if (store.mode === 'edit' && store.loadedGauge) {
+              store.gauge = null
+              store.gaugeDirty = true
+            }
+            store.goDetails()
+          }"
+        />
+        <StepDetails v-else-if="store.step === 'details'" />
+      </Transition>
     </WizardSheet>
 
     <!-- Saved overlay (above sheet) -->
@@ -196,3 +198,30 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style scoped>
+/* Step cross-fade + slight upward slide — 175ms, reduced-motion gets instant swap */
+.wizard-step-enter-active,
+.wizard-step-leave-active {
+  transition: opacity 175ms ease, transform 175ms ease;
+}
+.wizard-step-enter-from {
+  opacity: 0;
+  transform: translateY(7px);
+}
+.wizard-step-leave-to {
+  opacity: 0;
+  transform: translateY(-7px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wizard-step-enter-active,
+  .wizard-step-leave-active {
+    transition: none;
+  }
+  .wizard-step-enter-from,
+  .wizard-step-leave-to {
+    transform: none;
+  }
+}
+</style>

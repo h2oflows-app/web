@@ -72,7 +72,25 @@ function empty(): GeoJSON.FeatureCollection {
   return { type: 'FeatureCollection', features: [] }
 }
 
-function makeStaticMarker(color: string, label: string): { el: HTMLElement; marker: maplibregl.Marker } {
+// Inject marker keyframes once into <head>
+function ensureMarkerStyles() {
+  if (document.getElementById('wizard-marker-style')) return
+  const s = document.createElement('style')
+  s.id = 'wizard-marker-style'
+  s.textContent = [
+    // Pulse ring for put-in marker
+    `@keyframes pulseRing{0%{transform:scale(1);opacity:0.5}70%{transform:scale(1.6);opacity:0}100%{transform:scale(1.6);opacity:0}}`,
+    // One-shot drop-in pop for all markers (scale+opacity; no transform so MapLibre wrapper is untouched)
+    `@keyframes wizardMarkerDrop{0%{scale:0.55;opacity:0}65%{scale:1.1;opacity:1}100%{scale:1;opacity:1}}`,
+    // Reduced-motion: skip drop animation entirely
+    `@media(prefers-reduced-motion:reduce){.wiz-marker-drop{animation:none!important}}`,
+  ].join('')
+  document.head.appendChild(s)
+}
+
+function makeStaticMarker(color: string, label: string, animate = false): { el: HTMLElement; marker: maplibregl.Marker } {
+  ensureMarkerStyles()
+
   const el = document.createElement('div')
   el.style.cssText = [
     `width:22px;height:22px;border-radius:50%;`,
@@ -81,6 +99,12 @@ function makeStaticMarker(color: string, label: string): { el: HTMLElement; mark
     `transition:scale 0.15s ease;`, // scale NOT transform (MapLibre repositions via transform)
   ].join('')
   el.title = label
+
+  // One-shot drop-in on first placement
+  if (animate) {
+    el.classList.add('wiz-marker-drop')
+    el.style.animation = 'wizardMarkerDrop 0.38s cubic-bezier(0.22,1,0.36,1) both'
+  }
 
   // Pulse ring for put-in
   if (color === '#22c55e') {
@@ -92,13 +116,6 @@ function makeStaticMarker(color: string, label: string): { el: HTMLElement; mark
       animation:pulseRing 1.8s ease-out infinite;
     `
     el.appendChild(ring)
-    // Inject keyframes once
-    if (!document.getElementById('wizard-pulse-style')) {
-      const s = document.createElement('style')
-      s.id = 'wizard-pulse-style'
-      s.textContent = `@keyframes pulseRing{0%{transform:scale(1);opacity:0.5}70%{transform:scale(1.6);opacity:0}100%{transform:scale(1.6);opacity:0}}`
-      document.head.appendChild(s)
-    }
   }
 
   const marker = new maplibregl.Marker({ element: el })
@@ -184,7 +201,7 @@ async function pickPutIn(lngLat: maplibregl.LngLat) {
   if (putInMarker) {
     putInMarker.setLngLat(putInLngLat)
   } else {
-    const { marker } = makeStaticMarker('#22c55e', 'Put-in')
+    const { marker } = makeStaticMarker('#22c55e', 'Put-in', true)
     marker.setLngLat(putInLngLat).addTo(map!)
     putInMarker = marker
   }
@@ -341,7 +358,7 @@ function placeTakeOutMarker() {
   const fallbackLast = downCoords[downCoords.length - 1]!
   takeOutLngLat = defaultPos ?? [fallbackLast[0] as number, fallbackLast[1] as number]
 
-  const { marker } = makeStaticMarker('#ef4444', 'Take-out')
+  const { marker } = makeStaticMarker('#ef4444', 'Take-out', true)
   marker.setLngLat(takeOutLngLat).addTo(map)
   takeOutMarker = marker
 
