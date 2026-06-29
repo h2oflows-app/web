@@ -4,10 +4,10 @@
     <UButton
       :label="store.step === 'putin' ? 'Cancel' : 'Back'"
       leading-icon="i-heroicons-chevron-left"
-      variant="soft"
+      variant="solid"
       color="neutral"
       size="sm"
-      class="pointer-events-auto backdrop-blur-sm bg-[--ui-bg]/80"
+      class="pointer-events-auto shadow-md"
       @click="handleBack"
     />
     <!-- Basemap switcher -->

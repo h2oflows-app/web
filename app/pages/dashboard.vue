@@ -122,7 +122,7 @@
           <button
             class="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-xs text-neutral-500 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
             title="New Run"
-            @click="newRunOpen = true"
+            @click="router.push('/my/runs/new')"
           >
             <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
               <line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>
@@ -654,8 +654,6 @@
     </main>
 
     <GaugeSearchModal v-model:open="searchOpen" :initial-tab="searchInitialTab" @add="handleAdd" @added-external="onAddedExternal" />
-    <WizardEntryModal :open="newRunOpen" new-run-only @cancel="newRunOpen = false" @import="onNewRunImport" @draw="onNewRunDraw" />
-    <RunImportModal v-model:open="importOpen" @imported="onImported" />
     <GaugeDetailModal v-if="detailGauge" v-model:open="detailOpen" :gauge="detailGauge" :mode="detailMode" />
     <UserRunCustomGaugeModal
       v-if="customGaugeModalProps"
@@ -1803,14 +1801,9 @@ const reachContainerClass = computed(() =>
 // ── UI state ─────────────────────────────────────────────────────────────────
 const searchOpen        = ref(false)
 const searchInitialTab  = ref<'mine' | 'discover'>('mine')
-const newRunOpen        = ref(false)
-const importOpen        = ref(false)
 const groupingOpen      = ref(false)
 
 function openSearch() { searchInitialTab.value = 'discover'; searchOpen.value = true }
-function onNewRunImport() { newRunOpen.value = false; importOpen.value = true }
-function onNewRunDraw() { newRunOpen.value = false; router.push('/my/runs/new') }
-function onImported() { onAddedExternal() }
 const groupingWrap = ref<HTMLElement | null>(null)
 
 async function handleAdd(gauge: Omit<WatchedGauge, 'watchState' | 'activeSince'>, dashboardId: string | null) {
