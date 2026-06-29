@@ -7,7 +7,7 @@
       variant="solid"
       color="neutral"
       size="sm"
-      class="pointer-events-auto bg-[--ui-bg] text-[--ui-text-highlighted] shadow-md ring-1 ring-[--ui-border-accented] hover:bg-[--ui-bg-muted]"
+      class="pointer-events-auto shadow-md"
       @click="handleBack"
     />
     <!-- Basemap switcher -->
