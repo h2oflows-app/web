@@ -276,9 +276,27 @@
                                 @click.stop="doAddReference(run.id, d.id); splitOpenForId = null"
                               >{{ d.name }}</button>
                               <div class="border-t border-neutral-100 dark:border-neutral-800 my-1"/>
+                              <!-- New dashboard: create it, then add this run to it -->
+                              <div v-if="creatingDashForId === run.id" class="px-2 py-1.5 flex items-center gap-1" @click.stop>
+                                <input
+                                  v-model="newDashName"
+                                  type="text"
+                                  maxlength="60"
+                                  placeholder="Dashboard name"
+                                  class="flex-1 min-w-0 px-2 py-1 text-xs rounded border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                  @keydown.enter.stop="createDashAndAdd(run.id)"
+                                  @keydown.esc.stop="creatingDashForId = null; newDashName = ''"
+                                >
+                                <button
+                                  class="shrink-0 px-2 py-1 text-xs rounded bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 transition-colors"
+                                  :disabled="!newDashName.trim() || creatingDash"
+                                  @click.stop="createDashAndAdd(run.id)"
+                                >Add</button>
+                              </div>
                               <button
+                                v-else
                                 class="w-full text-left px-3 py-1.5 text-xs text-primary-600 dark:text-primary-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-                                @click.stop="splitOpenForId = null; $emit('create-run'); open = false"
+                                @click.stop="creatingDashForId = run.id; newDashName = ''"
                               >+ New dashboard</button>
                             </div>
                           </div>
@@ -727,6 +745,41 @@ const previewRun       = ref<DiscoverRun | null>(null)
 const filtersVisible   = ref(false)
 const splitOpenForId   = ref<string | null>(null)
 const overflowOpenForId = ref<string | null>(null)
+
+// Inline "New dashboard" create-and-add (from the split-button picker)
+const creatingDashForId = ref<string | null>(null)
+const newDashName       = ref('')
+const creatingDash      = ref(false)
+async function createDashAndAdd(runId: string) {
+  const name = newDashName.value.trim()
+  if (!name || creatingDash.value) return
+  creatingDash.value = true
+  try {
+    const d = await db.create(name)
+    if (d) {
+      selectedDashboardId.value = d.id
+      await doAddReference(runId, d.id)
+    }
+  } finally {
+    creatingDash.value = false
+    creatingDashForId.value = null
+    newDashName.value = ''
+    splitOpenForId.value = null
+  }
+}
+
+// Close per-row split-button / overflow menus on any outside click.
+// Interactive children inside the menus use @click.stop, so they won't trigger this.
+function closeRowMenus() {
+  splitOpenForId.value = null
+  overflowOpenForId.value = null
+  creatingDashForId.value = null
+  newDashName.value = ''
+}
+watch([splitOpenForId, overflowOpenForId], ([s, o]) => {
+  if (s !== null || o !== null) document.addEventListener('click', closeRowMenus)
+  else document.removeEventListener('click', closeRowMenus)
+})
 
 const activeFilterCount = computed(() => {
   let n = 0
