@@ -18,6 +18,7 @@
           <NuxtLink :to="`/runs/${reach.contextReachAuthorHandle ?? 'h2oflows'}/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View" title="View" @click.stop>
             <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
           </NuxtLink>
+          <OwnerIcon :author-handle="reach.contextReachAuthorHandle" />
         </div>
         <span v-if="showRiverName && reach.contextReachRiverName" class="sm:hidden text-xs text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ reach.contextReachRiverName }}</span>
       </div>
@@ -62,6 +63,7 @@
               <NuxtLink :to="`/runs/${reach.contextReachAuthorHandle ?? 'h2oflows'}/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View" title="View" @click.stop>
                 <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
               </NuxtLink>
+              <OwnerIcon :author-handle="reach.contextReachAuthorHandle" />
             </div>
             <span v-if="showRiverName && reach.contextReachRiverName" class="sm:hidden text-xs text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ reach.contextReachRiverName }}</span>
           </div>
@@ -90,6 +92,7 @@
               <NuxtLink :to="`/my/runs/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="Edit" title="Edit" @click.stop>
                 <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
               </NuxtLink>
+              <OwnerIcon :author-handle="reach.contextReachAuthorHandle" />
             </div>
             <span v-if="showRiverName && reach.contextReachRiverName" class="text-xs text-neutral-400 dark:text-neutral-500 truncate block">{{ reach.contextReachRiverName }}</span>
           </div>
@@ -118,6 +121,7 @@
               <NuxtLink :to="`/my/runs/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="Edit" title="Edit" @click.stop>
                 <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
               </NuxtLink>
+              <OwnerIcon :author-handle="reach.contextReachAuthorHandle" />
             </div>
             <span v-if="showRiverName && reach.contextReachRiverName" class="text-xs text-neutral-400 dark:text-neutral-500 truncate block">{{ reach.contextReachRiverName }}</span>
           </div>
