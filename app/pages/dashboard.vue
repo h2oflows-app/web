@@ -177,7 +177,7 @@
         <section v-if="sectionHasVisibleContent(section)" class="mb-4">
           <!-- Outer (state) header: only when grouping by state -->
           <div v-if="section.name" class="flex items-center gap-2 w-full mb-3">
-            <button class="flex items-center gap-2 shrink-0" @click="toggleSection(section.key)">
+            <button class="flex items-center gap-1.5 shrink-0" @click="toggleSection(section.key)">
               <svg
                 class="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500 shrink-0 transition-transform duration-200"
                 :class="{ 'rotate-90': !collapsedSections.has(section.key) }"
@@ -185,15 +185,19 @@
               >
                 <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
               </svg>
-              <h1 class="text-2xl font-bold text-neutral-900 dark:text-white">{{ section.name === '—' ? 'No State' : section.name }}</h1>
+              <!-- Location-pin glyph -->
+              <svg class="w-4 h-4 text-neutral-500 dark:text-neutral-400 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M8 1.5C5.51 1.5 3.5 3.51 3.5 6c0 3.5 4.5 8 4.5 8s4.5-4.5 4.5-8c0-2.49-2.01-4.5-4.5-4.5zM8 8a2 2 0 110-4 2 2 0 010 4z" clip-rule="evenodd"/>
+              </svg>
+              <h1 class="text-lg font-semibold text-neutral-800 dark:text-neutral-100">{{ section.name === '—' ? 'No State' : section.name }}</h1>
             </button>
+            <span class="inline-flex items-center rounded-full bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 text-xs font-medium text-neutral-500 dark:text-neutral-400 shrink-0">{{ section.reachCount }}</span>
             <div class="flex-1 h-px bg-neutral-300 dark:bg-neutral-700" />
-            <span class="text-sm text-neutral-400 shrink-0">({{ section.reachCount }})</span>
           </div>
 
           <template v-if="!section.name || !collapsedSections.has(section.key)">
             <template v-for="sub in section.subSections" :key="sub.key">
-            <div v-if="subSectionHasVisibleContent(sub)" :class="sub.name ? 'mb-4' : 'mb-2'">
+            <div v-if="subSectionHasVisibleContent(sub)" :class="[sub.name ? 'mb-4' : 'mb-2', section.name ? 'pl-3 border-l border-neutral-200 dark:border-neutral-800' : '']">
               <!-- Inner (basin) header: only when grouping by basin -->
               <div v-if="sub.name" class="flex items-center gap-2 w-full mb-3">
                 <button class="flex items-center gap-2 text-left shrink-0" @click="toggleSection(sub.key)">
@@ -205,8 +209,8 @@
                     <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
                   </svg>
                   <h2 class="text-sm font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide">{{ sub.name }} Basin</h2>
-                  <span class="text-xs text-neutral-400">({{ sub.reachCount }})</span>
                 </button>
+                <span class="inline-flex items-center rounded-full bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 text-xs font-medium text-neutral-500 dark:text-neutral-400 shrink-0">{{ sub.reachCount }}</span>
                 <!-- Map-pin link to full basin page -->
                 <NuxtLink
                   :to="`/basin/${slugifyBasin(sub.name)}`"
@@ -276,7 +280,9 @@
               <!-- Reaches grouped by river (hidden when flat mode active) -->
               <div v-else-if="sub.rivers.some(r => riverHasVisibleContent(r))" class="mb-2">
                 <template v-for="river in sub.rivers" :key="river.name">
-                <div v-if="riverHasVisibleContent(river)" class="first:mt-0" :class="showRivers ? 'mt-4' : 'mt-1.5'">
+                <div v-if="riverHasVisibleContent(river)" class="first:mt-0 relative" :class="showRivers ? 'mt-4' : 'mt-1.5'">
+                  <!-- Flow-line gradient: visible only when river grouping active; faint primary strip down the left edge of cards, fades downstream -->
+                  <div v-if="showRivers" class="absolute left-0 top-9 bottom-0 w-0.5 rounded-full bg-gradient-to-b from-primary-400/50 to-primary-400/0 pointer-events-none" aria-hidden="true" />
                   <!-- River section divider -->
                   <div v-if="showRivers" class="flex items-center gap-2 mb-2">
                     <svg class="w-4 h-4 text-primary-500/70 dark:text-primary-400/70 shrink-0" viewBox="0 0 32 32" fill="none" aria-hidden="true">
@@ -332,7 +338,8 @@
                     </template>
                     <div class="flex-1 h-px bg-neutral-200 dark:bg-neutral-700" />
                   </div>
-                  <!-- Cards wrapper -->
+                  <!-- Cards wrapper — subtle left indent when river grouping active -->
+                  <div :class="showRivers ? 'pl-3' : ''">
                   <template v-if="groupByGauge">
                     <template v-for="split in [splitReachGroupsAll(river.reaches, river.userReaches)]" :key="'split'">
                       <div v-if="split.gaugeGroups.length > 0" :class="viewMode === 'list' ? 'space-y-1.5' : cardGridClass">
@@ -478,6 +485,7 @@
                   </div>
                 </template><!-- end visibleUrs -->
                 </template><!-- end v-for visibleUrs -->
+                </div><!-- end cards wrapper indent -->
                 </div><!-- end riverHasVisibleContent -->
                 </template><!-- end v-for river -->
               </div>
