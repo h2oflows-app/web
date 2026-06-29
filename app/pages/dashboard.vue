@@ -137,13 +137,13 @@
           </div>
         </div>
 
-        <!-- Primary Add run button — pinned right -->
+        <!-- Primary Add run button — pinned right; hidden on mobile (FAB replaces it) -->
         <template v-if="isAuthenticated">
-          <div class="h-4 w-px bg-neutral-200 dark:bg-neutral-700 mx-0.5 shrink-0" />
+          <div class="h-4 w-px bg-neutral-200 dark:bg-neutral-700 mx-0.5 shrink-0 hidden sm:block" />
           <UButton
             color="primary"
             size="xs"
-            class="shrink-0"
+            class="shrink-0 hidden sm:inline-flex"
             @click="openSearch()"
           >
             <template #leading>
@@ -229,7 +229,7 @@
               <!-- Flat mode: all user runs in one group when no grouping (state/basin/river) is active -->
               <div v-if="flatAllUserReaches.length > 0" class="mb-2">
                 <div v-if="viewMode === 'list'" class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden">
-                  <div v-for="r in flatAllUserReaches" :key="r.id" class="flex items-center gap-2 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer" @click="openUserReach(r)">
+                  <div v-for="r in flatAllUserReaches" :key="r.id" v-swipe-remove="() => swipeRemoveUserReach(r)" class="flex items-center gap-2 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer" @click="openUserReach(r)">
                     <div class="flex flex-col min-w-0 flex-1">
                       <div class="flex items-center gap-1 min-w-0">
                         <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
@@ -411,6 +411,7 @@
                     <div
                       v-for="r in visibleUrs"
                       :key="r.id"
+                      v-swipe-remove="() => swipeRemoveUserReach(r)"
                       class="flex items-center gap-2 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer"
                       @click="openUserReach(r)"
                     >
@@ -692,6 +693,23 @@
       :gauges="store.gauges"
       @close="shareOpen = false"
     />
+
+    <!-- Floating Add-run FAB — mobile only, sits above MobileTabBar (~4rem) + safe area -->
+    <UButton
+      v-if="isAuthenticated"
+      color="primary"
+      class="sm:hidden fixed right-4 z-30 rounded-2xl shadow-lg active:scale-95 transition-transform min-h-[44px] px-4 py-3"
+      style="bottom: calc(4rem + env(safe-area-inset-bottom, 0px))"
+      aria-label="Add run"
+      @click="openSearch()"
+    >
+      <template #leading>
+        <svg class="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>
+        </svg>
+      </template>
+      Add run
+    </UButton>
   </div>
 </template>
 
@@ -701,6 +719,7 @@ import { useWatchlistStore, type WatchedGauge } from '~/stores/watchlist'
 import { cleanBasinName, slugifyBasin } from '~/utils/basin'
 import { flowBandLabel, colorKeyToHex, colorKeyToBadgeClass } from '~/utils/flowBand'
 import { featureToWatchedGauge } from '~/composables/useWatchlistSync'
+import { vSwipeRemove } from '~/directives/swipeRemove'
 
 definePageMeta({ ssr: false })
 
@@ -724,6 +743,7 @@ function urBandLabel(r: UserReachSummary): string {
 }
 
 const router = useRouter()
+const toast = useToast()
 const store = useWatchlistStore()
 store.deduplicate()
 const { refresh } = useWatchlistRefresh()
@@ -1050,6 +1070,15 @@ async function removeUserReach(r: UserReachSummary) {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   }).catch(() => {})
+}
+
+// Swipe-to-remove wrapper: fires removeUserReach + confirmation toast.
+// Used by the v-swipe-remove directive on flat-mode list rows (mobile).
+async function swipeRemoveUserReach(r: UserReachSummary) {
+  const name = r.name || r.long_name || r.slug
+  const dashboard = db.activeDashboard.value?.name ?? 'dashboard'
+  await removeUserReach(r)
+  toast.add({ title: `Removed ${name} from ${dashboard}`, color: 'neutral', duration: 3000 })
 }
 
 // Fork a referenced run into the caller's namespace, then open the editor.
