@@ -32,19 +32,40 @@
             </p>
           </template>
         </div>
-        <!-- View reach + close buttons -->
-        <div class="flex items-center gap-1 shrink-0">
-          <NuxtLink
+        <!-- View / Edit / close buttons -->
+        <div class="flex items-center gap-1.5 shrink-0">
+          <!-- Reach mode: View run page -->
+          <UButton
             v-if="mode === 'reach' && reachNavPath"
             :to="reachNavPath"
-            class="p-1.5 rounded-md text-neutral-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
-            :title="`View ${reachTitle ?? 'run'} details`"
+            size="xs"
+            variant="outline"
+            color="neutral"
+            label="View"
             @click="open = false"
-          >
-            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M5 10h10M11 6l4 4-4 4"/>
-            </svg>
-          </NuxtLink>
+          />
+          <!-- Gauge mode: View gauge on external source -->
+          <UButton
+            v-else-if="mode !== 'reach' && sourceUrl && sourceUrl !== '#'"
+            :href="sourceUrl"
+            target="_blank"
+            external
+            size="xs"
+            variant="outline"
+            color="neutral"
+            label="View gauge"
+            @click="open = false"
+          />
+          <!-- Edit run (owned, non-reference runs only) -->
+          <UButton
+            v-if="mode === 'reach' && editNavPath && isMine(gauge.contextReachAuthorHandle) && !gauge.contextIsReference"
+            :to="editNavPath"
+            size="xs"
+            variant="soft"
+            color="primary"
+            label="Edit"
+            @click="open = false"
+          />
           <button
             class="p-1 rounded-md text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors focus:outline-none focus-visible:outline-none"
             aria-label="Close"
@@ -165,6 +186,13 @@ const reachNavPath = computed(() => {
   if (!slug) return null
   const handle = props.gauge.contextReachAuthorHandle ?? 'h2oflows'
   return `/runs/${handle}/${slug}`
+})
+
+// Edit path: /my/runs/{slug} — only rendered for owned, non-reference runs
+const editNavPath = computed(() => {
+  const slug = props.gauge.contextReachSlug ?? props.gauge.reachSlug ?? null
+  if (!slug) return null
+  return `/my/runs/${slug}`
 })
 
 // Reach slug passed to GaugeGraph only in reach mode — drives flow band coloring + legend.
