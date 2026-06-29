@@ -1,32 +1,48 @@
 <template>
-  <UModal v-model:open="open" title="Add a Run" :ui="{ width: 'max-w-2xl' }">
+  <UModal v-model:open="open" title="Add a Run" :ui="{ content: 'sm:max-w-2xl' }">
     <template #body>
       <div class="space-y-3">
 
-        <!-- Dashboard picker — always shown on Gauges tab; multi-dash only on other tabs -->
-        <div
-          v-if="db.dashboards.value.length > 0 && (activeTab === 'gauges' || db.dashboards.value.length > 1)"
-          class="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-primary-50 dark:bg-primary-950/30 border border-primary-100 dark:border-primary-900/40"
-        >
-          <div class="flex items-center gap-2 min-w-0">
-            <svg class="w-4 h-4 text-primary-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="4" rx="1"/><rect x="14" y="10" width="7" height="11" rx="1"/><rect x="3" y="13" width="7" height="8" rx="1"/>
-            </svg>
-            <span class="text-xs text-neutral-600 dark:text-neutral-300 shrink-0">Add to:</span>
+        <!-- "Adding to [dashboard ▾]" chip — always visible -->
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-neutral-500 dark:text-neutral-400 shrink-0">Adding to</span>
+          <div class="relative" ref="dashChipWrap">
+            <button
+              class="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-700 hover:bg-primary-200 dark:hover:bg-primary-900/80 transition-colors min-h-[28px]"
+              @click="dashChipOpen = !dashChipOpen"
+            >
+              <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="4" rx="1"/><rect x="14" y="10" width="7" height="11" rx="1"/><rect x="3" y="13" width="7" height="8" rx="1"/>
+              </svg>
+              <span class="truncate max-w-[160px]">{{ selectedDashboardName }}</span>
+              <svg class="w-3 h-3 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/>
+              </svg>
+            </button>
+            <!-- Dropdown popover -->
+            <div
+              v-if="dashChipOpen"
+              class="absolute top-full left-0 mt-1 z-50 min-w-[180px] rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg py-1"
+            >
+              <button
+                v-for="d in db.dashboards.value"
+                :key="d.id"
+                class="w-full text-left px-3 py-1.5 text-xs transition-colors"
+                :class="selectedDashboardId === d.id
+                  ? 'bg-primary-50 dark:bg-primary-950/40 text-primary-700 dark:text-primary-300 font-medium'
+                  : 'text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800'"
+                @click="selectedDashboardId = d.id; dashChipOpen = false"
+              >{{ d.name }}</button>
+            </div>
           </div>
-          <select
-            v-model="selectedDashboardId"
-            class="flex-1 max-w-[60%] rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-sm text-neutral-700 dark:text-neutral-200 px-2 py-1"
-          >
-            <option v-for="d in db.dashboards.value" :key="d.id" :value="d.id">{{ d.name }}</option>
-          </select>
         </div>
 
-        <!-- 3-tab bar -->
-        <div class="flex items-center gap-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg p-1 self-start">
+        <!-- Segmented control: Mine · Community · Gauges -->
+        <div class="flex items-center bg-neutral-100 dark:bg-neutral-800 rounded-lg p-1 self-start w-full sm:w-auto">
           <button
-            v-for="t in TABS" :key="t.key"
-            class="px-3 py-1 text-xs font-medium rounded-md transition-colors"
+            v-for="t in TABS"
+            :key="t.key"
+            class="flex-1 sm:flex-none px-3 py-1.5 text-xs font-medium rounded-md transition-colors min-h-[32px]"
             :class="activeTab === t.key
               ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm'
               : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200'"
@@ -34,7 +50,7 @@
           >{{ t.label }}</button>
         </div>
 
-        <!-- ── My Runs tab (V13: client-side filter, no API) ── -->
+        <!-- ── Mine tab ── -->
         <template v-if="activeTab === 'mine'">
           <input
             v-model="myRunsQuery"
@@ -50,7 +66,6 @@
           </div>
           <div v-else-if="filteredMyRuns.length === 0 && myRuns.length === 0" class="text-center py-10 text-neutral-400 text-sm">
             No runs yet.
-            <NuxtLink to="/my/runs/new" class="ml-1 text-primary-500 hover:underline font-medium" @click="open = false">Create one →</NuxtLink>
           </div>
           <div v-else-if="filteredMyRuns.length === 0" class="text-center py-10 text-neutral-400 text-sm">
             No runs matching "{{ myRunsQuery }}"
@@ -72,7 +87,7 @@
                 {{ Math.round(r.current_cfs).toLocaleString() }}<span class="text-xs font-normal text-neutral-400 ml-0.5">cfs</span>
               </span>
               <button
-                class="shrink-0 px-2.5 py-1 rounded-md text-xs font-medium bg-primary-600 hover:bg-primary-700 text-white transition-colors"
+                class="shrink-0 px-2.5 py-1.5 rounded-md text-xs font-medium bg-primary-600 hover:bg-primary-700 text-white transition-colors min-h-[36px]"
                 :disabled="addingMineId === r.id"
                 @click="addMyRun(r)"
               >
@@ -85,8 +100,8 @@
           </ul>
         </template>
 
-        <!-- ── Discover tab (V14-V19, V23) ── -->
-        <template v-else-if="activeTab === 'discover'">
+        <!-- ── Community tab ── -->
+        <template v-else-if="activeTab === 'community'">
           <!-- Search input -->
           <input
             v-model="discoverQuery"
@@ -96,36 +111,53 @@
             @input="onDiscoverInput"
           />
 
-          <!-- Filter bar (V19) -->
-          <div class="flex flex-wrap items-center gap-2">
-            <input
-              v-model.number="discoverMinClass"
-              type="number" min="1" max="6" step="0.5"
-              placeholder="Min class"
-              class="w-24 text-xs bg-neutral-100 dark:bg-neutral-900 rounded-md px-2 py-1.5 text-neutral-700 dark:text-neutral-200 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              @change="loadDiscoverRuns()"
-            />
-            <input
-              v-model.number="discoverMaxClass"
-              type="number" min="1" max="6" step="0.5"
-              placeholder="Max class"
-              class="w-24 text-xs bg-neutral-100 dark:bg-neutral-900 rounded-md px-2 py-1.5 text-neutral-700 dark:text-neutral-200 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              @change="loadDiscoverRuns()"
-            />
+          <!-- Filters toggle -->
+          <div>
             <button
-              class="px-2.5 py-1.5 text-xs rounded-md border transition-colors"
-              :class="discoverHasGauge
-                ? 'bg-primary-100 dark:bg-primary-900/50 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300'
-                : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300 dark:hover:border-neutral-600'"
-              @click="discoverHasGauge = !discoverHasGauge; loadDiscoverRuns()"
-            >Has gauge</button>
-            <input
-              v-model="discoverHandle"
-              type="text"
-              placeholder="@handle"
-              class="w-28 text-xs bg-neutral-100 dark:bg-neutral-900 rounded-md px-2 py-1.5 text-neutral-700 dark:text-neutral-200 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              @input="onDiscoverInput"
-            />
+              class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors"
+              :class="filtersVisible
+                ? 'bg-primary-50 dark:bg-primary-950/40 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300'
+                : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300'"
+              @click="filtersVisible = !filtersVisible"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L13 10.414V15a1 1 0 01-.553.894l-4 2A1 1 0 017 17v-6.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd"/>
+              </svg>
+              Filters
+              <span v-if="activeFilterCount > 0" class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary-600 text-white text-[10px] font-bold">{{ activeFilterCount }}</span>
+            </button>
+
+            <!-- Filter fields — collapsed by default, shown as chips on mobile -->
+            <div v-if="filtersVisible" class="mt-2 flex flex-wrap items-center gap-2">
+              <input
+                v-model.number="discoverMinClass"
+                type="number" min="1" max="6" step="0.5"
+                placeholder="Min class"
+                class="w-24 text-xs bg-neutral-100 dark:bg-neutral-900 rounded-md px-2 py-1.5 text-neutral-700 dark:text-neutral-200 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                @change="loadDiscoverRuns()"
+              />
+              <input
+                v-model.number="discoverMaxClass"
+                type="number" min="1" max="6" step="0.5"
+                placeholder="Max class"
+                class="w-24 text-xs bg-neutral-100 dark:bg-neutral-900 rounded-md px-2 py-1.5 text-neutral-700 dark:text-neutral-200 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                @change="loadDiscoverRuns()"
+              />
+              <button
+                class="px-2.5 py-1.5 text-xs rounded-md border transition-colors"
+                :class="discoverHasGauge
+                  ? 'bg-primary-100 dark:bg-primary-900/50 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300'
+                  : 'border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:border-neutral-300 dark:hover:border-neutral-600'"
+                @click="discoverHasGauge = !discoverHasGauge; loadDiscoverRuns()"
+              >Has gauge</button>
+              <input
+                v-model="discoverHandle"
+                type="text"
+                placeholder="@handle"
+                class="w-28 text-xs bg-neutral-100 dark:bg-neutral-900 rounded-md px-2 py-1.5 text-neutral-700 dark:text-neutral-200 placeholder-neutral-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                @input="onDiscoverInput"
+              />
+            </div>
           </div>
 
           <!-- Results + optional preview side panel -->
@@ -148,12 +180,13 @@
                 <li
                   v-for="run in discoverRuns"
                   :key="run.id"
-                  class="py-2.5 px-2 rounded-lg transition-colors"
+                  class="py-2.5 px-2 rounded-lg transition-colors cursor-pointer"
                   :class="previewRun?.id === run.id ? 'bg-primary-50/70 dark:bg-primary-950/30' : 'hover:bg-neutral-50 dark:hover:bg-neutral-900/50'"
+                  @click="previewRun = run"
                 >
                   <div class="flex items-start gap-3">
                     <div class="min-w-0 flex-1">
-                      <!-- Handle badge (V16) -->
+                      <!-- Handle badge -->
                       <div class="flex items-center gap-1.5 mb-0.5">
                         <span
                           class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
@@ -164,13 +197,13 @@
                           <span v-if="run.is_official">⭐</span>
                           {{ run.is_official ? 'H2OFlows' : `@${run.handle}` }}
                         </span>
-                        <!-- Fork attribution (V23) -->
+                        <!-- Fork attribution -->
                         <span v-if="run.original_author_handle" class="text-[10px] text-neutral-400 dark:text-neutral-500">
                           Forked from @{{ run.original_author_handle }}
                         </span>
                       </div>
                       <p class="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">{{ run.name }}</p>
-                      <!-- Meta row (V16) -->
+                      <!-- Meta row -->
                       <div class="flex items-center flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
                         <span v-if="run.class_min || run.class_max" class="text-xs text-neutral-500 dark:text-neutral-400">
                           {{ classRange(run.class_min, run.class_max) }}
@@ -178,7 +211,6 @@
                         <span v-if="run.length_mi" class="text-xs text-neutral-400">{{ run.length_mi.toFixed(1) }}mi</span>
                         <span v-if="run.gauge_name" class="text-xs text-neutral-400 truncate max-w-30">📍 {{ run.gauge_name }}</span>
                         <span class="text-xs text-neutral-400">{{ run.upvote_count }} ▲</span>
-                        <!-- Fork variants count (V10) -->
                         <span v-if="run.fork_count > 0" class="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400">
                           {{ run.fork_count }} variant{{ run.fork_count !== 1 ? 's' : '' }}
                         </span>
@@ -187,79 +219,123 @@
                     </div>
 
                     <!-- Action buttons -->
-                    <div class="flex items-center gap-1 shrink-0">
-                      <!-- Preview button -->
-                      <button
-                        class="p-1.5 rounded-md text-xs text-neutral-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-colors"
-                        :class="previewRun?.id === run.id ? 'text-primary-500 bg-primary-50 dark:bg-primary-950/30' : ''"
-                        title="Preview"
-                        @click="previewRun = previewRun?.id === run.id ? null : run"
-                      >
-                        <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-                          <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
-                        </svg>
-                      </button>
-
-                      <!-- Community run: Add (reference, V6) + Fork (explicit copy, V7) -->
-                      <template v-if="!run.is_official">
+                    <div class="flex items-center gap-1 shrink-0" @click.stop>
+                      <!-- Curated run: fork only (creates user_reaches row) -->
+                      <template v-if="run.is_official">
                         <button
-                          class="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white transition-colors"
-                          :disabled="addingReferenceId === run.id"
-                          title="Add to dashboard (no copy)"
-                          @click="startReference(run)"
-                        >
-                          <span v-if="addingReferenceId === run.id" class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
-                          <template v-else-if="addedReferenceIds.has(run.id)">✓ Added</template>
-                          <template v-else>Add +</template>
-                        </button>
-                        <button
-                          class="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-primary-400 hover:text-primary-600 disabled:opacity-60 transition-colors"
+                          class="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white transition-colors min-h-[36px]"
                           :disabled="forkingId === run.id"
-                          title="Fork — make your own editable copy"
                           @click="startFork(run)"
                         >
-                          <span v-if="forkingId === run.id" class="w-3 h-3 border-2 border-neutral-300 border-t-neutral-600 rounded-full animate-spin"/>
-                          <template v-else>Fork</template>
+                          <span v-if="forkingId === run.id" class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+                          <template v-else>Fork &amp; Add</template>
                         </button>
                       </template>
 
-                      <!-- Curated run: fork only (creates user_reaches row) -->
-                      <button
-                        v-else
-                        class="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white transition-colors"
-                        :disabled="forkingId === run.id"
-                        @click="startFork(run)"
-                      >
-                        <span v-if="forkingId === run.id" class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
-                        <template v-else>Fork &amp; Add</template>
-                      </button>
+                      <!-- Community run: instant Add (reference) as primary action -->
+                      <!-- Split button on desktop; single Add button on mobile (uses "Adding to" chip) -->
+                      <template v-else>
+                        <!-- Added state -->
+                        <span v-if="addedReferenceIds.has(run.id)" class="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium bg-green-600 text-white min-h-[36px]">
+                          ✓ Added
+                        </span>
+                        <!-- Loading state -->
+                        <span v-else-if="addingReferenceId === run.id" class="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium bg-primary-600 text-white min-h-[36px]">
+                          <span class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+                        </span>
+                        <!-- Split button: primary Add + ⌄ picker (desktop); single Add (mobile) -->
+                        <div v-else class="flex items-stretch rounded-md overflow-hidden shadow-sm">
+                          <!-- Primary Add -->
+                          <button
+                            class="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white transition-colors min-h-[36px]"
+                            :disabled="addingReferenceId === run.id"
+                            @click="doAddReference(run.id, selectedDashboardId)"
+                          >Add</button>
+                          <!-- Dropdown arrow for different dashboard — desktop only -->
+                          <div class="relative hidden sm:block">
+                            <button
+                              class="flex items-center justify-center w-6 h-full bg-primary-700 hover:bg-primary-800 text-white transition-colors border-l border-primary-500"
+                              title="Add to a different dashboard"
+                              @click.stop="splitOpenForId = splitOpenForId === run.id ? null : run.id"
+                            >
+                              <svg class="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/>
+                              </svg>
+                            </button>
+                            <!-- Dashboard picker dropdown -->
+                            <div
+                              v-if="splitOpenForId === run.id"
+                              class="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg py-1"
+                            >
+                              <p class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">Add to dashboard</p>
+                              <button
+                                v-for="d in db.dashboards.value"
+                                :key="d.id"
+                                class="w-full text-left px-3 py-1.5 text-xs text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                                :class="d.id === selectedDashboardId ? 'font-medium text-primary-700 dark:text-primary-300' : ''"
+                                @click.stop="doAddReference(run.id, d.id); splitOpenForId = null"
+                              >{{ d.name }}</button>
+                              <div class="border-t border-neutral-100 dark:border-neutral-800 my-1"/>
+                              <!-- New dashboard: create it, then add this run to it -->
+                              <div v-if="creatingDashForId === run.id" class="px-2 py-1.5 flex items-center gap-1" @click.stop>
+                                <input
+                                  v-model="newDashName"
+                                  type="text"
+                                  maxlength="60"
+                                  placeholder="Dashboard name"
+                                  class="flex-1 min-w-0 px-2 py-1 text-xs rounded border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                  @keydown.enter.stop="createDashAndAdd(run.id)"
+                                  @keydown.esc.stop="creatingDashForId = null; newDashName = ''"
+                                >
+                                <button
+                                  class="shrink-0 px-2 py-1 text-xs rounded bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 transition-colors"
+                                  :disabled="!newDashName.trim() || creatingDash"
+                                  @click.stop="createDashAndAdd(run.id)"
+                                >Add</button>
+                              </div>
+                              <button
+                                v-else
+                                class="w-full text-left px-3 py-1.5 text-xs text-primary-600 dark:text-primary-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                                @click.stop="creatingDashForId = run.id; newDashName = ''"
+                              >+ New dashboard</button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Overflow ⋯ menu with Fork option -->
+                        <div class="relative">
+                          <button
+                            class="p-1.5 rounded-md text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
+                            title="More options"
+                            @click.stop="overflowOpenForId = overflowOpenForId === run.id ? null : run.id"
+                          >
+                            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z"/>
+                            </svg>
+                          </button>
+                          <div
+                            v-if="overflowOpenForId === run.id"
+                            class="absolute right-0 top-full mt-1 z-50 min-w-[200px] rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg py-1"
+                          >
+                            <button
+                              class="w-full text-left px-3 py-2 text-xs text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                              :disabled="forkingId === run.id"
+                              @click.stop="overflowOpenForId = null; startFork(run)"
+                            >
+                              <p class="font-medium">Fork &amp; customize</p>
+                              <p class="text-neutral-400 dark:text-neutral-500 mt-0.5">Your own editable copy</p>
+                            </button>
+                          </div>
+                        </div>
+                      </template>
                     </div>
                   </div>
 
-                  <!-- Inline dashboard picker — reference add (V6) -->
-                  <div
-                    v-if="referenceForRunId === run.id"
-                    class="mt-2 pl-2 flex flex-wrap items-center gap-2"
-                  >
-                    <span class="text-xs text-neutral-500">Add to:</span>
-                    <button
-                      v-for="d in db.dashboards.value"
-                      :key="d.id"
-                      class="px-2 py-1 rounded-md text-xs border transition-colors"
-                      :class="addingReferenceId === run.id
-                        ? 'bg-primary-100 border-primary-300 text-primary-700 cursor-default'
-                        : 'border-neutral-200 dark:border-neutral-700 hover:border-primary-400 hover:bg-primary-50/60 text-neutral-600 dark:text-neutral-300'"
-                      :disabled="addingReferenceId === run.id"
-                      @click="confirmReferenceDashboard(run.id, d.id)"
-                    >{{ d.name }}</button>
-                    <button class="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 ml-1" @click="cancelReference">Cancel</button>
-                  </div>
-
-                  <!-- Inline dashboard picker — fork add (V7) -->
+                  <!-- Inline fork dashboard picker — shown after fork completes (multi-dash) -->
                   <div
                     v-if="forkedForRunId === run.id && pendingForkedSlug"
                     class="mt-2 pl-2 flex flex-wrap items-center gap-2"
+                    @click.stop
                   >
                     <span class="text-xs text-neutral-500">Add fork to:</span>
                     <button
@@ -286,10 +362,10 @@
               </div>
             </div>
 
-            <!-- Preview side panel (V18) -->
+            <!-- Preview side panel — desktop only, auto-driven by selected row -->
             <div
               v-if="previewRun"
-              class="w-52 shrink-0 border-l border-neutral-100 dark:border-neutral-800 pl-3 space-y-3 max-h-[50vh] overflow-y-auto"
+              class="hidden sm:block w-52 shrink-0 border-l border-neutral-100 dark:border-neutral-800 pl-3 space-y-3 max-h-[50vh] overflow-y-auto"
             >
               <div class="flex items-center justify-between">
                 <p class="text-xs font-semibold text-neutral-700 dark:text-neutral-200 truncate">{{ previewRun.name }}</p>
@@ -333,6 +409,23 @@
                   <dd class="text-neutral-700 dark:text-neutral-200 font-mono">{{ previewRun.put_in_lat.toFixed(3) }}, {{ previewRun.put_in_lng.toFixed(3) }}</dd>
                 </div>
               </dl>
+              <!-- Fork action in preview panel (desktop) -->
+              <div v-if="!previewRun.is_official" class="pt-2 border-t border-neutral-100 dark:border-neutral-800">
+                <button
+                  class="w-full text-left text-xs text-neutral-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                  :disabled="forkingId === previewRun.id"
+                  @click="startFork(previewRun)"
+                >
+                  <span v-if="forkingId === previewRun.id" class="flex items-center gap-1">
+                    <span class="w-3 h-3 border-2 border-neutral-300 border-t-neutral-600 rounded-full animate-spin"/>
+                    Forking…
+                  </span>
+                  <template v-else>
+                    <span class="font-medium">Fork &amp; customize</span>
+                    <span class="block text-neutral-400 mt-0.5">Your own editable copy</span>
+                  </template>
+                </button>
+              </div>
             </div>
           </div>
         </template>
@@ -450,7 +543,12 @@
       </div>
     </template>
     <template #footer>
-      <div class="flex justify-end">
+      <div class="flex items-center justify-between">
+        <!-- "Create a new run →" footer link -->
+        <button
+          class="text-xs text-primary-600 dark:text-primary-400 hover:underline font-medium"
+          @click="handleCreateRun"
+        >Create a new run →</button>
         <UButton variant="ghost" color="neutral" size="sm" @click="open = false">Close</UButton>
       </div>
     </template>
@@ -465,7 +563,7 @@ import { classRange } from '~/utils/classRating'
 const open = defineModel<boolean>('open', { default: false })
 
 const props = withDefaults(defineProps<{
-  initialTab?: 'mine' | 'discover'
+  initialTab?: 'mine' | 'discover' | 'community'
 }>(), { initialTab: 'mine' })
 
 interface AddedExternalPayload {
@@ -477,12 +575,14 @@ interface AddedExternalPayload {
 const emit = defineEmits<{
   (e: 'add', gauge: Omit<WatchedGauge, 'watchState' | 'activeSince'>, dashboardId: string | null): void
   (e: 'addedExternal', payload?: AddedExternalPayload): void
+  (e: 'create-run'): void
 }>()
 
 const { apiBase } = useRuntimeConfig().public
 const { getToken } = useAuth()
 const db = useDashboards()
 const { addReachToWatchlist, addUserReachToWatchlist, addReferenceToWatchlist } = useWatchlistSync()
+const toast = useToast()
 
 onMounted(() => { if (!db.loaded.value) db.load() })
 
@@ -493,25 +593,54 @@ watch(() => db.activeDashboardId.value, (id) => {
   }
 })
 
+const selectedDashboardName = computed(() => {
+  if (!selectedDashboardId.value) return 'dashboard'
+  return db.dashboards.value.find(d => d.id === selectedDashboardId.value)?.name ?? 'dashboard'
+})
+
+// Dashboard chip dropdown
+const dashChipOpen = ref(false)
+const dashChipWrap = ref<HTMLElement | null>(null)
+
+// Close dashboard chip on outside click
+function onDashChipOutsideClick(e: MouseEvent) {
+  if (dashChipWrap.value && !dashChipWrap.value.contains(e.target as Node)) {
+    dashChipOpen.value = false
+  }
+}
+watch(dashChipOpen, (open) => {
+  if (open) document.addEventListener('click', onDashChipOutsideClick)
+  else document.removeEventListener('click', onDashChipOutsideClick)
+})
+
 // ── Tabs ──────────────────────────────────────────────────────────────────────
-type TabKey = 'mine' | 'discover' | 'gauges'
+// 'discover' key renamed to 'community' label; keep backward compat via alias
+type TabKey = 'mine' | 'community' | 'gauges'
 const TABS: { key: TabKey; label: string }[] = [
-  { key: 'mine',     label: 'My Runs' },
-  { key: 'discover', label: 'Discover' },
-  { key: 'gauges',   label: 'Gauges' },
+  { key: 'mine',      label: 'Mine' },
+  { key: 'community', label: 'Community' },
+  { key: 'gauges',    label: 'Gauges' },
 ]
-const activeTab = ref<TabKey>(props.initialTab)
+
+// Support legacy 'discover' initialTab by mapping to 'community'
+function normalizeTab(t: string): TabKey {
+  if (t === 'discover') return 'community'
+  if (t === 'mine' || t === 'community' || t === 'gauges') return t as TabKey
+  return 'mine'
+}
+
+const activeTab = ref<TabKey>(normalizeTab(props.initialTab))
 
 function setTab(key: TabKey) {
   activeTab.value = key
   if (key === 'mine' && myRuns.value.length === 0 && !myRunsLoading.value) loadMyRuns()
-  if (key === 'discover' && discoverRuns.value.length === 0) loadDiscoverRuns()
+  if (key === 'community' && discoverRuns.value.length === 0) loadDiscoverRuns()
   if (key === 'gauges' && customGauges.value.length === 0) loadCustomGauges()
 }
 
 watch(open, (v) => {
   if (!v) {
-    activeTab.value = props.initialTab
+    activeTab.value = normalizeTab(props.initialTab)
     myRunsQuery.value = ''
     discoverQuery.value = ''
     discoverRuns.value = []
@@ -525,11 +654,15 @@ watch(open, (v) => {
     gaugeTabQuery.value = ''
     addedGaugeKeys.value = new Set()
     addedCustomIds.value = new Set()
+    filtersVisible.value = false
+    dashChipOpen.value = false
+    splitOpenForId.value = null
+    overflowOpenForId.value = null
   } else {
     if (db.activeDashboardId.value) selectedDashboardId.value = db.activeDashboardId.value
-    activeTab.value = props.initialTab
+    activeTab.value = normalizeTab(props.initialTab)
     if (activeTab.value === 'mine') loadMyRuns()
-    else if (activeTab.value === 'discover') loadDiscoverRuns()
+    else if (activeTab.value === 'community') loadDiscoverRuns()
     else if (activeTab.value === 'gauges') loadCustomGauges()
   }
 })
@@ -585,7 +718,7 @@ async function addMyRun(r: MyRunSummary) {
   }
 }
 
-// ── Discover tab (V14-V19, V23) ───────────────────────────────────────────────
+// ── Community tab (was Discover, V14-V19, V23) ────────────────────────────────
 interface DiscoverRun {
   id: string; slug: string; name: string; handle: string
   is_official: boolean
@@ -609,6 +742,53 @@ const discoverMaxClass = ref<number | null>(null)
 const discoverHasGauge = ref(false)
 const discoverHandle   = ref('')
 const previewRun       = ref<DiscoverRun | null>(null)
+const filtersVisible   = ref(false)
+const splitOpenForId   = ref<string | null>(null)
+const overflowOpenForId = ref<string | null>(null)
+
+// Inline "New dashboard" create-and-add (from the split-button picker)
+const creatingDashForId = ref<string | null>(null)
+const newDashName       = ref('')
+const creatingDash      = ref(false)
+async function createDashAndAdd(runId: string) {
+  const name = newDashName.value.trim()
+  if (!name || creatingDash.value) return
+  creatingDash.value = true
+  try {
+    const d = await db.create(name)
+    if (d) {
+      selectedDashboardId.value = d.id
+      await doAddReference(runId, d.id)
+    }
+  } finally {
+    creatingDash.value = false
+    creatingDashForId.value = null
+    newDashName.value = ''
+    splitOpenForId.value = null
+  }
+}
+
+// Close per-row split-button / overflow menus on any outside click.
+// Interactive children inside the menus use @click.stop, so they won't trigger this.
+function closeRowMenus() {
+  splitOpenForId.value = null
+  overflowOpenForId.value = null
+  creatingDashForId.value = null
+  newDashName.value = ''
+}
+watch([splitOpenForId, overflowOpenForId], ([s, o]) => {
+  if (s !== null || o !== null) document.addEventListener('click', closeRowMenus)
+  else document.removeEventListener('click', closeRowMenus)
+})
+
+const activeFilterCount = computed(() => {
+  let n = 0
+  if (discoverMinClass.value != null) n++
+  if (discoverMaxClass.value != null) n++
+  if (discoverHasGauge.value) n++
+  if (discoverHandle.value.trim()) n++
+  return n
+})
 
 let discoverDebounce: ReturnType<typeof setTimeout> | null = null
 function onDiscoverInput() {
@@ -633,6 +813,10 @@ async function loadDiscoverRuns(append = false) {
     discoverRuns.value = append ? [...discoverRuns.value, ...items] : items
     discoverHasMore.value = data.has_more ?? false
     discoverOffset.value += items.length
+    // Auto-select first result if none selected (desktop preview)
+    if (!append && items.length > 0 && !previewRun.value) {
+      previewRun.value = items[0] ?? null
+    }
   } catch { /* non-fatal */ } finally {
     discoverLoading.value = false
   }
@@ -642,29 +826,26 @@ async function loadMore() {
   await loadDiscoverRuns(true)
 }
 
-// ── Reference flow (V6) ──────────────────────────────────────────────────────
-const referenceForRunId   = ref<string | null>(null)
+// ── Reference flow (V6) — instant add ────────────────────────────────────────
 const addingReferenceId   = ref<string | null>(null)
 const addedReferenceIds   = ref<Set<string>>(new Set())
 
+// startReference is still exported for callers that pass a run object
+// (e.g., in case the parent uses it directly); internally we short-circuit
+// to the selected dashboard immediately.
 async function startReference(run: DiscoverRun) {
-  if (db.dashboards.value.length <= 1) {
-    await doAddReference(run.id, selectedDashboardId.value)
-  } else {
-    referenceForRunId.value = run.id
-  }
-}
-
-async function confirmReferenceDashboard(runId: string, dashId: string | null) {
-  referenceForRunId.value = null
-  await doAddReference(runId, dashId)
+  await doAddReference(run.id, selectedDashboardId.value)
 }
 
 async function doAddReference(runId: string, dashId: string | null) {
   addingReferenceId.value = runId
+  splitOpenForId.value = null
+  overflowOpenForId.value = null
   try {
     await addReferenceToWatchlist(runId, dashId)
     addedReferenceIds.value = new Set([...addedReferenceIds.value, runId])
+    const dashName = db.dashboards.value.find(d => d.id === dashId)?.name ?? 'dashboard'
+    toast.add({ title: `Added to ${dashName}`, color: 'success', duration: 3000 })
     emit('addedExternal', { kind: 'reach', reachSlug: runId })
     setTimeout(() => {
       addedReferenceIds.value = new Set([...addedReferenceIds.value].filter(x => x !== runId))
@@ -672,10 +853,6 @@ async function doAddReference(runId: string, dashId: string | null) {
   } finally {
     addingReferenceId.value = null
   }
-}
-
-function cancelReference() {
-  referenceForRunId.value = null
 }
 
 // ── Fork flow (V17) ───────────────────────────────────────────────────────────
@@ -689,6 +866,7 @@ async function startFork(run: DiscoverRun) {
   forkingId.value = run.id
   forkedForRunId.value = null
   pendingForkedSlug.value = null
+  overflowOpenForId.value = null
   try {
     const token = await getToken()
     if (!token) return
@@ -737,6 +915,12 @@ async function confirmForkDashboard(dashId: string | null) {
 function cancelFork() {
   forkedForRunId.value = null
   pendingForkedSlug.value = null
+}
+
+// ── "Create a new run →" footer ───────────────────────────────────────────────
+function handleCreateRun() {
+  open.value = false
+  emit('create-run')
 }
 
 // ── Gauges tab ────────────────────────────────────────────────────────────────
