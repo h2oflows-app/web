@@ -3,8 +3,8 @@
     <WizardProgress />
     <div class="flex flex-col gap-1">
       <p class="text-[10px] font-bold tracking-widest text-[--ui-text-muted] uppercase">TAKE-OUT · Step 2 of 4</p>
-      <h2 class="text-xl font-bold text-[--ui-text-highlighted]" style="font-family: var(--font-heading, inherit); letter-spacing: -0.01em">Drag to your take-out</h2>
-      <p class="text-sm text-[--ui-text-muted]">Slide the red pin <strong>downstream</strong> to where you'll take out.</p>
+      <h2 class="text-xl font-bold text-[--ui-text-highlighted]" style="font-family: var(--font-heading, inherit); letter-spacing: -0.01em">Tap the take-out</h2>
+      <p class="text-sm text-[--ui-text-muted]">Zoom &amp; tap the spot along the river where you take the boats out of the water.</p>
     </div>
 
     <!-- Live distance row -->

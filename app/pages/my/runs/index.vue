@@ -28,14 +28,26 @@
       <!-- Header row -->
       <div class="flex items-center justify-between gap-3">
         <h1 class="text-xl font-bold text-neutral-900 dark:text-white">My Runs</h1>
-        <NuxtLink
-          to="/my/runs/new"
-          class="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 px-3 py-1.5 text-sm font-medium text-white transition-colors"
-        >
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-          New run
-        </NuxtLink>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-neutral-300 dark:border-neutral-600 px-3 py-1.5 text-sm font-medium text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+            @click="importOpen = true"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14"/></svg>
+            Import
+          </button>
+          <NuxtLink
+            to="/my/runs/new"
+            class="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 px-3 py-1.5 text-sm font-medium text-white transition-colors"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            New run
+          </NuxtLink>
+        </div>
       </div>
+
+      <RunImportModal v-model:open="importOpen" @imported="load" />
 
       <!-- Scope filter: All runs | On a dashboard -->
       <div class="flex gap-1 p-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg w-fit">
@@ -285,6 +297,7 @@ const watchlist  = ref<WatchlistItem[]>([])
 const loading    = ref(false)
 const fetchError = ref('')
 const fetchDone  = ref(false)
+const importOpen = ref(false)
 
 // ── Scope filter ───────────────────────────────────────────────────────────────
 const SCOPE_TABS = [
