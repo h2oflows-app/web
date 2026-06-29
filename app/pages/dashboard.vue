@@ -24,121 +24,135 @@
       <!-- Left items wrap their own overflow so Add gauge stays pinned right -->
       <div class="flex items-center gap-1 min-w-0 overflow-x-auto flex-1 scrollbar-none [&::-webkit-scrollbar]:hidden">
         <template v-if="hasAnyContent">
-          <!-- View mode -->
-          <ToolbarButton
-            v-for="m in VIEW_MODES"
-            :key="m.key"
-            :class="m.key === 'full' ? 'hidden sm:flex' : ''"
-            :active="viewMode === m.key"
-            :title="m.label"
-            @click="setViewMode(m.key)"
-          >
-            <svg v-if="m.key === 'list'" class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-              <line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/>
-            </svg>
-            <svg v-else-if="m.key === 'comfortable'" class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/>
-              <rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/>
-            </svg>
-            <svg v-else class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="1" y="1" width="14" height="6" rx="1"/><rect x="1" y="9" width="14" height="6" rx="1"/>
-            </svg>
-          </ToolbarButton>
+          <!-- View mode — tooltip-only, active = white pill + shadow -->
+          <UTooltip text="Compact">
+            <ToolbarButton
+              :active="viewMode === 'list'"
+              title="Compact"
+              @click="setViewMode('list')"
+            >
+              <!-- 3 evenly-spaced horizontal lines -->
+              <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                <line x1="2" y1="4" x2="14" y2="4"/>
+                <line x1="2" y1="8" x2="14" y2="8"/>
+                <line x1="2" y1="12" x2="14" y2="12"/>
+              </svg>
+            </ToolbarButton>
+          </UTooltip>
+          <UTooltip text="Comfortable">
+            <ToolbarButton
+              :active="viewMode === 'comfortable'"
+              title="Comfortable"
+              @click="setViewMode('comfortable')"
+            >
+              <!-- 2 stacked rounded rects -->
+              <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="1.5" y="2" width="13" height="4.5" rx="1.5"/>
+                <rect x="1.5" y="9.5" width="13" height="4.5" rx="1.5"/>
+              </svg>
+            </ToolbarButton>
+          </UTooltip>
+          <UTooltip text="Full">
+            <ToolbarButton
+              class="hidden sm:flex"
+              :active="viewMode === 'full'"
+              title="Full"
+              @click="setViewMode('full')"
+            >
+              <!-- One card rect with inner chart tick -->
+              <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="1.5" y="2" width="13" height="12" rx="1.5"/>
+                <polyline points="3.5,11 6,8 9,9.5 12.5,5"/>
+              </svg>
+            </ToolbarButton>
+          </UTooltip>
 
           <div class="h-4 w-px bg-neutral-200 dark:bg-neutral-700 mx-0.5" />
-
-          <!-- Expand / Collapse all -->
-          <ToolbarButton
-            v-if="displaySections.length > 0 && (groupByState || groupByBasin)"
-            :label="allExpanded ? 'Collapse' : 'Expand'"
-            :title="allExpanded ? 'Collapse all sections' : 'Expand all sections'"
-            @click="toggleAllSections"
-          >
-            <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <!-- Collapse: two chevrons pointing toward center -->
-              <template v-if="allExpanded">
-                <path d="M3 4l5 3 5-3"/>
-                <path d="M3 12l5-3 5 3"/>
-              </template>
-              <!-- Expand: two chevrons pointing away from center -->
-              <template v-else>
-                <path d="M3 6l5-3 5 3"/>
-                <path d="M3 10l5 3 5-3"/>
-              </template>
-            </svg>
-          </ToolbarButton>
-
-          <!-- Show gauge map toggle -->
-          <ToolbarButton
-            :active="mapVisible"
-            :title="mapVisible ? 'Hide gauge map' : 'Show gauge map'"
-            @click="mapVisible = !mapVisible"
-          >
-            <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M5.5 2 1.5 4v10l4-2 5 2 4-2V2l-4 2-5-2z"/>
-              <path d="M5.5 2v10"/>
-              <path d="M10.5 4v10"/>
-            </svg>
-          </ToolbarButton>
-
 
         </template>
       </div>
 
-        <!-- Grouping dropdown — pinned right, outside scroll group -->
+        <!-- Grouping popover — labeled "Group: …" button, pinned right -->
         <div v-if="hasAnyContent" class="relative shrink-0" ref="groupingWrap">
-          <ToolbarButton :active="!groupByState || !groupByBasin || groupByGauge" title="Group sections" @click="groupingOpen = !groupingOpen">
-            <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="1.5" y="2" width="13" height="3" rx="0.5"/>
-              <rect x="1.5" y="6.5" width="13" height="3" rx="0.5"/>
-              <rect x="1.5" y="11" width="13" height="3" rx="0.5"/>
+          <button
+            class="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors whitespace-nowrap"
+            :class="groupingOpen ? 'bg-neutral-100 dark:bg-neutral-800' : ''"
+            @click="groupingOpen = !groupingOpen"
+          >
+            <span>Group: {{ groupingLabel }}</span>
+            <svg class="w-3 h-3 ml-0.5 transition-transform" :class="groupingOpen ? 'rotate-180' : ''" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 6l4 4 4-4"/>
             </svg>
-          </ToolbarButton>
+          </button>
           <div
             v-if="groupingOpen"
-            class="absolute right-0 top-full mt-1 z-50 w-44 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg overflow-hidden py-1"
+            class="absolute right-0 top-full mt-1 z-50 w-52 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg overflow-hidden"
           >
-            <button
-              v-for="opt in groupingOptions"
-              :key="opt.key"
-              class="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-              @click="opt.toggle()"
-            >
-              <svg
-                class="w-3.5 h-3.5 shrink-0"
-                :class="opt.active ? 'text-primary-500' : 'text-neutral-200 dark:text-neutral-700'"
-                viewBox="0 0 20 20" fill="currentColor"
+            <!-- Grouping checkboxes in priority order -->
+            <div class="py-1">
+              <button
+                v-for="opt in groupingOptions"
+                :key="opt.key"
+                class="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                @click="opt.toggle()"
               >
-                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-              </svg>
-              {{ opt.label }}
-            </button>
+                <svg
+                  class="w-4 h-4 shrink-0 rounded border transition-colors"
+                  :class="opt.active
+                    ? 'bg-primary-500 border-primary-500 text-white'
+                    : 'border-neutral-300 dark:border-neutral-600 text-transparent'"
+                  viewBox="0 0 16 16" fill="currentColor"
+                >
+                  <path v-if="opt.active" fill-rule="evenodd" d="M13.293 3.293a1 1 0 011.414 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5a1 1 0 011.414-1.414L6.5 10.086l6.793-6.793z" clip-rule="evenodd"/>
+                </svg>
+                {{ opt.label }}
+              </button>
+            </div>
+            <!-- Expand / Collapse all — only when grouping active -->
+            <div
+              v-if="displaySections.length > 0 && (groupByState || groupByBasin)"
+              class="border-t border-neutral-100 dark:border-neutral-800"
+            >
+              <button
+                class="w-full flex items-center gap-2 px-3 py-2 text-sm text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                @click="toggleAllSections"
+              >
+                <svg class="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <template v-if="allExpanded">
+                    <path d="M3 4l5 3 5-3"/>
+                    <path d="M3 12l5-3 5 3"/>
+                  </template>
+                  <template v-else>
+                    <path d="M3 6l5-3 5 3"/>
+                    <path d="M3 10l5 3 5-3"/>
+                  </template>
+                </svg>
+                {{ allExpanded ? 'Collapse all' : 'Expand all' }}
+              </button>
+            </div>
+            <!-- Ordering note -->
+            <div class="border-t border-neutral-100 dark:border-neutral-800 px-3 py-2">
+              <p class="text-xs text-neutral-400 dark:text-neutral-500">↓ Ordered upstream → downstream</p>
+            </div>
           </div>
         </div>
 
-        <!-- New Run + Search — subtle, pinned right -->
+        <!-- Primary Add run button — pinned right -->
         <template v-if="isAuthenticated">
           <div class="h-4 w-px bg-neutral-200 dark:bg-neutral-700 mx-0.5 shrink-0" />
-          <button
-            class="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-xs text-neutral-500 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-            title="New Run"
-            @click="router.push('/my/runs/new')"
-          >
-            <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round">
-              <line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>
-            </svg>
-            <span class="hidden sm:inline">New Run</span>
-          </button>
-          <button
-            class="shrink-0 flex items-center gap-1 px-2 py-1 rounded-md text-xs text-neutral-500 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-            title="Search & fork runs"
+          <UButton
+            color="primary"
+            size="xs"
+            class="shrink-0"
             @click="openSearch()"
           >
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-            </svg>
-            <span class="hidden sm:inline">Search</span>
-          </button>
+            <template #leading>
+              <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>
+              </svg>
+            </template>
+            Add run
+          </UButton>
         </template>
       </div>
       </div>
@@ -632,28 +646,10 @@
           </div><!-- end collapsible -->
         </section>
 
-        <!-- Dashboard map -->
-        <section v-if="mapVisible">
-          <div class="flex items-center gap-2 mb-3">
-            <h2 class="text-sm font-semibold text-neutral-500 uppercase tracking-wide">Gauge Map</h2>
-            <div class="flex-1 h-px bg-neutral-200 dark:bg-neutral-800" />
-            <button
-              class="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
-              @click="mapVisible = false"
-            >Hide</button>
-          </div>
-          <ClientOnly>
-            <DashboardMap
-              :gauges="mapGauges"
-              @remove-gauge="removeAndSync($event)"
-              @open-gauge="(id) => { const g = mapGauges.find(x => x.id === id); if (g) openGauge(g, 'gauge') }"
-            />
-          </ClientOnly>
-        </section>
       </template>
     </main>
 
-    <GaugeSearchModal v-model:open="searchOpen" :initial-tab="searchInitialTab" @add="handleAdd" @added-external="onAddedExternal" />
+    <GaugeSearchModal v-model:open="searchOpen" :initial-tab="searchInitialTab" @add="handleAdd" @added-external="onAddedExternal" @create-run="openRunWizard()" />
     <GaugeDetailModal v-if="detailGauge" v-model:open="detailOpen" :gauge="detailGauge" :mode="detailMode" />
     <UserRunCustomGaugeModal
       v-if="customGaugeModalProps"
@@ -1110,26 +1106,6 @@ const activeReferencedReaches = computed(() =>
 const visibleUserReaches  = computed(() => activeUserReaches.value.filter(r => !hiddenReaches.value.has(r.id)))
 const visibleCustomGauges = computed(() => activeCustomGauges.value.filter(cg => !hiddenCustomGauges.value.has(cg.id)))
 
-// Gauges to plot on the map. Combines real watchlist gauges (store.gauges)
-// with synthetic gauges derived directly from user runs (own + referenced).
-// Using the gauge coords now carried on each run summary means the map no
-// longer depends on the fragile backfill (gauges/batch) populating store.gauges.
-const mapGauges = computed<WatchedGauge[]>(() => {
-  const out = [...store.gauges]
-  const seen = new Set(out.map(g => `${g.id}::${g.contextReachSlug ?? ''}`))
-  const runsWithGauge = [
-    ...visibleUserReaches.value,
-    ...activeReferencedReaches.value,
-  ].filter(r => r.gauge_id && r.gauge_lat != null && r.gauge_lng != null)
-  for (const r of runsWithGauge) {
-    const key = `${r.gauge_id}::${r.slug}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    out.push(synthGaugeForReach(r))
-  }
-  return out
-})
-
 // Whether there's anything to render anywhere on the page.
 const hasAnyContent = computed(() =>
   store.gauges.length > 0 || visibleUserReaches.value.length > 0
@@ -1541,9 +1517,9 @@ function sectionHasVisibleContent(sec: DisplaySection): boolean {
 }
 
 // ── Per-dashboard preferences ───────────────────────────────────────────────
-// Saved as one JSON blob per dashboard so grouping/filter/view/collapse/mapVisible
-// stick on the dashboard they were set on. When the active dashboard changes, all
-// pref refs are rehydrated from the new dashboard's blob.
+// Saved as one JSON blob per dashboard so grouping/filter/view/collapse
+// settings stick on the dashboard they were set on. When the active dashboard
+// changes, all pref refs are rehydrated from the new dashboard's blob.
 type ViewMode = 'list' | 'comfortable' | 'full'
 const VIEW_MODES = [
   { key: 'list',        label: 'Compact'     },
@@ -1557,7 +1533,6 @@ interface DashboardPrefs {
   groupByState: boolean
   groupByBasin: boolean
   collapsedSections: string[]
-  mapVisible: boolean
   showRivers: boolean
 }
 
@@ -1567,7 +1542,6 @@ const DEFAULT_PREFS: DashboardPrefs = {
   groupByState: false,
   groupByBasin: true,
   collapsedSections: [],
-  mapVisible: false,
   showRivers: true,
 }
 
@@ -1596,7 +1570,6 @@ function savePrefs() {
     groupByState:      groupByState.value,
     groupByBasin:      groupByBasin.value,
     collapsedSections: [...collapsedSections.value],
-    mapVisible:        mapVisible.value,
     showRivers:        showRivers.value,
   }
   localStorage.setItem(prefsKey(db.activeDashboardId.value), JSON.stringify(prefs))
@@ -1607,7 +1580,6 @@ const groupByGauge      = ref(DEFAULT_PREFS.groupByGauge)
 const groupByState      = ref(DEFAULT_PREFS.groupByState)
 const groupByBasin      = ref(DEFAULT_PREFS.groupByBasin)
 const collapsedSections = ref<Set<string>>(new Set())
-const mapVisible        = ref(DEFAULT_PREFS.mapVisible)
 const showRivers        = ref(DEFAULT_PREFS.showRivers)
 
 // Hydrate refs from the active dashboard's blob. Called on mount and whenever
@@ -1622,7 +1594,6 @@ function applyPrefs(prefs: DashboardPrefs) {
   groupByState.value      = prefs.groupByState
   groupByBasin.value      = prefs.groupByBasin
   collapsedSections.value = new Set(prefs.collapsedSections)
-  mapVisible.value        = prefs.mapVisible
   showRivers.value        = prefs.showRivers
   nextTick(() => { hydrating.value = false })
 }
@@ -1638,7 +1609,7 @@ watch(() => db.activeDashboardId.value, (id) => {
 // One unified save watcher — fires after any pref ref changes (except during hydration).
 watch(
   [viewMode, groupByGauge, groupByState, groupByBasin,
-   collapsedSections, () => mapVisible.value, () => showRivers.value],
+   collapsedSections, () => showRivers.value],
   () => { if (!hydrating.value) savePrefs() },
   { deep: true },
 )
@@ -1672,12 +1643,23 @@ function setViewMode(m: ViewMode) {
   viewMode.value = m
 }
 
+// Grouping options in priority order: Basin / River / State / Gauge
 const groupingOptions = computed(() => [
-  { key: 'state', label: 'By state', active: groupByState.value, toggle: () => { groupByState.value = !groupByState.value } },
-  { key: 'basin', label: 'By basin', active: groupByBasin.value, toggle: () => { groupByBasin.value = !groupByBasin.value } },
-  { key: 'river', label: 'By river', active: showRivers.value,   toggle: () => { showRivers.value = !showRivers.value } },
-  { key: 'gauge', label: 'By gauge', active: groupByGauge.value, toggle: () => { groupByGauge.value = !groupByGauge.value } },
+  { key: 'basin', label: 'Basin', active: groupByBasin.value, toggle: () => { groupByBasin.value = !groupByBasin.value } },
+  { key: 'river', label: 'River', active: showRivers.value,   toggle: () => { showRivers.value = !showRivers.value } },
+  { key: 'state', label: 'State', active: groupByState.value, toggle: () => { groupByState.value = !groupByState.value } },
+  { key: 'gauge', label: 'Gauge', active: groupByGauge.value, toggle: () => { groupByGauge.value = !groupByGauge.value } },
 ])
+
+// Human-readable summary of active groupings in priority order: State · Basin · River · Gauge
+const groupingLabel = computed(() => {
+  const parts: string[] = []
+  if (groupByState.value)  parts.push('State')
+  if (groupByBasin.value)  parts.push('Basin')
+  if (showRivers.value)    parts.push('River')
+  if (groupByGauge.value)  parts.push('Gauge')
+  return parts.length ? parts.join(' · ') : 'None'
+})
 
 
 interface GaugeGroup { lead: WatchedGauge; all: WatchedGauge[] }
@@ -1805,6 +1787,9 @@ const groupingOpen      = ref(false)
 
 function openSearch() { searchInitialTab.value = 'discover'; searchOpen.value = true }
 const groupingWrap = ref<HTMLElement | null>(null)
+
+// Run wizard — opened by @create-run emit from GaugeSearchModal
+const { open: openRunWizard } = useRunWizard()
 
 async function handleAdd(gauge: Omit<WatchedGauge, 'watchState' | 'activeSince'>, dashboardId: string | null) {
   const targetId = dashboardId ?? db.activeDashboard.value?.id ?? null
