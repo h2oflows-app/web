@@ -30,3 +30,6 @@ Thumbs.db
 # Project decisions log — local only
 DECISIONS.md
 .mcp.json
+
+# Design handoff folders — local reference / scratch (PR + issue bodies)
+design_handoff*/**
