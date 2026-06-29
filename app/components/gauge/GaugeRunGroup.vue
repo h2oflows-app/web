@@ -56,8 +56,8 @@
           <span class="min-w-0 text-sm text-neutral-700 dark:text-neutral-300 truncate">
             {{ reachLabel(item) }}
           </span>
-          <!-- Reference run: group icon -->
-          <UTooltip v-if="item.contextIsReference" :text="item.contextReachAuthorHandle ? '@' + item.contextReachAuthorHandle : 'Shared run'" class="shrink-0 inline-flex"><svg class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></UTooltip>
+          <!-- Owner icon (always shown) -->
+          <OwnerIcon :author-handle="item.contextReachAuthorHandle" />
         </div>
         <!-- Badge always rendered (– when no thresholds) so trash column aligns -->
         <div class="w-20 shrink-0 text-center">
@@ -185,7 +185,8 @@
           <NuxtLink :to="`/runs/${item.contextReachAuthorHandle ?? 'h2oflows'}/${item.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View" title="View" @click.stop>
             <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
           </NuxtLink>
-          <span v-if="item.contextIsReference && item.contextReachAuthorHandle" class="text-xs text-neutral-400 dark:text-neutral-500 shrink-0">@{{ item.contextReachAuthorHandle }}</span>
+          <!-- Owner icon (always shown) -->
+          <OwnerIcon :author-handle="item.contextReachAuthorHandle" />
         </div>
         <!-- Fixed-width badge slot so trash column always aligns -->
         <div class="w-20 shrink-0 text-right">

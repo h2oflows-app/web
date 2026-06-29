@@ -234,7 +234,7 @@
                       <div class="flex items-center gap-1 min-w-0">
                         <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
                         <span v-if="r.river_name" class="hidden sm:inline text-xs text-neutral-400 dark:text-neutral-500 shrink-0 truncate">· {{ r.river_name }}</span>
-                        <UTooltip v-if="r.is_reference" :text="r.author_handle ? '@' + r.author_handle : 'Shared run'" class="shrink-0 inline-flex"><svg class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></UTooltip>
+                        <OwnerIcon :author-handle="r.author_handle" />
                       </div>
                       <span v-if="r.river_name" class="sm:hidden text-xs text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ r.river_name }}</span>
                     </div>
@@ -258,7 +258,7 @@
                         <div class="flex items-center gap-1.5 min-w-0">
                           <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-base font-semibold truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
                           <NuxtLink v-if="!r.is_reference" :to="`/my/runs/${r.slug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop><svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg></NuxtLink>
-                          <UTooltip v-if="r.is_reference" :text="r.author_handle ? '@' + r.author_handle : 'Shared run'" class="shrink-0 inline-flex"><svg class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></UTooltip>
+                          <OwnerIcon :author-handle="r.author_handle" />
                         </div>
                         <div v-if="r.river_name" class="mt-0.5"><span class="text-xs text-neutral-400 dark:text-neutral-500 truncate">{{ r.river_name }}</span></div>
                       </div>
@@ -419,8 +419,8 @@
                         <div class="flex items-center gap-1 min-w-0">
                           <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
                           <span v-if="!showRivers && r.river_name" class="hidden sm:inline text-xs text-neutral-400 dark:text-neutral-500 shrink-0 truncate">· {{ r.river_name }}</span>
-                          <!-- Reference: group icon instead of fork button + @handle -->
-                          <UTooltip v-if="r.is_reference" :text="r.author_handle ? '@' + r.author_handle : 'Shared run'" class="shrink-0 inline-flex"><svg class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></UTooltip>
+                          <!-- Owner icon (always shown) -->
+                          <OwnerIcon :author-handle="r.author_handle" />
                         </div>
                         <!-- River name sub-line on mobile -->
                         <span v-if="!showRivers && r.river_name" class="sm:hidden text-xs text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ r.river_name }}</span>
@@ -458,8 +458,8 @@
                             <NuxtLink v-if="!r.is_reference" :to="`/my/runs/${r.slug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
                               <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
                             </NuxtLink>
-                            <!-- Reference: group icon -->
-                            <UTooltip v-if="r.is_reference" :text="r.author_handle ? '@' + r.author_handle : 'Shared run'" class="shrink-0 inline-flex"><svg class="w-3.5 h-3.5 shrink-0 text-primary-500 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></UTooltip>
+                            <!-- Owner icon (always shown) -->
+                            <OwnerIcon :author-handle="r.author_handle" />
                           </div>
                           <!-- River name sub-line (shown when river not grouped above) -->
                           <div v-if="!showRivers && r.river_name" class="mt-0.5">
