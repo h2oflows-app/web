@@ -653,7 +653,7 @@
       </template>
     </main>
 
-    <GaugeSearchModal v-model:open="searchOpen" :initial-tab="searchInitialTab" @add="handleAdd" @added-external="onAddedExternal" />
+    <GaugeSearchModal v-model:open="searchOpen" :initial-tab="searchInitialTab" @add="handleAdd" @added-external="onAddedExternal" @create-run="router.push('/my/runs/new')" />
     <GaugeDetailModal v-if="detailGauge" v-model:open="detailOpen" :gauge="detailGauge" :mode="detailMode" />
     <UserRunCustomGaugeModal
       v-if="customGaugeModalProps"
