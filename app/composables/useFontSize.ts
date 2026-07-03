@@ -1,12 +1,18 @@
 const FONT_SIZE_KEY = 'h2oflow_font_size'
 
-export type FontSize = 'default' | 'large' | 'xlarge'
+export type FontSize = 'small' | 'default' | 'large' | 'xlarge'
 
+// Rescaled down one notch (#253 — "Large is too large"): the old Large (18px)
+// is now X-Large, the old Default (16px) is now Large, Default drops a bit below
+// that, and Small is a new smaller step.
 const FONT_SIZE_PX: Record<FontSize, string> = {
-  default: '16px',
-  large:   '18px',
-  xlarge:  '20px',
+  small:   '14px',
+  default: '15px',
+  large:   '16px',
+  xlarge:  '18px',
 }
+
+const FONT_SIZES = Object.keys(FONT_SIZE_PX) as FontSize[]
 
 function applyFontSize(size: FontSize) {
   if (typeof document === 'undefined') return
@@ -19,9 +25,9 @@ export function useFontSize() {
   function load() {
     if (typeof localStorage === 'undefined') return
     const saved = localStorage.getItem(FONT_SIZE_KEY)
-    if (saved === 'default' || saved === 'large' || saved === 'xlarge') {
-      fontSize.value = saved
-      applyFontSize(saved)
+    if (saved && (FONT_SIZES as string[]).includes(saved)) {
+      fontSize.value = saved as FontSize
+      applyFontSize(fontSize.value)
     }
   }
 
