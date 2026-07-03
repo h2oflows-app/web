@@ -3,20 +3,26 @@
        for use inside a shared box (river group); `bordered=true` (default) is
        self-contained, used for the standalone-gauges bucket. -->
   <div v-if="viewMode === 'list'" :class="rowClass" @click="$emit('open')">
-    <div class="flex flex-col min-w-0 flex-1">
+    <div class="flex flex-col min-w-0 flex-1 gap-0.5">
       <div class="flex items-center gap-1.5 min-w-0">
         <span class="text-sm font-semibold text-neutral-800 dark:text-neutral-100 truncate">{{ entry.name }}</span>
         <span v-if="entry.isCustom" class="shrink-0 inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">CUSTOM</span>
       </div>
       <span v-if="subline" class="hidden sm:block text-xs text-neutral-400 dark:text-neutral-500 font-mono truncate leading-tight">{{ subline }}</span>
+      <!-- Associated runs — neutral pills so it's clear which runs this gauge feeds. -->
+      <div v-if="entry.feedsRuns.length" class="flex flex-wrap items-center gap-1">
+        <span
+          v-for="(runName, i) in entry.feedsRuns"
+          :key="i"
+          class="inline-flex items-center max-w-40 truncate rounded-full bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500 dark:text-neutral-400"
+        >{{ runName }}</span>
+      </div>
+      <span v-else class="text-[10px] text-neutral-400 dark:text-neutral-500 italic">No linked runs</span>
     </div>
     <div class="w-32 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
       <GaugeSparkline v-if="!entry.isCustom" :gauge-id="entry.gaugeId" :flow-status="(entry.flowStatus as any)" :color="sparklineColor" compact @latest-cfs="onLatestCfs" />
       <CustomGaugeSparkline v-else :gauge-slug="entry.customGauge!.slug" compact :color="sparklineColor" />
     </div>
-    <span class="shrink-0 inline-flex items-center rounded-full bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 text-[10px] sm:text-xs font-medium text-neutral-500 dark:text-neutral-400 whitespace-nowrap">
-      {{ feedsLabel }}
-    </span>
     <TrendArrow v-if="!entry.isCustom" :gauge-id="entry.gaugeId" />
     <div class="w-20 shrink-0 text-right">
       <span class="font-bold tabular-nums leading-none text-sm sm:text-base whitespace-nowrap" :style="{ color: cfsColor }">
@@ -39,10 +45,15 @@
           <span v-if="entry.isCustom" class="shrink-0 inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">CUSTOM</span>
         </div>
         <span v-if="subline" class="text-xs text-neutral-400 dark:text-neutral-500 font-mono truncate block mt-0.5">{{ subline }}</span>
-        <div class="flex items-center gap-1.5 mt-1 flex-wrap">
-          <span class="inline-flex items-center rounded-full bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 text-xs font-medium text-neutral-500 dark:text-neutral-400 shrink-0">{{ feedsLabel }}</span>
-          <span v-if="entry.feedsRuns.length > 0" class="text-xs text-neutral-400 dark:text-neutral-500 truncate">{{ runNamesJoined }}</span>
+        <!-- Associated runs — one neutral pill per run this gauge feeds. -->
+        <div v-if="entry.feedsRuns.length" class="flex items-center gap-1 mt-1.5 flex-wrap">
+          <span
+            v-for="(runName, i) in entry.feedsRuns"
+            :key="i"
+            class="inline-flex items-center max-w-56 truncate rounded-full bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 text-xs font-medium text-neutral-500 dark:text-neutral-400"
+          >{{ runName }}</span>
         </div>
+        <span v-else class="text-xs text-neutral-400 dark:text-neutral-500 italic mt-1 inline-block">No linked runs</span>
       </div>
       <div class="shrink-0 flex items-center gap-1.5">
         <TrendArrow v-if="!entry.isCustom" :gauge-id="entry.gaugeId" class="text-base" />
@@ -120,14 +131,6 @@ const subline = computed(() => {
   if (!props.entry.source || !props.entry.externalId) return null
   return `${props.entry.source.toUpperCase()} ${props.entry.externalId}`
 })
-
-const feedsLabel = computed(() => {
-  const n = props.entry.feedsRuns.length
-  if (n === 0) return 'No linked runs'
-  return `feeds ${n} run${n === 1 ? '' : 's'}`
-})
-
-const runNamesJoined = computed(() => props.entry.feedsRuns.join(' · '))
 
 function formatLastUpdated(iso: string | null): string | null {
   if (!iso) return null
