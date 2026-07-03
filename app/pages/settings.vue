@@ -258,6 +258,7 @@ const { schemeId: fontSchemeId, setScheme, load: loadFontScheme } = useFontSchem
 const selectedFontScheme = computed(() => FONT_SCHEMES.find(s => s.id === fontSchemeId.value))
 
 const fontSizeOpts: { value: FontSize; label: string }[] = [
+  { value: 'small',   label: 'Small'   },
   { value: 'default', label: 'Default' },
   { value: 'large',   label: 'Large'   },
   { value: 'xlarge',  label: 'X-Large' },
