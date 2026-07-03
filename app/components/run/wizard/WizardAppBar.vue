@@ -36,6 +36,22 @@ const BASEMAP_OPTIONS = [
 ]
 
 function handleBack() {
+  // Edit mode lands on the 'details' step; the only sub-step it can drill into
+  // is 'gauge' (Change/Add gauge). It must NOT walk backward through the create
+  // wizard's putin/takeout steps (issue #308).
+  if (store.mode === 'edit') {
+    if (store.step === 'details') {
+      // Leave the editor the way the browser back button would.
+      if (import.meta.client && window.history.state?.back) router.back()
+      else router.push('/my/runs')
+    } else {
+      // Drilled into the gauge sub-step — return to the run details.
+      store.goDetails()
+    }
+    return
+  }
+
+  // Create mode: sequential step-back; 'putin' cancels out to the dashboard.
   if (store.step === 'putin') {
     router.push('/dashboard')
   } else {
