@@ -48,7 +48,9 @@
             store.goDetails()
           }"
         />
-        <StepDetails v-else-if="store.step === 'details'" />
+        <StepDetails v-else-if="store.step === 'details' && store.featureMode === 'off'" />
+        <FeatureMode v-else-if="store.step === 'details' && store.featureMode === 'list'" />
+        <FeatureForm v-else-if="store.step === 'details' && store.featureMode === 'form'" />
       </Transition>
     </WizardSheet>
 
@@ -183,6 +185,10 @@ async function loadEditRun(slug: string) {
 
     store.geometryDirty = false
     store.gaugeDirty = false
+
+    // Run features editor (#312) — prefill pins from the rapids/access records
+    store.loadFeaturesFromPayload(data.rapids, data.access_points)
+
     store.step = 'details'
   } catch (e: any) {
     toast.add({ title: 'Failed to load run', description: e?.message ?? 'Unknown error', color: 'error' })

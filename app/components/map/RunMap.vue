@@ -1072,7 +1072,7 @@ function accessTypeLabel(type: string): string {
 }
 
 function accessColor(type: string): string {
-  return { put_in: '#22c55e', take_out: '#ef4444', shuttle_drop: '#a855f7', intermediate: '#94a3b8', parking: '#dc2626', camp: '#f59e0b', boat_ramp: '#0ea5e9' }[type] ?? '#94a3b8'
+  return { put_in: '#22c55e', take_out: '#ef4444', shuttle_drop: '#a855f7', intermediate: '#16a34a', parking: '#dc2626', camp: '#f59e0b', boat_ramp: '#0ea5e9' }[type] ?? '#16a34a'
 }
 
 function accessIcon(type: string): string {

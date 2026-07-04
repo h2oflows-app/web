@@ -94,6 +94,26 @@ export function useRunSave() {
         }).catch(() => { /* non-fatal */ })
       }
 
+      // ── Step 4: run features (rapids + access points, issue #312) ────────
+      if (store.featuresDirty) {
+        const { rapids, access } = store.featuresToPayload()
+        const rapidsRes = await fetch(`${apiBase}/api/v1/me/runs/${slug}/rapids${asQuery}`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify({ rapids }),
+        })
+        if (!rapidsRes.ok) throw new Error(`Feature save failed: ${rapidsRes.status}`)
+
+        const accessRes = await fetch(`${apiBase}/api/v1/me/runs/${slug}/access${asQuery}`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify({ access }),
+        })
+        if (!accessRes.ok) throw new Error(`Feature save failed: ${accessRes.status}`)
+
+        store.featuresDirty = false
+      }
+
       // Stash for SavedOverlay
       store.savedSlug = slug
       store.savedAsH2oflows = authoredAsH2oflows
@@ -227,6 +247,26 @@ export function useRunSave() {
             headers,
           }).catch(() => { /* non-fatal */ })
         }
+      }
+
+      // ── Step 5: run features (rapids + access points, issue #312) ────────
+      if (store.featuresDirty) {
+        const { rapids, access } = store.featuresToPayload()
+        const rapidsRes = await fetch(`${apiBase}/api/v1/me/runs/${returnedSlug}/rapids`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify({ rapids }),
+        })
+        if (!rapidsRes.ok) throw new Error(`Feature save failed: ${rapidsRes.status}`)
+
+        const accessRes = await fetch(`${apiBase}/api/v1/me/runs/${returnedSlug}/access`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify({ access }),
+        })
+        if (!accessRes.ok) throw new Error(`Feature save failed: ${accessRes.status}`)
+
+        store.featuresDirty = false
       }
 
       store.savedSlug = returnedSlug

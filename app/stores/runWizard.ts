@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { classColor } from '~/utils/classRating'
 import type { FlowBands } from '~/utils/flowBand'
+import { type RunFeatureType, featureDefaultLabel } from '~/utils/runFeatureTypes'
 
 export interface WizardGauge {
   externalId: string
@@ -10,6 +11,20 @@ export interface WizardGauge {
   lat: number
   lng: number
   distanceMi?: number
+}
+
+// A single run feature (rapid / surf / hazard / camp / parking / boat_ramp /
+// access) as edited in the wizard. Unifies the rapids + reach_access records
+// behind one shape; runWizard owns the mapping to/from the API (issue #312).
+export interface RunFeature {
+  id: string                    // real UUID (loaded) or client temp id 'tmp-<n>' (new, unsaved)
+  type: RunFeatureType
+  name: string
+  description: string           // → rapid.description OR access.notes
+  lng: number
+  lat: number
+  classRating: number | null    // rapids only (from class chips)
+  hazardType: string | null     // hazards only
 }
 
 export const useRunWizardStore = defineStore('runWizard', () => {
@@ -71,6 +86,27 @@ export const useRunWizardStore = defineStore('runWizard', () => {
   const originalForkedAt = ref<string | null>(null)
   const authorHandle = ref<string | null>(null)
 
+  // ── Run features editor (issue #312) ────────────────────────────────────────
+  // Feature pins (rapids/access) placed on the run. Loaded from the run payload
+  // in edit mode, edited on the map, and persisted on save when featuresDirty.
+  const features = ref<RunFeature[]>([])
+  const featuresDirty = ref(false)
+
+  // Editor sub-mode within the Details step:
+  //   'off'  → normal Details form
+  //   'list' → feature mode (palette + list) replaces the sheet
+  //   'form' → add/edit one feature
+  const featureMode = ref<'off' | 'list' | 'form'>('off')
+  // Active placing tool: a type is selected, awaiting a map tap. null = not placing.
+  const placingType = ref<RunFeatureType | null>(null)
+  // Feature currently open in the form (a feature id), or null.
+  const editingFeatureId = ref<string | null>(null)
+  // Id of a just-placed, not-yet-confirmed feature (drives Add vs Save + cancel-removes).
+  const draftFeatureId = ref<string | null>(null)
+
+  let tmpCounter = 0
+  function nextTmpId(): string { return `tmp-${++tmpCounter}` }
+
   // Derived
   const centerlineColor = computed(() => classColor(classMax.value ?? 0))
 
@@ -94,6 +130,160 @@ export const useRunWizardStore = defineStore('runWizard', () => {
     downComID.value = null
     distanceMi.value = 0
     step.value = 'putin'
+  }
+
+  // ── Feature editor actions ──────────────────────────────────────────────────
+  function enterFeatureMode() { featureMode.value = 'list'; placingType.value = null }
+  function exitFeatureMode() {
+    featureMode.value = 'off'
+    placingType.value = null
+    editingFeatureId.value = null
+    draftFeatureId.value = null
+  }
+
+  function startPlacing(type: RunFeatureType) { placingType.value = type }
+  function cancelPlacing() { placingType.value = null }
+
+  // Called by the map after a tap in placing mode: drop a new feature at lng/lat
+  // (already snapped for river types) and open its form as a draft.
+  function placeFeature(type: RunFeatureType, lng: number, lat: number): RunFeature {
+    const f: RunFeature = {
+      id: nextTmpId(),
+      type,
+      name: '',
+      description: '',
+      lng,
+      lat,
+      classRating: null,
+      hazardType: type === 'hazard' ? 'Low-head dam' : null,
+    }
+    features.value = [...features.value, f]
+    editingFeatureId.value = f.id
+    draftFeatureId.value = f.id
+    placingType.value = null
+    featureMode.value = 'form'
+    featuresDirty.value = true
+    return f
+  }
+
+  function editFeature(id: string) {
+    editingFeatureId.value = id
+    draftFeatureId.value = null
+    featureMode.value = 'form'
+  }
+
+  function updateFeature(id: string, patch: Partial<Omit<RunFeature, 'id'>>) {
+    const f = features.value.find(x => x.id === id)
+    if (!f) return
+    Object.assign(f, patch)
+    featuresDirty.value = true
+  }
+
+  // Drag on the map → move a pin (coords already snapped for river types by the map).
+  function moveFeature(id: string, lng: number, lat: number) { updateFeature(id, { lng, lat }) }
+
+  // Type-switcher in the form. Switching to a hazard seeds a default hazard type;
+  // leaving rapid clears the class. Re-snap is handled by the map watching type.
+  function changeFeatureType(id: string, type: RunFeatureType) {
+    const f = features.value.find(x => x.id === id)
+    if (!f) return
+    f.type = type
+    if (type === 'hazard' && !f.hazardType) f.hazardType = 'Low-head dam'
+    if (type !== 'hazard') f.hazardType = null
+    if (type !== 'rapid') f.classRating = null
+    featuresDirty.value = true
+  }
+
+  // "Add feature" / "Save feature": empty name defaults to the type label; back to list.
+  function confirmFeature() {
+    const id = editingFeatureId.value
+    if (id) {
+      const f = features.value.find(x => x.id === id)
+      if (f && !f.name.trim()) f.name = featureDefaultLabel(f.type)
+    }
+    draftFeatureId.value = null
+    editingFeatureId.value = null
+    featureMode.value = 'list'
+  }
+
+  // Cancel/close the form. An unconfirmed draft (never saved) is discarded.
+  function cancelFeatureForm() {
+    if (editingFeatureId.value && editingFeatureId.value === draftFeatureId.value) {
+      removeFeature(editingFeatureId.value)
+    }
+    draftFeatureId.value = null
+    editingFeatureId.value = null
+    featureMode.value = 'list'
+  }
+
+  function removeFeature(id: string) {
+    features.value = features.value.filter(x => x.id !== id)
+    featuresDirty.value = true
+    if (editingFeatureId.value === id) {
+      editingFeatureId.value = null
+      draftFeatureId.value = null
+      featureMode.value = 'list'
+    }
+  }
+
+  // Prefill from a run GET payload (edit mode). rapids[]/access_points[] already
+  // come back on the run detail response. put_in/take_out access rows are owned
+  // by steps 1-2 (excluded); rows without coords can't be placed (excluded).
+  function loadFeaturesFromPayload(rapids: any[] | null | undefined, access: any[] | null | undefined) {
+    const fromRapids: RunFeature[] = (rapids ?? [])
+      .filter(r => r?.lng != null && r?.lat != null)
+      .map(r => ({
+        id: String(r.id),
+        type: r.is_permanent_hazard ? 'hazard' : r.is_surf_wave ? 'surf' : 'rapid',
+        name: r.name ?? '',
+        description: r.description ?? '',
+        lng: r.lng,
+        lat: r.lat,
+        classRating: r.class_rating ?? null,
+        hazardType: r.hazard_type ?? null,
+      }) as RunFeature)
+    const fromAccess: RunFeature[] = (access ?? [])
+      .filter(a => a?.lng != null && a?.lat != null && a?.access_type !== 'put_in' && a?.access_type !== 'take_out')
+      .map(a => ({
+        id: String(a.id),
+        // DB 'intermediate' ⇄ palette 'access'; other access types pass through.
+        type: (a.access_type === 'intermediate' ? 'access' : a.access_type) as RunFeatureType,
+        name: a.name ?? '',
+        description: a.notes ?? '',
+        lng: a.lng,
+        lat: a.lat,
+        classRating: null,
+        hazardType: null,
+      }) as RunFeature)
+    features.value = [...fromRapids, ...fromAccess]
+    featuresDirty.value = false
+  }
+
+  // Serialize for the bulk-replace PUTs. Splits by target table; empty names
+  // default to the type label; palette 'access' → DB access_type 'intermediate'.
+  function featuresToPayload() {
+    const rapids = features.value
+      .filter(f => f.type === 'rapid' || f.type === 'surf' || f.type === 'hazard')
+      .map(f => ({
+        name: f.name.trim() || featureDefaultLabel(f.type),
+        description: f.description.trim() || null,
+        class_rating: f.type === 'rapid' ? f.classRating : null,
+        is_surf_wave: f.type === 'surf',
+        is_permanent_hazard: f.type === 'hazard',
+        hazard_type: f.type === 'hazard' ? (f.hazardType || null) : null,
+        lng: f.lng,
+        lat: f.lat,
+      }))
+    const access = features.value
+      .filter(f => f.type === 'camp' || f.type === 'parking' || f.type === 'boat_ramp' || f.type === 'access' || f.type === 'shuttle_drop')
+      .map(f => ({
+        access_type: f.type === 'access' ? 'intermediate' : f.type,
+        name: f.name.trim() || featureDefaultLabel(f.type),
+        notes: f.description.trim() || null,
+        lng: f.lng,
+        lat: f.lat,
+      }))
+    return { rapids, access }
   }
 
   function reset() {
@@ -130,6 +320,12 @@ export const useRunWizardStore = defineStore('runWizard', () => {
     originalAuthorHandle.value = null
     originalForkedAt.value = null
     authorHandle.value = null
+    features.value = []
+    featuresDirty.value = false
+    featureMode.value = 'off'
+    placingType.value = null
+    editingFeatureId.value = null
+    draftFeatureId.value = null
   }
 
   return {
@@ -146,6 +342,12 @@ export const useRunWizardStore = defineStore('runWizard', () => {
     editSlug, geometryDirty, gaugeDirty, loadedGauge,
     slug, customGaugeId,
     forkedFromName, forkedFromSlug, originalAuthorHandle, originalForkedAt, authorHandle,
+    // Run features editor (#312)
+    features, featuresDirty, featureMode, placingType, editingFeatureId, draftFeatureId,
+    enterFeatureMode, exitFeatureMode, startPlacing, cancelPlacing, placeFeature,
+    editFeature, updateFeature, moveFeature, changeFeatureType,
+    confirmFeature, cancelFeatureForm, removeFeature,
+    loadFeaturesFromPayload, featuresToPayload,
     goPutIn, goTakeOut, goGauge, goDetails, goSaved, back, redoPutIn, reset,
   }
 })

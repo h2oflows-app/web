@@ -4,22 +4,47 @@
     <div v-if="!mapReady" class="absolute inset-0 flex items-center justify-center text-sm text-muted pointer-events-none">
       Loading map…
     </div>
+
+    <!-- Placing banner — a feature type is armed, awaiting a map tap (#312). -->
+    <div
+      v-if="store.placingType"
+      class="absolute top-16 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium text-white shadow-lg whitespace-nowrap"
+      style="background: rgba(15,23,42,0.9); backdrop-filter: blur(4px)"
+    >
+      <span class="w-2 h-2 rounded-full shrink-0" :style="{ background: placingColor }" />
+      <span>Tap the map to place — {{ placingLabel }}<template v-if="placingIsRiver"> · snaps to river</template></span>
+      <button
+        class="ml-1 px-1.5 py-0.5 rounded bg-white/15 hover:bg-white/25 text-[10px] font-semibold transition-colors"
+        @click="store.cancelPlacing()"
+      >Esc</button>
+    </div>
+
+    <!-- Drag hint — while a feature form is open its pin is draggable. -->
+    <div
+      v-else-if="store.featureMode === 'form' && editingFeature"
+      class="absolute top-16 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 rounded-full text-xs font-medium text-white shadow-lg whitespace-nowrap pointer-events-none"
+      style="background: rgba(15,23,42,0.85); backdrop-filter: blur(4px)"
+    >
+      Drag the pin to move it<template v-if="editingIsRiver"> · re-snaps to river</template>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import nearestPointOnLine from '@turf/nearest-point-on-line'
 import length from '@turf/length'
 import distance from '@turf/distance'
 import { useRunWizardStore } from '~/stores/runWizard'
-import type { WizardGauge } from '~/stores/runWizard'
+import type { WizardGauge, RunFeature } from '~/stores/runWizard'
 import { useNHDSnap } from '~/composables/useNHDSnap'
 import { useAuth } from '~/composables/useAuth'
 import { flattenFlowlineCoords, buildLine, snapToLine, sliceMiles } from '~/composables/useFlowlineSnap'
 import { useThemeStore } from '~/stores/theme'
+import { featureListPin } from '~/utils/featureIcons'
+import { featureTypeMeta, isRiverFeatureType, type RunFeatureType } from '~/utils/runFeatureTypes'
 import { THEMES } from '../../../../app.config'
 
 const store = useRunWizardStore()
@@ -67,6 +92,20 @@ let takeOutLngLat: [number, number] | null = null
 
 // Debounce timer for gauge-step viewport-driven loading
 let gaugeViewportTimer: ReturnType<typeof setTimeout> | null = null
+
+// ── Run features editor (#312) ────────────────────────────────────────────────
+// One HTML marker per feature, keyed by feature id. Suppress the edit-click that
+// fires at the end of a drag.
+const featureMarkers = new Map<string, maplibregl.Marker>()
+let featureDragId: string | null = null
+
+const editingFeature = computed<RunFeature | null>(() =>
+  store.features.find(f => f.id === store.editingFeatureId) ?? null,
+)
+const editingIsRiver = computed(() => !!editingFeature.value && isRiverFeatureType(editingFeature.value.type))
+const placingLabel = computed(() => store.placingType ? featureTypeMeta(store.placingType).label : '')
+const placingColor = computed(() => store.placingType ? featureTypeMeta(store.placingType).color : '#3b82f6')
+const placingIsRiver = computed(() => !!store.placingType && isRiverFeatureType(store.placingType))
 
 function empty(): GeoJSON.FeatureCollection {
   return { type: 'FeatureCollection', features: [] }
@@ -120,6 +159,132 @@ function makeStaticMarker(color: string, label: string, animate = false): { el: 
 
   const marker = new maplibregl.Marker({ element: el })
   return { el, marker }
+}
+
+// Best snap line for river features: prefer the loaded downstream network (run +
+// below the take-out, create flow); fall back to the saved run centerline (edit
+// mode). Upstream-of-put-in snapping is intentionally out of v1 — features placed
+// above the put-in stay where dropped. Returns a turf LineString or null.
+function featureSnapLine(): GeoJSON.Feature<GeoJSON.LineString> | null {
+  const downCoords = flattenFlowlineCoords(snap.downstreamFlowlines.value)
+  if (downCoords.length >= 2) return buildLine(downCoords)
+  const cl = store.previewCenterline as any
+  if (cl) {
+    const geom = cl.type === 'Feature' ? cl.geometry : cl
+    if (geom?.type === 'LineString') return buildLine(geom.coordinates)
+    if (geom?.type === 'MultiLineString') {
+      const c: number[][] = []
+      for (const ring of geom.coordinates) c.push(...ring)
+      return buildLine(c)
+    }
+  }
+  return null
+}
+
+// Snap river-feature coords to the flowline; access types place freely.
+function snapFeaturePoint(lng: number, lat: number, type: RunFeatureType): [number, number] {
+  if (!isRiverFeatureType(type)) return [lng, lat]
+  const line = featureSnapLine()
+  if (!line) return [lng, lat]
+  return snapToLine(line, [lng, lat])
+}
+
+// Build a feature pin element: teardrop/triangle from featureIcons, name label
+// above rapids/surf waves, selected halo when the feature is open in the form.
+function makeFeaturePinEl(f: RunFeature): HTMLElement {
+  ensureMarkerStyles()
+  const wrap = document.createElement('div')
+  wrap.style.cssText = 'position:relative;cursor:pointer;transition:scale 0.15s ease;'
+
+  const pin = document.createElement('div')
+  pin.innerHTML = featureListPin({
+    type: f.type,
+    isRapid: f.type === 'rapid',
+    isSurf: f.type === 'surf',
+    isHazard: f.type === 'hazard',
+  })
+  pin.style.cssText = 'width:28px;height:36px;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.35));'
+  const svg = pin.querySelector('svg')
+  if (svg) { svg.style.width = '28px'; svg.style.height = '36px'; svg.style.display = 'block' }
+  wrap.appendChild(pin)
+
+  // Selected halo when this feature's form is open.
+  if (store.editingFeatureId === f.id) {
+    const halo = document.createElement('div')
+    halo.style.cssText =
+      'position:absolute;left:50%;bottom:2px;width:34px;height:34px;transform:translateX(-50%);' +
+      'border-radius:50%;background:rgba(37,99,235,0.18);box-shadow:0 0 0 2px rgba(37,99,235,0.55);' +
+      'pointer-events:none;'
+    wrap.insertBefore(halo, pin)
+  }
+
+  // Name label above rapid / surf-wave pins (haloed so it reads over any basemap).
+  if ((f.type === 'rapid' || f.type === 'surf') && f.name.trim()) {
+    const label = document.createElement('div')
+    label.textContent = f.name.trim()
+    label.style.cssText =
+      'position:absolute;bottom:38px;left:50%;transform:translateX(-50%);white-space:nowrap;' +
+      "font:700 10px Inter,ui-sans-serif,system-ui,sans-serif;color:#14395e;pointer-events:none;" +
+      'text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 2px #fff,0 0 2px #fff;'
+    wrap.appendChild(label)
+  }
+  return wrap
+}
+
+// Reconcile HTML markers with store.features. Only active in the details step
+// (create + edit feature editor); markers are removed otherwise.
+function syncFeatureMarkers() {
+  if (!map || !mapReady.value) return
+  const active = store.step === 'details'
+  const wantIds = new Set(active ? store.features.map(f => f.id) : [])
+
+  // Remove markers whose feature is gone (or we left the details step).
+  for (const [id, m] of featureMarkers) {
+    if (!wantIds.has(id)) { m.remove(); featureMarkers.delete(id) }
+  }
+  if (!active) return
+
+  const draggable = store.featureMode !== 'off'
+  const placing = store.placingType != null
+
+  for (const f of store.features) {
+    // Rebuild the element each pass so icon/label/halo stay in sync with state.
+    const el = makeFeaturePinEl(f)
+    // While placing, let taps fall through to the map so a new pin can drop on top.
+    el.style.pointerEvents = placing ? 'none' : 'auto'
+
+    el.addEventListener('click', (ev) => {
+      ev.stopPropagation()
+      if (store.placingType) return          // placing takes precedence
+      if (featureDragId === f.id) { featureDragId = null; return } // suppress post-drag click
+      store.editFeature(f.id)
+    })
+
+    let m = featureMarkers.get(f.id)
+    if (m) {
+      // Replace the element in place (maplibre has no setElement; recreate marker).
+      m.remove()
+    }
+    m = new maplibregl.Marker({ element: el, anchor: 'bottom', draggable })
+      .setLngLat([f.lng, f.lat])
+      .addTo(map)
+    m.on('dragstart', () => { featureDragId = f.id })
+    m.on('dragend', () => {
+      const p = m!.getLngLat()
+      const [lng, lat] = snapFeaturePoint(p.lng, p.lat, f.type)
+      m!.setLngLat([lng, lat])
+      store.moveFeature(f.id, lng, lat)
+    })
+    featureMarkers.set(f.id, m)
+  }
+}
+
+// Placing-mode map tap → drop a new feature (snapped for river types).
+function placeFeatureAt(lngLat: maplibregl.LngLat) {
+  const type = store.placingType
+  if (!type) return
+  const [lng, lat] = snapFeaturePoint(lngLat.lng, lngLat.lat, type)
+  store.placeFeature(type, lng, lat)
 }
 
 function setBasemapLayers(val: 'street' | 'topo' | 'satellite') {
@@ -626,7 +791,8 @@ function fitToGaugeStep() {
 function setCursorForStep(step: string) {
   if (!map) return
   const canvas = map.getCanvas()
-  if (step === 'putin' || step === 'takeout') {
+  // Crosshair while placing anchors (put-in/take-out) or arming a feature pin.
+  if (step === 'putin' || step === 'takeout' || store.placingType) {
     canvas.style.cursor = 'crosshair'
   } else {
     canvas.style.cursor = ''
@@ -686,6 +852,7 @@ function initMap() {
     addSources()
     addLayers()
     setCursorForStep(store.step)
+    syncFeatureMarkers()   // render any prefilled features (edit mode)
 
     // Edit mode: render existing geometry from prefilled store state
     if (store.mode === 'edit' && store.putIn && store.takeOut) {
@@ -732,13 +899,16 @@ function initMap() {
     }
   })
 
-  // Map click handler: routes to put-in or take-out pick based on step
+  // Map click handler: routes to put-in / take-out pick, or (details step) drops
+  // a feature pin when a type is armed for placing (#312).
   map.on('click', (e) => {
     if (!mapReady.value) return
     if (store.step === 'putin') {
       void pickPutIn(e.lngLat)
     } else if (store.step === 'takeout') {
       pickTakeOut(e.lngLat)
+    } else if (store.step === 'details' && store.placingType) {
+      placeFeatureAt(e.lngLat)
     }
   })
 
@@ -750,6 +920,26 @@ function initMap() {
 
 // React to store.basemap changes
 watch(() => store.basemap, setBasemapLayers)
+
+// ── Feature editor reactivity (#312) ──────────────────────────────────────────
+watch(() => store.step, () => { if (mapReady.value) syncFeatureMarkers() })
+watch(() => store.features, () => { if (mapReady.value) syncFeatureMarkers() }, { deep: true })
+watch(() => store.featureMode, () => { if (mapReady.value) syncFeatureMarkers() })
+watch(() => store.editingFeatureId, () => { if (mapReady.value) syncFeatureMarkers() })
+watch(() => store.placingType, () => {
+  if (!mapReady.value) return
+  setCursorForStep(store.step)
+  syncFeatureMarkers()   // toggle pin pointer-events for placing
+})
+// Re-snap the edited feature when its type switches to a river type (place, form type-switcher).
+watch(() => editingFeature.value?.type, (type, prev) => {
+  const f = editingFeature.value
+  if (!f || !type || type === prev) return
+  if (isRiverFeatureType(f.type)) {
+    const line = featureSnapLine()
+    if (line) { const s = snapToLine(line, [f.lng, f.lat]); store.moveFeature(f.id, s[0], s[1]) }
+  }
+})
 
 // When gauge selection changes from the panel, refresh map highlight
 watch(() => store.gauge, () => {
@@ -875,16 +1065,25 @@ function confirmTakeOut() {
 
 defineExpose({ confirmPutIn, confirmTakeOut })
 
+// Esc cancels feature placing mode (#312).
+function onKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && store.placingType) store.cancelPlacing()
+}
+
 onMounted(async () => {
+  window.addEventListener('keydown', onKeyDown)
   await nextTick()
   await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(r)))
   initMap()
 })
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', onKeyDown)
   if (gaugeViewportTimer) clearTimeout(gaugeViewportTimer)
   putInMarker?.remove()
   takeOutMarker?.remove()
+  for (const m of featureMarkers.values()) m.remove()
+  featureMarkers.clear()
   map?.remove()
   map = null
   putInMarker = null
