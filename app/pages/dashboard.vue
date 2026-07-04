@@ -18,12 +18,66 @@
         @share="shareOpen = true"
       />
 
+      <!-- Content switch (Runs / Gauges) — mobile: full-width row under the tabs.
+           Desktop shows the equivalent switch inline in the controls bar below. -->
+      <div
+        v-if="hasAnyContent"
+        class="sm:hidden bg-neutral-50/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800 px-4 py-2"
+      >
+        <div class="flex items-center gap-0.5 p-0.5 rounded-lg bg-neutral-100 dark:bg-neutral-800">
+          <button
+            class="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors"
+            :class="content === 'runs'
+              ? 'bg-white dark:bg-neutral-700 text-primary-600 dark:text-primary-400 shadow-sm'
+              : 'text-neutral-500 dark:text-neutral-400'"
+            @click="content = 'runs'"
+          >
+            <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+              <line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/>
+            </svg>
+            Runs
+          </button>
+          <button
+            class="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors"
+            :class="content === 'gauges'
+              ? 'bg-white dark:bg-neutral-700 text-primary-600 dark:text-primary-400 shadow-sm'
+              : 'text-neutral-500 dark:text-neutral-400'"
+            @click="content = 'gauges'"
+          >
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M12 12 16 8"/><path d="M3 12a9 9 0 0 1 18 0"/>
+            </svg>
+            Gauges
+          </button>
+        </div>
+      </div>
+
       <!-- Controls bar -->
       <div class="bg-neutral-50/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
       <div class="max-w-5xl mx-auto px-4 py-2 flex items-center gap-1">
       <!-- Left items wrap their own overflow so Add gauge stays pinned right -->
       <div class="flex items-center gap-1 min-w-0 overflow-x-auto flex-1 scrollbar-none [&::-webkit-scrollbar]:hidden">
         <template v-if="hasAnyContent">
+          <!-- Content switch (Runs / Gauges) — desktop only; mobile uses the full-width row above. -->
+          <div class="hidden sm:flex items-center gap-0.5 p-0.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 shrink-0">
+            <button
+              class="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors whitespace-nowrap"
+              :class="content === 'runs'
+                ? 'bg-white dark:bg-neutral-700 text-primary-600 dark:text-primary-400 shadow-sm'
+                : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200'"
+              @click="content = 'runs'"
+            >Runs</button>
+            <button
+              class="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors whitespace-nowrap"
+              :class="content === 'gauges'
+                ? 'bg-white dark:bg-neutral-700 text-primary-600 dark:text-primary-400 shadow-sm'
+                : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200'"
+              @click="content = 'gauges'"
+            >Gauges</button>
+          </div>
+
+          <div class="h-4 w-px bg-neutral-200 dark:bg-neutral-700 mx-0.5 hidden sm:block" />
+
           <!-- View mode — tooltip-only, active = white pill + shadow -->
           <UTooltip text="Compact">
             <ToolbarButton
@@ -110,7 +164,7 @@
             </div>
             <!-- Expand / Collapse all — only when grouping active -->
             <div
-              v-if="displaySections.length > 0 && (groupByState || groupByBasin)"
+              v-if="activeDisplaySections.length > 0 && (groupByState || groupByBasin)"
               class="border-t border-neutral-100 dark:border-neutral-800"
             >
               <button
@@ -136,6 +190,12 @@
             </div>
           </div>
         </div>
+
+        <!-- Deduped gauge count — Gauges view only; Runs view has no equivalent label today. -->
+        <span
+          v-if="content === 'gauges' && hasAnyContent"
+          class="shrink-0 hidden sm:inline text-xs text-neutral-400 dark:text-neutral-500 whitespace-nowrap px-1"
+        >{{ gaugeEntries.length }} gauge{{ gaugeEntries.length === 1 ? '' : 's' }}</span>
 
         <!-- Primary Add run button — pinned right; hidden on mobile (FAB replaces it) -->
         <template v-if="isAuthenticated">
@@ -172,6 +232,7 @@
 
       <!-- Reaches grouped by basin → river -->
       <template v-if="hasAnyContent">
+      <template v-if="content === 'runs'">
 
         <template v-for="section in displaySections" :key="section.key">
         <section v-if="sectionHasVisibleContent(section)" class="mb-4">
@@ -655,7 +716,143 @@
           </div><!-- end collapsible -->
         </section>
 
-      </template>
+      </template><!-- end v-if content === 'runs' -->
+
+      <!-- Gauges view — deduped gauges the dashboard's runs depend on, plus custom gauges.
+           Reuses the same State ▸ Basin ▸ River collapse machinery as Runs (shared
+           section/sub-section keys), with a DashboardGaugeRow leaf instead of run cards. -->
+      <template v-else>
+        <!-- Dashboard has runs/gauges but none of them carry a gauge yet — avoid a
+             blank-looking screen with no explanation. -->
+        <div v-if="gaugeEntries.length === 0" class="mt-16 flex flex-col items-center gap-3 text-center">
+          <div class="text-4xl">📡</div>
+          <h2 class="text-base font-semibold text-neutral-700 dark:text-neutral-200">No gauges yet</h2>
+          <p class="text-neutral-500 max-w-sm text-sm">Runs need a gauge assigned before they show up here. Add a gauge to a run, or switch back to Runs view.</p>
+        </div>
+        <template v-for="section in displayGaugeSections" :key="section.key">
+        <section v-if="sectionHasVisibleGaugeContent(section)" class="mb-4">
+          <!-- Outer (state) header: only when grouping by state -->
+          <div v-if="section.name" class="flex items-center gap-2 w-full mb-3">
+            <button class="flex items-center gap-1.5 shrink-0" @click="toggleSection(section.key)">
+              <svg
+                class="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500 shrink-0 transition-transform duration-200"
+                :class="{ 'rotate-90': !collapsedSections.has(section.key) }"
+                viewBox="0 0 20 20" fill="currentColor"
+              >
+                <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+              </svg>
+              <svg class="w-4 h-4 text-neutral-500 dark:text-neutral-400 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M8 1.5C5.51 1.5 3.5 3.51 3.5 6c0 3.5 4.5 8 4.5 8s4.5-4.5 4.5-8c0-2.49-2.01-4.5-4.5-4.5zM8 8a2 2 0 110-4 2 2 0 010 4z" clip-rule="evenodd"/>
+              </svg>
+              <h1 class="text-lg font-semibold text-neutral-800 dark:text-neutral-100">{{ section.name === '—' ? 'No State' : section.name }}</h1>
+            </button>
+            <span class="inline-flex items-center rounded-full bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 text-xs font-medium text-neutral-500 dark:text-neutral-400 shrink-0">{{ section.gaugeCount }}</span>
+            <div class="flex-1 h-px bg-neutral-300 dark:bg-neutral-700" />
+          </div>
+
+          <template v-if="!section.name || !collapsedSections.has(section.key)">
+            <template v-for="sub in section.subSections" :key="sub.key">
+            <div v-if="subSectionHasVisibleGaugeContent(sub)" :class="[sub.name ? 'mb-4' : 'mb-2', section.name ? 'pl-3 border-l border-neutral-200 dark:border-neutral-800' : '']">
+              <!-- Inner (basin) header: only when grouping by basin -->
+              <div v-if="sub.name" class="flex items-center gap-2 w-full mb-3">
+                <button class="flex items-center gap-2 text-left shrink-0" @click="toggleSection(sub.key)">
+                  <svg
+                    class="w-3 h-3 text-neutral-400 dark:text-neutral-500 shrink-0 transition-transform duration-150"
+                    :class="{ 'rotate-90': !collapsedSections.has(sub.key) }"
+                    viewBox="0 0 20 20" fill="currentColor"
+                  >
+                    <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+                  </svg>
+                  <h2 class="text-sm font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide">{{ sub.name }} Basin</h2>
+                </button>
+                <span class="inline-flex items-center rounded-full bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 text-xs font-medium text-neutral-500 dark:text-neutral-400 shrink-0">{{ sub.gaugeCount }}</span>
+                <NuxtLink
+                  :to="`/basin/${slugifyBasin(sub.name)}`"
+                  class="p-0.5 rounded text-primary-500 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors shrink-0"
+                  title="Open basin page"
+                >
+                  <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 1.5 C 5.2 1.5 3 3.7 3 6.5 C 3 10.5 8 14.5 8 14.5 C 8 14.5 13 10.5 13 6.5 C 13 3.7 10.8 1.5 8 1.5 Z"/>
+                    <circle cx="8" cy="6.5" r="1.7"/>
+                  </svg>
+                </NuxtLink>
+                <div class="flex-1 h-px bg-neutral-200 dark:bg-neutral-700/60" />
+              </div>
+
+              <template v-if="!sub.name || !collapsedSections.has(sub.key)">
+              <!-- Gauges grouped by river -->
+              <div v-if="sub.rivers.some(r => riverHasVisibleGaugeContent(r))" class="mb-2">
+                <template v-for="river in sub.rivers" :key="river.name">
+                <div v-if="riverHasVisibleGaugeContent(river)" class="first:mt-0 relative" :class="showRivers ? 'mt-4' : 'mt-1.5'">
+                  <div v-if="showRivers" class="absolute left-0 top-9 bottom-0 w-0.5 rounded-full bg-gradient-to-b from-primary-400/50 to-primary-400/0 pointer-events-none" aria-hidden="true" />
+                  <!-- River section divider -->
+                  <div v-if="showRivers" class="flex items-center gap-2 mb-2">
+                    <svg class="w-4 h-4 text-primary-500/70 dark:text-primary-400/70 shrink-0" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+                      <path d="M4 14c3-6 6-9 8-9s5 9 8 9 5-9 8-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+                      <path d="M4 22c3-6 6-9 8-9s5 9 8 9 5-9 8-9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+                    </svg>
+                    <span class="text-base font-semibold text-primary-600 dark:text-primary-400 shrink-0">{{ river.name }}</span>
+                    <div class="flex-1 h-px bg-neutral-200 dark:bg-neutral-700" />
+                  </div>
+                  <!-- Gauges wrapper — subtle left indent when river grouping active -->
+                  <div :class="showRivers ? 'pl-3' : ''">
+                    <!-- List: shared bordered box with divider rows. Card modes: individual cards in grid. -->
+                    <div v-if="viewMode === 'list'" class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden">
+                      <DashboardGaugeRow
+                        v-for="entry in river.gauges"
+                        :key="entry.gaugeId"
+                        :entry="entry"
+                        view-mode="list"
+                        :bordered="false"
+                        @open="entry.isCustom ? openStandaloneCustomGauge(entry.customGauge!) : openGauge(entry.gauge!, 'gauge')"
+                        @remove="entry.customGauge && hideCustomGauge(entry.customGauge.id)"
+                      />
+                    </div>
+                    <div v-else :class="cardGridClass">
+                      <DashboardGaugeRow
+                        v-for="entry in river.gauges"
+                        :key="entry.gaugeId"
+                        :entry="entry"
+                        :view-mode="viewMode"
+                        @open="entry.isCustom ? openStandaloneCustomGauge(entry.customGauge!) : openGauge(entry.gauge!, 'gauge')"
+                        @remove="entry.customGauge && hideCustomGauge(entry.customGauge.id)"
+                      />
+                    </div>
+                  </div>
+                </div>
+                </template><!-- end v-for river -->
+              </div>
+
+              <!-- Standalone gauges (custom gauges feeding no run) -->
+              <div v-if="sub.standaloneGauges.length > 0" class="mb-2 mt-1">
+                <div class="flex items-center gap-2 py-1">
+                  <svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
+                    <path d="M12 12 16 8"/>
+                    <path d="M3 12a9 9 0 0 1 18 0"/>
+                  </svg>
+                  <span class="text-xs font-semibold text-neutral-500 dark:text-neutral-400">Standalone Gauges</span>
+                </div>
+                <div :class="reachContainerClass">
+                  <DashboardGaugeRow
+                    v-for="entry in sub.standaloneGauges"
+                    :key="entry.gaugeId"
+                    :entry="entry"
+                    :view-mode="viewMode"
+                    @open="openStandaloneCustomGauge(entry.customGauge!)"
+                    @remove="entry.customGauge ? hideCustomGauge(entry.customGauge.id) : undefined"
+                  />
+                </div>
+              </div>
+              </template><!-- end sub v-if -->
+            </div>
+            </template><!-- end v-for sub -->
+          </template>
+        </section>
+        </template><!-- end v-for section -->
+      </template><!-- end v-else gauges -->
+
+      </template><!-- end v-if hasAnyContent -->
     </main>
 
     <GaugeSearchModal v-model:open="searchOpen" :initial-tab="searchInitialTab" @add="handleAdd" @added-external="onAddedExternal" @create-run="openRunWizard()" />
@@ -1276,6 +1473,25 @@ interface RiverGroup { name: string; riverId: string | null; reaches: WatchedGau
 interface BasinGroup { name: string; rawKey: string; reachCount: number; rivers: RiverGroup[]; standaloneGauges: WatchedGauge[] }
 interface StateGroup { name: string; reachCount: number; basins: BasinGroup[] }
 
+// Resolve basin for a gauge entry: check riverNameBasinOverrides by (state|riverName).
+// Hoisted out of byStateTree (pure extraction, same body) so the Gauges view's
+// parallel grouping tree can reuse it too.
+function resolveBasinForGauge(rawBasin: string | null | undefined, state: string, riverName: string | null): string {
+  if (riverName) {
+    const nameKey = `${state}|${riverName}`
+    if (riverNameBasinOverrides.value.has(nameKey)) return riverNameBasinOverrides.value.get(nameKey)!
+  }
+  return cleanBasinName(rawBasin) ?? 'Other'
+}
+
+// Resolve basin for a user run: check riverBasinOverrides by river_id first.
+function resolveBasinForRun(ur: UserReachSummary, state: string): string {
+  if (ur.river_id && riverBasinOverrides.value.has(ur.river_id)) {
+    return riverBasinOverrides.value.get(ur.river_id)!
+  }
+  return cleanBasinName(ur.basin_group) ?? 'Other'
+}
+
 const byStateTree = computed<StateGroup[]>(() => {
   // state → basin → river → reaches (gauge watchlist + user runs)
   // BasinEntry also stores the first raw basin value seen (pre-cleanBasinName),
@@ -1283,23 +1499,6 @@ const byStateTree = computed<StateGroup[]>(() => {
   type RiverEntry = { gaugeReaches: WatchedGauge[]; userReaches: UserReachSummary[] }
   type BasinEntry = { rivers: Map<string, RiverEntry>; standalone: WatchedGauge[]; rawKey: string }
   const stateMap = new Map<string, Map<string, BasinEntry>>()
-
-  // Resolve basin for a gauge entry: check riverNameBasinOverrides by (state|riverName).
-  function resolveBasinForGauge(rawBasin: string | null | undefined, state: string, riverName: string | null): string {
-    if (riverName) {
-      const nameKey = `${state}|${riverName}`
-      if (riverNameBasinOverrides.value.has(nameKey)) return riverNameBasinOverrides.value.get(nameKey)!
-    }
-    return cleanBasinName(rawBasin) ?? 'Other'
-  }
-
-  // Resolve basin for a user run: check riverBasinOverrides by river_id first.
-  function resolveBasinForRun(ur: UserReachSummary, state: string): string {
-    if (ur.river_id && riverBasinOverrides.value.has(ur.river_id)) {
-      return riverBasinOverrides.value.get(ur.river_id)!
-    }
-    return cleanBasinName(ur.basin_group) ?? 'Other'
-  }
 
   // De-duplicate: same gauge+reach should only appear once
   const seen = new Set<string>()
@@ -1553,6 +1752,304 @@ function sectionHasVisibleContent(sec: DisplaySection): boolean {
   return sec.subSections.some(s => subSectionHasVisibleContent(s))
 }
 
+// ── Gauges view (Runs/Gauges content toggle) ─────────────────────────────────
+// Builds a deduplicated gauge-per-station view model from the same runs data
+// that feeds the Runs view above, then groups it through a parallel copy of
+// the State ▸ Basin ▸ River tree (byStateTree/displaySections analog). No
+// data-layer changes — this only re-presents gauges that already exist.
+// Kept fully isolated from byStateTree/displaySections so the Runs view is
+// never affected by anything below.
+
+interface GaugeEntry {
+  gaugeId: string                        // real gauge UUID, or `custom:<id>` for custom gauges
+  gauge: WatchedGauge | null              // representative WatchedGauge — real gauges only
+  customGauge: CustomGaugeSummary | null  // full summary — real gauges only get gauge, not both
+  isCustom: boolean
+  name: string
+  source: string | null
+  externalId: string | null
+  currentCfs: number | null
+  flowStatus: string
+  flowBandLabel: string | null
+  feedsRuns: string[]                    // display names, parallel to feedsRunSlugs
+  feedsRunSlugs: string[]
+  lastReadingAt: string | null
+  state: string
+  basin: string
+  river: string
+  riverId: string | null
+}
+
+// Dedup gauges across the dashboard's own + referenced runs, keyed by gauge_id.
+// Custom gauges are folded in separately (they're not carried on WatchedGauge).
+const gaugeEntries = computed<GaugeEntry[]>(() => {
+  const byGauge = new Map<string, GaugeEntry>()
+  const allRuns: UserReachSummary[] = [
+    ...activeUserReaches.value.filter(r => !hiddenReaches.value.has(r.id)),
+    ...activeReferencedReaches.value,
+  ]
+
+  for (const r of allRuns) {
+    // A run driven by a custom gauge is folded in via the custom-gauge loop below.
+    if (!r.gauge_id || r.custom_gauge_id) continue
+    const runName = r.name || r.long_name || r.slug
+    const existing = byGauge.get(r.gauge_id)
+    if (existing) {
+      existing.feedsRuns.push(runName)
+      existing.feedsRunSlugs.push(r.slug)
+      continue
+    }
+    const gauge = store.gauges.find(g => g.id === r.gauge_id && g.contextReachSlug === r.slug)
+      ?? store.gauges.find(g => g.id === r.gauge_id)
+      ?? synthGaugeForReach(r)
+    const state = r.state_abbr ?? '—'
+    byGauge.set(r.gauge_id, {
+      gaugeId: r.gauge_id,
+      gauge,
+      customGauge: null,
+      isCustom: false,
+      name: gauge.name ?? r.gauge_name ?? `${(r.gauge_source ?? '').toUpperCase()} ${r.gauge_external_id ?? ''}`.trim(),
+      source: r.gauge_source ?? gauge.source ?? null,
+      externalId: r.gauge_external_id ?? gauge.externalId ?? null,
+      currentCfs: gauge.currentCfs ?? r.current_cfs ?? null,
+      flowStatus: gauge.flowStatus ?? r.flow_status ?? 'unknown',
+      flowBandLabel: gauge.flowBandLabel ?? r.flow_band ?? null,
+      feedsRuns: [runName],
+      feedsRunSlugs: [r.slug],
+      lastReadingAt: gauge.lastReadingAt ?? r.last_reading_at ?? null,
+      state,
+      basin: resolveBasinForRun(r, state),
+      river: r.river_name ?? 'Unknown River',
+      riverId: r.river_id ?? gauge.contextReachRiverId ?? null,
+    })
+  }
+
+  const entries = [...byGauge.values()]
+
+  // Fold in the dashboard's custom gauges — always included, tagged isCustom.
+  // A custom gauge feeding no run still appears (standalone bucket downstream).
+  for (const cg of visibleCustomGauges.value) {
+    const feeding = allRuns.filter(r => r.custom_gauge_id === cg.id)
+    const first = feeding[0]
+    const state = first?.state_abbr ?? '—'
+    entries.push({
+      gaugeId: `custom:${cg.id}`,
+      gauge: null,
+      customGauge: cg,
+      isCustom: true,
+      name: cg.name,
+      source: null,
+      externalId: null,
+      currentCfs: cg.last_value_cfs,
+      flowStatus: 'unknown',
+      flowBandLabel: null,
+      feedsRuns: feeding.map(r => r.name || r.long_name || r.slug),
+      feedsRunSlugs: feeding.map(r => r.slug),
+      lastReadingAt: null,
+      state: first ? state : '—',
+      basin: first ? resolveBasinForRun(first, state) : 'Other',
+      river: first?.river_name ?? 'Unknown River',
+      riverId: first?.river_id ?? null,
+    })
+  }
+
+  return entries
+})
+
+// Upstream → downstream: min contextReachRiverOrder, then centerLng/lng — same
+// basis as sortReaches. Custom gauges (no reach geometry) sort to the end.
+function sortGaugeEntries(entries: GaugeEntry[]): GaugeEntry[] {
+  return [...entries].sort((a, b) => {
+    if (a.isCustom && !b.isCustom) return 1
+    if (!a.isCustom && b.isCustom) return -1
+    if (a.isCustom && b.isCustom) return a.name.localeCompare(b.name)
+    const ao = a.gauge?.contextReachRiverOrder ?? null
+    const bo = b.gauge?.contextReachRiverOrder ?? null
+    if (ao != null && bo != null) return ao - bo
+    if (ao != null) return -1
+    if (bo != null) return 1
+    const al = a.gauge?.contextReachCenterLng ?? a.gauge?.lng ?? null
+    const bl = b.gauge?.contextReachCenterLng ?? b.gauge?.lng ?? null
+    if (al == null && bl == null) return 0
+    if (al == null) return 1
+    if (bl == null) return -1
+    return al - bl
+  })
+}
+
+interface GaugeRiverGroup { name: string; riverId: string | null; gauges: GaugeEntry[] }
+interface GaugeBasinGroup { name: string; rawKey: string; gaugeCount: number; rivers: GaugeRiverGroup[]; standaloneGauges: GaugeEntry[] }
+interface GaugeStateGroup { name: string; gaugeCount: number; basins: GaugeBasinGroup[] }
+
+const gaugeStateTree = computed<GaugeStateGroup[]>(() => {
+  type BasinEntry = { rivers: Map<string, GaugeEntry[]>; standalone: GaugeEntry[]; rawKey: string }
+  const stateMap = new Map<string, Map<string, BasinEntry>>()
+
+  for (const entry of gaugeEntries.value) {
+    if (!stateMap.has(entry.state)) stateMap.set(entry.state, new Map())
+    const basinMap = stateMap.get(entry.state)!
+    if (!basinMap.has(entry.basin)) basinMap.set(entry.basin, { rivers: new Map(), standalone: [], rawKey: entry.basin })
+    const bEntry = basinMap.get(entry.basin)!
+    // No feeding run → standalone bucket (currently only orphan custom gauges land here).
+    if (entry.feedsRuns.length === 0) {
+      bEntry.standalone.push(entry)
+      continue
+    }
+    if (!bEntry.rivers.has(entry.river)) bEntry.rivers.set(entry.river, [])
+    bEntry.rivers.get(entry.river)!.push(entry)
+  }
+
+  return [...stateMap.entries()]
+    .sort(([a], [b]) => a === '—' ? 1 : b === '—' ? -1 : a.localeCompare(b))
+    .map(([state, basinMap]) => {
+      const basins: GaugeBasinGroup[] = [...basinMap.entries()]
+        .sort(([a], [b]) => a === 'Other' ? 1 : b === 'Other' ? -1 : a.localeCompare(b))
+        .map(([bName, { rivers, standalone, rawKey }]) => {
+          const riverGroups: GaugeRiverGroup[] = [...rivers.entries()]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([rName, list]) => ({
+              name: rName,
+              riverId: list.find(e => e.riverId)?.riverId ?? null,
+              gauges: sortGaugeEntries(list),
+            }))
+          const gaugeCount = riverGroups.reduce((s, r) => s + r.gauges.length, 0) + standalone.length
+          return { name: bName, rawKey, gaugeCount, rivers: riverGroups, standaloneGauges: sortGaugeEntries(standalone) }
+        })
+      const gaugeCount = basins.reduce((s, b) => s + b.gaugeCount, 0)
+      return { name: state, gaugeCount, basins }
+    })
+})
+
+interface DisplayGaugeSubSection {
+  name: string | null
+  key: string
+  rivers: GaugeRiverGroup[]
+  standaloneGauges: GaugeEntry[]
+  gaugeCount: number
+  rawBasinKey: string | null
+  stateAbbr: string | null
+}
+interface DisplayGaugeSection {
+  name: string | null
+  key: string
+  gaugeCount: number
+  subSections: DisplayGaugeSubSection[]
+}
+
+function mergeGaugeRivers(allRivers: GaugeRiverGroup[]): GaugeRiverGroup[] {
+  const map = new Map<string, GaugeRiverGroup>()
+  for (const r of allRivers) {
+    if (!map.has(r.name)) map.set(r.name, { name: r.name, riverId: r.riverId, gauges: [] })
+    map.get(r.name)!.gauges.push(...r.gauges)
+  }
+  for (const m of map.values()) m.gauges = sortGaugeEntries(m.gauges)
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
+}
+
+// Mirrors displaySections' four-branch (S,B)/(S,!B)/(!S,B)/(!S,!B) flatten exactly,
+// swapped to gauge data. Section/sub-section keys intentionally match the same
+// `state:`/`basin:`/`all` templates displaySections uses so a section collapsed
+// in Runs view stays collapsed for the same place in Gauges view.
+const displayGaugeSections = computed<DisplayGaugeSection[]>(() => {
+  const tree = gaugeStateTree.value
+
+  if (groupByState.value && groupByBasin.value) {
+    return tree.map(state => ({
+      name: state.name,
+      key: `state:${state.name}`,
+      gaugeCount: state.gaugeCount,
+      subSections: state.basins.map(basin => ({
+        name: basin.name,
+        key: `state:${state.name}|basin:${basin.name}`,
+        rivers: basin.rivers,
+        standaloneGauges: basin.standaloneGauges,
+        gaugeCount: basin.gaugeCount,
+        rawBasinKey: basin.rawKey || null,
+        stateAbbr: state.name === '—' ? null : state.name,
+      })),
+    }))
+  }
+
+  if (groupByState.value && !groupByBasin.value) {
+    return tree.map(state => {
+      const allRivers = state.basins.flatMap(b => b.rivers)
+      const allStandalone = state.basins.flatMap(b => b.standaloneGauges)
+      const merged = mergeGaugeRivers(allRivers)
+      return {
+        name: state.name,
+        key: `state:${state.name}`,
+        gaugeCount: state.gaugeCount,
+        subSections: [{
+          name: null,
+          key: `state:${state.name}|flat`,
+          rivers: merged,
+          standaloneGauges: allStandalone,
+          gaugeCount: state.gaugeCount,
+          rawBasinKey: null,
+          stateAbbr: null,
+        }],
+      }
+    })
+  }
+
+  if (!groupByState.value && groupByBasin.value) {
+    const basinMeta = new Map<string, { stateAbbr: string | null; rawKey: string }>()
+    const basinMap = new Map<string, { rivers: GaugeRiverGroup[]; standalone: GaugeEntry[] }>()
+    for (const state of tree) {
+      for (const basin of state.basins) {
+        if (!basinMap.has(basin.name)) {
+          basinMap.set(basin.name, { rivers: [], standalone: [] })
+          basinMeta.set(basin.name, { stateAbbr: state.name === '—' ? null : state.name, rawKey: basin.rawKey })
+        }
+        const m = basinMap.get(basin.name)!
+        m.rivers.push(...basin.rivers)
+        m.standalone.push(...basin.standaloneGauges)
+      }
+    }
+    const subs: DisplayGaugeSubSection[] = [...basinMap.entries()]
+      .sort(([a], [b]) => a === 'Other' ? 1 : b === 'Other' ? -1 : a.localeCompare(b))
+      .map(([bName, { rivers, standalone }]) => {
+        const merged = mergeGaugeRivers(rivers)
+        const gaugeCount = merged.reduce((s, r) => s + r.gauges.length, 0) + standalone.length
+        const meta = basinMeta.get(bName)
+        return {
+          name: bName,
+          key: `basin:${bName}`,
+          rivers: merged,
+          standaloneGauges: standalone,
+          gaugeCount,
+          rawBasinKey: meta?.rawKey ?? null,
+          stateAbbr: meta?.stateAbbr ?? null,
+        }
+      })
+    const totalCount = subs.reduce((s, b) => s + b.gaugeCount, 0)
+    return [{ name: null, key: 'all', gaugeCount: totalCount, subSections: subs }]
+  }
+
+  const allRivers = tree.flatMap(s => s.basins.flatMap(b => b.rivers))
+  const allStandalone = tree.flatMap(s => s.basins.flatMap(b => b.standaloneGauges))
+  const merged = mergeGaugeRivers(allRivers)
+  const totalCount = merged.reduce((s, r) => s + r.gauges.length, 0) + allStandalone.length
+  return [{
+    name: null,
+    key: 'all',
+    gaugeCount: totalCount,
+    subSections: [{ name: null, key: 'all|flat', rivers: merged, standaloneGauges: allStandalone, gaugeCount: totalCount, rawBasinKey: null, stateAbbr: null }],
+  }]
+})
+
+function riverHasVisibleGaugeContent(river: GaugeRiverGroup): boolean {
+  return river.gauges.length > 0
+}
+
+function subSectionHasVisibleGaugeContent(sub: DisplayGaugeSubSection): boolean {
+  return sub.standaloneGauges.length > 0 || sub.rivers.some(r => riverHasVisibleGaugeContent(r))
+}
+
+function sectionHasVisibleGaugeContent(sec: DisplayGaugeSection): boolean {
+  return sec.subSections.some(s => subSectionHasVisibleGaugeContent(s))
+}
+
 // ── Per-dashboard preferences ───────────────────────────────────────────────
 // Saved as one JSON blob per dashboard so grouping/filter/view/collapse
 // settings stick on the dashboard they were set on. When the active dashboard
@@ -1564,6 +2061,8 @@ const VIEW_MODES = [
   { key: 'full',        label: 'Full'        },
 ] as const
 
+type DashboardContent = 'runs' | 'gauges'
+
 interface DashboardPrefs {
   viewMode: ViewMode
   groupByGauge: boolean
@@ -1571,6 +2070,7 @@ interface DashboardPrefs {
   groupByBasin: boolean
   collapsedSections: string[]
   showRivers: boolean
+  content: DashboardContent
 }
 
 const DEFAULT_PREFS: DashboardPrefs = {
@@ -1580,6 +2080,7 @@ const DEFAULT_PREFS: DashboardPrefs = {
   groupByBasin: true,
   collapsedSections: [],
   showRivers: true,
+  content: 'runs',
 }
 
 function prefsKey(dashboardId: string | null): string {
@@ -1608,6 +2109,7 @@ function savePrefs() {
     groupByBasin:      groupByBasin.value,
     collapsedSections: [...collapsedSections.value],
     showRivers:        showRivers.value,
+    content:           content.value,
   }
   localStorage.setItem(prefsKey(db.activeDashboardId.value), JSON.stringify(prefs))
 }
@@ -1618,6 +2120,7 @@ const groupByState      = ref(DEFAULT_PREFS.groupByState)
 const groupByBasin      = ref(DEFAULT_PREFS.groupByBasin)
 const collapsedSections = ref<Set<string>>(new Set())
 const showRivers        = ref(DEFAULT_PREFS.showRivers)
+const content           = ref<DashboardContent>(DEFAULT_PREFS.content)
 
 // Hydrate refs from the active dashboard's blob. Called on mount and whenever
 // activeDashboardId changes. While hydrating we suppress the save watcher so
@@ -1632,6 +2135,7 @@ function applyPrefs(prefs: DashboardPrefs) {
   groupByBasin.value      = prefs.groupByBasin
   collapsedSections.value = new Set(prefs.collapsedSections)
   showRivers.value        = prefs.showRivers
+  content.value           = prefs.content ?? DEFAULT_PREFS.content
   nextTick(() => { hydrating.value = false })
 }
 
@@ -1646,7 +2150,7 @@ watch(() => db.activeDashboardId.value, (id) => {
 // One unified save watcher — fires after any pref ref changes (except during hydration).
 watch(
   [viewMode, groupByGauge, groupByState, groupByBasin,
-   collapsedSections, () => showRivers.value],
+   collapsedSections, () => showRivers.value, content],
   () => { if (!hydrating.value) savePrefs() },
   { deep: true },
 )
@@ -1659,10 +2163,18 @@ function toggleSection(key: string) {
 
 const allExpanded = computed(() => collapsedSections.value.size === 0 && !customGaugesCollapsed.value)
 
+// Sections currently on screen — Runs or Gauges, depending on the content toggle.
+// Used by expand/collapse-all and the "Expand all" visibility check so both
+// content modes share one collapse mechanism without the Runs path needing
+// to know about the Gauges view.
+const activeDisplaySections = computed<{ key: string; name: string | null; subSections: { key: string; name: string | null }[] }[]>(() =>
+  content.value === 'gauges' ? displayGaugeSections.value : displaySections.value,
+)
+
 function toggleAllSections() {
   if (allExpanded.value) {
     const keys = new Set<string>()
-    for (const sec of displaySections.value) {
+    for (const sec of activeDisplaySections.value) {
       if (sec.name) keys.add(sec.key)
       for (const sub of sec.subSections) {
         if (sub.name) keys.add(sub.key)
@@ -1680,13 +2192,20 @@ function setViewMode(m: ViewMode) {
   viewMode.value = m
 }
 
-// Grouping options in priority order: Basin / River / State / Gauge
-const groupingOptions = computed(() => [
-  { key: 'basin', label: 'Basin', active: groupByBasin.value, toggle: () => { groupByBasin.value = !groupByBasin.value } },
-  { key: 'river', label: 'River', active: showRivers.value,   toggle: () => { showRivers.value = !showRivers.value } },
-  { key: 'state', label: 'State', active: groupByState.value, toggle: () => { groupByState.value = !groupByState.value } },
-  { key: 'gauge', label: 'Gauge', active: groupByGauge.value, toggle: () => { groupByGauge.value = !groupByGauge.value } },
-])
+// Grouping options in priority order: Basin / River / State / Gauge.
+// The Gauge level is N/A in Gauges view (dedup already happens by gauge), so
+// it's omitted entirely from the popover while content === 'gauges'.
+const groupingOptions = computed(() => {
+  const opts = [
+    { key: 'basin', label: 'Basin', active: groupByBasin.value, toggle: () => { groupByBasin.value = !groupByBasin.value } },
+    { key: 'river', label: 'River', active: showRivers.value,   toggle: () => { showRivers.value = !showRivers.value } },
+    { key: 'state', label: 'State', active: groupByState.value, toggle: () => { groupByState.value = !groupByState.value } },
+  ]
+  if (content.value !== 'gauges') {
+    opts.push({ key: 'gauge', label: 'Gauge', active: groupByGauge.value, toggle: () => { groupByGauge.value = !groupByGauge.value } })
+  }
+  return opts
+})
 
 // Human-readable summary of active groupings in priority order: State · Basin · River · Gauge
 const groupingLabel = computed(() => {
@@ -1694,7 +2213,7 @@ const groupingLabel = computed(() => {
   if (groupByState.value)  parts.push('State')
   if (groupByBasin.value)  parts.push('Basin')
   if (showRivers.value)    parts.push('River')
-  if (groupByGauge.value)  parts.push('Gauge')
+  if (groupByGauge.value && content.value !== 'gauges') parts.push('Gauge')
   return parts.length ? parts.join(' · ') : 'None'
 })
 
