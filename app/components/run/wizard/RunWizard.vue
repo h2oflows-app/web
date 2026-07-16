@@ -23,9 +23,6 @@
       Forked from {{ store.forkedFromName ?? store.forkedFromSlug ?? '' }}<template v-if="store.originalAuthorHandle"> · <NuxtLink :to="`/explore/${store.originalAuthorHandle}`" class="hover:text-primary-500 transition-colors">@{{ store.originalAuthorHandle }}</NuxtLink></template><template v-if="forkDate"> · {{ forkDate }}</template>
     </div>
 
-    <!-- River name chip -->
-    <RiverNameChip />
-
     <!-- Bottom sheet / side panel -->
     <WizardSheet>
       <Transition name="wizard-step" mode="out-in">

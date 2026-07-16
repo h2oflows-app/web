@@ -20,22 +20,29 @@
       <UButton label="Done" color="primary" size="sm" @click="store.exitFeatureMode()" />
     </div>
 
-    <!-- Type palette -->
-    <div class="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1" style="scrollbar-width: none">
-      <button
-        v-for="t in RUN_FEATURE_TYPES"
-        :key="t.key"
-        type="button"
-        class="flex items-center gap-1.5 shrink-0 px-2.5 rounded-lg border text-xs font-semibold transition-colors"
-        style="min-height: 44px"
-        :style="store.placingType === t.key
-          ? { borderColor: '#2563eb', background: 'var(--ui-bg-elevated)', color: '#2563eb', boxShadow: '0 0 0 1px #2563eb' }
-          : { borderColor: 'var(--ui-border)', background: 'var(--ui-bg)', color: 'var(--ui-text-muted)' }"
-        @click="store.startPlacing(t.key)"
-      >
-        <span class="w-4 h-5 shrink-0" v-html="pinFor(t.key)" />
-        <span class="whitespace-nowrap">{{ t.label }}</span>
-      </button>
+    <!-- Type palette — wraps to rows on desktop (all visible, no scroll); scrolls
+         horizontally on mobile with a right-edge fade cue that more chips exist. -->
+    <div class="relative -mx-1">
+      <div class="flex gap-1.5 overflow-x-auto md:flex-wrap md:overflow-visible pb-1 px-1 [&::-webkit-scrollbar]:hidden" style="scrollbar-width: none">
+        <button
+          v-for="t in RUN_FEATURE_TYPES"
+          :key="t.key"
+          type="button"
+          class="flex items-center gap-1.5 shrink-0 px-2.5 rounded-lg border text-xs font-semibold transition-colors"
+          style="min-height: 44px"
+          :style="store.placingType === t.key
+            ? { borderColor: '#2563eb', background: 'var(--ui-bg-elevated)', color: '#2563eb', boxShadow: '0 0 0 1px #2563eb' }
+            : { borderColor: 'var(--ui-border)', background: 'var(--ui-bg)', color: 'var(--ui-text-muted)' }"
+          @click="store.startPlacing(t.key)"
+        >
+          <span class="w-4 h-5 shrink-0" v-html="pinFor(t.key)" />
+          <span class="whitespace-nowrap">{{ t.label }}</span>
+        </button>
+      </div>
+      <div
+        class="md:hidden pointer-events-none absolute top-0 right-0 bottom-1 w-10"
+        style="background: linear-gradient(to left, var(--ui-bg) 30%, transparent)"
+      />
     </div>
 
     <!-- Feature list -->

@@ -20,8 +20,8 @@
       />
     </div>
 
-    <!-- Type switcher -->
-    <div class="flex gap-1.5 overflow-x-auto pb-1" style="scrollbar-width: none">
+    <!-- Type switcher — wraps to rows so all pin types stay visible (no scroll). -->
+    <div class="flex flex-wrap gap-1.5">
       <button
         v-for="t in RUN_FEATURE_TYPES"
         :key="t.key"
