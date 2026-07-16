@@ -241,7 +241,9 @@ const {
 } = useCreateRunValidation()
 
 const showNotes = ref(false)
-const authorAsH2oflows = ref(false)
+// Editing an existing @h2oflows run as admin → the box reflects that it's already
+// official-curator content (authorHandle is prefilled before this step mounts).
+const authorAsH2oflows = ref(store.mode === 'edit' && store.authorHandle === 'h2oflows')
 const advancedPanelRef = ref<{ slugAvailability: Ref<string> } | null>(null)
 
 // Chip definitions: value, label
