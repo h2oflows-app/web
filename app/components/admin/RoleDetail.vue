@@ -37,9 +37,9 @@
         <MemberRow v-for="m in role.members" :key="m.user_id" :member="m" @remove="removeMember" />
       </div>
 
-      <!-- Last-admin guard (also enforced server-side with a 409) -->
-      <p v-if="isLastAdminState" class="mt-3 text-xs text-amber-600 dark:text-amber-400">
-        At least one member must remain in the Admins role — the last admin can't be removed.
+      <!-- Last-member guard for protected roles (also enforced server-side with a 409) -->
+      <p v-if="isLastMemberGuarded" class="mt-3 text-xs text-amber-600 dark:text-amber-400">
+        At least one member must remain in this role — the last member can't be removed.
       </p>
     </div>
   </div>
@@ -58,15 +58,17 @@ const toast = useToast()
 const label = computed(() => roleLabel(props.role.name))
 const memberIds = computed(() => props.role.members.map(m => m.user_id))
 
-// The platform must keep at least one site_admin. Server enforces (409);
+// Protected roles must keep >= 1 member: site_admin (platform admin) and
+// h2oflows (someone must steward the anchor account). Server enforces (409);
 // this warns before the attempt.
-const isLastAdminState = computed(() => props.role.name === 'site_admin' && props.role.members.length <= 1)
+const GUARDED_ROLES = ['site_admin', 'h2oflows']
+const isLastMemberGuarded = computed(() => GUARDED_ROLES.includes(props.role.name) && props.role.members.length <= 1)
 
 async function removeMember(userId: string) {
-  if (isLastAdminState.value) {
+  if (isLastMemberGuarded.value) {
     toast.add({
-      title: 'Cannot remove the last admin',
-      description: 'At least one member must remain in the Admins role. Add another admin first.',
+      title: 'Cannot remove the last member',
+      description: `At least one member must remain in the ${label.value.title} role. Add another member first.`,
       color: 'warning',
       duration: 4000,
     })

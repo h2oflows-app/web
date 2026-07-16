@@ -30,6 +30,7 @@ export interface SpecialUser {
   display_name: string
   is_special: true
   public_on_map: boolean
+  delete_locked: boolean
   run_count: number
   member_count: number
   usage_hour: number
@@ -120,6 +121,7 @@ export function useAdminUsersRoles() {
       if (res.ok) {
         specialUsers.value = await res.json()
         loadError.value = null
+        specialUsersLoaded.value = true   // success only — a failed load must retry next visit
       } else {
         loadError.value = `Admin API returned ${res.status} — is the API running a build with special-user support (#314)?`
       }
@@ -127,7 +129,6 @@ export function useAdminUsersRoles() {
       loadError.value = 'Admin API unreachable — network error.'
     } finally {
       specialUsersLoading.value = false
-      specialUsersLoaded.value = true
     }
   }
 
@@ -147,7 +148,7 @@ export function useAdminUsersRoles() {
     }
   }
 
-  async function updateSpecialUser(ownerId: string, patch: Partial<Pick<SpecialUser, 'handle' | 'display_name' | 'public_on_map'>>): Promise<boolean> {
+  async function updateSpecialUser(ownerId: string, patch: Partial<Pick<SpecialUser, 'handle' | 'display_name' | 'public_on_map' | 'delete_locked'>>): Promise<boolean> {
     try {
       const res = await fetch(`${apiBase}/api/v1/admin/special-users/${ownerId}`, {
         method: 'PATCH',
@@ -204,6 +205,7 @@ export function useAdminUsersRoles() {
       if (res.ok) {
         roles.value = await res.json()
         loadError.value = null
+        rolesLoaded.value = true   // success only
       } else {
         loadError.value = `Admin API returned ${res.status} — is the API running a build with special-user support (#314)?`
       }
@@ -211,7 +213,6 @@ export function useAdminUsersRoles() {
       loadError.value = 'Admin API unreachable — network error.'
     } finally {
       rolesLoading.value = false
-      rolesLoaded.value = true
     }
   }
 

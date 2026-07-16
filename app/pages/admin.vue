@@ -302,7 +302,11 @@ function applyDefaultTab() {
 
 function activateTab(key: string) {
   activeTab.value = key
-  if (key === 'users' && !specialUsersLoaded.value) loadUsersRolesTab()
+  // Always refresh Users & Roles on tab entry: the composable state is
+  // module-scoped and survives soft navigation — including a loaded-but-
+  // failed state — so gating on specialUsersLoaded left the tab empty after
+  // a client-side nav until a hard refresh reset module state.
+  if (key === 'users') loadUsersRolesTab()
   if (key === 'gauges' && adminGauges.value.length === 0) loadAdminGauges()
   if (key === 'flags') loadFlags()
 }
@@ -317,7 +321,7 @@ const visibleTabs = computed(() => {
 
 // ── Users & Roles ──────────────────────────────────────────────────────────────
 const {
-  specialUsers, specialUsersLoading, specialUsersLoaded, loadSpecialUsers,
+  specialUsers, specialUsersLoading, loadSpecialUsers,
   roles, loadRoles,
 } = useAdminUsersRoles()
 
@@ -339,12 +343,9 @@ async function loadUsersRolesTab() {
   await Promise.all([loadSpecialUsers(), loadRoles()])
 }
 
-// Default selection once loaded: prefer h2oflows, else the first special user.
-watch(specialUsers, (list) => {
-  if (usersSelection.value || list.length === 0) return
-  const preferred = list.find(u => u.handle === 'h2oflows') ?? list[0]
-  usersSelection.value = { kind: 'special', id: preferred!.id }
-})
+// No default selection — the tab opens as a plain list of roles & users
+// (auto-selecting h2oflows dropped an unexplained info card on the user; the
+// list-first view matches the tab's name). Detail renders on click.
 
 function onSpecialUserDeleted() {
   usersSelection.value = null

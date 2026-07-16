@@ -97,9 +97,42 @@
     <!-- Bulk API access -->
     <BulkApiPanel :owner-id="specialUser.id" :is-special="true" />
 
-    <!-- Danger zone -->
-    <div class="rounded-lg border border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-950/20 p-4">
-      <div class="flex items-center justify-between gap-3 flex-wrap">
+    <!-- Danger zone — delete-locked accounts show the lock instead of Delete -->
+    <div
+      class="rounded-lg border p-4"
+      :class="specialUser.delete_locked
+        ? 'border-neutral-200 dark:border-neutral-700 bg-neutral-50/60 dark:bg-neutral-900/40'
+        : 'border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-950/20'"
+    >
+      <!-- Locked state -->
+      <div v-if="specialUser.delete_locked" class="flex items-center justify-between gap-3 flex-wrap">
+        <div class="flex items-start gap-2 min-w-0">
+          <UIcon name="i-heroicons-lock-closed" class="w-4 h-4 mt-0.5 shrink-0 text-neutral-400" />
+          <div>
+            <p class="text-sm font-semibold text-neutral-700 dark:text-neutral-200">Locked for delete</p>
+            <p class="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
+              <template v-if="isAnchorAccount">
+                <span class="font-mono">@h2oflows</span> anchors the platform's public content and can never be deleted or unlocked.
+              </template>
+              <template v-else>
+                Protects this account's run database from accidental deletion. Unlock deliberately before deleting.
+              </template>
+            </p>
+          </div>
+        </div>
+        <UButton
+          v-if="!isAnchorAccount"
+          size="sm"
+          color="neutral"
+          variant="outline"
+          icon="i-heroicons-lock-open"
+          :loading="togglingLock"
+          @click="setDeleteLock(false)"
+        >Unlock</UButton>
+      </div>
+
+      <!-- Unlocked state — delete available (still guarded by run count + server) -->
+      <div v-else class="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <p class="text-sm font-semibold text-red-700 dark:text-red-400">Delete special user</p>
           <p class="text-xs text-red-500 dark:text-red-400/80 mt-0.5">
@@ -107,7 +140,17 @@
             <template v-if="specialUser.run_count > 0"> Runs must be reassigned first.</template>
           </p>
         </div>
-        <UButton size="sm" color="error" :disabled="specialUser.run_count > 0" :loading="deleting" @click="handleDelete">Delete</UButton>
+        <div class="flex items-center gap-2">
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="outline"
+            icon="i-heroicons-lock-closed"
+            :loading="togglingLock"
+            @click="setDeleteLock(true)"
+          >Re-lock</UButton>
+          <UButton size="sm" color="error" :disabled="specialUser.run_count > 0" :loading="deleting" @click="handleDelete">Delete</UButton>
+        </div>
       </div>
     </div>
   </div>
@@ -130,6 +173,27 @@ const role = computed(() => roles.value.find(r => r.name === props.specialUser.h
 const members = computed(() => role.value?.members ?? [])
 const memberIds = computed(() => members.value.map(m => m.user_id))
 
+// @h2oflows anchors the platform — permanently locked, no unlock control.
+const isAnchorAccount = computed(() => props.specialUser.handle === 'h2oflows')
+
+// ── Delete lock ───────────────────────────────────────────────────────────
+const togglingLock = ref(false)
+async function setDeleteLock(locked: boolean) {
+  if (!locked && import.meta.client
+      && !confirm('Unlock this account for deletion? This removes the safety latch protecting its run database.')) return
+  togglingLock.value = true
+  try {
+    const ok = await updateSpecialUser(props.specialUser.id, { delete_locked: locked })
+    if (ok) {
+      toast.add({ title: locked ? 'Locked for delete' : 'Unlocked — delete is now available', color: locked ? 'success' : 'warning', duration: 3000 })
+    } else {
+      toast.add({ title: 'Failed to change delete lock', color: 'error', duration: 3000 })
+    }
+  } finally {
+    togglingLock.value = false
+  }
+}
+
 const createdLabel = computed(() => {
   try {
     return new Date(props.specialUser.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
@@ -137,6 +201,16 @@ const createdLabel = computed(() => {
 })
 
 async function removeMember(userId: string) {
+  // @h2oflows must always keep at least one member (server enforces with 409).
+  if (isAnchorAccount.value && members.value.length <= 1) {
+    toast.add({
+      title: 'Cannot remove the last member',
+      description: 'At least one admin must remain assigned to the @h2oflows role. Add another member first.',
+      color: 'warning',
+      duration: 4000,
+    })
+    return
+  }
   if (import.meta.client && !confirm('Remove this member? They will lose edit access to this account\'s runs.')) return
   const ok = await removeRoleMember(props.specialUser.handle, userId)
   toast.add({ title: ok ? 'Member removed' : 'Failed to remove member', color: ok ? 'success' : 'error', duration: 3000 })
