@@ -63,6 +63,23 @@
       </template>
     </div>
 
+    <!-- Features row (entry point into the run-features editor, issue #312) -->
+    <div
+      class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-primary-50 dark:bg-primary-950/40 border border-primary-200 dark:border-primary-800"
+    >
+      <span class="shrink-0" style="width: 26px; height: 33px" v-html="featuresPin" />
+      <div class="flex-1 min-w-0">
+        <span class="text-sm font-semibold text-primary-800 dark:text-primary-200 block">Features</span>
+        <span class="text-xs text-primary-600 dark:text-primary-400 block truncate">{{ featureSummary }}</span>
+      </div>
+      <UButton
+        size="xs"
+        color="primary"
+        trailing-icon="i-heroicons-chevron-right"
+        @click="store.enterFeatureMode()"
+      >Edit on map</UButton>
+    </div>
+
     <!-- Hardest rapid / difficulty chips -->
     <div class="flex flex-col gap-2">
       <div class="flex items-center justify-between">
@@ -202,9 +219,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, type Ref } from 'vue'
+import { ref, computed, watch, onMounted, type Ref } from 'vue'
 import { useRunWizardStore } from '~/stores/runWizard'
 import { classColor, classRange } from '~/utils/classRating'
+import { featureListPin } from '~/utils/featureIcons'
 import type { FlowBands } from '~/utils/flowBand'
 
 const store = useRunWizardStore()
@@ -223,7 +241,9 @@ const {
 } = useCreateRunValidation()
 
 const showNotes = ref(false)
-const authorAsH2oflows = ref(false)
+// Editing an existing @h2oflows run as admin → the box reflects that it's already
+// official-curator content (authorHandle is prefilled before this step mounts).
+const authorAsH2oflows = ref(store.mode === 'edit' && store.authorHandle === 'h2oflows')
 const advancedPanelRef = ref<{ slugAvailability: Ref<string> } | null>(null)
 
 // Chip definitions: value, label
@@ -242,6 +262,14 @@ function setClassMax(value: number) {
   store.classMax = value
   store.classMin = value
 }
+
+// ── Features row (issue #312) ────────────────────────────────────────────────
+const featuresPin = featureListPin({ type: 'rapid', isRapid: true })
+const featureSummary = computed(() => {
+  const n = store.features.length
+  if (n === 0) return 'No features yet — rapids, hazards, access'
+  return `${n} feature${n === 1 ? '' : 's'} on this run`
+})
 
 // Default flow bands seeded on enter (if null or no thresholds)
 const DEFAULT_FLOW_BANDS: FlowBands = {

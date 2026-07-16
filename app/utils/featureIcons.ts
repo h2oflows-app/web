@@ -19,7 +19,7 @@ export const PIN_COLORS: Record<string, string> = {
   put_in:       '#22c55e',
   take_out:     '#ef4444',
   shuttle_drop: '#a855f7',
-  intermediate: '#94a3b8',
+  intermediate: '#16a34a',
   parking:      '#dc2626',
   camp:         '#f59e0b',
   boat_ramp:    '#0ea5e9',
@@ -48,7 +48,7 @@ export function featureListPin(options: {
     </svg>`
   }
 
-  const color = isRapid || isSurf ? '#3b82f6' : (PIN_COLORS[type ?? ''] ?? '#94a3b8')
+  const color = isRapid || isSurf ? '#3b82f6' : (PIN_COLORS[type ?? ''] ?? '#16a34a')
   const body  = `<path d="M14 2C7.9 2 3 6.9 3 13c0 7.5 11 21 11 21S25 20.5 25 13C25 6.9 20.1 2 14 2z" fill="${color}" stroke="white" stroke-width="1.5"/>`
 
   let inner = ''
