@@ -92,6 +92,11 @@ const rolesLoaded = ref(false)
 const directoryUsers = ref<DirectoryUser[]>([])
 const directoryLoading = ref(false)
 
+// Last load failure across the three list loaders — distinguishes "the admin
+// API is unreachable / doesn't have these endpoints" from a genuinely empty
+// list (a 404 must not render as "no users").
+const loadError = ref<string | null>(null)
+
 // The currently-selected "All users" directory entry — held separately from
 // directoryUsers so it survives the search list changing out from under it.
 const selectedDirectoryUser = ref<DirectoryUser | null>(null)
@@ -112,8 +117,15 @@ export function useAdminUsersRoles() {
     specialUsersLoading.value = true
     try {
       const res = await fetch(`${apiBase}/api/v1/admin/special-users`, { headers: await authHeaders() })
-      if (res.ok) specialUsers.value = await res.json()
-    } catch { /* non-fatal — leave prior state */ } finally {
+      if (res.ok) {
+        specialUsers.value = await res.json()
+        loadError.value = null
+      } else {
+        loadError.value = `Admin API returned ${res.status} — is the API running a build with special-user support (#314)?`
+      }
+    } catch {
+      loadError.value = 'Admin API unreachable — network error.'
+    } finally {
       specialUsersLoading.value = false
       specialUsersLoaded.value = true
     }
@@ -189,8 +201,15 @@ export function useAdminUsersRoles() {
     rolesLoading.value = true
     try {
       const res = await fetch(`${apiBase}/api/v1/admin/roles`, { headers: await authHeaders() })
-      if (res.ok) roles.value = await res.json()
-    } catch { /* non-fatal */ } finally {
+      if (res.ok) {
+        roles.value = await res.json()
+        loadError.value = null
+      } else {
+        loadError.value = `Admin API returned ${res.status} — is the API running a build with special-user support (#314)?`
+      }
+    } catch {
+      loadError.value = 'Admin API unreachable — network error.'
+    } finally {
       rolesLoading.value = false
       rolesLoaded.value = true
     }
@@ -233,8 +252,15 @@ export function useAdminUsersRoles() {
       const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
       if (q) params.set('q', q)
       const res = await fetch(`${apiBase}/api/v1/admin/users?${params}`, { headers: await authHeaders() })
-      if (res.ok) directoryUsers.value = await res.json()
-    } catch { /* non-fatal */ } finally {
+      if (res.ok) {
+        directoryUsers.value = await res.json()
+        loadError.value = null
+      } else {
+        loadError.value = `Admin API returned ${res.status} — is the API running a build with special-user support (#314)?`
+      }
+    } catch {
+      loadError.value = 'Admin API unreachable — network error.'
+    } finally {
       directoryLoading.value = false
     }
   }
@@ -289,7 +315,7 @@ export function useAdminUsersRoles() {
     specialUsers, specialUsersLoading, specialUsersLoaded,
     roles, rolesLoading, rolesLoaded,
     directoryUsers, directoryLoading,
-    selectedDirectoryUser,
+    selectedDirectoryUser, loadError,
     // special users
     loadSpecialUsers, createSpecialUser, updateSpecialUser, deleteSpecialUser, rotateSpecialUserKey,
     // roles

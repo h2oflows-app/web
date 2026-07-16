@@ -11,6 +11,14 @@
       />
     </div>
 
+    <!-- Load failure — a 404/network error must not read as "no users" -->
+    <div
+      v-if="loadError"
+      class="mx-3 mt-3 rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-xs text-amber-700 dark:text-amber-300"
+    >
+      {{ loadError }}
+    </div>
+
     <div class="overflow-y-auto flex-1 divide-y divide-neutral-100 dark:divide-neutral-800">
       <!-- ROLES -->
       <div v-if="filteredRoles.length" class="p-2">
@@ -100,7 +108,7 @@ const emit = defineEmits<{ 'new-special-user': [] }>()
 
 const {
   roles, specialUsers, specialUsersLoading,
-  directoryUsers, directoryLoading,
+  directoryUsers, directoryLoading, loadError,
   searchDirectory, selectDirectoryUser,
 } = useAdminUsersRoles()
 

@@ -36,6 +36,11 @@
       <div v-else class="divide-y divide-neutral-100 dark:divide-neutral-800">
         <MemberRow v-for="m in role.members" :key="m.user_id" :member="m" @remove="removeMember" />
       </div>
+
+      <!-- Last-admin guard (also enforced server-side with a 409) -->
+      <p v-if="isLastAdminState" class="mt-3 text-xs text-amber-600 dark:text-amber-400">
+        At least one member must remain in the Admins role — the last admin can't be removed.
+      </p>
     </div>
   </div>
 </template>
@@ -53,7 +58,20 @@ const toast = useToast()
 const label = computed(() => roleLabel(props.role.name))
 const memberIds = computed(() => props.role.members.map(m => m.user_id))
 
+// The platform must keep at least one site_admin. Server enforces (409);
+// this warns before the attempt.
+const isLastAdminState = computed(() => props.role.name === 'site_admin' && props.role.members.length <= 1)
+
 async function removeMember(userId: string) {
+  if (isLastAdminState.value) {
+    toast.add({
+      title: 'Cannot remove the last admin',
+      description: 'At least one member must remain in the Admins role. Add another admin first.',
+      color: 'warning',
+      duration: 4000,
+    })
+    return
+  }
   if (import.meta.client && !confirm('Remove this member from the role?')) return
   const ok = await removeRoleMember(props.role.name, userId)
   toast.add({ title: ok ? 'Member removed' : 'Failed to remove member', color: ok ? 'success' : 'error', duration: 3000 })
