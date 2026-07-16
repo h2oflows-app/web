@@ -57,7 +57,7 @@
             {{ reachLabel(item) }}
           </span>
           <!-- Owner icon (always shown) -->
-          <OwnerIcon :author-handle="item.contextReachAuthorHandle" />
+          <OwnerIcon :author-handle="item.contextReachAuthorHandle" :slug="item.contextReachSlug" :run-id="item.id" />
         </div>
         <!-- Badge always rendered (– when no thresholds) so trash column aligns -->
         <div class="w-20 shrink-0 text-center">
@@ -186,7 +186,7 @@
             <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
           </NuxtLink>
           <!-- Owner icon (always shown) -->
-          <OwnerIcon :author-handle="item.contextReachAuthorHandle" />
+          <OwnerIcon :author-handle="item.contextReachAuthorHandle" :slug="item.contextReachSlug" :run-id="item.id" />
         </div>
         <!-- Fixed-width badge slot so trash column always aligns -->
         <div class="w-20 shrink-0 text-right">

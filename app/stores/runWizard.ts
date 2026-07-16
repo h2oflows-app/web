@@ -56,7 +56,9 @@ export const useRunWizardStore = defineStore('runWizard', () => {
 
   // Saved slug (stashed after create for SavedOverlay navigation)
   const savedSlug = ref<string | null>(null)
-  const savedAsH2oflows = ref(false)
+  // The handle the run was authored as on create (null = the current user), for
+  // SavedOverlay's "View run" link. Generalized from the old h2oflows-only flag (#314).
+  const savedAuthorAs = ref<string | null>(null)
 
   // Map state
   const basemap = ref<'street' | 'topo' | 'satellite'>('street')
@@ -303,7 +305,7 @@ export const useRunWizardStore = defineStore('runWizard', () => {
     flowBands.value = null
     notes.value = ''
     savedSlug.value = null
-    savedAsH2oflows.value = false
+    savedAuthorAs.value = null
     basemap.value = 'street'
     distanceMi.value = 0
     gauge.value = null
@@ -335,7 +337,7 @@ export const useRunWizardStore = defineStore('runWizard', () => {
     riverName, gnisId,
     previewCenterline,
     name, longName, classMin, classMax, flowBands, notes,
-    savedSlug, savedAsH2oflows,
+    savedSlug, savedAuthorAs,
     basemap, distanceMi,
     gauge, gaugeSkipped, nearbyGauges,
     centerlineColor,

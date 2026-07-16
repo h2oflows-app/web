@@ -340,7 +340,7 @@ interface ReachFeature {
     put_in_name: string | null; take_out_name: string | null; common_name: string | null
     river_name: string | null; gauge_id: string | null
     author_handle?: string | null
-    is_official?: boolean
+    is_special?: boolean
     upvote_count?: number
     user_upvoted?: boolean
   }
@@ -548,7 +548,7 @@ function updateLayers(features: ReachFeature[]) {
           const aUp = (a.properties as any).upvote_count ?? 0
           const bUp = (b.properties as any).upvote_count ?? 0
           if (bUp !== aUp) return bUp - aUp
-          return ((b.properties as any).is_official ? 1 : 0) - ((a.properties as any).is_official ? 1 : 0)
+          return ((b.properties as any).is_special ? 1 : 0) - ((a.properties as any).is_special ? 1 : 0)
         })
         .slice(0, 5)
       const header = unique.length > 5
@@ -605,9 +605,7 @@ function updateLayers(features: ReachFeature[]) {
             ? `<br><span style="opacity:0.6;font-size:0.7rem;font-weight:400">${p.river_name}</span>`
             : ''
           let attribution = ''
-          if (p.is_official) {
-            attribution = `<br><span style="opacity:0.7;font-size:0.7rem;font-weight:500">H2OFlows ⭐</span>`
-          } else if (p.author_handle) {
+          if (p.author_handle) {
             attribution = `<br><span style="opacity:0.7;font-size:0.7rem;font-weight:400">by @${p.author_handle}</span>`
           }
           html = `<strong>${displayName}</strong>${subtitle}${attribution}`

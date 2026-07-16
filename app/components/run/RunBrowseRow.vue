@@ -15,8 +15,8 @@
         class="text-sm font-medium text-neutral-800 dark:text-neutral-200 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors block"
       >{{ displayName }}</NuxtLink>
       <RunAuthorBadge
-        v-if="reach.is_official !== undefined || reach.author_handle"
-        :is-official="reach.is_official ?? true"
+        v-if="reach.is_special !== undefined || reach.author_handle"
+        :is-special="reach.is_special ?? true"
         :author-handle="reach.author_handle"
       />
     </div>
@@ -84,7 +84,7 @@ export interface ReachListItem {
   gauge_source: string | null
   gauge_name: string | null
   gauge_status: string | null
-  is_official?: boolean
+  is_special?: boolean
   author_handle?: string | null
 }
 

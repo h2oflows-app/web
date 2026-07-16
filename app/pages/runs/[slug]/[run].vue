@@ -109,9 +109,9 @@
               @update:upvoted="(u) => { userUpvoted = u }"
             />
 
-            <!-- Fork (auth, non-owner — or official run, so admins can fork h2oflows runs) -->
+            <!-- Fork (auth, non-owner — or special-account run, so role members can fork it) -->
             <button
-              v-if="isAuthenticated && (!isOwnRun || run.is_official)"
+              v-if="isAuthenticated && (!isOwnRun || run.is_special)"
               :disabled="forking"
               class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors disabled:opacity-40"
               title="Fork this run — create your own copy"
@@ -157,7 +157,7 @@
 
         <!-- Author badge -->
         <div class="mt-2 flex flex-wrap items-center gap-2">
-          <RunAuthorBadge v-if="!isOwnRun || run.is_official" :is-official="run.is_official" :author-handle="run.author_handle" />
+          <RunAuthorBadge v-if="!isOwnRun || run.is_special" :is-special="run.is_special" :author-handle="run.author_handle" />
           <!-- Lineage credit (V15) — forked from canonical run -->
           <span v-if="run.forked_from_name || run.original_author_handle" class="text-xs text-neutral-400 dark:text-neutral-500">
             Forked from
@@ -365,17 +365,13 @@
         <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 px-4 py-4 space-y-2">
           <p class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Similar Runs <span class="font-normal normal-case">(same section)</span></p>
           <div v-for="cr in clusterRuns" :key="cr.id" class="flex items-center gap-2 py-0.5 text-xs">
-            <svg v-if="cr.is_official" class="w-3 h-3 text-primary-500 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-            </svg>
-            <span v-else class="w-2 h-2 rounded-full bg-neutral-300 dark:bg-neutral-600 shrink-0" />
+            <span class="w-2 h-2 rounded-full bg-neutral-300 dark:bg-neutral-600 shrink-0" />
             <NuxtLink
-              :to="cr.author_handle ? `/runs/${cr.author_handle}/${cr.slug}` : `/runs/h2oflows/${cr.slug}`"
+              :to="`/runs/${cr.author_handle ?? 'h2oflows'}/${cr.slug}`"
               class="font-medium text-neutral-700 dark:text-neutral-300 hover:text-primary-600 dark:hover:text-primary-400 hover:underline truncate flex-1"
             >{{ cr.name }}</NuxtLink>
             <span class="text-neutral-400 shrink-0">{{ cr.report_count }} report{{ cr.report_count !== 1 ? 's' : '' }}</span>
-            <span v-if="cr.author_handle" class="text-neutral-400 shrink-0">@{{ cr.author_handle }}</span>
-            <span v-else-if="cr.is_official" class="text-primary-500 shrink-0">Official</span>
+            <span class="text-neutral-400 shrink-0">@{{ cr.author_handle ?? 'h2oflows' }}</span>
           </div>
         </div>
       </section>
@@ -477,7 +473,7 @@ interface PublicRunDetail {
   take_out_lng: number; take_out_lat: number
   gauge_id: string | null; gauge_name: string | null
   current_cfs: number | null; flow_band: string | null; flow_status: string | null
-  note: string | null; is_official: boolean; author_handle: string | null
+  note: string | null; is_special: boolean; author_handle: string | null
   forked_from_slug: string | null; forked_from_name: string | null
   flow_bands?: { base_label: string; base_color: string; thresholds: Array<{ value: number; label: string; color: string }> }
   rapids: RunRapid[]; access_points: RunAccessPoint[]
@@ -496,7 +492,7 @@ interface RunReport {
 }
 interface ClusterRun {
   id: string; slug: string; name: string
-  author_handle: string | null; is_official: boolean
+  author_handle: string | null; is_special: boolean
   class_min: number | null; class_max: number | null
   report_count: number; rank_score: number
 }

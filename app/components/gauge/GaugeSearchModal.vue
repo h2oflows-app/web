@@ -188,14 +188,8 @@
                     <div class="min-w-0 flex-1">
                       <!-- Handle badge -->
                       <div class="flex items-center gap-1.5 mb-0.5">
-                        <span
-                          class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                          :class="run.is_official
-                            ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300'
-                            : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400'"
-                        >
-                          <span v-if="run.is_official">⭐</span>
-                          {{ run.is_official ? 'H2OFlows' : `@${run.handle}` }}
+                        <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400">
+                          @{{ run.handle }}
                         </span>
                         <!-- Fork attribution -->
                         <span v-if="run.original_author_handle" class="text-[10px] text-neutral-400 dark:text-neutral-500">
@@ -218,23 +212,9 @@
                       </div>
                     </div>
 
-                    <!-- Action buttons -->
+                    <!-- Action buttons — unified: every public run gets the same affordances
+                         (instant Add as reference; Fork lives in the overflow menu). -->
                     <div class="flex items-center gap-1 shrink-0" @click.stop>
-                      <!-- Curated run: fork only (creates user_reaches row) -->
-                      <template v-if="run.is_official">
-                        <button
-                          class="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium bg-primary-600 hover:bg-primary-700 disabled:opacity-60 text-white transition-colors min-h-[36px]"
-                          :disabled="forkingId === run.id"
-                          @click="startFork(run)"
-                        >
-                          <span v-if="forkingId === run.id" class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
-                          <template v-else>Fork &amp; Add</template>
-                        </button>
-                      </template>
-
-                      <!-- Community run: instant Add (reference) as primary action -->
-                      <!-- Split button on desktop; single Add button on mobile (uses "Adding to" chip) -->
-                      <template v-else>
                         <!-- Added state -->
                         <span v-if="addedReferenceIds.has(run.id)" class="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium bg-green-600 text-white min-h-[36px]">
                           ✓ Added
@@ -327,7 +307,6 @@
                             </button>
                           </div>
                         </div>
-                      </template>
                     </div>
                   </div>
 
@@ -377,7 +356,7 @@
                 <div class="flex justify-between gap-2">
                   <dt class="text-neutral-400 shrink-0">Author</dt>
                   <dd class="text-neutral-700 dark:text-neutral-200 text-right truncate">
-                    {{ previewRun.is_official ? '⭐ H2OFlows' : `@${previewRun.handle}` }}
+                    @{{ previewRun.handle }}
                   </dd>
                 </div>
                 <div v-if="previewRun.class_min || previewRun.class_max" class="flex justify-between gap-2">
@@ -410,7 +389,7 @@
                 </div>
               </dl>
               <!-- Fork action in preview panel (desktop) -->
-              <div v-if="!previewRun.is_official" class="pt-2 border-t border-neutral-100 dark:border-neutral-800">
+              <div class="pt-2 border-t border-neutral-100 dark:border-neutral-800">
                 <button
                   class="w-full text-left text-xs text-neutral-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                   :disabled="forkingId === previewRun.id"
@@ -721,7 +700,7 @@ async function addMyRun(r: MyRunSummary) {
 // ── Community tab (was Discover, V14-V19, V23) ────────────────────────────────
 interface DiscoverRun {
   id: string; slug: string; name: string; handle: string
-  is_official: boolean
+  is_special: boolean
   class_min: number | null; class_max: number | null
   length_mi: number | null
   upvote_count: number
@@ -870,12 +849,9 @@ async function startFork(run: DiscoverRun) {
   try {
     const token = await getToken()
     if (!token) return
-    // curated runs live in reaches table — use slug-based fork endpoint
-    // community runs live in user_reaches — use id-based fork endpoint
-    const url = run.is_official
-      ? `${apiBase}/api/v1/me/runs/fork-reach/${run.slug}`
-      : `${apiBase}/api/v1/user-runs/${run.id}/fork`
-    const res = await fetch(url, {
+    // Every run — special-account-owned or community — forks via the same
+    // id-based endpoint now (#314).
+    const res = await fetch(`${apiBase}/api/v1/user-runs/${run.id}/fork`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     })
