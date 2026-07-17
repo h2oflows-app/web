@@ -6,13 +6,13 @@
     <!-- App bar overlay -->
     <WizardAppBar />
 
-    <!-- Admin sentinel banner — shown when editing an h2oflows-owned run -->
+    <!-- Sentinel banner — shown when editing a special (org) account's run via role membership -->
     <div
-      v-if="store.mode === 'edit' && store.authorHandle === 'h2oflows'"
+      v-if="store.mode === 'edit' && store.authorHandle && !isMine(store.authorHandle)"
       class="absolute top-12.5 left-0 right-0 z-30 flex items-center gap-2 px-4 py-1.5 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-800/60 text-xs text-amber-700 dark:text-amber-400"
     >
       <UIcon name="i-heroicons-exclamation-triangle" class="w-3.5 h-3.5 shrink-0" />
-      Editing <strong class="font-semibold">@h2oflows</strong> run as admin — changes affect the canonical version
+      Editing <strong class="font-semibold">@{{ store.authorHandle }}</strong> run as member — changes affect the shared version
     </div>
 
     <!-- Fork attribution banner -->
@@ -79,6 +79,7 @@ const store = useRunWizardStore()
 const { getToken } = useAuth()
 const { apiBase } = useRuntimeConfig().public
 const toast = useToast()
+const { isMine } = useMyProfile()
 
 const mapRef = ref<{ confirmPutIn: () => void; confirmTakeOut: () => void } | null>(null)
 const editLoading = ref(false)
@@ -175,8 +176,9 @@ async function loadEditRun(slug: string) {
         externalId: data.gauge_external_id,
         source: data.gauge_source ?? '',
         name: data.gauge_name ?? '',
-        lat: 0,
-        lng: 0,
+        // Real coords so the edit map can show the gauge pin (0,0 = unknown).
+        lat: data.gauge_lat ?? 0,
+        lng: data.gauge_lng ?? 0,
       }
     }
 

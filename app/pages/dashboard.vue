@@ -295,7 +295,7 @@
                       <div class="flex items-center gap-1 min-w-0">
                         <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
                         <span v-if="r.river_name" class="hidden sm:inline text-xs text-neutral-400 dark:text-neutral-500 shrink-0 truncate">· {{ r.river_name }}</span>
-                        <OwnerIcon :author-handle="r.author_handle" />
+                        <OwnerIcon :author-handle="r.author_handle" :slug="r.slug" :run-id="r.id" />
                       </div>
                       <span v-if="r.river_name" class="sm:hidden text-xs text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ r.river_name }}</span>
                     </div>
@@ -318,8 +318,7 @@
                       <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-1.5 min-w-0">
                           <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-base font-semibold truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
-                          <NuxtLink v-if="!r.is_reference" :to="`/my/runs/${r.slug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop><svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg></NuxtLink>
-                          <OwnerIcon :author-handle="r.author_handle" />
+                          <OwnerIcon :author-handle="r.author_handle" :slug="r.slug" :run-id="r.id" />
                         </div>
                         <div v-if="r.river_name" class="mt-0.5"><span class="text-xs text-neutral-400 dark:text-neutral-500 truncate">{{ r.river_name }}</span></div>
                       </div>
@@ -482,7 +481,7 @@
                           <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
                           <span v-if="!showRivers && r.river_name" class="hidden sm:inline text-xs text-neutral-400 dark:text-neutral-500 shrink-0 truncate">· {{ r.river_name }}</span>
                           <!-- Owner icon (always shown) -->
-                          <OwnerIcon :author-handle="r.author_handle" />
+                          <OwnerIcon :author-handle="r.author_handle" :slug="r.slug" :run-id="r.id" />
                         </div>
                         <!-- River name sub-line on mobile -->
                         <span v-if="!showRivers && r.river_name" class="sm:hidden text-xs text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ r.river_name }}</span>
@@ -516,12 +515,8 @@
                         <div class="min-w-0 flex-1">
                           <div class="flex items-center gap-1.5 min-w-0">
                             <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-base font-semibold truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
-                            <!-- Own run: edit pencil (kept in card view) -->
-                            <NuxtLink v-if="!r.is_reference" :to="`/my/runs/${r.slug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" title="Edit run" @click.stop>
-                              <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
-                            </NuxtLink>
-                            <!-- Owner icon (always shown) -->
-                            <OwnerIcon :author-handle="r.author_handle" />
+                            <!-- Owner icon (always shown) — decides pencil-vs-multiuser itself -->
+                            <OwnerIcon :author-handle="r.author_handle" :slug="r.slug" :run-id="r.id" />
                           </div>
                           <!-- River name sub-line (shown when river not grouped above) -->
                           <div v-if="!showRivers && r.river_name" class="mt-0.5">

@@ -14,7 +14,7 @@ export interface ClusterRun {
   slug: string
   name: string
   author_handle: string | null
-  is_official: boolean
+  is_special: boolean
   class_min: number | null
   class_max: number | null
   rank_score: number

@@ -145,9 +145,9 @@ const heading = computed(() => {
   return isDraft.value ? `New ${label}` : `Edit ${label}`
 })
 
-const subLine = computed(() => meta.value.isRiver
-  ? 'On the river — snapped to the flowline'
-  : 'Placed freely — drag the pin to adjust')
+// No flowline snapping — pins sit exactly where dropped (campsites may be
+// off-water; the basemap is the user's reference).
+const subLine = computed(() => 'Placed where you dropped it — drag the pin to adjust')
 
 const headerPin = computed(() => feature.value ? pinFor(feature.value.type) : '')
 

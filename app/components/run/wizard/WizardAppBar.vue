@@ -42,16 +42,20 @@ const BASEMAP_OPTIONS = [
 ]
 
 function handleBack() {
-  // Edit mode lands on the 'details' step; the only sub-step it can drill into
-  // is 'gauge' (Change/Add gauge). It must NOT walk backward through the create
-  // wizard's putin/takeout steps (issue #308).
+  // Edit mode lands on the 'details' step (the "Edit run" screen). Sub-steps
+  // it can enter: 'gauge' (Change/Add gauge) and putin/takeout via the
+  // "Reset flow line" action. Back never walks the create-wizard sequence
+  // (issue #308) — it cancels back to the edit screen.
   if (store.mode === 'edit') {
     if (store.step === 'details') {
       // Leave the editor the way the browser back button would.
       if (import.meta.client && window.history.state?.back) router.back()
       else router.push('/my/runs')
+    } else if (store.step === 'putin' || store.step === 'takeout') {
+      // Mid flow-line reset — cancel and restore the previous geometry.
+      store.cancelFlowLineReset()
     } else {
-      // Drilled into the gauge sub-step — return to the run details.
+      // Gauge sub-step — return to the edit screen.
       store.goDetails()
     }
     return

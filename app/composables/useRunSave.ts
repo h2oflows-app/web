@@ -1,26 +1,30 @@
 /**
  * useRunSave — create a run from the wizard store.
  *
- * Mirrors UserRunAuthor.vue's submit() create path exactly:
- *   1. POST /api/v1/me/reaches[?as=h2oflows]
- *   2. POST /api/v1/me/runs/{slug}/centerline[?as=h2oflows]  (skip if no centerline)
- *   3. PUT  /api/v1/me/runs/{slug}/gauge[?as=h2oflows]       (skip if no gauge)
+ * Mirrors the wizard create path:
+ *   1. POST /api/v1/me/reaches[?as={handle}]
+ *   2. POST /api/v1/me/runs/{slug}/centerline[?as={handle}]  (skip if no centerline)
+ *   3. PUT  /api/v1/me/runs/{slug}/gauge[?as={handle}]       (skip if no gauge)
  *
- * Returns { slug, asH2oflows } on success.
+ * ?as={handle} authors the run as a special (org) account the caller has role
+ * membership on — the server enforces membership; this composable no longer
+ * gates it client-side (generalized from the h2oflows-only admin toggle, #314).
+ *
+ * Returns { slug, authorAs } on success.
  */
 import { ref } from 'vue'
 import { useRunWizardStore } from '~/stores/runWizard'
 
 export function useRunSave() {
   const store = useRunWizardStore()
-  const { getToken, isDataAdmin } = useAuth()
+  const { getToken } = useAuth()
   const { apiBase } = useRuntimeConfig().public
   const toast = useToast()
 
   const saving = ref(false)
   const error = ref<string | null>(null)
 
-  async function save(authorAsH2oflows: boolean = false): Promise<{ slug: string; asH2oflows: boolean } | null> {
+  async function save(authorAs: string | null = null): Promise<{ slug: string; authorAs: string | null } | null> {
     if (!store.name.trim() || !store.upComID || !store.downComID || !store.putIn || !store.takeOut) {
       toast.add({ title: 'Missing required fields', description: 'Name, put-in, and take-out are required.', color: 'error' })
       return null
@@ -34,10 +38,7 @@ export function useRunSave() {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
       if (token) headers.Authorization = `Bearer ${token}`
 
-      // ?as=h2oflows: replicate UserRunAuthor's data-admin gate.
-      // Only when user is a data admin AND the toggle is on.
-      const authoredAsH2oflows = isDataAdmin.value && authorAsH2oflows
-      const asQuery = authoredAsH2oflows ? '?as=h2oflows' : ''
+      const asQuery = authorAs ? `?as=${encodeURIComponent(authorAs)}` : ''
 
       // ── Step 1: create the reach ─────────────────────────────────────────
       const body: Record<string, any> = {
@@ -116,9 +117,9 @@ export function useRunSave() {
 
       // Stash for SavedOverlay
       store.savedSlug = slug
-      store.savedAsH2oflows = authoredAsH2oflows
+      store.savedAuthorAs = authorAs
 
-      return { slug, asH2oflows: authoredAsH2oflows }
+      return { slug, authorAs }
     } catch (e: any) {
       error.value = e.message ?? 'Failed to create run.'
       toast.add({ title: 'Failed to create run', description: error.value ?? undefined, color: 'error' })

@@ -115,14 +115,12 @@ onMounted(() => { void loadMyProfile() })
 
 // The run VIEW page is /runs/{handle}/{slug}. ( /my/runs/{slug} is the EDITOR —
 // navigating there re-enters the wizard, so never use it for "View run". )
-//   - admin-as-h2oflows → handle 'h2oflows'
-//   - edit              → the run's author handle (loaded into the store)
-//   - create            → the current user's handle
+//   - create-as-{handle} → the picked authorable-account handle
+//   - edit                → the run's author handle (loaded into the store)
+//   - create (myself)     → the current user's handle
 const viewRunPath = computed(() => {
   if (!store.savedSlug) return '/my/runs'
-  const handle = store.savedAsH2oflows
-    ? 'h2oflows'
-    : (store.authorHandle || myHandle.value || 'h2oflows')
+  const handle = store.savedAuthorAs || store.authorHandle || myHandle.value || 'h2oflows'
   return `/runs/${handle}/${store.savedSlug}`
 })
 </script>

@@ -4,8 +4,8 @@
 
     <!-- Header -->
     <div class="flex flex-col gap-1">
-      <p class="text-[10px] font-bold tracking-widest text-[--ui-text-muted] uppercase">DETAILS · Step 4 of 4</p>
-      <h2 class="text-xl font-bold text-[--ui-text-highlighted]" style="font-family: var(--font-heading, inherit)">Run details</h2>
+      <p class="text-[10px] font-bold tracking-widest text-[--ui-text-muted] uppercase">{{ store.mode === 'edit' ? 'EDIT RUN' : 'DETAILS · Step 4 of 4' }}</p>
+      <h2 class="text-xl font-bold text-[--ui-text-highlighted]" style="font-family: var(--font-heading, inherit)">{{ store.mode === 'edit' ? 'Edit run' : 'Run details' }}</h2>
     </div>
 
     <!-- Summary row (difficulty dot + distance) -->
@@ -21,6 +21,16 @@
       <span class="flex-1 truncate text-sm text-[--ui-text-muted]">
         {{ store.distanceMi > 0 ? store.distanceMi.toFixed(1) + ' mi' : '—' }}
       </span>
+      <!-- Edit mode: re-pin the geometry from step 1, everything else preserved.
+           Back during the re-pin cancels and restores the current line. -->
+      <UButton
+        v-if="store.mode === 'edit'"
+        size="xs"
+        variant="ghost"
+        color="neutral"
+        icon="i-heroicons-arrow-path"
+        @click="store.startFlowLineReset()"
+      >Reset flow line</UButton>
     </div>
 
     <!-- Run name -->
@@ -141,14 +151,33 @@
     <!-- Advanced edit panel (edit mode only) -->
     <AdvancedEditPanel v-if="store.mode === 'edit'" ref="advancedPanelRef" />
 
-    <!-- Admin: publish as h2oflows -->
-    <label
-      v-if="isDataAdmin"
-      class="flex items-center gap-2 rounded-md border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-200 cursor-pointer"
+    <!-- Create-as picker (create mode only) — special/org accounts the user has role access to -->
+    <div
+      v-if="store.mode === 'create' && authorableAccounts.length > 0"
+      class="flex flex-col gap-2 rounded-md border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900/40 px-3 py-2.5"
     >
-      <input v-model="authorAsH2oflows" type="checkbox" class="rounded border-amber-400" />
-      <span>Publish as <strong>h2oflows</strong> (official curator content — public)</span>
-    </label>
+      <span class="text-xs font-medium text-[--ui-text-muted]">Create as</span>
+      <div class="flex gap-1.5 flex-wrap">
+        <button
+          type="button"
+          class="px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors"
+          :class="authorAs === null
+            ? 'bg-primary-500 border-primary-500 text-white'
+            : 'bg-transparent border-neutral-300 dark:border-neutral-600 text-neutral-600 dark:text-neutral-300'"
+          @click="authorAs = null"
+        >Myself</button>
+        <button
+          v-for="acct in authorableAccounts"
+          :key="acct.owner_id"
+          type="button"
+          class="px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors"
+          :class="authorAs === acct.handle
+            ? 'bg-primary-500 border-primary-500 text-white'
+            : 'bg-transparent border-neutral-300 dark:border-neutral-600 text-neutral-600 dark:text-neutral-300'"
+          @click="authorAs = acct.handle"
+        >@{{ acct.handle }}</button>
+      </div>
+    </div>
 
     <!-- Dupe warning — geometry overlap detected (V21); blocks submit until dismissed -->
     <div
@@ -159,16 +188,13 @@
         Similar run{{ dupeRuns.length !== 1 ? 's' : '' }} already exist on this section:
       </p>
       <div v-for="run in dupeRuns.slice(0, 3)" :key="run.id" class="flex items-center gap-2 text-xs">
-        <svg v-if="run.is_official" class="w-3 h-3 text-primary-500 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-        </svg>
-        <span class="w-2 h-2 rounded-full bg-neutral-400 shrink-0" v-else />
+        <span class="w-2 h-2 rounded-full bg-neutral-400 shrink-0" />
         <span class="font-medium text-amber-800 dark:text-amber-200 truncate flex-1">{{ run.name }}</span>
         <span v-if="run.class_min != null || run.class_max != null" class="text-amber-600 dark:text-amber-400 shrink-0 font-mono text-[11px]">
           {{ classRange(run.class_min, run.class_max) }}
         </span>
         <span class="text-amber-600 dark:text-amber-400 shrink-0">
-          {{ run.is_official ? 'H2OFlows' : (run.author_handle ? `@${run.author_handle}` : '') }}
+          @{{ run.author_handle ?? 'h2oflows' }}
         </span>
         <NuxtLink
           :to="`/runs/${run.author_handle ?? 'h2oflows'}/${run.slug}`"
@@ -226,7 +252,8 @@ import { featureListPin } from '~/utils/featureIcons'
 import type { FlowBands } from '~/utils/flowBand'
 
 const store = useRunWizardStore()
-const { isDataAdmin } = useAuth()
+const { getToken } = useAuth()
+const { apiBase } = useRuntimeConfig().public
 const { save, saveEdit, saving } = useRunSave()
 
 // Create-mode validation (dupe geometry + name conflict). Fresh per mount — re-created
@@ -241,10 +268,25 @@ const {
 } = useCreateRunValidation()
 
 const showNotes = ref(false)
-// Editing an existing @h2oflows run as admin → the box reflects that it's already
-// official-curator content (authorHandle is prefilled before this step mounts).
-const authorAsH2oflows = ref(store.mode === 'edit' && store.authorHandle === 'h2oflows')
 const advancedPanelRef = ref<{ slugAvailability: Ref<string> } | null>(null)
+
+// ── Create-as picker (issue #314) — special (org) accounts the user may author as ──
+interface AuthorableAccount { owner_id: string; handle: string; display_name: string }
+const authorableAccounts = ref<AuthorableAccount[]>([])
+// null = create as myself (default). Never used in edit mode — no picker there.
+const authorAs = ref<string | null>(null)
+
+async function loadAuthorableAccounts() {
+  if (store.mode !== 'create') return
+  try {
+    const token = await getToken()
+    if (!token) return
+    const res = await fetch(`${apiBase}/api/v1/me/authorable-accounts`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) authorableAccounts.value = await res.json() ?? []
+  } catch { /* non-fatal */ }
+}
 
 // Chip definitions: value, label
 const CLASS_CHIPS = [
@@ -295,6 +337,8 @@ onMounted(() => {
   if (store.mode === 'create' && store.putIn && store.takeOut) {
     checkDupes()
   }
+
+  loadAuthorableAccounts()
 })
 
 // Propagate FlowBandEditor edits → store
@@ -302,7 +346,7 @@ watch(effectiveFlowBands, (v) => { store.flowBands = v }, { deep: true })
 
 // Shared inner create path (called by handleCreate and "Save anyway")
 async function proceedCreate() {
-  const result = await save(authorAsH2oflows.value)
+  const result = await save(authorAs.value)
   if (result) {
     store.goSaved()
   }

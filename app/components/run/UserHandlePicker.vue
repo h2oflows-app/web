@@ -48,7 +48,6 @@
           @click="pick('h2oflows')"
         >
           <span class="text-primary-500 font-medium">@h2oflows</span>
-          <span class="text-neutral-400 text-[10px]">official</span>
         </button>
         <button
           v-for="h in suggestions"

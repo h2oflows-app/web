@@ -1,5 +1,6 @@
 <template>
-  <div class="flex gap-1.5 px-1">
+  <!-- Hidden in edit mode: editing is not a 4-step march (#317 follow-up) -->
+  <div v-if="store.mode !== 'edit'" class="flex gap-1.5 px-1">
     <div
       v-for="n in 4"
       :key="n"
