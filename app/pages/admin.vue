@@ -32,37 +32,35 @@
             :class="activeTab === tab.key
               ? 'border-primary-500 text-primary-600 dark:text-primary-400'
               : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
-            @click="activeTab = tab.key; if (tab.key === 'corrections') loadCorrections(); if (tab.key === 'gauges' && adminGauges.length === 0) loadAdminGauges(); if (tab.key === 'flags') loadFlags(); if (tab.key === 'overrides') loadOverrideQueue()"
+            @click="activateTab(tab.key)"
           >{{ tab.label }}</button>
         </div>
 
-        <!-- Corrections tab -->
-        <div v-if="activeTab === 'corrections'">
-          <div v-if="correctionsLoading" class="space-y-2">
-            <div v-for="i in 3" :key="i" class="h-16 rounded-lg bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
-          </div>
-          <div v-else-if="corrections.length === 0" class="px-4 py-10 text-center text-sm text-neutral-400">
-            No pending corrections
-          </div>
-          <div v-else class="divide-y divide-neutral-100 dark:divide-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-            <div
-              v-for="c in corrections" :key="c.id"
-              class="flex items-start gap-3 px-4 py-3 bg-white dark:bg-neutral-900"
-            >
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100">{{ c.river_name }}</p>
-                <p class="text-xs text-neutral-400 mt-0.5">
-                  <span class="font-mono text-primary-500">{{ c.field }}</span> →
-                  <span class="font-semibold text-neutral-700 dark:text-neutral-200">{{ c.proposed_value }}</span>
-                  <span class="ml-1 text-neutral-300 dark:text-neutral-600">current: {{ c.field === 'basin' ? (c.river_basin ?? '—') : (c.river_state ?? '—') }}</span>
-                </p>
-                <p v-if="c.note" class="text-xs text-neutral-400 mt-0.5 italic">"{{ c.note }}"</p>
-                <p class="text-xs text-neutral-300 dark:text-neutral-600 mt-0.5">by {{ c.proposed_by.slice(0, 8) }}… · {{ relativeDate(c.created_at) }}</p>
-              </div>
-              <div class="flex items-center gap-1.5 shrink-0">
-                <UButton size="xs" color="primary" :loading="reviewingId === c.id" @click="reviewCorrection(c.id, 'accept')">Accept</UButton>
-                <UButton size="xs" variant="ghost" color="neutral" :loading="reviewingId === c.id" @click="reviewCorrection(c.id, 'reject')">Reject</UButton>
-              </div>
+        <!-- Users & Roles tab -->
+        <div v-if="activeTab === 'users'" class="grid grid-cols-1 md:grid-cols-[312px_1fr] gap-4 items-start">
+          <AdminUserRail v-model:selection="usersSelection" @new-special-user="newSpecialUserOpen = true" />
+
+          <div class="min-w-0">
+            <SpecialUserDetail
+              v-if="usersSelection?.kind === 'special' && selectedSpecialUser"
+              :special-user="selectedSpecialUser"
+              @add-member="openAddMember"
+              @deleted="onSpecialUserDeleted"
+            />
+            <RoleDetail
+              v-else-if="usersSelection?.kind === 'role' && selectedRole"
+              :role="selectedRole"
+              @add-member="openAddMember"
+            />
+            <UserDetail
+              v-else-if="usersSelection?.kind === 'user'"
+              :owner-id="usersSelection.ownerId"
+            />
+            <div v-else-if="specialUsersLoading" class="rounded-lg border border-neutral-200 dark:border-neutral-700 p-10 text-center text-sm text-neutral-400">
+              Loading…
+            </div>
+            <div v-else class="rounded-lg border border-dashed border-neutral-200 dark:border-neutral-700 p-10 text-center text-sm text-neutral-400">
+              Select a role or user from the list.
             </div>
           </div>
         </div>
@@ -183,38 +181,6 @@
           </div>
         </div>
 
-        <!-- Users tab (site admin only) -->
-        <div v-if="activeTab === 'users'">
-          <div class="flex items-center justify-between mb-4">
-            <p class="text-sm text-neutral-500">Role assignments</p>
-            <UButton size="xs" icon="i-heroicons-plus" @click="assignRoleOpen = true">Assign role</UButton>
-          </div>
-
-          <div v-if="rolesLoading" class="space-y-2">
-            <div v-for="i in 3" :key="i" class="h-12 rounded-lg bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
-          </div>
-
-          <div v-else class="divide-y divide-neutral-100 dark:divide-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-            <div
-              v-for="ur in userRoles" :key="ur.id"
-              class="flex items-center gap-3 px-4 py-3 bg-white dark:bg-neutral-900"
-            >
-              <div class="flex-1 min-w-0">
-                <p class="text-xs font-mono text-neutral-500 truncate">{{ ur.user_id }}</p>
-                <p class="text-xs text-neutral-400">
-                  <span class="font-medium text-neutral-700 dark:text-neutral-300">{{ ur.role }}</span>
-                  <template v-if="ur.river_name"> · {{ ur.river_name }}</template>
-                </p>
-              </div>
-              <button
-                class="text-xs text-red-400 hover:text-red-600 transition-colors shrink-0 px-2 py-1 rounded"
-                @click="revokeRole(ur.id)"
-              >Revoke</button>
-            </div>
-            <div v-if="userRoles.length === 0" class="px-4 py-8 text-center text-sm text-neutral-400">No role assignments</div>
-          </div>
-        </div>
-
         <!-- Flags tab -->
         <div v-if="activeTab === 'flags'">
           <div class="flex items-center justify-between mb-4">
@@ -279,126 +245,20 @@
             </div>
           </div>
         </div>
-
-        <!-- Override Queue tab -->
-        <div v-if="activeTab === 'overrides'">
-          <div class="flex items-center justify-between mb-4">
-            <p class="text-sm text-neutral-500">Reaches with 2+ user flow band overrides</p>
-            <button class="text-xs text-neutral-400 hover:text-neutral-600 transition-colors" @click="loadOverrideQueue">Refresh</button>
-          </div>
-
-          <div v-if="overrideQueueLoading" class="space-y-2">
-            <div v-for="i in 4" :key="i" class="h-14 rounded-lg bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
-          </div>
-
-          <div v-else-if="overrideQueue.length === 0" class="py-10 text-center text-sm text-neutral-400">
-            No reaches with multiple overrides yet.
-          </div>
-
-          <div v-else class="divide-y divide-neutral-100 dark:divide-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
-            <div
-              v-for="row in overrideQueue"
-              :key="row.reach_id"
-              class="px-4 py-3 bg-white dark:bg-neutral-900 space-y-2"
-            >
-              <!-- Header row -->
-              <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <NuxtLink
-                      :to="`/runs/h2oflows/${row.slug}`"
-                      class="text-sm font-semibold text-primary-600 dark:text-primary-400 hover:underline"
-                      target="_blank"
-                    >{{ row.name }}</NuxtLink>
-                    <span class="text-xs text-neutral-400">{{ row.river_name }}</span>
-                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300">
-                      {{ row.override_count }} overrides
-                    </span>
-                  </div>
-                </div>
-                <button
-                  class="shrink-0 px-3 py-1 rounded-lg text-xs font-semibold bg-primary-600 hover:bg-primary-700 text-white disabled:opacity-40 transition-colors"
-                  :disabled="overrideApplyingSlug === row.slug"
-                  @click="applyOverrideMedian(row.slug)"
-                >
-                  <span v-if="overrideApplyingSlug === row.slug" class="flex items-center gap-1">
-                    <span class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  </span>
-                  <span v-else>Apply median</span>
-                </button>
-              </div>
-
-              <!-- Comparison grid -->
-              <div class="grid grid-cols-4 gap-2 text-xs">
-                <div>
-                  <div class="text-[10px] uppercase tracking-wide text-neutral-400 mb-0.5">Too Low max</div>
-                  <div class="font-mono">
-                    <span class="text-neutral-700 dark:text-neutral-200">{{ row.median_low_max != null ? row.median_low_max.toFixed(0) : '—' }}</span>
-                    <span class="text-neutral-400 ml-1">({{ row.canonical_low_max != null ? row.canonical_low_max.toFixed(0) : '—' }})</span>
-                  </div>
-                </div>
-                <div>
-                  <div class="text-[10px] uppercase tracking-wide text-neutral-400 mb-0.5">Running min</div>
-                  <div class="font-mono">
-                    <span class="text-neutral-700 dark:text-neutral-200">{{ row.median_running_min != null ? row.median_running_min.toFixed(0) : '—' }}</span>
-                    <span class="text-neutral-400 ml-1">({{ row.canonical_running_min != null ? row.canonical_running_min.toFixed(0) : '—' }})</span>
-                  </div>
-                </div>
-                <div>
-                  <div class="text-[10px] uppercase tracking-wide text-neutral-400 mb-0.5">Running max</div>
-                  <div class="font-mono">
-                    <span class="text-neutral-700 dark:text-neutral-200">{{ row.median_running_max != null ? row.median_running_max.toFixed(0) : '—' }}</span>
-                    <span class="text-neutral-400 ml-1">({{ row.canonical_running_max != null ? row.canonical_running_max.toFixed(0) : '—' }})</span>
-                  </div>
-                </div>
-                <div>
-                  <div class="text-[10px] uppercase tracking-wide text-neutral-400 mb-0.5">High min</div>
-                  <div class="font-mono">
-                    <span class="text-neutral-700 dark:text-neutral-200">{{ row.median_high_min != null ? row.median_high_min.toFixed(0) : '—' }}</span>
-                    <span class="text-neutral-400 ml-1">({{ row.canonical_high_min != null ? row.canonical_high_min.toFixed(0) : '—' }})</span>
-                  </div>
-                </div>
-              </div>
-              <p class="text-[10px] text-neutral-400">Median (canonical) — applying writes median values to canonical flow_ranges</p>
-            </div>
-          </div>
-        </div>
       </template>
     </main>
 
-    <!-- Assign role modal -->
-    <UModal v-model:open="assignRoleOpen" title="Assign role">
-      <template #body>
-        <div class="space-y-3">
-          <UFormField label="User ID (Supabase UUID)">
-            <UInput v-model="newRole.user_id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
-          </UFormField>
-          <UFormField label="Role">
-            <select v-model="newRole.role" class="w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm">
-              <option value="data_admin">data_admin</option>
-              <option value="site_admin">site_admin</option>
-            </select>
-          </UFormField>
-          <UFormField label="River (optional — leave blank for global)">
-            <select v-model="newRole.river_id" class="w-full rounded-md border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm">
-              <option value="">Global (all rivers)</option>
-              <option v-for="r in rivers" :key="r.id" :value="r.id">{{ r.name }}</option>
-            </select>
-          </UFormField>
-        </div>
-      </template>
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton variant="ghost" color="neutral" @click="assignRoleOpen = false">Cancel</UButton>
-          <UButton :loading="assignLoading" @click="assignRole">Assign</UButton>
-        </div>
-      </template>
-    </UModal>
+    <!-- New special user modal -->
+    <NewSpecialUserModal v-model:open="newSpecialUserOpen" @created="onSpecialUserCreated" />
+
+    <!-- Add member modal (shared: special-user members + role members) -->
+    <AddMemberModal v-model:open="addMemberOpen" :role-name="addMemberRoleName" :exclude-ids="addMemberExcludeIds" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useAdminUsersRoles, type AdminSelection, type SpecialUser, type Role } from '~/composables/useAdminUsersRoles'
 
 definePageMeta({ ssr: false })
 
@@ -410,101 +270,15 @@ const authReady = ref(false)
 onMounted(async () => {
   await loadAdminRoles()
   authReady.value = true
-  if (isDataAdmin.value) {
-    loadRivers()
-    loadPendingCount()
-    if (isAdmin.value) loadUserRoles()
-  }
+  if (isDataAdmin.value) applyDefaultTab()
 })
-
-async function loadPendingCount() {
-  const token = await getToken()
-  const res = await fetch(`${apiBase}/api/v1/admin/river-corrections?status=pending`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (res.ok) {
-    const data = await res.json()
-    pendingCorrectionsCount.value = Array.isArray(data) ? data.length : 0
-  }
-}
 
 // Hard-refresh race: Supabase restores the session asynchronously, so
 // user.value may be null when onMounted runs. Once isDataAdmin flips to
-// true we trigger a load if rivers haven't been fetched yet.
+// true we trigger the default-tab load if it hasn't happened yet.
 watch(isDataAdmin, (val) => {
-  if (val && authReady.value && !riversLoading.value && rivers.value.length === 0) {
-    loadRivers()
-    loadPendingCount()
-    if (isAdmin.value) loadUserRoles()
-  }
+  if (val && authReady.value) applyDefaultTab()
 })
-
-// ── Tabs ──────────────────────────────────────────────────────────────────────
-const activeTab = ref('corrections')
-const visibleTabs = computed(() => {
-  // Rivers tab retired: basin/state overrides are now per-user (see /me/basin-overrides).
-  const tabs: { key: string; label: string }[] = []
-  tabs.push({ key: 'corrections', label: pendingCorrectionsCount.value > 0 ? `Needs Review (${pendingCorrectionsCount.value})` : 'Needs Review' })
-  tabs.push({ key: 'gauges', label: 'Gauges' })
-  if (isAdmin.value) tabs.push({ key: 'users', label: 'Users' })
-  tabs.push({ key: 'flags', label: openFlagCount.value > 0 ? `Flags (${openFlagCount.value})` : 'Flags' })
-  tabs.push({ key: 'overrides', label: overrideQueue.value.length > 0 ? `Override Queue (${overrideQueue.value.length})` : 'Override Queue' })
-  return tabs
-})
-
-// ── Rivers (minimal — kept only for assign-role modal dropdown) ───────────────
-interface River { id: string; slug: string; name: string; gnis_id: string | null; basin: string | null; state_abbr: string | null; huc8: string | null; reach_count: number; gauges_degraded: number; gauges_stale: number; gauges_unreachable: number }
-
-const rivers = ref<River[]>([])
-
-async function loadRivers() {
-  const token = await getToken()
-  if (!token) return
-  const res = await fetch(`${apiBase}/api/v1/admin/rivers`, { headers: { Authorization: `Bearer ${token}` } })
-  if (res.ok) rivers.value = await res.json()
-}
-
-// ── River corrections ─────────────────────────────────────────────────────────
-interface RiverCorrection {
-  id: string; river_slug: string; river_name: string; river_state: string | null; river_basin: string | null
-  proposed_by: string; field: string; proposed_value: string; note: string | null; created_at: string
-}
-
-const corrections = ref<RiverCorrection[]>([])
-const correctionsLoading = ref(false)
-const pendingCorrectionsCount = ref(0)
-const reviewingId = ref<string | null>(null)
-
-async function loadCorrections() {
-  correctionsLoading.value = true
-  try {
-    const token = await getToken()
-    const res = await fetch(`${apiBase}/api/v1/admin/river-corrections?status=pending`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (res.ok) { corrections.value = await res.json() }
-  } finally {
-    correctionsLoading.value = false
-  }
-}
-
-async function reviewCorrection(id: string, action: 'accept' | 'reject') {
-  reviewingId.value = id
-  try {
-    const token = await getToken()
-    await fetch(`${apiBase}/api/v1/admin/river-corrections/${id}`, {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action }),
-    })
-    corrections.value = corrections.value.filter(c => c.id !== id)
-    pendingCorrectionsCount.value = Math.max(0, pendingCorrectionsCount.value - 1)
-    if (action === 'accept') loadRivers()
-  } finally {
-    reviewingId.value = null
-  }
-}
-
 
 function relativeDate(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime()
@@ -516,60 +290,80 @@ function relativeDate(iso: string): string {
   return `${Math.floor(h / 24)}d ago`
 }
 
-// ── User Roles ────────────────────────────────────────────────────────────────
-interface UserRole { id: string; user_id: string; role: string; river_id: string | null; river_name: string | null }
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+const activeTab = ref('gauges')
+let defaultTabApplied = false
 
-const userRoles = ref<UserRole[]>([])
-const rolesLoading = ref(false)
-
-async function loadUserRoles() {
-  rolesLoading.value = true
-  const token = await getToken()
-  if (!token) { rolesLoading.value = false; return }
-  try {
-    const res = await fetch(`${apiBase}/api/v1/admin/users/roles`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (res.ok) userRoles.value = await res.json()
-  } finally {
-    rolesLoading.value = false
-  }
+function applyDefaultTab() {
+  if (defaultTabApplied) return
+  defaultTabApplied = true
+  activateTab(isAdmin.value ? 'users' : 'gauges')
 }
 
-async function revokeRole(id: string) {
-  const token = await getToken()
-  await fetch(`${apiBase}/api/v1/admin/users/roles/${id}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  loadUserRoles()
+function activateTab(key: string) {
+  activeTab.value = key
+  // Always refresh Users & Roles on tab entry: the composable state is
+  // module-scoped and survives soft navigation — including a loaded-but-
+  // failed state — so gating on specialUsersLoaded left the tab empty after
+  // a client-side nav until a hard refresh reset module state.
+  if (key === 'users') loadUsersRolesTab()
+  if (key === 'gauges' && adminGauges.value.length === 0) loadAdminGauges()
+  if (key === 'flags') loadFlags()
 }
 
-const assignRoleOpen = ref(false)
-const assignLoading = ref(false)
-const newRole = ref({ user_id: '', role: 'data_admin', river_id: '' })
+const visibleTabs = computed(() => {
+  const tabs: { key: string; label: string }[] = []
+  if (isAdmin.value) tabs.push({ key: 'users', label: 'Users & Roles' })
+  tabs.push({ key: 'gauges', label: 'Gauges' })
+  tabs.push({ key: 'flags', label: openFlagCount.value > 0 ? `Flags (${openFlagCount.value})` : 'Flags' })
+  return tabs
+})
 
-async function assignRole() {
-  assignLoading.value = true
-  const token = await getToken()
-  try {
-    const res = await fetch(`${apiBase}/api/v1/admin/users/roles`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id: newRole.value.user_id,
-        role: newRole.value.role,
-        river_id: newRole.value.river_id || null,
-      }),
-    })
-    if (res.ok) {
-      assignRoleOpen.value = false
-      newRole.value = { user_id: '', role: 'data_admin', river_id: '' }
-      loadUserRoles()
-    }
-  } finally {
-    assignLoading.value = false
-  }
+// ── Users & Roles ──────────────────────────────────────────────────────────────
+const {
+  specialUsers, specialUsersLoading, loadSpecialUsers,
+  roles, loadRoles,
+} = useAdminUsersRoles()
+
+const usersSelection = ref<AdminSelection | null>(null)
+
+const selectedSpecialUser = computed<SpecialUser | null>(() => {
+  if (usersSelection.value?.kind !== 'special') return null
+  const sel = usersSelection.value
+  return specialUsers.value.find(u => u.id === sel.id) ?? null
+})
+
+const selectedRole = computed<Role | null>(() => {
+  if (usersSelection.value?.kind !== 'role') return null
+  const sel = usersSelection.value
+  return roles.value.find(r => r.name === sel.name) ?? null
+})
+
+async function loadUsersRolesTab() {
+  await Promise.all([loadSpecialUsers(), loadRoles()])
+}
+
+// No default selection — the tab opens as a plain list of roles & users
+// (auto-selecting h2oflows dropped an unexplained info card on the user; the
+// list-first view matches the tab's name). Detail renders on click.
+
+function onSpecialUserDeleted() {
+  usersSelection.value = null
+}
+
+const newSpecialUserOpen = ref(false)
+function onSpecialUserCreated(id: string) {
+  newSpecialUserOpen.value = false
+  usersSelection.value = { kind: 'special', id }
+}
+
+const addMemberOpen = ref(false)
+const addMemberRoleName = ref('')
+const addMemberExcludeIds = ref<string[]>([])
+function openAddMember(roleName: string, excludeIds: string[]) {
+  addMemberRoleName.value = roleName
+  addMemberExcludeIds.value = excludeIds
+  addMemberOpen.value = true
 }
 
 // ── Admin gauges ──────────────────────────────────────────────────────────────
@@ -724,60 +518,4 @@ async function resolveFlag(flagId: string, action: 'dismiss' | 'action') {
   })
   flags.value = flags.value.filter(f => f.id !== flagId)
 }
-
-// ── Flow Band Override Queue ──────────────────────────────────────────────────
-
-interface OverrideQueueRow {
-  reach_id: string
-  slug: string
-  name: string
-  river_name: string | null
-  override_count: number
-  median_low_max: number | null
-  median_running_min: number | null
-  median_running_max: number | null
-  median_high_min: number | null
-  canonical_low_max: number | null
-  canonical_running_min: number | null
-  canonical_running_max: number | null
-  canonical_high_min: number | null
-}
-
-const overrideQueue = ref<OverrideQueueRow[]>([])
-const overrideQueueLoading = ref(false)
-const overrideApplyingSlug = ref<string | null>(null)
-
-async function loadOverrideQueue() {
-  overrideQueueLoading.value = true
-  try {
-    const token = await getToken()
-    const res = await fetch(`${apiBase}/api/v1/admin/reaches/flow-band-override-queue`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-    if (res.ok) overrideQueue.value = await res.json()
-  } finally {
-    overrideQueueLoading.value = false
-  }
-}
-
-async function applyOverrideMedian(slug: string) {
-  if (!confirm(`Apply median of user overrides to canonical flow bands for "${slug}"? This will update flow_ranges.`)) return
-  overrideApplyingSlug.value = slug
-  try {
-    const token = await getToken()
-    const res = await fetch(`${apiBase}/api/v1/admin/reaches/${slug}/apply-override-median`, {
-      method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-    if (res.ok) {
-      await loadOverrideQueue()
-    } else {
-      const d = await res.json().catch(() => ({}))
-      alert(d.error ?? `Failed: ${res.status}`)
-    }
-  } finally {
-    overrideApplyingSlug.value = null
-  }
-}
-
 </script>
