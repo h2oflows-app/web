@@ -162,6 +162,14 @@ export function useAdminUsersRoles() {
       // before appending so the list holds a clean SpecialUser shape.
       const { api_key: _key, ...su } = data
       specialUsers.value = [...specialUsers.value, su as SpecialUser]
+      // Mirror into the All-users directory (separate list) so the new
+      // account shows there without a refetch.
+      directoryUsers.value = [...directoryUsers.value, {
+        owner_id: su.id, handle: su.handle, display_name: su.display_name,
+        is_special: true, roles: [], run_count: 0,
+        api_key_last4: su.api_key_last4, usage_hour: 0,
+        rate_limit: su.rate_limit, created_at: su.created_at,
+      } as DirectoryUser]
       return data
     } catch {
       return { error: 'Network error' }
@@ -194,6 +202,10 @@ export function useAdminUsersRoles() {
         return { ok: false, error: data.error ?? `Failed: ${res.status}` }
       }
       specialUsers.value = specialUsers.value.filter(u => u.id !== ownerId)
+      // Keep the All-users directory in sync (separate list — a deleted
+      // account lingered there until a page refresh).
+      directoryUsers.value = directoryUsers.value.filter(u => u.owner_id !== ownerId)
+      if (selectedDirectoryUser.value?.owner_id === ownerId) selectedDirectoryUser.value = null
       return { ok: true }
     } catch {
       return { ok: false, error: 'Network error' }
