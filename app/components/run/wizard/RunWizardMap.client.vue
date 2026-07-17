@@ -235,6 +235,55 @@ function makeFeaturePinEl(f: RunFeature): HTMLElement {
   return wrap
 }
 
+// Render the edit-mode geometry (put-in/take-out markers + trimmed run
+// centerline) from prefilled store state. IDEMPOTENT — reuses markers and can
+// run any number of times. Driven both from map load AND from a reactive
+// watcher, because on client-side navigation the map often finishes loading
+// BEFORE loadEditRun populates the store, so a load-only render silently
+// missed the flow line (feature pins escaped this via their own watchers).
+let editGeometryFitDone = false
+function renderEditGeometry() {
+  if (!map || !mapReady.value) return
+  if (store.mode !== 'edit' || !store.putIn || !store.takeOut) return
+
+  putInLngLat = [store.putIn.lng, store.putIn.lat]
+  if (putInMarker) putInMarker.setLngLat(putInLngLat)
+  else {
+    const { marker } = makeStaticMarker('#22c55e', 'Put-in')
+    marker.setLngLat(putInLngLat).addTo(map)
+    putInMarker = marker
+  }
+
+  takeOutLngLat = [store.takeOut.lng, store.takeOut.lat]
+  if (takeOutMarker) takeOutMarker.setLngLat(takeOutLngLat)
+  else {
+    const { marker } = makeStaticMarker('#ef4444', 'Take-out')
+    marker.setLngLat(takeOutLngLat).addTo(map)
+    takeOutMarker = marker
+  }
+
+  if (store.previewCenterline) {
+    const geom = store.previewCenterline as any
+    setSource('wizard-centerline', {
+      type: 'FeatureCollection',
+      features: [geom.type === 'Feature' ? geom : { type: 'Feature', geometry: geom, properties: {} }],
+    })
+  }
+
+  updateGaugeLayers()
+
+  // Fit to the run extent once (initial edit load). Flow-line reset does its
+  // own fit during the take-out step, so don't re-fit on return to details.
+  if (!editGeometryFitDone) {
+    editGeometryFitDone = true
+    const bounds = [putInLngLat, takeOutLngLat].reduce(
+      (b, c) => b.extend(c),
+      new maplibregl.LngLatBounds(putInLngLat, putInLngLat),
+    )
+    map.fitBounds(bounds, { padding: 80, maxZoom: 14 })
+  }
+}
+
 // Reconcile HTML markers with store.features. Only active in the details step
 // (create + edit feature editor); markers are removed otherwise.
 function syncFeatureMarkers() {
@@ -855,50 +904,7 @@ function initMap() {
     setCursorForStep(store.step)
     syncFeatureMarkers()   // render any prefilled features (edit mode)
     syncRunGaugeMarker()   // render the run's associated gauge (edit mode)
-
-    // Edit mode: render existing geometry from prefilled store state
-    if (store.mode === 'edit' && store.putIn && store.takeOut) {
-      // Place green put-in marker
-      const piLng = store.putIn.lng
-      const piLat = store.putIn.lat
-      putInLngLat = [piLng, piLat]
-      const { marker: piMarker } = makeStaticMarker('#22c55e', 'Put-in')
-      piMarker.setLngLat(putInLngLat).addTo(map)
-      putInMarker = piMarker
-
-      // Place red take-out marker
-      const toLng = store.takeOut.lng
-      const toLat = store.takeOut.lat
-      takeOutLngLat = [toLng, toLat]
-      const { marker: toMarker } = makeStaticMarker('#ef4444', 'Take-out')
-      toMarker.setLngLat(takeOutLngLat).addTo(map)
-      takeOutMarker = toMarker
-
-      // Draw existing centerline
-      if (store.previewCenterline) {
-        const geom = store.previewCenterline as any
-        const fc: GeoJSON.FeatureCollection = {
-          type: 'FeatureCollection',
-          features: [
-            geom.type === 'Feature'
-              ? geom
-              : { type: 'Feature', geometry: geom, properties: {} },
-          ],
-        }
-        setSource('wizard-centerline', fc)
-      }
-
-      // Show gauge dots if gauge is set
-      updateGaugeLayers()
-
-      // Fit map to the run extent
-      const coords: [number, number][] = [putInLngLat, takeOutLngLat]
-      const bounds = coords.reduce(
-        (b, c) => b.extend(c),
-        new maplibregl.LngLatBounds(coords[0]!, coords[0]!)
-      )
-      map.fitBounds(bounds, { padding: 80, maxZoom: 14 })
-    }
+    renderEditGeometry()   // put-in/take-out + centerline + fit (edit mode)
   })
 
   // Map click handler: routes to put-in / take-out pick, or (details step) drops
@@ -1003,6 +1009,17 @@ watch(snap.gauges, (fc) => {
   }
 }, { deep: true })
 
+// Edit-mode geometry is populated by loadEditRun AFTER the component mounts;
+// on client-side nav that often lands after map load. Re-render whenever the
+// prefilled geometry appears (or changes), but only on the edit screen so it
+// doesn't fight the put-in/take-out pick handlers during a flow-line reset.
+watch(
+  [() => store.putIn, () => store.takeOut, () => store.previewCenterline],
+  () => {
+    if (mapReady.value && store.mode === 'edit' && store.step === 'details') renderEditGeometry()
+  },
+)
+
 // React to step changes
 watch(() => store.step, async (step) => {
   if (!mapReady.value) return
@@ -1028,13 +1045,13 @@ watch(() => store.step, async (step) => {
     fitToGaugeStep()
   } else {
     // details / saved — clear the working flowline layers (upstream tribs +
-    // full downstream network) so only the trimmed run centerline shows;
-    // the wizard-centerline layer follows snap.previewCenterline via its
-    // own watcher. Keeps the post-reset edit screen from showing the whole
-    // 800-unit downstream highlight as if the line never trimmed.
+    // full downstream network) so only the trimmed run centerline shows, then
+    // (re)draw the trimmed run centerline + markers from store state. Covers
+    // both the initial edit-screen entry and the return from a flow-line reset.
     setSource('wizard-downstream', empty())
     setSource('wizard-upstream', empty())
     setSource('wizard-upstream-dashed', empty())
+    renderEditGeometry()
     updateGaugeLayers()
     syncRunGaugeMarker()
   }
