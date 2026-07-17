@@ -124,7 +124,7 @@ const filteredRoles = computed(() => {
 const filteredSpecialUsers = computed(() => {
   const q = query.value.trim().toLowerCase()
   if (!q) return specialUsers.value
-  return specialUsers.value.filter(su => (su.display_name ?? '').toLowerCase().includes(q) || su.handle.toLowerCase().includes(q))
+  return specialUsers.value.filter(su => (su.display_name ?? '').toLowerCase().includes(q) || (su.handle ?? '').toLowerCase().includes(q))
 })
 
 function isSelected(kind: AdminSelection['kind'], id: string): boolean {

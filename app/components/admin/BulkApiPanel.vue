@@ -55,7 +55,7 @@
       <div>
         <div class="flex items-center justify-between text-xs mb-1">
           <span class="text-neutral-500">This hour's usage</span>
-          <span class="font-medium text-neutral-700 dark:text-neutral-300 tabular-nums">{{ record.usage_hour }} / {{ record.rate_limit.runs_per_hour }} runs</span>
+          <span class="font-medium text-neutral-700 dark:text-neutral-300 tabular-nums">{{ record.usage_hour }} / {{ record.rate_limit?.runs_per_hour ?? '—' }} runs</span>
         </div>
         <div class="h-2 rounded-full bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
           <div class="h-full rounded-full transition-all" :class="meterClass" :style="{ width: `${meterPct}%` }" />
@@ -98,11 +98,11 @@ const fields: { key: keyof RateLimit; label: string }[] = [
 const draft = reactive<RateLimit>({ runs_per_hour: 0, max_batch: 0, requests_per_minute: 0, concurrent_jobs: 0 })
 
 watch(record, (r) => {
-  if (r) Object.assign(draft, r.rate_limit)
+  if (r?.rate_limit) Object.assign(draft, r.rate_limit)
 }, { immediate: true })
 
 const dirty = computed(() => {
-  if (!record.value) return false
+  if (!record.value?.rate_limit) return false
   return (Object.keys(draft) as (keyof RateLimit)[]).some(k => draft[k] !== record.value!.rate_limit[k])
 })
 
@@ -167,7 +167,7 @@ async function rotate() {
 }
 
 const meterPct = computed(() => {
-  if (!record.value || !record.value.rate_limit.runs_per_hour) return 0
+  if (!record.value?.rate_limit?.runs_per_hour) return 0
   return Math.min(100, Math.round((record.value.usage_hour / record.value.rate_limit.runs_per_hour) * 100))
 })
 const meterClass = computed(() => {

@@ -158,7 +158,10 @@ export function useAdminUsersRoles() {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) return { error: data.error ?? `Failed: ${res.status}` }
-      specialUsers.value = [...specialUsers.value, data]
+      // Response is SpecialUser fields + api_key (shown once) — strip the key
+      // before appending so the list holds a clean SpecialUser shape.
+      const { api_key: _key, ...su } = data
+      specialUsers.value = [...specialUsers.value, su as SpecialUser]
       return data
     } catch {
       return { error: 'Network error' }
