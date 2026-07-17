@@ -193,7 +193,12 @@ function makeStaticMarker(color: string, label: string, animate = false): { el: 
 function makeFeaturePinEl(f: RunFeature): HTMLElement {
   ensureMarkerStyles()
   const wrap = document.createElement('div')
-  wrap.style.cssText = 'position:relative;cursor:pointer;transition:scale 0.15s ease;'
+  // NO position here: MapLibre's .maplibregl-marker class is position:absolute
+  // and positions the pin via a transform relative to the map container.
+  // An inline position:relative overrode that, dropping each pin into normal
+  // flow so extra pins stacked/drifted with zoom. The label/halo children are
+  // position:absolute and anchor to this (absolutely-positioned) wrapper fine.
+  wrap.style.cssText = 'cursor:pointer;transition:scale 0.15s ease;'
 
   const pin = document.createElement('div')
   pin.innerHTML = featureListPin({
