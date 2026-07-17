@@ -134,6 +134,57 @@ export const useRunWizardStore = defineStore('runWizard', () => {
     step.value = 'putin'
   }
 
+  // ── Edit-mode flow-line reset ────────────────────────────────────────────────
+  // "Reset flow line" on the edit screen re-enters the put-in/take-out steps
+  // with everything else (name/class/flows/notes/features/gauge) preserved.
+  // Geometry is snapshotted so Back during the re-pin is a true cancel.
+  const editGeometryBackup = ref<null | {
+    putIn: typeof putIn.value
+    takeOut: typeof takeOut.value
+    upComID: string | null
+    downComID: string | null
+    previewCenterline: object | null
+    distanceMi: number
+    riverName: string
+    gnisId: string
+    geometryDirty: boolean
+  }>(null)
+
+  function startFlowLineReset() {
+    editGeometryBackup.value = {
+      putIn: putIn.value,
+      takeOut: takeOut.value,
+      upComID: upComID.value,
+      downComID: downComID.value,
+      previewCenterline: previewCenterline.value,
+      distanceMi: distanceMi.value,
+      riverName: riverName.value,
+      gnisId: gnisId.value,
+      geometryDirty: geometryDirty.value,
+    }
+    redoPutIn()
+  }
+
+  function cancelFlowLineReset() {
+    const b = editGeometryBackup.value
+    if (b) {
+      putIn.value = b.putIn
+      takeOut.value = b.takeOut
+      upComID.value = b.upComID
+      downComID.value = b.downComID
+      previewCenterline.value = b.previewCenterline
+      distanceMi.value = b.distanceMi
+      riverName.value = b.riverName
+      gnisId.value = b.gnisId
+      geometryDirty.value = b.geometryDirty
+    }
+    editGeometryBackup.value = null
+    step.value = 'details'
+  }
+
+  // New line confirmed — drop the backup (no more cancel path).
+  function finishFlowLineReset() { editGeometryBackup.value = null }
+
   // ── Feature editor actions ──────────────────────────────────────────────────
   function enterFeatureMode() { featureMode.value = 'list'; placingType.value = null }
   function exitFeatureMode() {
@@ -322,6 +373,7 @@ export const useRunWizardStore = defineStore('runWizard', () => {
     originalAuthorHandle.value = null
     originalForkedAt.value = null
     authorHandle.value = null
+    editGeometryBackup.value = null
     features.value = []
     featuresDirty.value = false
     featureMode.value = 'off'
@@ -351,5 +403,6 @@ export const useRunWizardStore = defineStore('runWizard', () => {
     confirmFeature, cancelFeatureForm, removeFeature,
     loadFeaturesFromPayload, featuresToPayload,
     goPutIn, goTakeOut, goGauge, goDetails, goSaved, back, redoPutIn, reset,
+    editGeometryBackup, startFlowLineReset, cancelFlowLineReset, finishFlowLineReset,
   }
 })

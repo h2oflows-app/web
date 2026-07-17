@@ -4,8 +4,8 @@
 
     <!-- Header -->
     <div class="flex flex-col gap-1">
-      <p class="text-[10px] font-bold tracking-widest text-[--ui-text-muted] uppercase">DETAILS · Step 4 of 4</p>
-      <h2 class="text-xl font-bold text-[--ui-text-highlighted]" style="font-family: var(--font-heading, inherit)">Run details</h2>
+      <p class="text-[10px] font-bold tracking-widest text-[--ui-text-muted] uppercase">{{ store.mode === 'edit' ? 'EDIT RUN' : 'DETAILS · Step 4 of 4' }}</p>
+      <h2 class="text-xl font-bold text-[--ui-text-highlighted]" style="font-family: var(--font-heading, inherit)">{{ store.mode === 'edit' ? 'Edit run' : 'Run details' }}</h2>
     </div>
 
     <!-- Summary row (difficulty dot + distance) -->
@@ -21,6 +21,16 @@
       <span class="flex-1 truncate text-sm text-[--ui-text-muted]">
         {{ store.distanceMi > 0 ? store.distanceMi.toFixed(1) + ' mi' : '—' }}
       </span>
+      <!-- Edit mode: re-pin the geometry from step 1, everything else preserved.
+           Back during the re-pin cancels and restores the current line. -->
+      <UButton
+        v-if="store.mode === 'edit'"
+        size="xs"
+        variant="ghost"
+        color="neutral"
+        icon="i-heroicons-arrow-path"
+        @click="store.startFlowLineReset()"
+      >Reset flow line</UButton>
     </div>
 
     <!-- Run name -->

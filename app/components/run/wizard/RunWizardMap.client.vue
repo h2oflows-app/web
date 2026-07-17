@@ -1039,7 +1039,7 @@ watch(() => store.step, async (step) => {
 
 function confirmPutIn() {
   if (!putInLngLat) {
-    toast.add({ title: 'Tap the river to place your put-in', timeout: 3000 })
+    toast.add({ title: 'Tap the river to place your put-in', duration: 3000 })
     return
   }
   store.putIn = {
@@ -1048,7 +1048,7 @@ function confirmPutIn() {
     comid: snap.upComID.value ?? '',
   }
   store.upComID = snap.upComID.value
-  toast.add({ title: 'Click the river downstream to place your take-out', timeout: 3000 })
+  toast.add({ title: 'Click the river downstream to place your take-out', duration: 3000 })
   store.goTakeOut()
 }
 
@@ -1059,7 +1059,15 @@ function confirmTakeOut() {
     lat: takeOutLngLat[1],
     comid: snap.downComID.value ?? snap.upComID.value ?? '',
   }
-  toast.add({ title: 'Run line set.', timeout: 2000 })
+  // Edit mode (flow-line reset): return straight to the edit screen — the
+  // gauge is unchanged and has its own "Change gauge" affordance there.
+  if (store.mode === 'edit') {
+    store.finishFlowLineReset()
+    toast.add({ title: 'Flow line updated — save to keep it.', duration: 3000 })
+    store.goDetails()
+    return
+  }
+  toast.add({ title: 'Run line set.', duration: 2000 })
   store.goGauge()
 }
 
