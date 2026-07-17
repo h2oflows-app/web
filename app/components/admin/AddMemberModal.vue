@@ -19,10 +19,10 @@
             @click="add(u.owner_id)"
           >
             <span class="shrink-0 w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">
-              {{ initials(u.display_name) }}
+              {{ userInitials(u.display_name, u.handle) }}
             </span>
             <span class="flex-1 min-w-0">
-              <span class="block text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">{{ u.display_name }}</span>
+              <span class="block text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">{{ userLabel(u.display_name, u.handle) }}</span>
               <span class="block text-xs text-neutral-400 font-mono truncate">@{{ u.handle }}</span>
             </span>
             <span class="shrink-0 text-xs text-neutral-400">{{ isExcluded(u.owner_id) ? 'Added' : addingId === u.owner_id ? '…' : '+ Add' }}</span>
@@ -40,7 +40,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useAdminUsersRoles, type DirectoryUser } from '~/composables/useAdminUsersRoles'
+import { useAdminUsersRoles, userInitials, userLabel, type DirectoryUser } from '~/composables/useAdminUsersRoles'
 
 const props = defineProps<{
   roleName: string
@@ -64,12 +64,6 @@ function isExcluded(id: string): boolean {
   return props.excludeIds.includes(id) || locallyAdded.value.has(id)
 }
 
-function initials(name: string): string {
-  const parts = (name || '').trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return '?'
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase()
-  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase()
-}
 
 async function search() {
   loading.value = true

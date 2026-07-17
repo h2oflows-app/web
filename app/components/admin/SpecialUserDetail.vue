@@ -11,7 +11,7 @@
 
           <div v-if="!editing" class="min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
-              <h2 class="text-lg font-bold text-neutral-900 dark:text-white truncate">{{ specialUser.display_name }}</h2>
+              <h2 class="text-lg font-bold text-neutral-900 dark:text-white truncate">{{ userLabel(specialUser.display_name, specialUser.handle) }}</h2>
               <span
                 class="shrink-0 text-[10px] font-semibold rounded-full px-2 py-0.5"
                 :class="specialUser.public_on_map
@@ -158,7 +158,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useAdminUsersRoles, type SpecialUser } from '~/composables/useAdminUsersRoles'
+import { useAdminUsersRoles, userLabel, type SpecialUser } from '~/composables/useAdminUsersRoles'
 
 const props = defineProps<{ specialUser: SpecialUser }>()
 const emit = defineEmits<{
@@ -223,7 +223,7 @@ const draftName = ref('')
 const draftHandle = ref('')
 
 function startEdit() {
-  draftName.value = props.specialUser.display_name
+  draftName.value = props.specialUser.display_name ?? ''
   draftHandle.value = props.specialUser.handle
   editing.value = true
 }

@@ -27,7 +27,7 @@ export interface RateLimit {
 export interface SpecialUser {
   id: string
   handle: string
-  display_name: string
+  display_name: string | null
   is_special: true
   public_on_map: boolean
   delete_locked: boolean
@@ -42,7 +42,7 @@ export interface SpecialUser {
 export interface RoleMember {
   user_id: string
   handle: string
-  display_name: string
+  display_name: string | null
   is_bot?: boolean
 }
 
@@ -55,7 +55,7 @@ export interface Role {
 export interface DirectoryUser {
   owner_id: string
   handle: string
-  display_name: string
+  display_name: string | null
   is_special: boolean
   roles: string[]
   run_count: number
@@ -97,6 +97,23 @@ const directoryLoading = ref(false)
 // API is unreachable / doesn't have these endpoints" from a genuinely empty
 // list (a 404 must not render as "no users").
 const loadError = ref<string | null>(null)
+
+// Avatar initials, null-safe. display_name is nullable on the API (*string)
+// — most real users have no display name, only a handle. A raw
+// name.trim() on null threw in the rail template and unmounted the whole
+// list (the "flash then blank" bug). Falls back to the handle.
+export function userInitials(name?: string | null, fallback?: string | null): string {
+  const src = (name ?? '').trim() || (fallback ?? '').trim()
+  if (!src) return '?'
+  const parts = src.split(/\s+/).filter(Boolean)
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase()
+  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase()
+}
+
+// Display label for a possibly-nameless user: display name, else @handle.
+export function userLabel(name?: string | null, handle?: string | null): string {
+  return (name ?? '').trim() || `@${handle ?? 'unknown'}`
+}
 
 // The currently-selected "All users" directory entry — held separately from
 // directoryUsers so it survives the search list changing out from under it.

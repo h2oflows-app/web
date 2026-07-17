@@ -9,11 +9,11 @@
       <div class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4">
         <div class="flex items-center gap-3">
           <span class="shrink-0 w-11 h-11 rounded-full bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-sm font-semibold text-neutral-600 dark:text-neutral-300">
-            {{ initials(du.display_name) }}
+            {{ userInitials(du.display_name, du.handle) }}
           </span>
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2 flex-wrap">
-              <h2 class="text-lg font-bold text-neutral-900 dark:text-white truncate">{{ du.display_name }}</h2>
+              <h2 class="text-lg font-bold text-neutral-900 dark:text-white truncate">{{ userLabel(du.display_name, du.handle) }}</h2>
               <span v-if="du.is_special" class="shrink-0 text-[10px] font-semibold rounded-full px-2 py-0.5 bg-primary-50 dark:bg-primary-950 text-primary-600 dark:text-primary-400">Special account</span>
             </div>
             <p class="text-xs text-neutral-400 mt-0.5">
@@ -69,7 +69,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useAdminUsersRoles, roleLabel } from '~/composables/useAdminUsersRoles'
+import { useAdminUsersRoles, roleLabel, userInitials, userLabel } from '~/composables/useAdminUsersRoles'
 
 const props = defineProps<{ ownerId: string }>()
 
@@ -90,12 +90,6 @@ function hasRole(name: string): boolean {
   return du.value?.roles.includes(name) ?? false
 }
 
-function initials(name: string): string {
-  const parts = (name || '').trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return '?'
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase()
-  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase()
-}
 
 const togglingRole = ref<string | null>(null)
 async function toggleRole(name: string) {

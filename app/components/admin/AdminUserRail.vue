@@ -61,7 +61,7 @@
             <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 21V7l8-4 8 4v14M9 21v-6h6v6M4 21h16"/></svg>
           </span>
           <span class="flex-1 min-w-0">
-            <span class="block text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">{{ su.display_name }}</span>
+            <span class="block text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">{{ userLabel(su.display_name, su.handle) }}</span>
             <span class="block text-xs text-neutral-400 truncate">{{ su.run_count }} runs · {{ su.member_count }} members</span>
           </span>
           <span
@@ -87,10 +87,10 @@
           @click="selectDirectory(du)"
         >
           <span class="shrink-0 w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">
-            {{ initials(du.display_name) }}
+            {{ userInitials(du.display_name, du.handle) }}
           </span>
           <span class="flex-1 min-w-0">
-            <span class="block text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">{{ du.display_name }}</span>
+            <span class="block text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">{{ userLabel(du.display_name, du.handle) }}</span>
             <span class="block text-xs text-neutral-400 font-mono truncate">@{{ du.handle }}</span>
           </span>
         </button>
@@ -101,7 +101,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useAdminUsersRoles, roleLabel, type AdminSelection, type DirectoryUser } from '~/composables/useAdminUsersRoles'
+import { useAdminUsersRoles, roleLabel, userInitials, userLabel, type AdminSelection, type DirectoryUser } from '~/composables/useAdminUsersRoles'
 
 const selection = defineModel<AdminSelection | null>('selection', { default: null })
 const emit = defineEmits<{ 'new-special-user': [] }>()
@@ -124,7 +124,7 @@ const filteredRoles = computed(() => {
 const filteredSpecialUsers = computed(() => {
   const q = query.value.trim().toLowerCase()
   if (!q) return specialUsers.value
-  return specialUsers.value.filter(su => su.display_name.toLowerCase().includes(q) || su.handle.toLowerCase().includes(q))
+  return specialUsers.value.filter(su => (su.display_name ?? '').toLowerCase().includes(q) || su.handle.toLowerCase().includes(q))
 })
 
 function isSelected(kind: AdminSelection['kind'], id: string): boolean {
@@ -143,12 +143,6 @@ function selectDirectory(du: DirectoryUser) {
   select({ kind: 'user', ownerId: du.owner_id })
 }
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return '?'
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase()
-  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase()
-}
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 function onQueryInput() {
