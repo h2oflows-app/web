@@ -77,7 +77,6 @@ export const STANDARD_RATE_DEFAULTS: RateLimit = { runs_per_hour: 100, max_batch
 // Friendly display for system roles; per-special-user roles (handle-named) pass through raw.
 export function roleLabel(name: string): { title: string; handle: string } {
   if (name === 'site_admin') return { title: 'Admins', handle: 'admins' }
-  if (name === 'data_admin') return { title: 'Data admins', handle: 'data-admins' }
   return { title: name, handle: name }
 }
 
