@@ -162,14 +162,8 @@ export function useAdminUsersRoles() {
       // before appending so the list holds a clean SpecialUser shape.
       const { api_key: _key, ...su } = data
       specialUsers.value = [...specialUsers.value, su as SpecialUser]
-      // Mirror into the All-users directory (separate list) so the new
-      // account shows there without a refetch.
-      directoryUsers.value = [...directoryUsers.value, {
-        owner_id: su.id, handle: su.handle, display_name: su.display_name,
-        is_special: true, roles: [], run_count: 0,
-        api_key_last4: su.api_key_last4, usage_hour: 0,
-        rate_limit: su.rate_limit, created_at: su.created_at,
-      } as DirectoryUser]
+      // No directory mirror: the All-users directory intentionally excludes
+      // special accounts (they have their own section).
       return data
     } catch {
       return { error: 'Network error' }
