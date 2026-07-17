@@ -933,7 +933,20 @@ watch(() => store.basemap, setBasemapLayers)
 watch(() => store.step, () => { if (mapReady.value) syncFeatureMarkers() })
 watch(() => store.features, () => { if (mapReady.value) syncFeatureMarkers() }, { deep: true })
 watch(() => store.featureMode, () => { if (mapReady.value) syncFeatureMarkers() })
-watch(() => store.editingFeatureId, () => { if (mapReady.value) syncFeatureMarkers() })
+watch(() => store.editingFeatureId, (id) => {
+  if (!mapReady.value) return
+  syncFeatureMarkers()
+  // Zoom to the feature being edited so it's actually on screen. Skip a fresh
+  // draft (we're already at the tap point). Pad the side/bottom the sheet or
+  // desktop panel covers so the pin centers in the visible map area.
+  const f = editingFeature.value
+  if (!map || !f || id === store.draftFeatureId || f.lng == null || f.lat == null) return
+  const wide = typeof window !== 'undefined' && window.innerWidth >= 768
+  const padding = wide
+    ? { top: 0, bottom: 0, left: 0, right: 420 }
+    : { top: 0, left: 0, right: 0, bottom: Math.round((typeof window !== 'undefined' ? window.innerHeight : 0) * 0.42) }
+  map.easeTo({ center: [f.lng, f.lat], zoom: Math.max(map.getZoom(), 14.5), duration: 500, padding })
+})
 watch(() => store.placingType, () => {
   if (!mapReady.value) return
   setCursorForStep(store.step)
