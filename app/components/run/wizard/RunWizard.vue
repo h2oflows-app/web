@@ -176,8 +176,9 @@ async function loadEditRun(slug: string) {
         externalId: data.gauge_external_id,
         source: data.gauge_source ?? '',
         name: data.gauge_name ?? '',
-        lat: 0,
-        lng: 0,
+        // Real coords so the edit map can show the gauge pin (0,0 = unknown).
+        lat: data.gauge_lat ?? 0,
+        lng: data.gauge_lng ?? 0,
       }
     }
 

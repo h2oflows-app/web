@@ -12,7 +12,7 @@
       style="background: rgba(15,23,42,0.9); backdrop-filter: blur(4px)"
     >
       <span class="w-2 h-2 rounded-full shrink-0" :style="{ background: placingColor }" />
-      <span>Tap the map to place — {{ placingLabel }}<template v-if="placingIsRiver"> · snaps to river</template></span>
+      <span>Tap the map to place — {{ placingLabel }}</span>
       <button
         class="ml-1 px-1.5 py-0.5 rounded bg-white/15 hover:bg-white/25 text-[10px] font-semibold transition-colors"
         @click="store.cancelPlacing()"
@@ -25,7 +25,7 @@
       class="absolute top-16 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 rounded-full text-xs font-medium text-white shadow-lg whitespace-nowrap pointer-events-none"
       style="background: rgba(15,23,42,0.85); backdrop-filter: blur(4px)"
     >
-      Drag the pin to move it<template v-if="editingIsRiver"> · re-snaps to river</template>
+      Drag the pin to move it
     </div>
   </div>
 </template>
@@ -99,6 +99,28 @@ let gaugeViewportTimer: ReturnType<typeof setTimeout> | null = null
 const featureMarkers = new Map<string, maplibregl.Marker>()
 let featureDragId: string | null = null
 
+// The run's associated gauge, shown on the details/edit screen (amber dot —
+// same visual language as the gauge-step dots). Editing the gauge itself
+// still happens via the gauge step ("Change gauge").
+let runGaugeMarker: maplibregl.Marker | null = null
+function syncRunGaugeMarker() {
+  if (!map || !mapReady.value) return
+  const g = store.gauge
+  const show = store.step === 'details' && g && g.lat !== 0 && g.lng !== 0
+  if (!show) {
+    runGaugeMarker?.remove()
+    runGaugeMarker = null
+    return
+  }
+  if (runGaugeMarker) {
+    runGaugeMarker.setLngLat([g!.lng, g!.lat])
+    return
+  }
+  const { marker } = makeStaticMarker('#f59e0b', g!.name || 'Gauge')
+  marker.setLngLat([g!.lng, g!.lat]).addTo(map)
+  runGaugeMarker = marker
+}
+
 const editingFeature = computed<RunFeature | null>(() =>
   store.features.find(f => f.id === store.editingFeatureId) ?? null,
 )
@@ -161,34 +183,11 @@ function makeStaticMarker(color: string, label: string, animate = false): { el: 
   return { el, marker }
 }
 
-// Best snap line for river features: prefer the loaded downstream network (run +
-// below the take-out, create flow); fall back to the saved run centerline (edit
-// mode). Upstream-of-put-in snapping is intentionally out of v1 — features placed
-// above the put-in stay where dropped. Returns a turf LineString or null.
-function featureSnapLine(): GeoJSON.Feature<GeoJSON.LineString> | null {
-  const downCoords = flattenFlowlineCoords(snap.downstreamFlowlines.value)
-  if (downCoords.length >= 2) return buildLine(downCoords)
-  const cl = store.previewCenterline as any
-  if (cl) {
-    const geom = cl.type === 'Feature' ? cl.geometry : cl
-    if (geom?.type === 'LineString') return buildLine(geom.coordinates)
-    if (geom?.type === 'MultiLineString') {
-      const c: number[][] = []
-      for (const ring of geom.coordinates) c.push(...ring)
-      return buildLine(c)
-    }
-  }
-  return null
-}
-
-// Snap river-feature coords to the flowline; access types place freely.
-function snapFeaturePoint(lng: number, lat: number, type: RunFeatureType): [number, number] {
-  if (!isRiverFeatureType(type)) return [lng, lat]
-  const line = featureSnapLine()
-  if (!line) return [lng, lat]
-  return snapToLine(line, [lng, lat])
-}
-
+// Feature pins place EXACTLY where tapped — no flowline snapping. Product
+// call (#314 follow-up): the NHD line can be off, and features like campsites
+// legitimately sit off-water; the sat/street basemap is the user's reference.
+// (Snapping against the flattened downstream network also projected pins onto
+// artificial segment joins, landing them nowhere near the river.)
 // Build a feature pin element: teardrop/triangle from featureIcons, name label
 // above rapids/surf waves, selected halo when the feature is open in the form.
 function makeFeaturePinEl(f: RunFeature): HTMLElement {
@@ -271,9 +270,7 @@ function syncFeatureMarkers() {
     m.on('dragstart', () => { featureDragId = f.id })
     m.on('dragend', () => {
       const p = m!.getLngLat()
-      const [lng, lat] = snapFeaturePoint(p.lng, p.lat, f.type)
-      m!.setLngLat([lng, lat])
-      store.moveFeature(f.id, lng, lat)
+      store.moveFeature(f.id, p.lng, p.lat)
     })
     featureMarkers.set(f.id, m)
   }
@@ -283,8 +280,7 @@ function syncFeatureMarkers() {
 function placeFeatureAt(lngLat: maplibregl.LngLat) {
   const type = store.placingType
   if (!type) return
-  const [lng, lat] = snapFeaturePoint(lngLat.lng, lngLat.lat, type)
-  store.placeFeature(type, lng, lat)
+  store.placeFeature(type, lngLat.lng, lngLat.lat)
 }
 
 function setBasemapLayers(val: 'street' | 'topo' | 'satellite') {
@@ -853,6 +849,7 @@ function initMap() {
     addLayers()
     setCursorForStep(store.step)
     syncFeatureMarkers()   // render any prefilled features (edit mode)
+    syncRunGaugeMarker()   // render the run's associated gauge (edit mode)
 
     // Edit mode: render existing geometry from prefilled store state
     if (store.mode === 'edit' && store.putIn && store.takeOut) {
@@ -931,21 +928,14 @@ watch(() => store.placingType, () => {
   setCursorForStep(store.step)
   syncFeatureMarkers()   // toggle pin pointer-events for placing
 })
-// Re-snap the edited feature when its type switches to a river type (place, form type-switcher).
-watch(() => editingFeature.value?.type, (type, prev) => {
-  const f = editingFeature.value
-  if (!f || !type || type === prev) return
-  if (isRiverFeatureType(f.type)) {
-    const line = featureSnapLine()
-    if (line) { const s = snapToLine(line, [f.lng, f.lat]); store.moveFeature(f.id, s[0], s[1]) }
-  }
-})
 
 // When gauge selection changes from the panel, refresh map highlight
 watch(() => store.gauge, () => {
-  if (mapReady.value && (store.step === 'gauge' || store.step === 'putin' || store.step === 'takeout')) {
+  if (!mapReady.value) return
+  if (store.step === 'gauge' || store.step === 'putin' || store.step === 'takeout') {
     updateGaugeLayers()
   }
+  syncRunGaugeMarker()
 })
 
 // React to snap data changes — update flowline layers
@@ -1032,8 +1022,16 @@ watch(() => store.step, async (step) => {
     await nextTick()
     fitToGaugeStep()
   } else {
-    // details / saved — hide gauge layer
+    // details / saved — clear the working flowline layers (upstream tribs +
+    // full downstream network) so only the trimmed run centerline shows;
+    // the wizard-centerline layer follows snap.previewCenterline via its
+    // own watcher. Keeps the post-reset edit screen from showing the whole
+    // 800-unit downstream highlight as if the line never trimmed.
+    setSource('wizard-downstream', empty())
+    setSource('wizard-upstream', empty())
+    setSource('wizard-upstream-dashed', empty())
     updateGaugeLayers()
+    syncRunGaugeMarker()
   }
 })
 
@@ -1090,6 +1088,8 @@ onUnmounted(() => {
   if (gaugeViewportTimer) clearTimeout(gaugeViewportTimer)
   putInMarker?.remove()
   takeOutMarker?.remove()
+  runGaugeMarker?.remove()
+  runGaugeMarker = null
   for (const m of featureMarkers.values()) m.remove()
   featureMarkers.clear()
   map?.remove()
