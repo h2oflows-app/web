@@ -51,15 +51,16 @@
         class="flex items-center gap-2 pl-5 pr-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer"
         @click.stop="$emit('open', item, 'reach')"
       >
-        <!-- Name only — compact view omits edit/view/@user icons (row click opens) -->
+        <!-- Owner icon (left) + name (row click opens) -->
         <div class="flex items-center gap-1 min-w-0 flex-1">
-          <span class="min-w-0 text-sm text-neutral-700 dark:text-neutral-300 truncate">
+          <OwnerIcon placement="left" :author-handle="item.contextReachAuthorHandle" :slug="item.contextReachSlug" :run-id="item.id" />
+          <span class="min-w-0 text-[15px] text-neutral-700 dark:text-neutral-300 truncate">
             {{ reachLabel(item) }}
           </span>
-          <!-- Owner icon (always shown) -->
-          <OwnerIcon :author-handle="item.contextReachAuthorHandle" :slug="item.contextReachSlug" :run-id="item.id" />
         </div>
-        <!-- Badge always rendered (– when no thresholds) so trash column aligns -->
+        <!-- Badge always rendered (– when no thresholds). Keeps its fixed width:
+             this row has no cfs value for the badge to hug, so dropping the
+             column would only misalign the trash icons. -->
         <div class="w-20 shrink-0 text-center">
           <span :class="['inline-flex items-center justify-center min-w-14 rounded-full px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold', (displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)) ? colorKeyToBadgeClass(displayBandColor(item)) : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500']">{{ (displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)) ? displayFlowBandLabel(item) : '–' }}</span>
         </div>
@@ -176,7 +177,8 @@
       >
         <!-- Name + link buttons -->
         <div class="flex items-center gap-1 min-w-0 flex-1">
-          <span class="min-w-0 text-sm text-neutral-700 dark:text-neutral-300 truncate">
+          <OwnerIcon placement="left" :author-handle="item.contextReachAuthorHandle" :slug="item.contextReachSlug" :run-id="item.id" />
+          <span class="min-w-0 text-[15px] text-neutral-700 dark:text-neutral-300 truncate">
             {{ reachLabel(item) }}
           </span>
           <NuxtLink v-if="!item.contextIsReference" :to="`/my/runs/${item.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="Edit" title="Edit" @click.stop>
@@ -186,7 +188,7 @@
             <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
           </NuxtLink>
           <!-- Owner icon (always shown) -->
-          <OwnerIcon :author-handle="item.contextReachAuthorHandle" :slug="item.contextReachSlug" :run-id="item.id" />
+          <OwnerIcon placement="right" :author-handle="item.contextReachAuthorHandle" :slug="item.contextReachSlug" :run-id="item.id" />
         </div>
         <!-- Fixed-width badge slot so trash column always aligns -->
         <div class="w-20 shrink-0 text-right">

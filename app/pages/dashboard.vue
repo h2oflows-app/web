@@ -227,7 +227,7 @@
         <p class="text-neutral-500 max-w-sm text-sm">
           Search for a run or gauge and add it to your dashboard.
         </p>
-        <UButton color="primary" @click="searchOpen = true">Find a gauge</UButton>
+        <UButton color="primary" @click="openSearch('mine')">Find a gauge</UButton>
       </div>
 
       <!-- Reaches grouped by basin → river -->
@@ -293,20 +293,18 @@
                   <div v-for="r in flatAllUserReaches" :key="r.id" v-swipe-remove="() => swipeRemoveUserReach(r)" class="flex items-center gap-2 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer" @click="openUserReach(r)">
                     <div class="flex flex-col min-w-0 flex-1">
                       <div class="flex items-center gap-1 min-w-0">
-                        <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
-                        <span v-if="r.river_name" class="hidden sm:inline text-xs text-neutral-400 dark:text-neutral-500 shrink-0 truncate">· {{ r.river_name }}</span>
-                        <OwnerIcon :author-handle="r.author_handle" :slug="r.slug" :run-id="r.id" />
+                        <OwnerIcon placement="left" :author-handle="r.author_handle" :slug="r.slug" :run-id="r.id" />
+                        <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-[15px] font-medium text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
+                        <span v-if="r.river_name" class="hidden sm:inline text-[11px] text-neutral-400 dark:text-neutral-500 shrink-0 truncate">· {{ r.river_name }}</span>
                       </div>
-                      <span v-if="r.river_name" class="sm:hidden text-xs text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ r.river_name }}</span>
+                      <span v-if="r.river_name" class="sm:hidden text-[11px] text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ r.river_name }}</span>
                     </div>
                     <div class="w-44 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
                       <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" compact />
                       <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" compact :color="urBandHex(r)" />
                     </div>
-                    <div class="w-20 shrink-0 text-center">
+                    <div class="flex items-center gap-1.5 shrink-0">
                       <span :class="['inline-flex items-center justify-center min-w-14 rounded-full px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold', (r.flow_status !== 'unknown' || r.flow_band) ? urBadgeClass(r) : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500']">{{ (r.flow_status !== 'unknown' || r.flow_band) ? urBandLabel(r) : '–' }}</span>
-                    </div>
-                    <div class="w-20 shrink-0 text-right">
                       <span class="font-bold tabular-nums leading-none text-sm sm:text-base whitespace-nowrap" :style="{ color: urBandHex(r) }">{{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-[10px] sm:text-xs font-normal text-neutral-400 dark:text-neutral-500"> cfs</span></span>
                     </div>
                     <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
@@ -317,10 +315,11 @@
                     <div class="flex items-start gap-3 mb-2">
                       <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-1.5 min-w-0">
+                          <OwnerIcon placement="left" :author-handle="r.author_handle" :slug="r.slug" :run-id="r.id" />
                           <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-base font-semibold truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
-                          <OwnerIcon :author-handle="r.author_handle" :slug="r.slug" :run-id="r.id" />
+                          <OwnerIcon placement="right" :author-handle="r.author_handle" :slug="r.slug" :run-id="r.id" />
                         </div>
-                        <div v-if="r.river_name" class="mt-0.5"><span class="text-xs text-neutral-400 dark:text-neutral-500 truncate">{{ r.river_name }}</span></div>
+                        <div v-if="r.river_name" class="mt-0.5"><span class="text-[11px] text-neutral-400 dark:text-neutral-500 truncate">{{ r.river_name }}</span></div>
                       </div>
                       <div class="shrink-0 flex items-center gap-1">
                         <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', urBadgeClass(r)]">{{ urBandLabel(r) }}</span>
@@ -349,7 +348,7 @@
                       <path d="M4 14c3-6 6-9 8-9s5 9 8 9 5-9 8-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
                       <path d="M4 22c3-6 6-9 8-9s5 9 8 9 5-9 8-9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
                     </svg>
-                    <span class="text-base font-semibold text-primary-600 dark:text-primary-400 shrink-0">{{ river.name }}</span>
+                    <span class="text-sm font-semibold text-primary-600 dark:text-primary-400 shrink-0">{{ river.name }}</span>
                     <!-- Inline basin-reassignment editor (only when basin grouping is on) -->
                     <template v-if="river.riverId && groupByBasin">
                       <template v-if="editingRiverId === river.riverId">
@@ -478,24 +477,22 @@
                       <!-- Name + river name (sub-line on mobile, inline on sm+) -->
                       <div class="flex flex-col min-w-0 flex-1">
                         <div class="flex items-center gap-1 min-w-0">
-                          <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-sm font-medium text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
-                          <span v-if="!showRivers && r.river_name" class="hidden sm:inline text-xs text-neutral-400 dark:text-neutral-500 shrink-0 truncate">· {{ r.river_name }}</span>
                           <!-- Owner icon (always shown) -->
-                          <OwnerIcon :author-handle="r.author_handle" :slug="r.slug" :run-id="r.id" />
+                          <OwnerIcon placement="left" :author-handle="r.author_handle" :slug="r.slug" :run-id="r.id" />
+                          <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-[15px] font-medium text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
+                          <span v-if="!showRivers && r.river_name" class="hidden sm:inline text-[11px] text-neutral-400 dark:text-neutral-500 shrink-0 truncate">· {{ r.river_name }}</span>
                         </div>
                         <!-- River name sub-line on mobile -->
-                        <span v-if="!showRivers && r.river_name" class="sm:hidden text-xs text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ r.river_name }}</span>
+                        <span v-if="!showRivers && r.river_name" class="sm:hidden text-[11px] text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ r.river_name }}</span>
                       </div>
                       <!-- Sparkline next to badge, hidden on mobile -->
                       <div class="w-44 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
                         <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" compact />
                         <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" compact :color="urBandHex(r)" />
                       </div>
-                      <!-- Badge always rendered (– when no thresholds) so CFS column aligns -->
-                      <div class="w-20 shrink-0 text-center">
+                      <!-- Badge hugs the cfs value; column alignment intentionally sacrificed -->
+                      <div class="flex items-center gap-1.5 shrink-0">
                         <span :class="['inline-flex items-center justify-center min-w-14 rounded-full px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold', (r.flow_status !== 'unknown' || r.flow_band) ? urBadgeClass(r) : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500']">{{ (r.flow_status !== 'unknown' || r.flow_band) ? urBandLabel(r) : '–' }}</span>
-                      </div>
-                      <div class="w-20 shrink-0 text-right">
                         <span class="font-bold tabular-nums leading-none text-sm sm:text-base whitespace-nowrap" :style="{ color: urBandHex(r) }">
                           {{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-[10px] sm:text-xs font-normal text-neutral-400 dark:text-neutral-500"> cfs</span>
                         </span>
@@ -514,13 +511,14 @@
                       <div class="flex items-start gap-3 mb-2">
                         <div class="min-w-0 flex-1">
                           <div class="flex items-center gap-1.5 min-w-0">
-                            <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-base font-semibold truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
                             <!-- Owner icon (always shown) — decides pencil-vs-multiuser itself -->
-                            <OwnerIcon :author-handle="r.author_handle" :slug="r.slug" :run-id="r.id" />
+                            <OwnerIcon placement="left" :author-handle="r.author_handle" :slug="r.slug" :run-id="r.id" />
+                            <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-base font-semibold truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
+                            <OwnerIcon placement="right" :author-handle="r.author_handle" :slug="r.slug" :run-id="r.id" />
                           </div>
                           <!-- River name sub-line (shown when river not grouped above) -->
                           <div v-if="!showRivers && r.river_name" class="mt-0.5">
-                            <span class="text-xs text-neutral-400 dark:text-neutral-500 truncate">{{ r.river_name }}</span>
+                            <span class="text-[11px] text-neutral-400 dark:text-neutral-500 truncate">{{ r.river_name }}</span>
                           </div>
                         </div>
                         <div class="shrink-0 flex items-center gap-1">
@@ -786,7 +784,7 @@
                       <path d="M4 14c3-6 6-9 8-9s5 9 8 9 5-9 8-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
                       <path d="M4 22c3-6 6-9 8-9s5 9 8 9 5-9 8-9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
                     </svg>
-                    <span class="text-base font-semibold text-primary-600 dark:text-primary-400 shrink-0">{{ river.name }}</span>
+                    <span class="text-sm font-semibold text-primary-600 dark:text-primary-400 shrink-0">{{ river.name }}</span>
                     <div class="flex-1 h-px bg-neutral-200 dark:bg-neutral-700" />
                   </div>
                   <!-- Gauges wrapper — subtle left indent when river grouping active -->
@@ -885,23 +883,6 @@
       :gauges="store.gauges"
       @close="shareOpen = false"
     />
-
-    <!-- Floating Add-run FAB — mobile only, sits above MobileTabBar (~4rem) + safe area -->
-    <UButton
-      v-if="isAuthenticated"
-      color="primary"
-      class="sm:hidden fixed right-4 z-30 rounded-2xl shadow-lg active:scale-95 transition-transform min-h-[44px] px-4 py-3"
-      style="bottom: calc(4rem + env(safe-area-inset-bottom, 0px))"
-      aria-label="Add run"
-      @click="openSearch()"
-    >
-      <template #leading>
-        <svg class="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-          <line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>
-        </svg>
-      </template>
-      Add run
-    </UButton>
   </div>
 </template>
 
@@ -2332,11 +2313,9 @@ const reachContainerClass = computed(() =>
 )
 
 // ── UI state ─────────────────────────────────────────────────────────────────
-const searchOpen        = ref(false)
-const searchInitialTab  = ref<'mine' | 'discover'>('mine')
+const { isOpen: searchOpen, initialTab: searchInitialTab, open: openSearch } = useGaugeSearch()
 const groupingOpen      = ref(false)
 
-function openSearch() { searchInitialTab.value = 'discover'; searchOpen.value = true }
 const groupingWrap = ref<HTMLElement | null>(null)
 
 // Run wizard — opened by @create-run emit from GaugeSearchModal

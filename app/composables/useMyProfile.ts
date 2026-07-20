@@ -29,5 +29,5 @@ export function useMyProfile() {
     return ownerHandle.toLowerCase() === handle.value.toLowerCase()
   }
 
-  return { handle, load, isMine }
+  return { handle, loaded, load, isMine }
 }

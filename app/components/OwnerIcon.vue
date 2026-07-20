@@ -1,23 +1,38 @@
 <template>
-  <!-- Own run: edit pencil, navigates to the editor -->
-  <UTooltip v-if="isMine(resolvedHandle)" text="Edit your run" class="shrink-0 inline-flex">
+  <!-- Right placement: own-run edit pencil, navigates to the editor. Renders
+       nothing when placement is 'left' or the run isn't mine. -->
+  <UTooltip v-if="placement === 'right' && isMine(resolvedHandle)" text="Edit your run" class="shrink-0 inline-flex">
     <NuxtLink
       :to="slug ? `/my/runs/${slug}` : '#'"
       class="shrink-0 inline-flex p-0.5 rounded text-primary-500 dark:text-primary-400 hover:text-primary-600 dark:hover:text-primary-300 transition-colors"
       aria-label="Edit your run"
       @click.stop
     >
-      <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg class="w-3 h-3 shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/>
       </svg>
     </NuxtLink>
   </UTooltip>
 
-  <!-- Any other owner (including special/org accounts): group/shared icon.
-       Hover reveals owner handle + optional Fork button. -->
-  <UPopover v-else mode="hover" :content="{ side: 'top' }" class="shrink-0 inline-flex">
+  <!-- Left placement: multi-user glyph for any other owner (including special/org
+       accounts). Hover reveals owner handle + optional Fork button.
+
+       Takes up no space on your own runs — that asymmetry is the point: only
+       runs you don't own get indented, which is what separates them by eye.
+       So no reserved slot here.
+
+       Gated on the profile having resolved, because isMine() reads a handle
+       fetched asynchronously. Without the gate every row renders the glyph on
+       first paint and then your own runs snap it away, shifting every name.
+       Anonymous visitors never own anything, so they skip the wait. -->
+  <UPopover
+    v-else-if="placement === 'left' && (!isAuthenticated || profileLoaded) && !isMine(resolvedHandle)"
+    mode="hover"
+    :content="{ side: 'top' }"
+    class="shrink-0 inline-flex"
+  >
     <span class="shrink-0 inline-flex text-primary-500 dark:text-primary-400" @click.stop>
-      <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
         <circle cx="9" cy="7" r="4"/>
         <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
@@ -43,13 +58,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   authorHandle?: string | null
   slug?: string | null
   runId?: string | null
-}>()
+  placement?: 'left' | 'right'
+}>(), {
+  placement: 'right',
+})
 
-const { isMine, load: loadMyProfile } = useMyProfile()
+const { isMine, loaded: profileLoaded, load: loadMyProfile } = useMyProfile()
 const { isAuthenticated, getToken } = useAuth()
 const { apiBase } = useRuntimeConfig().public
 const router = useRouter()
