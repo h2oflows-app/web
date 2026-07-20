@@ -313,63 +313,6 @@
             />
           </ClientOnly>
 
-          <!-- Map click popup: Add to dashboard / View run -->
-          <Transition name="popup">
-            <div
-              v-if="popupRun"
-              class="absolute z-30 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-lg px-4 py-3 min-w-52 max-w-72"
-              :style="popupStyle"
-            >
-              <div class="flex items-start justify-between gap-2 mb-2">
-                <p class="text-sm font-semibold text-neutral-800 dark:text-neutral-200 truncate flex-1">{{ popupRun.name }}</p>
-                <button class="shrink-0 text-neutral-300 hover:text-neutral-500 dark:text-neutral-600 dark:hover:text-neutral-400" @click="dismissPopup">
-                  <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
-                </button>
-              </div>
-              <div class="flex items-center gap-2">
-                <!-- Add to dashboard -->
-                <div class="relative flex-1 popup-ref-anchor">
-                  <button
-                    class="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-xs font-medium transition-colors"
-                    @click="db.dashboards.value.length <= 1 ? addPopupRunToDashboard(db.dashboards.value[0]?.id ?? null) : (popupDropdownOpen = !popupDropdownOpen)"
-                  >
-                    <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="14"/><line x1="6" y1="10" x2="14" y2="10"/></svg>
-                    Add +
-                  </button>
-                  <div
-                    v-if="popupDropdownOpen && db.dashboards.value.length > 1"
-                    class="absolute left-0 top-full mt-1 z-40 min-w-40 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden"
-                  >
-                    <button
-                      v-for="d in db.dashboards.value"
-                      :key="d.id"
-                      class="w-full px-3 py-2 text-xs text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300"
-                      @click="addPopupRunToDashboard(d.id)"
-                    >{{ d.name }}</button>
-                  </div>
-                </div>
-                <!-- View run detail -->
-                <NuxtLink
-                  :to="popupRun.viewUrl"
-                  class="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-                  @click="dismissPopup"
-                >
-                  View →
-                </NuxtLink>
-                <!-- N.6 Upvote in popup (browse mode only) -->
-                <RunUpvoteButton
-                  v-if="handle && popupRun.id"
-                  :run-id="popupRun.id"
-                  :count="popupRun.upvoteCount"
-                  :upvoted="popupRun.userUpvoted"
-                  size="sm"
-                  @update:count="(c) => { if (popupRun) { patchReachUpvote(popupRun.slug, c, null) } }"
-                  @update:upvoted="(u) => { if (popupRun) { patchReachUpvote(popupRun.slug, null, u) } }"
-                />
-              </div>
-            </div>
-          </Transition>
-
           <!-- Mobile: open list (only shown when map is visible) -->
           <button
             v-if="!listVisible"
@@ -427,7 +370,8 @@ const { addReachToWatchlist, addUserReachToWatchlist, addReferenceToWatchlist } 
 const handle = computed(() => (route.params.handle as string | undefined) || undefined)
 
 // Current user's handle — used to decide reference (other user's run) vs slug-add
-// (own run). Fetched once when authenticated.
+// (own run), and as the map-click view-URL fallback when a run has no
+// author_handle (e.g. /me/runs/map/all features). Fetched once when authenticated.
 const myHandle = ref<string | null>(null)
 async function loadMyHandle() {
   const token = await getToken()
@@ -504,7 +448,6 @@ function onDocClick(e: MouseEvent) {
   const target = e.target as HTMLElement
   if (dropdownSlug.value && !target.closest('.dashboard-dropdown-anchor')) dropdownSlug.value = null
   if (browseRefDropdownId.value && !target.closest('.browse-ref-anchor')) browseRefDropdownId.value = null
-  if (popupDropdownOpen.value && !target.closest('.popup-ref-anchor')) popupDropdownOpen.value = false
 }
 
 onMounted(async () => {
@@ -712,65 +655,18 @@ function onMapHover(slug: string | null) {
   }
 }
 
-// ── Map click popup ───────────────────────────────────────────────────────────
-interface PopupRun { slug: string; name: string; id: string | null; authorHandle: string | null; viewUrl: string; point?: { x: number; y: number }; upvoteCount: number; userUpvoted: boolean }
-const popupRun = ref<PopupRun | null>(null)
-// Popup's own dashboard-picker state — kept separate from the sidebar's
-// slug-keyed browseRefDropdownId so opening it here doesn't also open the
-// matching sidebar row's dropdown.
-const popupDropdownOpen = ref(false)
-
-const popupStyle = computed((): Record<string, string> => {
-  const pt = popupRun.value?.point
-  if (!pt) return { top: '12px', left: '50%', transform: 'translateX(-50%)' }
-  return {
-    left: `${Math.max(8, pt.x - 100)}px`,
-    top:  `${Math.max(8, pt.y - 148)}px`,
-  }
-})
-
+// ── Map click → navigate straight to run detail ───────────────────────────────
 function onReachClick(payload: ReachClickPayload) {
   // When browsing a handle, use that handle for the run URL.
-  // Otherwise use the run's own authorHandle if available, else my-runs path.
+  // Otherwise use the run's own authorHandle if available, else the current
+  // user's own handle (falling back to 'h2oflows' if it hasn't resolved yet).
   const viewUrl = handle.value
     ? `/runs/${handle.value}/${payload.slug}`
     : payload.authorHandle
       ? `/runs/${payload.authorHandle}/${payload.slug}`
-      : `/my/runs/${payload.slug}`
+      : `/runs/${myHandle.value ?? 'h2oflows'}/${payload.slug}`
 
-  if (!isAuthenticated.value) {
-    navigateTo(viewUrl)
-    return
-  }
-
-  // Show popup with add/view options
-  popupDropdownOpen.value = false
-  const reachData = allReaches.value.find(r => r.slug === payload.slug)
-  popupRun.value = {
-    slug:         payload.slug,
-    name:         payload.name ?? payload.slug,
-    id:           payload.id ?? null,
-    authorHandle: payload.authorHandle ?? (handle.value ?? null),
-    viewUrl,
-    point:        payload.point,
-    upvoteCount:  reachData?.upvote_count ?? 0,
-    userUpvoted:  reachData?.user_upvoted ?? false,
-  }
-}
-
-function dismissPopup() { popupRun.value = null; popupDropdownOpen.value = false }
-
-async function addPopupRunToDashboard(dashId: string | null) {
-  if (!popupRun.value) return
-  const p = popupRun.value
-  popupRun.value = null
-  popupDropdownOpen.value = false
-  // Another user's run → reference; own run → slug add.
-  if (p.id && reachIsOthers(p.authorHandle)) {
-    await addReferenceToWatchlist(p.id, dashId)
-  } else {
-    await addReachToWatchlist(p.slug, dashId)
-  }
+  navigateTo(viewUrl)
 }
 
 async function reloadMap() {
