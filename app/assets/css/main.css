@@ -31,3 +31,38 @@
     font-size: 17px;
   }
 }
+
+/* Font-scheme face registration.
+ *
+ * @nuxt/fonts emits @font-face only for families it sees referenced in CSS at
+ * build time. useFontScheme applies the active scheme at runtime by setting
+ * --font-* as inline styles on <html>, which the build-time scanner cannot
+ * see — so without these rules every scheme but the @theme default silently
+ * falls back to system fonts.
+ *
+ * One family per rule, and one family per declaration. Repeated font-family
+ * declarations inside a single rule collapse to the last one via the normal
+ * cascade, and inside a single declaration only the first family is resolved
+ * (the rest are treated as fallbacks). Either shortcut silently drops faces.
+ *
+ * Keep in sync with FONT_SCHEMES in app/composables/useFontScheme.ts and the
+ * families list in nuxt.config.ts. */
+.font-face-comfortaa          { font-family: 'Comfortaa'; }
+.font-face-nunito             { font-family: 'Nunito'; }
+.font-face-jetbrains-mono     { font-family: 'JetBrains Mono'; }
+.font-face-chakra-petch       { font-family: 'Chakra Petch'; }
+/* Exo 2 (Hydraulic body) is the one family the scanner will not resolve — it is
+ * present in the provider metadata but emits no face in any quoting form. That
+ * is pre-existing and tracked separately; the rule stays so Hydraulic starts
+ * working the moment it is fixed. */
+.font-face-exo-2              { font-family: 'Exo 2'; }
+.font-face-ibm-plex-mono      { font-family: 'IBM Plex Mono'; }
+.font-face-cormorant-garamond { font-family: 'Cormorant Garamond'; }
+.font-face-lora               { font-family: 'Lora'; }
+.font-face-fira-code          { font-family: 'Fira Code'; }
+.font-face-barlow-condensed   { font-family: 'Barlow Condensed'; }
+.font-face-barlow             { font-family: 'Barlow'; }
+.font-face-roboto-mono        { font-family: 'Roboto Mono'; }
+.font-face-josefin-sans       { font-family: 'Josefin Sans'; }
+.font-face-raleway            { font-family: 'Raleway'; }
+.font-face-open-sans          { font-family: 'Open Sans'; }
