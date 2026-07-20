@@ -59,6 +59,15 @@ export const FONT_SCHEMES: FontScheme[] = [
     monoFont: "'Fira Code', ui-monospace, monospace",
     fontStyle: "italic",
   },
+  {
+    id: "wave",
+    name: "Wave",
+    description: "Clean humanist sans — plain-spoken and easy to read",
+    displayFont: "'Open Sans', ui-sans-serif, system-ui, sans-serif",
+    headingFont: "'Open Sans', ui-sans-serif, system-ui, sans-serif",
+    bodyFont: "'Open Sans', ui-sans-serif, system-ui, sans-serif",
+    monoFont: "'JetBrains Mono', ui-monospace, monospace",
+  },
 ]
 
 function applyScheme(scheme: FontScheme) {

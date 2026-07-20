@@ -32,6 +32,8 @@ export default defineNuxtConfig({
       // Ripple (all italic)
       { name: 'Josefin Sans',       weights: [400, 500, 600, 700], styles: ['normal', 'italic'] },
       { name: 'Raleway',            weights: [400, 500, 600, 700], styles: ['normal', 'italic'] },
+      // Wave (mono reuses JetBrains Mono, already loaded above)
+      { name: 'Open Sans',          weights: [400, 500, 600, 700] },
       // Gauge Line
       { name: 'Source Code Pro',    weights: [400, 500] },
     ],
