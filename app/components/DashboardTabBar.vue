@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-white/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
+  <div class="hidden sm:block bg-white/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
     <div class="max-w-5xl mx-auto px-4">
       <div ref="scrollerRef" class="flex items-center gap-0.5 overflow-x-auto scrollbar-none py-0.5">
 
@@ -85,44 +85,19 @@
     </div>
   </Teleport>
 
-  <!-- Rename modal -->
-  <Teleport to="body">
-    <div v-if="renaming" class="fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="renaming = null">
-      <div class="absolute inset-0 bg-black/40" @click="renaming = null" />
-      <div class="relative w-full max-w-xs bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-xl p-5 space-y-4">
-        <h3 class="text-sm font-semibold">Rename dashboard</h3>
-        <input
-          ref="renameInput"
-          v-model="renameName"
-          type="text"
-          class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-3 py-2 text-sm"
-          @keydown.enter="submitRename"
-          @keydown.esc="renaming = null"
-        />
-        <div class="flex gap-2 justify-end">
-          <button class="px-3 py-1.5 text-sm rounded-lg border border-neutral-200 dark:border-neutral-700" @click="renaming = null">Cancel</button>
-          <button class="px-3 py-1.5 text-sm rounded-lg bg-primary-600 text-white hover:bg-primary-700" @click="submitRename">Save</button>
-        </div>
-      </div>
-    </div>
-  </Teleport>
-
-  <!-- Delete confirmation modal -->
-  <Teleport to="body">
-    <div v-if="deleting" class="fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="deleting = null">
-      <div class="absolute inset-0 bg-black/40" @click="deleting = null" />
-      <div class="relative w-full max-w-xs bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-xl p-5 space-y-3">
-        <h3 class="text-sm font-semibold">Delete this dashboard?</h3>
-        <p class="text-sm text-neutral-500 dark:text-neutral-400">
-          "{{ deleting.name }}" and all its watchlisted gauges will be removed. This cannot be undone.
-        </p>
-        <div class="flex gap-2 justify-end pt-1">
-          <button class="px-3 py-1.5 text-sm rounded-lg border border-neutral-200 dark:border-neutral-700" @click="deleting = null">Cancel</button>
-          <button class="px-3 py-1.5 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700" @click="confirmDelete">Delete</button>
-        </div>
-      </div>
-    </div>
-  </Teleport>
+  <!-- Rename / delete modals — extracted so DashboardSwitcher (mobile) can share them -->
+  <DashboardRenameModal
+    :open="!!renaming"
+    :dashboard="renaming"
+    @submit="onRenameSubmit"
+    @cancel="renaming = null"
+  />
+  <DashboardDeleteModal
+    :open="!!deleting"
+    :dashboard="deleting"
+    @submit="confirmDelete"
+    @cancel="deleting = null"
+  />
 </template>
 
 <script setup lang="ts">
@@ -150,8 +125,6 @@ const menuOpenId = ref<string | null>(null)
 const menuPos = ref<{ top: number; left: number } | null>(null)
 const menuButtonRefs = new Map<string, HTMLElement>()
 const renaming = ref<Dashboard | null>(null)
-const renameName = ref('')
-const renameInput = ref<HTMLInputElement | null>(null)
 const deleting = ref<Dashboard | null>(null)
 const scrollerRef = ref<HTMLElement | null>(null)
 
@@ -182,14 +155,12 @@ function startRenameById(id: string) {
   const db = props.dashboards.find(d => d.id === id)
   if (!db) return
   renaming.value = db
-  renameName.value = db.name
   closeMenu()
-  nextTick(() => renameInput.value?.focus())
 }
 
-function submitRename() {
-  if (!renaming.value || !renameName.value.trim()) return
-  emit('rename', renaming.value.slug, renameName.value.trim())
+function onRenameSubmit(name: string) {
+  if (!renaming.value) return
+  emit('rename', renaming.value.slug, name)
   renaming.value = null
 }
 
