@@ -27,8 +27,11 @@
             title="Show runs"
             @click="content = 'runs'"
           >
-            <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-              <line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/>
+            <!-- H2OFlows wave mark (same path as the AppHeader logo) — runs are
+                 the app's own content, so the brand glyph reads better here than
+                 a generic list icon. Inherits currentColor for the active state. -->
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M2 12c2-4 4-6 6-6s4 6 6 6 4-6 6-6" stroke-linecap="round"/>
             </svg>
           </button>
           <button
