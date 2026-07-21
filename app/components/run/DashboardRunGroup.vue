@@ -13,24 +13,22 @@
       <!-- Name + river (sub-line on mobile, inline on sm+) + view icon -->
       <div class="flex flex-col min-w-0 flex-1">
         <div class="flex items-center gap-1 min-w-0">
-          <span class="min-w-0 text-sm text-neutral-700 dark:text-neutral-300 truncate">{{ reachLabel(reach) }}</span>
-          <span v-if="showRiverName && reach.contextReachRiverName" class="text-xs text-neutral-400 dark:text-neutral-500 truncate hidden sm:inline shrink-0">· {{ reach.contextReachRiverName }}</span>
+          <OwnerIcon placement="left" :author-handle="reach.contextReachAuthorHandle" :slug="reach.contextReachSlug" :run-id="reach.id" />
+          <span class="min-w-0 text-[15px] text-neutral-700 dark:text-neutral-300 truncate">{{ reachLabel(reach) }}</span>
+          <span v-if="showRiverName && reach.contextReachRiverName" class="text-[11px] text-neutral-400 dark:text-neutral-500 truncate hidden sm:inline shrink-0">· {{ reach.contextReachRiverName }}</span>
           <NuxtLink :to="`/runs/${reach.contextReachAuthorHandle ?? 'h2oflows'}/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View" title="View" @click.stop>
             <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
           </NuxtLink>
-          <OwnerIcon :author-handle="reach.contextReachAuthorHandle" :slug="reach.contextReachSlug" :run-id="reach.id" />
         </div>
-        <span v-if="showRiverName && reach.contextReachRiverName" class="sm:hidden text-xs text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ reach.contextReachRiverName }}</span>
+        <span v-if="showRiverName && reach.contextReachRiverName" class="sm:hidden text-[11px] text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ reach.contextReachRiverName }}</span>
       </div>
       <!-- Sparkline next to badge, hidden on mobile -->
       <div class="w-44 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
         <GaugeSparkline :gauge-id="reach.id" flow-status="unknown" :color="sparklineColor(reach)" compact :poll-health="reach.pollHealth" :last-reading-at="reach.lastReadingAt" @latest-cfs="(v) => setLiveCfs(reach, v)" />
       </div>
-      <!-- Badge always rendered (– when no thresholds) so CFS column aligns -->
-      <div class="w-20 shrink-0 text-center">
+      <!-- Badge hugs the cfs value; column alignment intentionally sacrificed -->
+      <div class="flex items-center gap-1.5 shrink-0">
         <span :class="['inline-flex items-center justify-center min-w-14 rounded-full px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold', hasBadge(reach) ? colorKeyToBadgeClass(displayBandColor(reach)) : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500']">{{ hasBadge(reach) ? displayFlowBandLabel(reach) : '–' }}</span>
-      </div>
-      <div class="w-20 shrink-0 text-right">
         <span class="whitespace-nowrap text-sm sm:text-base font-bold tabular-nums" :style="{ color: colorKeyToHex(displayBandColor(reach)) }">
           {{ displayCfs(reach) != null ? Math.round(displayCfs(reach)!).toLocaleString() : '—' }}
           <span class="text-[10px] sm:text-xs font-normal text-neutral-400">cfs</span>
@@ -58,14 +56,15 @@
           <!-- Name + river (sub-line on mobile, inline on sm+) + view icon -->
           <div class="flex flex-col min-w-0 flex-1">
             <div class="flex items-center gap-1 min-w-0">
-              <span class="min-w-0 text-sm font-semibold text-neutral-800 dark:text-neutral-100 truncate">{{ reachLabel(reach) }}</span>
-              <span v-if="showRiverName && reach.contextReachRiverName" class="text-xs text-neutral-400 dark:text-neutral-500 truncate shrink-0 hidden sm:inline">· {{ reach.contextReachRiverName }}</span>
+              <OwnerIcon placement="left" :author-handle="reach.contextReachAuthorHandle" :slug="reach.contextReachSlug" :run-id="reach.id" />
+              <span class="min-w-0 text-[15px] font-semibold text-neutral-800 dark:text-neutral-100 truncate">{{ reachLabel(reach) }}</span>
+              <span v-if="showRiverName && reach.contextReachRiverName" class="text-[11px] text-neutral-400 dark:text-neutral-500 truncate shrink-0 hidden sm:inline">· {{ reach.contextReachRiverName }}</span>
               <NuxtLink :to="`/runs/${reach.contextReachAuthorHandle ?? 'h2oflows'}/${reach.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View" title="View" @click.stop>
                 <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
               </NuxtLink>
-              <OwnerIcon :author-handle="reach.contextReachAuthorHandle" :slug="reach.contextReachSlug" :run-id="reach.id" />
+              <OwnerIcon placement="right" :author-handle="reach.contextReachAuthorHandle" :slug="reach.contextReachSlug" :run-id="reach.id" />
             </div>
-            <span v-if="showRiverName && reach.contextReachRiverName" class="sm:hidden text-xs text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ reach.contextReachRiverName }}</span>
+            <span v-if="showRiverName && reach.contextReachRiverName" class="sm:hidden text-[11px] text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ reach.contextReachRiverName }}</span>
           </div>
           <!-- Sparkline next to badge, hidden on mobile -->
           <div class="w-20 shrink-0 hidden sm:block h-6 opacity-50 pointer-events-none">
@@ -88,10 +87,11 @@
         <div class="flex items-center gap-2 mb-2">
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-1 min-w-0">
+              <OwnerIcon placement="left" :author-handle="reach.contextReachAuthorHandle" :slug="reach.contextReachSlug" :run-id="reach.id" />
               <span class="min-w-0 text-base font-semibold text-neutral-800 dark:text-neutral-100 truncate">{{ reachLabel(reach) }}</span>
-              <OwnerIcon :author-handle="reach.contextReachAuthorHandle" :slug="reach.contextReachSlug" :run-id="reach.id" />
+              <OwnerIcon placement="right" :author-handle="reach.contextReachAuthorHandle" :slug="reach.contextReachSlug" :run-id="reach.id" />
             </div>
-            <span v-if="showRiverName && reach.contextReachRiverName" class="text-xs text-neutral-400 dark:text-neutral-500 truncate block">{{ reach.contextReachRiverName }}</span>
+            <span v-if="showRiverName && reach.contextReachRiverName" class="text-[11px] text-neutral-400 dark:text-neutral-500 truncate block">{{ reach.contextReachRiverName }}</span>
           </div>
           <div class="flex items-center gap-2 shrink-0">
             <span v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', colorKeyToBadgeClass(displayBandColor(reach))]">{{ displayFlowBandLabel(reach) }}</span>
@@ -114,10 +114,11 @@
         <div class="flex items-center gap-2 mb-2">
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-1 min-w-0">
+              <OwnerIcon placement="left" :author-handle="reach.contextReachAuthorHandle" :slug="reach.contextReachSlug" :run-id="reach.id" />
               <span class="min-w-0 text-base font-semibold text-neutral-800 dark:text-neutral-100 truncate">{{ reachLabel(reach) }}</span>
-              <OwnerIcon :author-handle="reach.contextReachAuthorHandle" :slug="reach.contextReachSlug" :run-id="reach.id" />
+              <OwnerIcon placement="right" :author-handle="reach.contextReachAuthorHandle" :slug="reach.contextReachSlug" :run-id="reach.id" />
             </div>
-            <span v-if="showRiverName && reach.contextReachRiverName" class="text-xs text-neutral-400 dark:text-neutral-500 truncate block">{{ reach.contextReachRiverName }}</span>
+            <span v-if="showRiverName && reach.contextReachRiverName" class="text-[11px] text-neutral-400 dark:text-neutral-500 truncate block">{{ reach.contextReachRiverName }}</span>
           </div>
           <div class="flex items-center gap-2 shrink-0">
             <span v-if="displayFlowStatus(reach) !== 'unknown' || displayFlowBandLabel(reach)" :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', colorKeyToBadgeClass(displayBandColor(reach))]">{{ displayFlowBandLabel(reach) }}</span>

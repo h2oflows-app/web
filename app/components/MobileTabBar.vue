@@ -12,6 +12,19 @@
       </svg>
       Dashboard
     </NuxtLink>
+    <div class="shrink-0 flex items-center justify-center px-3">
+      <button
+        type="button"
+        class="w-11 h-11 rounded-full bg-primary-600 text-white shadow-md active:scale-95 transition-transform flex items-center justify-center"
+        aria-label="Add run"
+        @click="onAdd"
+      >
+        <svg class="w-5 h-5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>
+        </svg>
+      </button>
+    </div>
+
     <NuxtLink
       to="/explore"
       class="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition-colors"
@@ -29,4 +42,10 @@
 
 <script setup lang="ts">
 const route = useRoute()
+const { open } = useGaugeSearch()
+
+async function onAdd() {
+  if (route.path !== '/dashboard') await navigateTo('/dashboard')
+  open('discover')
+}
 </script>
