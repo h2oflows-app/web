@@ -45,27 +45,17 @@
 
     <!-- Reach sub-rows -->
     <div v-if="reachItems.length > 0" :class="hideGaugeHeader ? '' : 'border-t border-neutral-100 dark:border-neutral-800'">
-      <div
+      <RunRow
         v-for="item in reachItems"
         :key="item.contextReachSlug!"
-        class="flex items-center gap-2 pl-5 pr-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer"
-        @click.stop="$emit('open', item, 'reach')"
-      >
-        <!-- Owner icon (left) + name (row click opens) -->
-        <div class="flex items-center gap-1 min-w-0 flex-1">
-          <OwnerIcon placement="left" :author-handle="item.contextReachAuthorHandle" :slug="item.contextReachSlug" :run-id="item.id" />
-          <span class="min-w-0 text-[15px] text-neutral-700 dark:text-neutral-300 truncate">
-            {{ reachLabel(item) }}
-          </span>
-        </div>
-        <!-- Badge always rendered (– when no thresholds). Keeps its fixed width:
-             this row has no cfs value for the badge to hug, so dropping the
-             column would only misalign the trash icons. -->
-        <div class="w-20 shrink-0 text-center">
-          <span :class="['inline-flex items-center justify-center min-w-14 rounded-full px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold', (displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)) ? colorKeyToBadgeClass(displayBandColor(item)) : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500']">{{ (displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)) ? displayFlowBandLabel(item) : '–' }}</span>
-        </div>
-        <TrashButton label="Remove" @click="$emit('remove-item', item)" />
-      </div>
+        :vm="watchedGaugeToRunRowVM(item)"
+        view-mode="list"
+        variant="gauge-subrow"
+        :show-river="false"
+        :live-cfs-override="liveCfs"
+        @open="$emit('open', item, 'reach')"
+        @remove="$emit('remove-item', item)"
+      />
     </div>
     <div v-else class="border-t border-neutral-100 dark:border-neutral-800 pl-8 pr-3 py-1.5 text-xs text-neutral-400 italic">
       No related reaches
@@ -169,36 +159,20 @@
 
     <!-- Reach sub-list -->
     <div :class="hideGaugeHeader ? '' : 'border-t border-neutral-100 dark:border-neutral-800'">
-      <div
+      <RunRow
         v-for="item in reachItems"
         :key="item.contextReachSlug!"
-        class="flex items-center gap-1.5 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer"
-        @click.stop="$emit('open', item, 'reach')"
-      >
-        <!-- Name + link buttons -->
-        <div class="flex items-center gap-1 min-w-0 flex-1">
-          <OwnerIcon placement="left" :author-handle="item.contextReachAuthorHandle" :slug="item.contextReachSlug" :run-id="item.id" />
-          <span class="min-w-0 text-[15px] text-neutral-700 dark:text-neutral-300 truncate">
-            {{ reachLabel(item) }}
-          </span>
-          <NuxtLink v-if="!item.contextIsReference" :to="`/my/runs/${item.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="Edit" title="Edit" @click.stop>
-            <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
-          </NuxtLink>
-          <NuxtLink :to="`/runs/${item.contextReachAuthorHandle ?? 'h2oflows'}/${item.contextReachSlug}`" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View" title="View" @click.stop>
-            <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
-          </NuxtLink>
-          <!-- Owner icon (always shown) -->
-          <OwnerIcon placement="right" :author-handle="item.contextReachAuthorHandle" :slug="item.contextReachSlug" :run-id="item.id" />
-        </div>
-        <!-- Fixed-width badge slot so trash column always aligns -->
-        <div class="w-20 shrink-0 text-right">
-          <span
-            v-if="displayFlowStatus(item) !== 'unknown' || displayFlowBandLabel(item)"
-            :class="['inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', colorKeyToBadgeClass(displayBandColor(item))]"
-          >{{ displayFlowBandLabel(item) }}</span>
-        </div>
-        <TrashButton label="Remove" @click="$emit('remove-item', item)" />
-      </div>
+        :vm="watchedGaugeToRunRowVM(item)"
+        view-mode="list"
+        variant="gauge-subrow"
+        :show-river="false"
+        show-view
+        :show-edit="!item.contextIsReference"
+        show-owner-right
+        :live-cfs-override="liveCfs"
+        @open="$emit('open', item, 'reach')"
+        @remove="$emit('remove-item', item)"
+      />
       <div v-if="reachItems.length === 0" class="px-3 py-1.5 text-xs text-neutral-400 italic">
         No related reaches
       </div>
@@ -209,48 +183,28 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import type { WatchedGauge } from '~/stores/watchlist'
-import { colorKeyToBadgeClass } from '~/utils/flowBand'
+import { watchedGaugeToRunRowVM } from '~/utils/runRow'
 
 const props = defineProps<{
   leadGauge: WatchedGauge
   reachItems: WatchedGauge[]
-  density?: 'compact' | 'comfortable' | 'full' | 'list'
+  density?: 'comfortable' | 'full' | 'list'
   hideRiverName?: boolean
   hideGaugeHeader?: boolean
 }>()
 
-const emit = defineEmits<{
+defineEmits<{
   (e: 'open', gauge: WatchedGauge, mode: 'gauge' | 'reach'): void
   (e: 'remove-group'): void
   (e: 'remove-item', item: WatchedGauge): void
 }>()
 
-useFlowBandPalette()
-
+// Fed by the gauge header sparkline; the reach sub-rows read it as their live
+// cfs (they have no sparkline of their own) via <RunRow live-cfs-override>.
 const liveCfs = ref<number | null>(null)
 
-const { prefetch, bandForCfs, statusForColor } = useRunFlowBand()
-
-function displayBand(reach: WatchedGauge): { label: string; color: string } | null {
-  const cfs = liveCfs.value ?? reach.currentCfs
-  return bandForCfs(reach.contextReachSlug, cfs)
-}
-
-function displayFlowBandLabel(reach: WatchedGauge): string | null {
-  return displayBand(reach)?.label ?? reach.flowBandLabel ?? null
-}
-
-function displayBandColor(reach: WatchedGauge): string | null {
-  return displayBand(reach)?.color ?? null
-}
-
-function displayFlowStatus(reach: WatchedGauge): string {
-  return statusForColor(displayBandColor(reach)) ?? reach.flowStatus ?? 'unknown'
-}
-
-function reachLabel(item: WatchedGauge): string {
-  return item.contextReachCommonName ?? item.contextReachFullName ?? item.reachName ?? item.name ?? item.externalId
-}
+// Prefetch each reach's flow-ranges into the shared cache for the child RunRows.
+const { prefetch } = useRunFlowBand()
 
 function prefetchAll() {
   for (const r of props.reachItems) {
