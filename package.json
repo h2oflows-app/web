@@ -6,7 +6,8 @@
     "dev": "nuxt dev",
     "build": "nuxt build",
     "generate": "nuxt generate",
-    "preview": "nuxt preview"
+    "preview": "nuxt preview",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@nuxt/fonts": "^0.14.0",
@@ -37,6 +38,7 @@
     "@types/markdown-it": "^14.1.2",
     "@vite-pwa/assets-generator": "^1.0.2",
     "@vite-pwa/nuxt": "^1.1.1",
+    "patch-package": "^8.0.1",
     "typescript": "^5.0.0"
   }
 }

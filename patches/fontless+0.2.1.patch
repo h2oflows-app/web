@@ -1,0 +1,16 @@
+diff --git a/node_modules/fontless/dist/index.mjs b/node_modules/fontless/dist/index.mjs
+index eef9899..fad1271 100644
+--- a/node_modules/fontless/dist/index.mjs
++++ b/node_modules/fontless/dist/index.mjs
+@@ -250,9 +250,10 @@ function extractFontFamilies(node) {
+ 			buffer = "";
+ 		}
+ 		if (buffer && child.type === "Dimension") buffer = `${buffer} ${child.value}${child.unit}`.trim();
++		if (buffer && child.type === "Number") buffer = `${buffer} ${child.value}`.trim();
+ 		if (child.type === "String") families.push(child.value);
+ 	}
+-	if (buffer) families.push(buffer);
++	if (buffer) families.push(buffer.replace(/\\/g, ""));
+ 	return families;
+ }
+ function addLocalFallbacks(fontFamily, data) {
