@@ -1,6 +1,55 @@
 <template>
   <div class="min-h-screen bg-neutral-50 dark:bg-neutral-950">
-    <AppHeader />
+    <AppHeader>
+      <DashboardSwitcher
+        v-if="isAuthenticated && db.loaded.value && db.dashboards.value.length"
+        class="sm:hidden"
+        @select="onSelectDashboard"
+        @new="newDashboardOpen = true"
+        @delete="onDeleteDashboard"
+        @rename="(slug, name) => db.rename(slug, name)"
+        @share="shareOpen = true"
+      />
+
+      <template #actions>
+        <!-- Content switch (Runs / Gauges) — mobile, icon-only, lives in the header now.
+             Desktop keeps the labeled switch inline in the controls bar below. -->
+        <div
+          v-if="hasAnyContent"
+          class="sm:hidden shrink-0 flex items-center gap-0.5 p-0.5 rounded-lg bg-neutral-100 dark:bg-neutral-800"
+        >
+          <button
+            class="w-7 h-7 flex items-center justify-center rounded-md transition-colors"
+            :class="content === 'runs'
+              ? 'bg-white dark:bg-neutral-700 text-primary-600 dark:text-primary-400 shadow-sm'
+              : 'text-neutral-500 dark:text-neutral-400'"
+            aria-label="Show runs"
+            title="Show runs"
+            @click="content = 'runs'"
+          >
+            <!-- H2OFlows wave mark (same path as the AppHeader logo) — runs are
+                 the app's own content, so the brand glyph reads better here than
+                 a generic list icon. Inherits currentColor for the active state. -->
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M2 12c2-4 4-6 6-6s4 6 6 6 4-6 6-6" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button
+            class="w-7 h-7 flex items-center justify-center rounded-md transition-colors"
+            :class="content === 'gauges'
+              ? 'bg-white dark:bg-neutral-700 text-primary-600 dark:text-primary-400 shadow-sm'
+              : 'text-neutral-500 dark:text-neutral-400'"
+            aria-label="Show gauges"
+            title="Show gauges"
+            @click="content = 'gauges'"
+          >
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M12 12 16 8"/><path d="M3 12a9 9 0 0 1 18 0"/>
+            </svg>
+          </button>
+        </div>
+      </template>
+    </AppHeader>
 
     <!-- Unified sticky header: tab bar + controls bar in one block anchored at AppHeader bottom -->
     <div
@@ -17,40 +66,6 @@
         @rename="(slug, name) => db.rename(slug, name)"
         @share="shareOpen = true"
       />
-
-      <!-- Content switch (Runs / Gauges) — mobile: full-width row under the tabs.
-           Desktop shows the equivalent switch inline in the controls bar below. -->
-      <div
-        v-if="hasAnyContent"
-        class="sm:hidden bg-neutral-50/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800 px-4 py-2"
-      >
-        <div class="flex items-center gap-0.5 p-0.5 rounded-lg bg-neutral-100 dark:bg-neutral-800">
-          <button
-            class="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors"
-            :class="content === 'runs'
-              ? 'bg-white dark:bg-neutral-700 text-primary-600 dark:text-primary-400 shadow-sm'
-              : 'text-neutral-500 dark:text-neutral-400'"
-            @click="content = 'runs'"
-          >
-            <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-              <line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/>
-            </svg>
-            Runs
-          </button>
-          <button
-            class="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors"
-            :class="content === 'gauges'
-              ? 'bg-white dark:bg-neutral-700 text-primary-600 dark:text-primary-400 shadow-sm'
-              : 'text-neutral-500 dark:text-neutral-400'"
-            @click="content = 'gauges'"
-          >
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M12 12 16 8"/><path d="M3 12a9 9 0 0 1 18 0"/>
-            </svg>
-            Gauges
-          </button>
-        </div>
-      </div>
 
       <!-- Controls bar -->
       <div class="bg-neutral-50/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
