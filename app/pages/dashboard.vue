@@ -305,50 +305,30 @@
               <!-- Flat mode: all user runs in one group when no grouping (state/basin/river) is active -->
               <div v-if="flatAllUserReaches.length > 0" class="mb-2">
                 <div v-if="viewMode === 'list'" class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden">
-                  <div v-for="r in flatAllUserReaches" :key="r.id" v-swipe-remove="() => swipeRemoveUserReach(r)" class="flex items-center gap-2 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer" @click="openUserReach(r)">
-                    <div class="flex flex-col min-w-0 flex-1">
-                      <div class="flex items-center gap-1 min-w-0">
-                        <OwnerIcon placement="left" :author-handle="r.author_handle" :slug="r.slug" :run-id="r.id" />
-                        <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-[15px] font-medium text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
-                        <span v-if="r.river_name" class="hidden sm:inline text-[11px] text-neutral-400 dark:text-neutral-500 shrink-0 truncate">· {{ r.river_name }}</span>
-                      </div>
-                      <span v-if="r.river_name" class="sm:hidden text-[11px] text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ r.river_name }}</span>
-                    </div>
-                    <div class="w-44 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
-                      <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" compact />
-                      <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" compact :color="urBandHex(r)" />
-                    </div>
-                    <div class="flex items-center gap-1.5 shrink-0">
-                      <span :class="['inline-flex items-center justify-center min-w-14 rounded-full px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold', (r.flow_status !== 'unknown' || r.flow_band) ? urBadgeClass(r) : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500']">{{ (r.flow_status !== 'unknown' || r.flow_band) ? urBandLabel(r) : '–' }}</span>
-                      <span class="font-bold tabular-nums leading-none text-sm sm:text-base whitespace-nowrap" :style="{ color: urBandHex(r) }">{{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-[10px] sm:text-xs font-normal text-neutral-400 dark:text-neutral-500"> cfs</span></span>
-                    </div>
-                    <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
-                  </div>
+                  <RunRow
+                    v-for="r in flatAllUserReaches"
+                    :key="r.id"
+                    v-swipe-remove="() => swipeRemoveUserReach(r)"
+                    :vm="userReachToRunRowVM(r, { lastReadingLabel: reachLastUpdated(r) })"
+                    view-mode="list"
+                    name-as-link
+                    remove-label="Remove from dashboard"
+                    @open="openUserReach(r)"
+                    @remove="removeUserReach(r)"
+                  />
                 </div>
                 <div v-else :class="cardGridClass">
-                  <div v-for="r in flatAllUserReaches" :key="r.id" class="relative rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-3 transition-all duration-200 overflow-hidden cursor-pointer" @click="openUserReach(r)">
-                    <div class="flex items-start gap-3 mb-2">
-                      <div class="min-w-0 flex-1">
-                        <div class="flex items-center gap-1.5 min-w-0">
-                          <OwnerIcon placement="left" :author-handle="r.author_handle" :slug="r.slug" :run-id="r.id" />
-                          <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-base font-semibold truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
-                          <OwnerIcon placement="right" :author-handle="r.author_handle" :slug="r.slug" :run-id="r.id" />
-                        </div>
-                        <div v-if="r.river_name" class="mt-0.5"><span class="text-[11px] text-neutral-400 dark:text-neutral-500 truncate">{{ r.river_name }}</span></div>
-                      </div>
-                      <div class="shrink-0 flex items-center gap-1">
-                        <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', urBadgeClass(r)]">{{ urBandLabel(r) }}</span>
-                        <span class="font-bold tabular-nums leading-none text-3xl" :style="{ color: urBandHex(r) }">{{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-500 dark:text-neutral-400 ml-0.5">cfs</span></span>
-                        <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
-                      </div>
-                    </div>
-                    <div v-if="r.gauge_id || r.custom_gauge_slug" class="relative mb-1 opacity-70 pointer-events-none">
-                      <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" :compact="viewMode !== 'full'" />
-                      <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" :compact="viewMode !== 'full'" :color="urBandHex(r)" />
-                    </div>
-                    <p v-if="viewMode === 'full' && r.gauge_source && r.gauge_external_id" class="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">{{ r.gauge_source.toUpperCase() }} {{ r.gauge_external_id }}</p>
-                    <p v-if="r.last_reading_at" class="text-xs text-neutral-400 mt-0.5">{{ reachLastUpdated(r) }}</p>
-                  </div>
+                  <RunRow
+                    v-for="r in flatAllUserReaches"
+                    :key="r.id"
+                    :vm="userReachToRunRowVM(r, { lastReadingLabel: reachLastUpdated(r) })"
+                    :view-mode="viewMode"
+                    name-as-link
+                    show-owner-right
+                    remove-label="Remove from dashboard"
+                    @open="openUserReach(r)"
+                    @remove="removeUserReach(r)"
+                  />
                 </div>
               </div>
               <!-- Reaches grouped by river (hidden when flat mode active) -->
@@ -482,76 +462,33 @@
                 <template v-if="visibleUrs.length > 0">
                   <!-- List (compact) view -->
                   <div v-if="viewMode === 'list'" class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden mt-1.5">
-                    <div
+                    <RunRow
                       v-for="r in visibleUrs"
                       :key="r.id"
                       v-swipe-remove="() => swipeRemoveUserReach(r)"
-                      class="flex items-center gap-2 px-3 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors border-b border-neutral-100/50 dark:border-neutral-800/50 last:border-b-0 cursor-pointer"
-                      @click="openUserReach(r)"
-                    >
-                      <!-- Name + river name (sub-line on mobile, inline on sm+) -->
-                      <div class="flex flex-col min-w-0 flex-1">
-                        <div class="flex items-center gap-1 min-w-0">
-                          <!-- Owner icon (always shown) -->
-                          <OwnerIcon placement="left" :author-handle="r.author_handle" :slug="r.slug" :run-id="r.id" />
-                          <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-[15px] font-medium text-neutral-700 dark:text-neutral-300 truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
-                          <span v-if="!showRivers && r.river_name" class="hidden sm:inline text-[11px] text-neutral-400 dark:text-neutral-500 shrink-0 truncate">· {{ r.river_name }}</span>
-                        </div>
-                        <!-- River name sub-line on mobile -->
-                        <span v-if="!showRivers && r.river_name" class="sm:hidden text-[11px] text-neutral-400 dark:text-neutral-500 truncate leading-tight">{{ r.river_name }}</span>
-                      </div>
-                      <!-- Sparkline next to badge, hidden on mobile -->
-                      <div class="w-44 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
-                        <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" compact />
-                        <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" compact :color="urBandHex(r)" />
-                      </div>
-                      <!-- Badge hugs the cfs value; column alignment intentionally sacrificed -->
-                      <div class="flex items-center gap-1.5 shrink-0">
-                        <span :class="['inline-flex items-center justify-center min-w-14 rounded-full px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold', (r.flow_status !== 'unknown' || r.flow_band) ? urBadgeClass(r) : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500']">{{ (r.flow_status !== 'unknown' || r.flow_band) ? urBandLabel(r) : '–' }}</span>
-                        <span class="font-bold tabular-nums leading-none text-sm sm:text-base whitespace-nowrap" :style="{ color: urBandHex(r) }">
-                          {{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-[10px] sm:text-xs font-normal text-neutral-400 dark:text-neutral-500"> cfs</span>
-                        </span>
-                      </div>
-                      <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
-                    </div>
+                      :vm="userReachToRunRowVM(r, { lastReadingLabel: reachLastUpdated(r) })"
+                      view-mode="list"
+                      name-as-link
+                      :show-river="!showRivers"
+                      remove-label="Remove from dashboard"
+                      @open="openUserReach(r)"
+                      @remove="removeUserReach(r)"
+                    />
                   </div>
                   <!-- Comfortable / full card view -->
                   <div v-else :class="[cardGridClass, 'mt-1.5']">
-                    <div
+                    <RunRow
                       v-for="r in visibleUrs"
                       :key="r.id"
-                      class="relative rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-3 transition-all duration-200 overflow-hidden cursor-pointer"
-                      @click="openUserReach(r)"
-                    >
-                      <div class="flex items-start gap-3 mb-2">
-                        <div class="min-w-0 flex-1">
-                          <div class="flex items-center gap-1.5 min-w-0">
-                            <!-- Owner icon (always shown) — decides pencil-vs-multiuser itself -->
-                            <OwnerIcon placement="left" :author-handle="r.author_handle" :slug="r.slug" :run-id="r.id" />
-                            <NuxtLink :to="`/runs/${r.author_handle ?? 'h2oflows'}/${r.slug}`" class="text-base font-semibold truncate hover:text-primary-600 dark:hover:text-primary-400 transition-colors" @click.stop>{{ r.name || r.long_name || r.slug }}</NuxtLink>
-                            <OwnerIcon placement="right" :author-handle="r.author_handle" :slug="r.slug" :run-id="r.id" />
-                          </div>
-                          <!-- River name sub-line (shown when river not grouped above) -->
-                          <div v-if="!showRivers && r.river_name" class="mt-0.5">
-                            <span class="text-[11px] text-neutral-400 dark:text-neutral-500 truncate">{{ r.river_name }}</span>
-                          </div>
-                        </div>
-                        <div class="shrink-0 flex items-center gap-1">
-                          <span v-if="r.flow_status !== 'unknown' || r.flow_band" :class="['shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', urBadgeClass(r)]">{{ urBandLabel(r) }}</span>
-                          <span class="font-bold tabular-nums leading-none text-3xl" :style="{ color: urBandHex(r) }">
-                            {{ r.current_cfs != null ? Math.round(r.current_cfs).toLocaleString() : '—' }}<span class="text-xs font-normal text-neutral-500 dark:text-neutral-400 ml-0.5">cfs</span>
-                          </span>
-                          <TrashButton label="Remove from dashboard" @click="removeUserReach(r)" />
-                        </div>
-                      </div>
-                      <div v-if="r.gauge_id || r.custom_gauge_slug" class="relative mb-1 opacity-70 pointer-events-none">
-                        <GaugeSparkline v-if="r.gauge_id" :gauge-id="r.gauge_id" :flow-status="(r.flow_status as any)" :color="urBandHex(r)" :compact="viewMode !== 'full'" />
-                        <CustomGaugeSparkline v-else-if="r.custom_gauge_slug" :gauge-slug="r.custom_gauge_slug" :compact="viewMode !== 'full'" :color="urBandHex(r)" />
-                      </div>
-                      <!-- Gauge ID: shown in full view -->
-                      <p v-if="viewMode === 'full' && r.gauge_source && r.gauge_external_id" class="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">{{ r.gauge_source.toUpperCase() }} {{ r.gauge_external_id }}</p>
-                      <p v-if="r.last_reading_at" class="text-xs text-neutral-400 mt-0.5">{{ reachLastUpdated(r) }}</p>
-                    </div>
+                      :vm="userReachToRunRowVM(r, { lastReadingLabel: reachLastUpdated(r) })"
+                      :view-mode="viewMode"
+                      name-as-link
+                      show-owner-right
+                      :show-river="!showRivers"
+                      remove-label="Remove from dashboard"
+                      @open="openUserReach(r)"
+                      @remove="removeUserReach(r)"
+                    />
                   </div>
                 </template><!-- end visibleUrs -->
                 </template><!-- end v-for visibleUrs -->
@@ -905,30 +842,16 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useWatchlistStore, type WatchedGauge } from '~/stores/watchlist'
 import { cleanBasinName, slugifyBasin } from '~/utils/basin'
-import { flowBandLabel, colorKeyToHex, colorKeyToBadgeClass } from '~/utils/flowBand'
+import { userReachToRunRowVM } from '~/utils/runRow'
 import { featureToWatchedGauge } from '~/composables/useWatchlistSync'
 import { vSwipeRemove } from '~/directives/swipeRemove'
 
 definePageMeta({ ssr: false })
 
-const { bandBadgeClass, bandSolid } = useFlowBandPalette()
-const { prefetch: prefetchBand, bandForCfs } = useRunFlowBand()
-
-// Helpers for UserReachSummary coloring via composable (color keys, not old palette)
-function urBandColor(r: UserReachSummary): string | null {
-  return bandForCfs(r.slug, r.current_cfs)?.color ?? null
-}
-function urBandHex(r: UserReachSummary): string {
-  const key = urBandColor(r)
-  return key ? colorKeyToHex(key) : bandSolid(r.flow_band, r.flow_status)
-}
-function urBadgeClass(r: UserReachSummary): string {
-  const key = urBandColor(r)
-  return key ? colorKeyToBadgeClass(key) : bandBadgeClass(r.flow_band, r.flow_status)
-}
-function urBandLabel(r: UserReachSummary): string {
-  return bandForCfs(r.slug, r.current_cfs)?.label ?? flowBandLabel(r.flow_band, r.flow_status)
-}
+// Bare call for its side effect: publishes the --flow-* CSS vars on <html>.
+// Band resolution/coloring now lives inside <RunRow>.
+useFlowBandPalette()
+const { prefetch: prefetchBand } = useRunFlowBand()
 
 const router = useRouter()
 const toast = useToast()
@@ -1033,12 +956,6 @@ interface UserReachSummary {
   is_reference?: boolean
 }
 
-function reachBadgeClass(r: UserReachSummary): string {
-  return bandBadgeClass(r.flow_band, r.flow_status)
-}
-function reachStatusLabel(r: UserReachSummary): string {
-  return flowBandLabel(r.flow_band, r.flow_status)
-}
 function reachLastUpdated(r: UserReachSummary): string {
   if (!r.last_reading_at) return ''
   const ms = Date.now() - new Date(r.last_reading_at).getTime()
