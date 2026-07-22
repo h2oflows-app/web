@@ -51,10 +51,10 @@
 .font-face-nunito             { font-family: 'Nunito'; }
 .font-face-jetbrains-mono     { font-family: 'JetBrains Mono'; }
 .font-face-chakra-petch       { font-family: 'Chakra Petch'; }
-/* Exo 2 (Hydraulic body) is the one family the scanner will not resolve — it is
- * present in the provider metadata but emits no face in any quoting form. That
- * is pre-existing and tracked separately; the rule stays so Hydraulic starts
- * working the moment it is fixed. */
+/* Exo 2 (Hydraulic body). A family whose name ends in a space + digit was
+ * dropped by the font scanner until patches/fontless+0.2.1.patch — Lightning
+ * CSS minifies 'Exo 2' to the escaped identifier Exo\ 2, which fontless failed
+ * to de-escape before the provider lookup. See #330. */
 .font-face-exo-2              { font-family: 'Exo 2'; }
 .font-face-ibm-plex-mono      { font-family: 'IBM Plex Mono'; }
 .font-face-cormorant-garamond { font-family: 'Cormorant Garamond'; }
