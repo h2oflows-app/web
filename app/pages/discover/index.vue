@@ -19,5 +19,5 @@
 </template>
 
 <script setup lang="ts">
-definePageMeta({ ssr: false })
+definePageMeta({ ssr: true })
 </script>
