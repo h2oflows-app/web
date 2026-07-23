@@ -85,6 +85,6 @@ function dotStyle(run: CalendarRun): Record<string, string> {
 
 <style scoped>
 .ribbon-dashed {
-  background-image: repeating-linear-gradient(90deg, var(--ui-color-violet-500, #8b5cf6) 0 4px, transparent 4px 8px);
+  background-image: repeating-linear-gradient(90deg, var(--color-violet-500, #8b5cf6) 0 4px, transparent 4px 8px);
 }
 </style>
