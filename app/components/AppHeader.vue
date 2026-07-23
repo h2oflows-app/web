@@ -60,6 +60,9 @@
       <!-- Page-level action buttons -->
       <slot name="actions" />
 
+      <!-- Notifications — always visible (desktop + mobile) -->
+      <NotificationBell />
+
       <!-- Hamburger — mobile only -->
       <button
         class="sm:hidden shrink-0 p-1.5 rounded-md text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
@@ -99,6 +102,17 @@
               <div class="border-t border-neutral-100 dark:border-neutral-800" />
             </template>
             <div class="border-t border-neutral-100 dark:border-neutral-800" />
+            <NuxtLink
+              v-if="isAuthenticated"
+              to="/calendar"
+              class="w-full text-left px-3 py-1.5 text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors flex items-center gap-2"
+              @click="userMenuOpen = false"
+            >
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              My Calendar
+            </NuxtLink>
             <NuxtLink
               v-if="isAuthenticated"
               to="/my/runs"

@@ -8,6 +8,7 @@
     <ClientOnly><HandleClaimModal /></ClientOnly>
     <ClientOnly><PwaInstallPrompt /></ClientOnly>
     <MobileTabBar />
+    <ClientOnly><AppCreateOverlay /></ClientOnly>
   </UApp>
 </template>
 
