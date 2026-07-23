@@ -108,8 +108,12 @@
 
     <PlanRunShareSheet
       :id="run.id"
+      :slug="run.slug"
       :name="run.name ?? 'Untitled run'"
       :gauge-cfs="run.gauge_cfs"
+      :run-date="run.run_date"
+      :notes="run.notes"
+      :paddled="run.paddled"
       :open="shareOpen"
       @close="shareOpen = false"
     />

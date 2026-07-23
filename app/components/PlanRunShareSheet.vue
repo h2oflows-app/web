@@ -58,10 +58,31 @@
               </span>
               <span class="text-sm text-neutral-700 dark:text-neutral-200">{{ messageCopied ? 'Copied!' : 'Copy for Discord' }}</span>
             </button>
+
+            <div class="border-t border-neutral-100 dark:border-neutral-800 my-1" />
+
+            <!-- AW cross-post (re-homed mock copy-JSON flow, decision #9) -->
+            <button
+              class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-left"
+              @click="awOpen = true"
+            >
+              <span class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4 text-primary-600 dark:text-primary-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14c3-6 6-9 8-9s5 9 8 9 5-9 8-9"/><path d="M12 22V5"/></svg>
+              </span>
+              <span class="text-sm text-neutral-700 dark:text-neutral-200">Share to American Whitewater</span>
+            </button>
           </div>
         </div>
       </div>
     </Transition>
+
+    <AWShareModal
+      v-if="awOpen"
+      :report="awReport"
+      :open="awOpen"
+      @close="awOpen = false"
+      @synced="awOpen = false"
+    />
   </Teleport>
 </template>
 
@@ -71,16 +92,35 @@
 // the reports shape (flat report.reach_name/reach_slug/aw_synced_at etc.),
 // which the plan_runs response doesn't carry — a straight prop-fit wasn't
 // possible, so this is the small standalone clone the implementation plan
-// calls for. AW cross-post is intentionally omitted here (out of W3 scope).
+// calls for. AW cross-post reuses AWShareModal itself (the re-homed mock
+// copy-JSON flow, decision #9) — reach_name/reach_slug are unused inside
+// AWShareModal so plan_runs (which don't carry a reach name/slug) can pass
+// it a minimally-shaped report without those fields.
 
 const props = defineProps<{
   id: string
+  slug: string
   name: string
   riverName?: string | null
   gaugeCfs?: number | null
+  runDate: string
+  notes?: string | null
+  paddled: boolean
   open: boolean
 }>()
 defineEmits<{ close: [] }>()
+
+const awOpen = ref(false)
+
+const awReport = computed(() => ({
+  id: props.id,
+  slug: props.slug,
+  name: props.name,
+  report_date: props.runDate,
+  content: props.notes ?? '',
+  paddled: props.paddled,
+  flow_cfs: props.gaugeCfs ?? undefined,
+}))
 
 const config = useRuntimeConfig()
 const linkCopied = ref(false)
