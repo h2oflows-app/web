@@ -61,6 +61,7 @@
       v-model:open="daySheetOpen"
       :date="selectedDay"
       :runs="selectedDayRuns"
+      :plans="selectedDayPlans"
       :loading="loading"
       @new-plan-here="openNewPlanForSelectedDay"
     />
@@ -95,6 +96,13 @@ const selectedDay = ref<string | null>(null)
 const selectedDayRuns = computed(() => {
   if (!selectedDay.value) return []
   return days.value.find(d => d.date === selectedDay.value)?.runs ?? []
+})
+
+// Plans (own + member) whose date range spans the selected day — feeds the
+// day sheet's "N plans here, each with Add a run" section.
+const selectedDayPlans = computed(() => {
+  if (!selectedDay.value) return []
+  return plans.value.filter(p => p.start_date <= selectedDay.value! && p.end_date >= selectedDay.value!)
 })
 
 // Loaded separately (whole-year range) only when the Year view is active.

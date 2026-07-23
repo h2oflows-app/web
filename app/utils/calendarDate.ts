@@ -99,3 +99,13 @@ export function monthLabel(year: number, month: number): string {
 export function clientTz(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone
 }
+
+// Render a plain "HH:MM[:SS]" time value (never a Date parse — same rule as
+// dates: a bare time string has no timezone to get wrong, so just split it).
+export function fmtTime(t: string): string {
+  const [hStr, mStr] = t.split(':')
+  const h = Number(hStr)
+  const period = h >= 12 ? 'PM' : 'AM'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return `${h12}:${mStr} ${period}`
+}

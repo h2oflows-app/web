@@ -14,6 +14,11 @@ export interface CalendarRun {
   paddled: boolean
   run_time?: string
   plan_id: string
+  // Not populated by GET /me/calendar today (lighter list payload) — present
+  // when a run is fetched individually (GET /plan-runs/{id}) or once a
+  // future /me/calendar extension adds it. Optional so PlanRunFeedCard etc.
+  // can render it when available and degrade gracefully when not.
+  notes?: string
 }
 
 export interface CalendarDay {
@@ -139,10 +144,24 @@ export function useCalendar() {
     days.value = next
   }
 
+  // Patches one run in place within its date bucket — used for the
+  // mark-paddled quick action's optimistic hollow->filled dot flip (and its
+  // revert on 422/403), without waiting on a full range refetch.
+  function patchRunOptimistic(date: string, runId: string, patch: Partial<CalendarRun>) {
+    const idx = days.value.findIndex(d => d.date === date)
+    if (idx < 0) return
+    const next = [...days.value]
+    next[idx] = {
+      ...next[idx],
+      runs: next[idx].runs.map(r => (r.id === runId ? { ...r, ...patch } : r)),
+    }
+    days.value = next
+  }
+
   return {
     days, plans, nudgeDots, loading,
     loadRange, refresh,
     insertPlanOptimistic, removePlanOptimistic,
-    insertRunOptimistic, removeRunOptimistic,
+    insertRunOptimistic, removeRunOptimistic, patchRunOptimistic,
   }
 }

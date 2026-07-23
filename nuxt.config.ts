@@ -69,6 +69,9 @@ export default defineNuxtConfig({
     '/dashboard':  { prerender: false },
     '/trips':      { prerender: false },
     '/basin/**':   { prerender: false, ssr: false },
+    // #246 W3 — SSR'd for OG/permalink sharing (mirrors old /reports/{id}),
+    // but not crawled/prerendered at build time (dynamic per-run content).
+    '/plan-runs/**': { prerender: false },
   },
 
   // Register components by filename only, not directory/filename prefix.
