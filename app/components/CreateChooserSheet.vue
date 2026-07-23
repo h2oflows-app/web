@@ -108,12 +108,11 @@
 
 <script setup lang="ts">
 const { isOpen, close } = useCreateMenu()
+const planCreateSheet = usePlanCreateSheet()
 
-// TODO(W2): "New plan" should open PlanCreateSheet directly instead of
-// navigating to the (still-placeholder) /calendar page once it lands.
 function chooseNewPlan() {
   close()
-  navigateTo('/calendar')
+  planCreateSheet.open()
 }
 
 function chooseCreateRun() {
