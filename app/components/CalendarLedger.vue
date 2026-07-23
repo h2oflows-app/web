@@ -1,10 +1,14 @@
 <template>
   <div class="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3">
     <div class="flex items-center justify-between mb-2">
-      <h3 class="text-xs font-semibold text-neutral-500 dark:text-neutral-400">This month · {{ allRows.length }} run{{ allRows.length === 1 ? '' : 's' }}</h3>
+      <h3 class="text-xs font-semibold text-neutral-500 dark:text-neutral-400">This month<template v-if="!loading"> · {{ allRows.length }} run{{ allRows.length === 1 ? '' : 's' }}</template></h3>
     </div>
 
-    <div v-if="!allRows.length" class="text-sm text-neutral-400 py-2">Nothing logged yet.</div>
+    <div v-if="loading" class="flex flex-col gap-1.5 py-1">
+      <div v-for="i in 3" :key="i" class="h-8 rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+    </div>
+
+    <div v-else-if="!allRows.length" class="text-sm text-neutral-400 py-2">Nothing logged yet.</div>
 
     <div v-else class="flex flex-col divide-y divide-neutral-100 dark:divide-neutral-800">
       <div v-for="row in recentRows" :key="row.id" class="flex items-center gap-3 py-2">
@@ -46,6 +50,7 @@ import { useFlowBandPalette } from '~/composables/useFlowBandPalette'
 const props = defineProps<{
   days: CalendarDay[]
   plans: CalendarPlan[]
+  loading?: boolean
 }>()
 
 defineEmits<{ 'view-list': [] }>()

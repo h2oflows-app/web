@@ -9,7 +9,11 @@
       >+ New plan</button>
     </div>
 
-    <div v-if="!plans.length" class="text-sm text-neutral-400 py-3">No plans this month yet.</div>
+    <div v-if="loading" class="flex flex-col gap-1.5 py-1">
+      <div v-for="i in 2" :key="i" class="h-10 rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
+    </div>
+
+    <div v-else-if="!plans.length" class="text-sm text-neutral-400 py-3">No plans this month yet.</div>
 
     <div v-else class="flex flex-col divide-y divide-neutral-100 dark:divide-neutral-800">
       <!-- TODO(W4): plan detail page (/plans/:handle/:slug) doesn't exist yet — non-link row -->
@@ -38,6 +42,7 @@ import { planTypeMeta } from '~/utils/planType'
 const props = defineProps<{
   plans: CalendarPlan[]
   days: CalendarDay[]
+  loading?: boolean
 }>()
 
 defineEmits<{ 'new-plan': [] }>()

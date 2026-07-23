@@ -48,11 +48,12 @@
         v-else
         :days="days"
         :plans="plans"
+        :loading="loading"
       />
 
       <template v-if="view === 'month'">
-        <CalendarLedger :days="monthOnlyDays" :plans="monthOnlyPlans" @view-list="view = 'list'" />
-        <CalendarEventsList :days="monthOnlyDays" :plans="monthOnlyPlans" @new-plan="openNewPlan" />
+        <CalendarLedger :days="monthOnlyDays" :plans="monthOnlyPlans" :loading="loading" @view-list="view = 'list'" />
+        <CalendarEventsList :days="monthOnlyDays" :plans="monthOnlyPlans" :loading="loading" @new-plan="openNewPlan" />
       </template>
     </main>
 
@@ -60,6 +61,7 @@
       v-model:open="daySheetOpen"
       :date="selectedDay"
       :runs="selectedDayRuns"
+      :loading="loading"
       @new-plan-here="openNewPlanForSelectedDay"
     />
   </div>
@@ -79,7 +81,7 @@ const { isAuthenticated } = useAuth()
 const authReady = ref(false)
 onMounted(() => { authReady.value = true })
 
-const { days, plans, loadRange } = useCalendar()
+const { days, plans, loading, loadRange } = useCalendar()
 const planCreateSheet = usePlanCreateSheet()
 const focusDate = useCalendarFocusDate()
 
