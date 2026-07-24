@@ -147,8 +147,8 @@ interface Report {
   flow_cfs?: number
   flow_band?: string
   aw_synced_at?: string
-  reach_name: string
-  reach_slug: string
+  reach_name?: string
+  reach_slug?: string
 }
 
 const props = defineProps<{ report: Report; open: boolean }>()

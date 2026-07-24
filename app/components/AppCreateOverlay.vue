@@ -3,6 +3,7 @@
        plan sheet it (and CalendarDaySheet's "+ New plan here") can open. -->
   <CreateChooserSheet />
   <PlanCreateSheet />
+  <PlanRunLogSheet />
 </template>
 
 <script setup lang="ts">
