@@ -262,7 +262,7 @@
               <div class="flex items-start justify-between gap-2 mb-1">
                 <div class="min-w-0">
                   <span class="text-sm font-medium text-neutral-800 dark:text-neutral-200">{{ rep.name }}</span>
-                  <span v-if="rep.handle" class="ml-1.5 text-xs text-neutral-400">@{{ rep.handle }}</span>
+                  <span v-if="rep.handle && rep.handle !== rep.name" class="ml-1.5 text-xs text-neutral-400">@{{ rep.handle }}</span>
                 </div>
                 <div class="shrink-0 text-right">
                   <div class="text-xs text-neutral-400">{{ rep.report_date }}</div>
@@ -270,7 +270,7 @@
                 </div>
               </div>
               <p class="text-sm text-neutral-600 dark:text-neutral-400 line-clamp-3">{{ extractPreview(rep.content) }}</p>
-              <NuxtLink :to="`/reports/${rep.id}`" class="text-xs text-primary-500 hover:underline mt-1 inline-block">Read more →</NuxtLink>
+              <NuxtLink :to="rep.url || `/plan-runs/${rep.id}`" class="text-xs text-primary-500 hover:underline mt-1 inline-block">Read more →</NuxtLink>
             </div>
           </div>
 

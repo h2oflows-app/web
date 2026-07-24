@@ -337,7 +337,7 @@
               <div class="flex items-start justify-between gap-2 mb-1">
                 <div class="min-w-0">
                   <span class="text-sm font-medium text-neutral-800 dark:text-neutral-200">{{ rep.name }}</span>
-                  <span v-if="rep.handle" class="ml-1.5 text-xs text-neutral-400">@{{ rep.handle }}</span>
+                  <span v-if="rep.handle && rep.handle !== rep.name" class="ml-1.5 text-xs text-neutral-400">@{{ rep.handle }}</span>
                 </div>
                 <div class="shrink-0 text-right">
                   <div class="text-xs text-neutral-400">{{ rep.report_date }}</div>
@@ -345,7 +345,7 @@
                 </div>
               </div>
               <p class="text-sm text-neutral-600 dark:text-neutral-400 line-clamp-3">{{ extractPreview(rep.content) }}</p>
-              <NuxtLink :to="`/reports/${rep.id}`" class="text-xs text-primary-500 hover:underline mt-1 inline-block">Read more →</NuxtLink>
+              <NuxtLink :to="rep.url || `/plan-runs/${rep.id}`" class="text-xs text-primary-500 hover:underline mt-1 inline-block">Read more →</NuxtLink>
             </div>
           </div>
           <div v-if="reports.length > reportsPageSize" class="px-4 py-3 border-t border-neutral-100 dark:border-neutral-800 flex items-center gap-3">
@@ -487,7 +487,7 @@ interface FlowRangeProposal {
 }
 interface RunReport {
   id: string; slug: string; name: string; report_date: string
-  content: string; flow_cfs?: number; created_at: string; handle?: string
+  content: string; flow_cfs?: number; created_at: string; handle?: string; url?: string
 }
 interface ClusterRun {
   id: string; slug: string; name: string
