@@ -6,8 +6,8 @@
         <div>
           <h1 class="text-lg font-bold text-neutral-900 dark:text-white">{{ run.name ?? 'Untitled run' }}</h1>
           <p class="text-xs text-neutral-400 mt-0.5">
-            Part of <strong class="text-neutral-500 dark:text-neutral-400">{{ plan.name }}</strong>
-            <!-- TODO(W4): link to /plans/{handle}/{slug} once the plan detail page ships -->
+            Part of
+            <NuxtLink :to="`/plans/${plan.host_handle}/${plan.slug}`" class="text-neutral-500 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 font-medium hover:underline">{{ plan.name }}</NuxtLink>
           </p>
         </div>
         <div class="flex items-center gap-3 shrink-0">

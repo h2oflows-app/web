@@ -28,7 +28,7 @@
     >{{ run.paddled ? 'Logged' : 'Planned' }}</span>
 
     <button
-      v-if="canMarkPaddled"
+      v-if="canEdit && canMarkPaddled"
       type="button"
       class="shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white transition-colors"
       :disabled="marking"
@@ -36,7 +36,7 @@
     >{{ marking ? '…' : 'Mark paddled' }}</button>
 
     <button
-      v-else-if="!run.paddled"
+      v-else-if="canEdit && !run.paddled"
       type="button"
       class="shrink-0 text-[11px] font-medium text-primary-600 dark:text-primary-400 hover:underline"
       @click="onEdit"
@@ -53,13 +53,29 @@ import { fmtTime, isPastOrToday } from '~/utils/calendarDate'
 import { colorKeyToHex, colorKeyToBadgeClass, flowBandLabel } from '~/utils/flowBand'
 import { useFlowBandPalette } from '~/composables/useFlowBandPalette'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   run: CalendarRun
   // The day this run is scheduled on (calendar payloads carry run_date only
   // at the day-bucket level, not per-run) — needed for the mark-paddled
   // future-date guard and to target the right day bucket for optimistic updates.
   date: string
-}>()
+  // Gates Mark-paddled/Edit. Defaults true (every existing consumer —
+  // CalendarDaySheet — only ever renders the viewer's OWN runs). Plan
+  // detail's itinerary renders the HOST's runs to every viewer (members,
+  // even anon token-carve invitees), and PATCH /plan-runs/{id} is
+  // owner_id-scoped server-side anyway — canEdit:false there hides an
+  // affordance that would otherwise just 404 for anyone but the host.
+  canEdit?: boolean
+}>(), {
+  canEdit: true,
+})
+
+// Fired after a successful mark-paddled PATCH — usePlans.markPaddled already
+// refreshes the (module-ref) useCalendar cache, but a parent rendering runs
+// from a DIFFERENT fetch (e.g. plans/[handle]/[slug].vue's itinerary, which
+// isn't backed by useCalendar) needs its own signal to refetch. Optional:
+// CalendarDaySheet ignores it since useCalendar already covers that surface.
+const emit = defineEmits<{ updated: [] }>()
 
 const { bandSolid } = useFlowBandPalette()
 const { markPaddled } = usePlans()
@@ -79,8 +95,9 @@ const dotStyle = computed(() => {
 async function onMarkPaddled() {
   if (marking.value) return
   marking.value = true
-  await markPaddled(props.run.id, props.date)
+  const ok = await markPaddled(props.run.id, props.date)
   marking.value = false
+  if (ok) emit('updated')
 }
 
 function onEdit() {

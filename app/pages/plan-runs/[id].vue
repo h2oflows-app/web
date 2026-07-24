@@ -7,7 +7,21 @@
       </template>
     </AppHeader>
 
-    <div v-if="pending" class="max-w-2xl mx-auto px-4 py-20 flex justify-center">
+    <!-- Auth loading -->
+    <div v-if="!authReady" class="max-w-2xl mx-auto px-4 py-20 flex justify-center">
+      <div class="w-6 h-6 rounded-full border-2 border-primary-500 border-t-transparent animate-spin" />
+    </div>
+
+    <!-- Not signed in (contract §6 REVISED: calendar domain is auth-only, no anon read) -->
+    <div v-else-if="!isAuthenticated" class="max-w-2xl mx-auto px-4 py-20 flex flex-col items-center gap-3 text-center">
+      <svg class="w-10 h-10 text-neutral-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>
+      <h2 class="text-lg font-semibold">Sign in to view this run</h2>
+      <NuxtLink :to="`/login?redirect=${encodeURIComponent(route.fullPath)}`" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">Sign in</NuxtLink>
+    </div>
+
+    <div v-else-if="pending" class="max-w-2xl mx-auto px-4 py-20 flex justify-center">
       <div class="w-6 h-6 rounded-full border-2 border-primary-500 border-t-transparent animate-spin" />
     </div>
 
@@ -22,11 +36,14 @@
 </template>
 
 <script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue'
 import type { PlanRunDetail, PlanRunDetailPlan } from '~/utils/planRun'
+
+definePageMeta({ ssr: false })
 
 const route = useRoute()
 const config = useRuntimeConfig()
-const { getToken } = useAuth()
+const { isAuthenticated, getToken } = useAuth()
 
 interface PlanRunResponse {
   run: PlanRunDetail
@@ -35,106 +52,32 @@ interface PlanRunResponse {
 
 const param = route.params.id as string
 
-// SSR-safe fetch, anon (no token) — the common case (public plan runs, OG
-// scrapers, shared links). A private plan 404s here even for its own
-// owner/members during the SSR pass (no session cookie to read) — the
-// client-side retry below picks that case up once auth is ready. Never
-// leak existence: a private-plan 404 must look identical to a truly
-// missing id both here and after the retry fails too.
-const { data, pending, refresh: refreshAsync } = await useAsyncData<PlanRunResponse | null>(
-  `plan-run-${param}`,
-  () => $fetch<PlanRunResponse>(`${config.public.apiBase}/api/v1/plan-runs/${param}`).catch(() => null)
-)
+const authReady = ref(false)
+onMounted(() => { authReady.value = true })
+
+const data = ref<PlanRunResponse | null>(null)
+const pending = ref(false)
+
+async function load() {
+  pending.value = true
+  const token = await getToken()
+  const headers: Record<string, string> = {}
+  if (token) headers.Authorization = `Bearer ${token}`
+  const res = await fetch(`${config.public.apiBase}/api/v1/plan-runs/${param}`, { headers }).catch(() => null)
+  data.value = res?.ok ? await res.json().catch(() => null) : null
+  pending.value = false
+}
+
+watch(isAuthenticated, (v) => { if (v) load() }, { immediate: true })
 
 const run = computed(() => data.value?.run ?? null)
 const plan = computed(() => data.value?.plan ?? null)
 
-// Client-side retry with auth, only when the anon fetch came back empty —
-// covers "private plan, viewed by its own host/member" without ever
-// sending a token for the (much more common) public case.
-const { isAuthenticated } = useAuth()
-async function retryWithAuth() {
-  if (data.value) return
-  const token = await getToken()
-  if (!token) return
-  const res = await fetch(`${config.public.apiBase}/api/v1/plan-runs/${param}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  }).catch(() => null)
-  if (res?.ok) data.value = await res.json().catch(() => null)
-}
-watch(isAuthenticated, (v) => { if (v) retryWithAuth() }, { immediate: true })
-
 async function refresh() {
-  if (isAuthenticated.value) {
-    const token = await getToken()
-    if (token) {
-      const res = await fetch(`${config.public.apiBase}/api/v1/plan-runs/${param}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => null)
-      if (res?.ok) { data.value = await res.json().catch(() => null); return }
-    }
-  }
-  await refreshAsync()
+  await load()
 }
 
 async function onDeleted() {
   await navigateTo('/calendar')
 }
-
-// ── SEO / OG (mirrors old reports/[id].vue) ──────────────────────────────
-// canonical uses run.value.id (the resolved id) rather than the raw route
-// param — GetRun resolves id | source_report_id | slug, so an old
-// /reports/{uuid} link or a slug URL both canonicalize to the same
-// /plan-runs/{id}.
-const pageTitle = computed(() =>
-  run.value ? `${run.value.name ?? 'Run'} — H2OFlows` : 'Run — H2OFlows'
-)
-const pageDesc = computed(() => {
-  if (!run.value) return ''
-  const cfsPart = run.value.gauge_cfs != null ? ` @ ${Math.round(run.value.gauge_cfs).toLocaleString()} cfs` : ''
-  return `${plan.value?.name ?? ''}${cfsPart} — ${run.value.run_date}`.trim()
-})
-// #246 A5 (nudge/season/og) has not shipped yet — /og/plan-runs/{id}.png
-// doesn't exist on the api yet, so this image 404s until that PR lands.
-// Wired to the contract now per the implementation plan rather than left
-// out, since the URL shape itself is already binding.
-const pageOgImage = computed(() =>
-  run.value ? `${config.public.apiBase}/og/plan-runs/${run.value.id}.png` : undefined
-)
-const pageCanonical = computed(() =>
-  run.value ? `https://h2oflows.app/plan-runs/${run.value.id}` : undefined
-)
-
-useSeoMeta({
-  title: () => pageTitle.value,
-  description: () => pageDesc.value,
-  ogTitle: () => run.value?.name ?? 'H2OFlows Run',
-  ogDescription: () => pageDesc.value,
-  ogType: 'article',
-  ogImage: () => pageOgImage.value,
-  ogImageWidth: 1200,
-  ogImageHeight: 630,
-  ogImageType: 'image/png',
-  ogUrl: () => pageCanonical.value,
-  twitterCard: 'summary_large_image',
-  twitterTitle: () => run.value?.name ?? 'H2OFlows Run',
-  twitterDescription: () => pageDesc.value,
-  twitterImage: () => pageOgImage.value,
-})
-
-useHead(() => {
-  if (!run.value || !plan.value) return {}
-  const ld = {
-    '@context': 'https://schema.org',
-    '@type': 'Article',
-    headline: run.value.name ?? 'Paddle run',
-    author: plan.value.host_handle ? { '@type': 'Person', name: `@${plan.value.host_handle}` } : undefined,
-    datePublished: run.value.created_at,
-    description: pageDesc.value,
-    url: pageCanonical.value,
-  }
-  return {
-    script: [{ type: 'application/ld+json', innerHTML: JSON.stringify(ld) }],
-  }
-})
 </script>
