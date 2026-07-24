@@ -54,11 +54,13 @@
         </div>
       </div>
 
-      <!-- Pending invite (viewer, or anon token-carve-out) -->
+      <!-- Pending invite (viewer, anon token-carve-out, or authed token-holder
+           not yet bound to the invite — different-email conversion) -->
       <InviteAcceptCard
         v-if="showInviteAcceptCard"
         :plan="plan"
-        :member-id="myPendingInvite?.member_id ?? ''"
+        :member-id="myPendingInvite?.member_id ?? data?.invite_member_id ?? ''"
+        :token="inviteToken ?? undefined"
         @accepted="onInviteResolved"
         @dismissed="onInviteResolved"
       />
@@ -136,9 +138,12 @@ const slugParam = route.params.slug as string
 // Anon token carve-out (contract §6 REVISED): an invite-email link
 // (?invite={token}) grants a signed-out viewer read access to conversion
 // — accepting still requires an account. Forwarded to the API as a query
-// param per the implementation plan; public plans render regardless (the
-// common case), private plans still 404 for anon today since the handler
-// has no server-side token bypass wired up yet (flagged as a follow-up).
+// param per the implementation plan; the API honors it for BOTH anon and
+// authed callers (renderPlan, plans.go) — the authed case matters because
+// an email invite's plan_members row keeps member_owner_id NULL until
+// accept, so an authed-but-unbound invitee (e.g. signed up with a
+// different email than the invite) would otherwise fail the private-plan
+// visibility gate too.
 const inviteToken = computed(() => (typeof route.query.invite === 'string' ? route.query.invite : null))
 
 const authReady = ref(false)
@@ -196,7 +201,10 @@ const myPendingInvite = computed(() => {
 const showInviteAcceptCard = computed(() => {
   if (!plan.value || isHost.value) return false
   if (!isAuthenticated.value) return !!inviteToken.value
-  return !!myPendingInvite.value
+  // Either the invite is already bound/discoverable via /me/invites, or the
+  // caller is holding a valid token the API resolved to a not-yet-bound
+  // invite (different-email conversion — invite_member_id on the response).
+  return !!myPendingInvite.value || !!(inviteToken.value && data.value?.invite_member_id)
 })
 
 async function onInviteResolved() {

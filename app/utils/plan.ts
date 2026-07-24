@@ -46,6 +46,13 @@ export interface PlanDetailResponse {
   itinerary: PlanItineraryDay[]
   members: PlanMember[]
   crew: PlanCrewMeterInfo
+  // Present only when a valid ?invite=<token> was forwarded on the request
+  // and resolves to a plan_members row — the member id backing an
+  // email invite that isn't bound to this caller yet (member_owner_id still
+  // NULL, so it won't show up via myPendingInvite from /me/invites either,
+  // e.g. signed up with a different email than the invite). Lets the
+  // token-holder accept before the invite is ever bound to them.
+  invite_member_id?: string
 }
 
 // ── GET /plans/{id}/crew (host-only roster) ──────────────────────────────

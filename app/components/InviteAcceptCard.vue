@@ -45,6 +45,11 @@ import { useInvites } from '~/composables/useInvites'
 const props = defineProps<{
   plan: PlanDetail
   memberId: string
+  // ?invite=<token> from the email link, when present — threaded through to
+  // accept() so a signed-up-with-a-different-email invitee (no /me/invites
+  // match, memberId sourced from the plan response's invite_member_id
+  // instead of myPendingInvite) can still accept (review finding, #246 W4).
+  token?: string
 }>()
 
 const emit = defineEmits<{ accepted: []; dismissed: [] }>()
@@ -58,7 +63,7 @@ const busy = ref(false)
 async function onAccept() {
   if (busy.value) return
   busy.value = true
-  const ok = await accept(props.memberId)
+  const ok = await accept(props.memberId, props.token)
   busy.value = false
   if (ok) emit('accepted')
 }

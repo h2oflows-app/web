@@ -73,13 +73,22 @@ export function useInvites() {
     loaded.value = true
   }
 
-  async function accept(memberId: string): Promise<boolean> {
+  // token: the ?invite=<token> from the email link, forwarded in the POST
+  // body — API's AcceptInvite (invites.go) accepts it as a fallback match
+  // for the "signed up with a different email than the invite" case, where
+  // the invite's plan_members row isn't bound to (or discoverable via
+  // /me/invites' email match for) this account yet.
+  async function accept(memberId: string, token?: string): Promise<boolean> {
     const prev = invites.value
     invites.value = invites.value.map(i => i.member_id === memberId ? { ...i, status: 'accepted' } : i)
     recomputeUnread()
 
     const headers = await authHeaders()
-    const res = await fetch(`${apiBase}/api/v1/invites/${memberId}/accept`, { method: 'POST', headers }).catch(() => null)
+    const res = await fetch(`${apiBase}/api/v1/invites/${memberId}/accept`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(token ? { token } : {}),
+    }).catch(() => null)
     if (!res?.ok) {
       invites.value = prev
       recomputeUnread()
