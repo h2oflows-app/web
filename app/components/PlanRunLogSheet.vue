@@ -76,28 +76,62 @@
                     </div>
 
                     <div v-else class="space-y-2">
+                      <div class="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          class="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+                          :class="pickerScope === 'mine' ? 'bg-primary-600 text-white' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'"
+                          @click="pickerScope = 'mine'"
+                        >My runs</button>
+                        <button
+                          type="button"
+                          class="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+                          :class="pickerScope === 'community' ? 'bg-primary-600 text-white' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'"
+                          @click="pickerScope = 'community'"
+                        >Community</button>
+                      </div>
                       <input
                         v-model="runFilter"
                         type="text"
-                        placeholder="Filter your runs…"
+                        :placeholder="pickerScope === 'mine' ? 'Filter your runs…' : 'Search community runs…'"
                         class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
                       />
                       <div class="max-h-40 overflow-y-auto rounded-lg border border-neutral-100 dark:border-neutral-800 divide-y divide-neutral-100 dark:divide-neutral-800">
-                        <div v-if="runsLoading" class="px-3 py-3 text-xs text-neutral-400 text-center">Loading your runs…</div>
-                        <div v-else-if="!filteredRuns.length" class="px-3 py-3 text-xs text-neutral-400 text-center">No runs match.</div>
-                        <button
-                          v-for="r in filteredRuns"
-                          :key="r.id"
-                          type="button"
-                          class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-                          @click="selectedRunId = r.id"
-                        >
-                          <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ background: flowBandSolidColor(r.flow_band, r.flow_status) }" />
-                          <div class="min-w-0 flex-1">
-                            <p class="text-sm text-neutral-800 dark:text-neutral-100 truncate">{{ r.name }}</p>
-                            <p v-if="r.river_name" class="text-xs text-neutral-400 truncate">{{ r.river_name }}</p>
-                          </div>
-                        </button>
+                        <template v-if="pickerScope === 'mine'">
+                          <div v-if="runsLoading" class="px-3 py-3 text-xs text-neutral-400 text-center">Loading your runs…</div>
+                          <div v-else-if="!filteredRuns.length" class="px-3 py-3 text-xs text-neutral-400 text-center">No runs match.</div>
+                          <button
+                            v-for="r in filteredRuns"
+                            :key="r.id"
+                            type="button"
+                            class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                            @click="pickMine(r)"
+                          >
+                            <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ background: flowBandSolidColor(r.flow_band, r.flow_status) }" />
+                            <div class="min-w-0 flex-1">
+                              <p class="text-sm text-neutral-800 dark:text-neutral-100 truncate">{{ r.name }}</p>
+                              <p v-if="r.river_name" class="text-xs text-neutral-400 truncate">{{ r.river_name }}</p>
+                            </div>
+                          </button>
+                        </template>
+                        <template v-else>
+                          <div v-if="communityLoading" class="px-3 py-3 text-xs text-neutral-400 text-center">Searching…</div>
+                          <div v-else-if="!communityRuns.length" class="px-3 py-3 text-xs text-neutral-400 text-center">No community runs match.</div>
+                          <button
+                            v-for="c in communityRuns"
+                            :key="c.id"
+                            type="button"
+                            class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                            @click="pickCommunity(c)"
+                          >
+                            <div class="min-w-0 flex-1">
+                              <p class="text-sm text-neutral-800 dark:text-neutral-100 truncate">{{ c.name }}</p>
+                              <p class="text-xs text-neutral-400 truncate">
+                                @{{ c.handle }}<template v-if="c.class_min != null || c.class_max != null"> · Class {{ classRange(c.class_min, c.class_max) }}</template>
+                              </p>
+                            </div>
+                          </button>
+                        </template>
                       </div>
                     </div>
                   </div>
@@ -197,6 +231,7 @@ import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
 import { usePlans } from '~/composables/usePlans'
 import { useCalendar } from '~/composables/useCalendar'
 import { todayYMD, fmtDate, isPastOrToday } from '~/utils/calendarDate'
+import { classRange } from '~/utils/classRating'
 import { flowBandLabel, flowBandSolidColor, colorKeyToHex } from '~/utils/flowBand'
 import type { PlanRunDetail } from '~/utils/planRun'
 
@@ -228,13 +263,53 @@ const form = ref({
 })
 
 // ── Create mode: run picker ─────────────────────────────────────────────
+// Two scopes: your own runs, and the global community catalog. A plan run
+// may reference ANY live river run (they're all public) — the API resolves
+// user_reach_id without an ownership gate.
 const runs = ref<MyRun[]>([])
 const runsLoading = ref(false)
 const runsLoaded = ref(false)
 const runFilter = ref('')
 const selectedRunId = ref('')
+const pickerScope = ref<'mine' | 'community'>('mine')
 
-const selectedRun = computed(() => runs.value.find(r => r.id === selectedRunId.value) ?? null)
+interface CommunityRun {
+  id: string
+  slug: string
+  name: string
+  handle: string
+  class_min: number | null
+  class_max: number | null
+  gauge_name: string | null
+}
+
+const communityRuns = ref<CommunityRun[]>([])
+const communityLoading = ref(false)
+let communityTimer: ReturnType<typeof setTimeout> | null = null
+
+// Snapshot the pick so a community re-search doesn't drop the selection.
+const pickedRun = ref<MyRun | null>(null)
+const selectedRun = computed(() =>
+  selectedRunId.value && pickedRun.value?.id === selectedRunId.value ? pickedRun.value : null
+)
+
+function pickMine(r: MyRun) {
+  pickedRun.value = r
+  selectedRunId.value = r.id
+}
+
+function pickCommunity(c: CommunityRun) {
+  pickedRun.value = {
+    id: c.id,
+    slug: c.slug,
+    name: c.name,
+    river_name: c.handle ? `@${c.handle}` : null,
+    current_cfs: null,
+    flow_band: null,
+    flow_status: null,
+  }
+  selectedRunId.value = c.id
+}
 
 const filteredRuns = computed(() => {
   const q = runFilter.value.trim().toLowerCase()
@@ -242,6 +317,22 @@ const filteredRuns = computed(() => {
   return runs.value.filter(r =>
     r.name.toLowerCase().includes(q) || (r.river_name ?? '').toLowerCase().includes(q)
   )
+})
+
+async function loadCommunityRuns() {
+  communityLoading.value = true
+  const q = runFilter.value.trim()
+  const url = `${apiBase}/api/v1/discover/runs?limit=20${q ? `&q=${encodeURIComponent(q)}` : ''}`
+  const res = await fetch(url).catch(() => null)
+  const data = res?.ok ? await res.json().catch(() => null) : null
+  communityRuns.value = data?.items ?? []
+  communityLoading.value = false
+}
+
+watch([pickerScope, runFilter], () => {
+  if (pickerScope.value !== 'community') return
+  if (communityTimer) clearTimeout(communityTimer)
+  communityTimer = setTimeout(loadCommunityRuns, 350)
 })
 
 async function loadMyRuns() {
@@ -304,6 +395,9 @@ watch(() => form.value.runDate, () => {
 const flowPreview = computed(() => {
   if (mode.value === 'create') {
     if (!selectedRun.value) return null
+    // Community picks carry no live flow fields — fall back to the hint text;
+    // the server stamps real flow on save either way.
+    if (!selectedRun.value.flow_band && !selectedRun.value.flow_status && selectedRun.value.current_cfs == null) return null
     return {
       label: flowBandLabel(selectedRun.value.flow_band, selectedRun.value.flow_status),
       cfs: selectedRun.value.current_cfs != null ? Math.round(selectedRun.value.current_cfs) : null,
