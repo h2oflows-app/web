@@ -70,7 +70,7 @@
                       <svg class="w-4 h-4 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14c3-6 6-9 8-9s5 9 8 9"/></svg>
                       <div class="min-w-0 flex-1">
                         <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">{{ selectedRun.name }}</p>
-                        <p v-if="selectedRun.river_name" class="text-xs text-neutral-400 truncate">{{ selectedRun.river_name }}</p>
+                        <p v-if="riverLine(selectedRun.river_name, selectedRun.state_abbr)" class="text-xs text-neutral-400 truncate">{{ riverLine(selectedRun.river_name, selectedRun.state_abbr) }}</p>
                       </div>
                       <button type="button" class="text-xs text-primary-600 dark:text-primary-400 hover:underline shrink-0" @click="selectedRunId = ''">Change</button>
                     </div>
@@ -110,7 +110,7 @@
                             <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ background: flowBandSolidColor(r.flow_band, r.flow_status) }" />
                             <div class="min-w-0 flex-1">
                               <p class="text-sm text-neutral-800 dark:text-neutral-100 truncate">{{ r.name }}</p>
-                              <p v-if="r.river_name" class="text-xs text-neutral-400 truncate">{{ r.river_name }}</p>
+                              <p v-if="riverLine(r.river_name, r.state_abbr)" class="text-xs text-neutral-400 truncate">{{ riverLine(r.river_name, r.state_abbr) }}</p>
                             </div>
                           </button>
                         </template>
@@ -127,7 +127,7 @@
                             <div class="min-w-0 flex-1">
                               <p class="text-sm text-neutral-800 dark:text-neutral-100 truncate">{{ c.name }}</p>
                               <p class="text-xs text-neutral-400 truncate">
-                                @{{ c.handle }}<template v-if="c.class_min != null || c.class_max != null"> · Class {{ classRange(c.class_min, c.class_max) }}</template>
+                                <template v-if="riverLine(c.river_name, c.state_abbr)">{{ riverLine(c.river_name, c.state_abbr) }} · </template>@{{ c.handle }}<template v-if="c.class_min != null || c.class_max != null"> · Class {{ classRange(c.class_min, c.class_max) }}</template>
                               </p>
                             </div>
                           </button>
@@ -162,44 +162,52 @@
                     </div>
                   </div>
 
-                  <!-- Flow (auto) chip — read-only, server-stamped -->
-                  <div class="rounded-lg bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-100 dark:border-neutral-800 px-3 py-2.5">
+                  <!-- Flow chip — only when there's something to show; the
+                       auto-stamp explanation lives in the notice below -->
+                  <div v-if="flowPreview" class="rounded-lg bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-100 dark:border-neutral-800 px-3 py-2.5">
                     <p class="text-[11px] font-medium text-neutral-400 uppercase tracking-wide mb-1">Flow <span class="normal-case font-normal">(auto)</span></p>
-                    <div v-if="flowPreview" class="flex items-center gap-1.5 text-sm text-neutral-700 dark:text-neutral-300">
+                    <div class="flex items-center gap-1.5 text-sm text-neutral-700 dark:text-neutral-300">
                       <span class="w-2 h-2 rounded-full shrink-0" :style="{ background: flowPreview.color }" />
                       {{ flowPreview.label }}<template v-if="flowPreview.cfs != null"> · {{ flowPreview.cfs.toLocaleString() }} cfs</template>
                       <span class="text-neutral-400">{{ flowPreview.stamped ? '' : '(current)' }}</span>
                     </div>
-                    <p v-else class="text-xs text-neutral-400">{{ mode === 'create' && !selectedRun ? 'Pick a run to preview current flow.' : 'Recorded automatically from the nearest gauge reading when you save.' }}</p>
                   </div>
 
-                  <!-- Paddled toggle / future-date guard -->
-                  <div v-if="canTogglePaddled" class="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20 px-3.5 py-3">
-                    <div>
-                      <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100">I paddled this</p>
-                      <p class="text-[11px] text-neutral-400 mt-0.5">Locks the flow reading and marks it logged.</p>
+                  <hr class="border-neutral-100 dark:border-neutral-800" />
+
+                  <!-- Log section: paddled + notes — locked until the run date -->
+                  <div class="space-y-3">
+                    <p class="text-[11px] font-medium text-neutral-400 uppercase tracking-wide">Log</p>
+
+                    <div v-if="canTogglePaddled" class="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20 px-3.5 py-3">
+                      <div>
+                        <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100">I paddled this</p>
+                        <p class="text-[11px] text-neutral-400 mt-0.5">Locks the flow reading and marks it logged.</p>
+                      </div>
+                      <USwitch v-model="form.paddled" />
                     </div>
-                    <USwitch v-model="form.paddled" />
-                  </div>
-                  <div v-else class="rounded-xl border border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/40 px-3.5 py-3 text-xs text-neutral-500 dark:text-neutral-400">
-                    Saving as a <strong class="text-neutral-700 dark:text-neutral-200">plan</strong>. You can mark it paddled on {{ fmtDate(form.runDate) }}.
+                    <div v-else class="rounded-xl border border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/40 px-3.5 py-3 text-xs text-neutral-500 dark:text-neutral-400">
+                      Saving as a <strong class="text-neutral-700 dark:text-neutral-200">plan</strong>. Logging unlocks on {{ fmtDate(form.runDate) }}.
+                    </div>
+
+                    <div>
+                      <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">
+                        Notes <span class="text-neutral-400">(optional, markdown supported)</span>
+                      </label>
+                      <textarea
+                        v-model="form.notes"
+                        rows="3"
+                        :disabled="!canTogglePaddled"
+                        :placeholder="canTogglePaddled ? 'How was it? Conditions, hazards, lines…' : `Notes unlock on ${fmtDate(form.runDate)}.`"
+                        class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-neutral-50 dark:disabled:bg-neutral-800/40"
+                      />
+                    </div>
                   </div>
 
                   <!-- Public-by-default notice -->
                   <p class="text-xs text-neutral-500 dark:text-neutral-400 rounded-lg bg-primary-50/60 dark:bg-primary-950/20 px-3 py-2">
-                    Logged runs are <strong class="text-neutral-700 dark:text-neutral-200">public</strong> — they share conditions & shots on the run page. Keep a plan private before you paddle it.
+                    Logged runs are <strong class="text-neutral-700 dark:text-neutral-200">public</strong> — they share conditions & shots on the run page, and flow is recorded automatically from the nearest gauge reading when you log. Keep a plan private before you paddle it.
                   </p>
-
-                  <!-- Notes -->
-                  <div>
-                    <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Notes <span class="text-neutral-400">(optional, markdown supported)</span></label>
-                    <textarea
-                      v-model="form.notes"
-                      rows="3"
-                      placeholder="How was it? Conditions, hazards, lines…"
-                      class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500/40"
-                    />
-                  </div>
 
                   <!-- Photos stub -->
                   <div class="flex items-center gap-2 rounded-lg border border-dashed border-neutral-200 dark:border-neutral-700 px-3 py-2.5 text-xs text-neutral-400">
@@ -240,9 +248,14 @@ interface MyRun {
   slug: string
   name: string
   river_name: string | null
+  state_abbr?: string | null
   current_cfs: number | null
   flow_band: string | null
   flow_status: string | null
+}
+
+function riverLine(river: string | null | undefined, state: string | null | undefined): string {
+  return [river, state].filter(Boolean).join(' · ')
 }
 
 const { apiBase } = useRuntimeConfig().public
@@ -277,6 +290,8 @@ interface CommunityRun {
   id: string
   slug: string
   name: string
+  river_name?: string | null
+  state_abbr?: string | null
   handle: string
   class_min: number | null
   class_max: number | null
@@ -303,7 +318,7 @@ function pickCommunity(c: CommunityRun) {
     id: c.id,
     slug: c.slug,
     name: c.name,
-    river_name: c.handle ? `@${c.handle}` : null,
+    river_name: [riverLine(c.river_name, c.state_abbr), c.handle ? `@${c.handle}` : ''].filter(Boolean).join(' · ') || null,
     current_cfs: null,
     flow_band: null,
     flow_status: null,
@@ -441,7 +456,8 @@ async function submit() {
       user_reach_id: selectedRunId.value,
       run_date: form.value.runDate,
       run_time: form.value.runTime || undefined,
-      notes: form.value.notes.trim() || undefined,
+      // Notes belong to the log — locked (and not sent) for future dates.
+      notes: canTogglePaddled.value ? form.value.notes.trim() || undefined : undefined,
       paddled: form.value.paddled || undefined,
     })
     submitting.value = false
