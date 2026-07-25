@@ -17,8 +17,11 @@
            bar (hidden sm:flex), so this row is hidden at sm and up to match. -->
       <div
         v-if="db.dashboards.value.length || hasAnyContent"
-        class="sm:hidden flex items-center gap-2 px-4 py-1.5 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800"
-      >
+        class="sm:hidden relative z-10 flex items-center gap-2 px-4 py-1.5 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800"
+      ><!-- relative z-10: backdrop-blur gives this row (and the toolbar below)
+           their own stacking contexts, so the switcher dropdown's z-40 is
+           trapped in here — without lifting the whole row, the later toolbar
+           sibling paints over the open menu. -->
         <div class="min-w-0 flex-1">
           <DashboardSwitcher
             v-if="db.dashboards.value.length"
