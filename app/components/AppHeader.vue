@@ -97,11 +97,7 @@
             v-if="userMenuOpen"
             class="absolute right-0 top-full mt-1 w-52 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg py-1 z-40"
           >
-            <template v-if="isAuthenticated">
-              <p class="px-3 py-1.5 text-xs text-neutral-400 truncate">{{ user?.email ?? user?.user_metadata?.user_name }}</p>
-              <div class="border-t border-neutral-100 dark:border-neutral-800" />
-            </template>
-            <div class="border-t border-neutral-100 dark:border-neutral-800" />
+            <CalendarMenuHeader v-if="isAuthenticated" :open="userMenuOpen" />
             <NuxtLink
               v-if="isAuthenticated"
               to="/calendar"

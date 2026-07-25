@@ -22,6 +22,8 @@
     <!-- Authenticated -->
     <main v-else class="max-w-3xl mx-auto px-4 py-6 pb-24 sm:pb-6 space-y-5">
       <InviteBanner />
+      <NudgeCard />
+      <CalendarQuickStatsBanner />
 
       <div class="flex items-center justify-between gap-3">
         <h1 class="text-xl font-bold text-neutral-900 dark:text-white">My Calendar</h1>
@@ -34,6 +36,7 @@
         :month="month"
         :days="days"
         :plans="plans"
+        :nudge-dots="nudgeDots"
         @select-day="openDay"
         @update:year="year = $event"
         @update:month="onMonthChange"
@@ -65,6 +68,7 @@
       :runs="selectedDayRuns"
       :plans="selectedDayPlans"
       :loading="loading"
+      :needs-confirm="selectedDayNeedsConfirm"
       @new-plan-here="openNewPlanForSelectedDay"
     />
   </div>
@@ -84,7 +88,7 @@ const { isAuthenticated } = useAuth()
 const authReady = ref(false)
 onMounted(() => { authReady.value = true })
 
-const { days, plans, loading, loadRange } = useCalendar()
+const { days, plans, nudgeDots, loading, loadRange } = useCalendar()
 const planCreateSheet = usePlanCreateSheet()
 const focusDate = useCalendarFocusDate()
 
@@ -98,6 +102,11 @@ const selectedDay = ref<string | null>(null)
 const selectedDayRuns = computed(() => {
   if (!selectedDay.value) return []
   return days.value.find(d => d.date === selectedDay.value)?.runs ?? []
+})
+
+const selectedDayNeedsConfirm = computed(() => {
+  if (!selectedDay.value) return false
+  return days.value.find(d => d.date === selectedDay.value)?.needs_confirm ?? false
 })
 
 // Plans (own + member) whose date range spans the selected day — feeds the

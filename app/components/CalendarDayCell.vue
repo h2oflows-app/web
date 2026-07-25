@@ -22,7 +22,18 @@
       />
     </div>
 
-    <!-- TODO(W6): needs_confirm '?' badge + quiet dot (Tier-A/Tier-B nudge) — A5 data always empty for now -->
+    <!-- needs_confirm '?' badge (Tier-A: in-band, unpaddled, nudge-eligible) -->
+    <span
+      v-if="needsConfirm"
+      class="absolute top-0.5 right-0.5 w-3.5 h-3.5 rounded-full border border-dashed border-amber-500 dark:border-amber-400 bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center text-[8px] font-bold leading-none text-amber-600 dark:text-amber-400"
+      title="Did you paddle this?"
+    >?</span>
+    <!-- quiet dot (Tier-B: in-band + previously paddled, no popup — "you find it when you look") -->
+    <span
+      v-else-if="quietDot"
+      class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full border border-dashed border-neutral-400 dark:border-neutral-500"
+      title="Conditions look good"
+    />
 
     <!-- Plan ribbon: 4px bottom bar, rounded at span start/end, dashed when pending invite -->
     <span
@@ -57,6 +68,8 @@ const props = defineProps<{
   isToday: boolean
   runs: CalendarRun[]
   ribbon: RibbonVM | null
+  needsConfirm?: boolean
+  quietDot?: boolean
 }>()
 
 defineEmits<{ 'select-day': [string] }>()

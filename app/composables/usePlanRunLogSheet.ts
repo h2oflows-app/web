@@ -1,19 +1,38 @@
 /**
  * usePlanRunLogSheet — shared open/mode state for PlanRunLogSheet.vue
- * (Trip Calendar #246 W3). Mirrors usePlanCreateSheet's useState pattern so
- * the sheet can be mounted once globally (AppCreateOverlay) and triggered
- * from anywhere: CalendarDaySheet's per-plan "Add a run", PlanRunItem's
- * "Edit" affordance on a planned (unpaddled) run.
+ * (Trip Calendar #246 W3, confirm mode added W6). Mirrors usePlanCreateSheet's
+ * useState pattern so the sheet can be mounted once globally (AppCreateOverlay)
+ * and triggered from anywhere: CalendarDaySheet's per-plan "Add a run",
+ * PlanRunItem's "Edit" affordance on a planned (unpaddled) run, NudgeCard's
+ * "Paddled it".
  *
- * Two modes only — mirrors the contract's own split:
+ * Three modes — mirrors the contract's own split:
  *  - create: a NEW plan_runs row under an existing plan (planId + optional
  *    prefill date, e.g. from "+ Add a run" on a specific day).
  *  - edit: an EXISTING *planned* (unpaddled) run — freely editable
  *    (run_date/run_time/notes/companions), and can flip paddled:true here.
  *    Paddled runs are edited on their own /plan-runs/{id} detail page
  *    instead (24h notes-only lock lives there, not in this sheet).
+ *  - confirm: a Tier-A nudge candidate (GET /me/nudge/candidate) — NOT a
+ *    plan_runs row the caller already has open in the sheet's other senses;
+ *    posts POST /me/nudge/confirm {user_reach_id,run_date,notes?} instead of
+ *    addRun/patchRun. No fetch needed (the candidate is already fully
+ *    resolved by nudges.go), no run picker/date/crew/meetup — just a
+ *    read-only summary + optional notes. See PlanRunLogSheet.vue's top-level
+ *    `mode === 'confirm'` template branch.
  */
-export type PlanRunSheetMode = 'create' | 'edit'
+export type PlanRunSheetMode = 'create' | 'edit' | 'confirm'
+
+// Minimal shape needed to render the confirm-mode summary — matches
+// useNudge.ts's NudgeMember field-for-field (kept as a local structural type,
+// not an import, so this composable never needs to know about useNudge).
+export interface ConfirmSheetMember {
+  user_reach_id: string
+  run_name: string
+  run_date: string
+  flow_band: string
+  gauge_cfs?: number | null
+}
 
 export function usePlanRunLogSheet() {
   const isOpen = useState('plan-run-log-sheet:open', () => false)
@@ -27,6 +46,7 @@ export function usePlanRunLogSheet() {
   // has the plan in hand, e.g. PlanItinerary); edit mode reads it off the
   // GET /plan-runs/{id} response's embedded `plan` alongside the run itself.
   const planVisibility = useState<string | null>('plan-run-log-sheet:plan-visibility', () => null)
+  const confirmMember = useState<ConfirmSheetMember | null>('plan-run-log-sheet:confirm-member', () => null)
 
   function openCreate(targetPlanId: string, date?: string, visibility?: string) {
     mode.value = 'create'
@@ -34,6 +54,7 @@ export function usePlanRunLogSheet() {
     runId.value = null
     prefillDate.value = date ?? null
     planVisibility.value = visibility ?? null
+    confirmMember.value = null
     isOpen.value = true
   }
 
@@ -43,6 +64,17 @@ export function usePlanRunLogSheet() {
     planId.value = null
     prefillDate.value = null
     planVisibility.value = null // resolved from the fetch response in edit mode
+    confirmMember.value = null
+    isOpen.value = true
+  }
+
+  function openConfirm(member: ConfirmSheetMember) {
+    mode.value = 'confirm'
+    runId.value = null
+    planId.value = null
+    prefillDate.value = null
+    planVisibility.value = null
+    confirmMember.value = member
     isOpen.value = true
   }
 
@@ -59,5 +91,8 @@ export function usePlanRunLogSheet() {
     savedCount.value++
   }
 
-  return { isOpen, mode, planId, runId, prefillDate, planVisibility, savedCount, markSaved, openCreate, openEdit, close }
+  return {
+    isOpen, mode, planId, runId, prefillDate, planVisibility, confirmMember,
+    savedCount, markSaved, openCreate, openEdit, openConfirm, close,
+  }
 }
