@@ -134,9 +134,15 @@ export default defineNuxtConfig({
       ],
     },
     workbox: {
-      // Precache static assets only — no navigateFallback (see comment above)
       globPatterns:          ['**/*.{js,css,html,svg,png,ico,woff2}'],
       cleanupOutdatedCaches: true,
+      // vite-pwa DEFAULTS navigateFallback to '/' — which made the sw answer
+      // every navigation to a non-prerendered path (/dashboard, /plans/*, …)
+      // with the precached hero page, whose inlined payload hydrates as the
+      // '/' route and rewrites the URL — i.e. "reload → kicked to hero".
+      // The 404.html SPA shell carries no route payload, so it hydrates to
+      // whatever path the browser is on, and keeps navigations offline-capable.
+      navigateFallback:      '/404.html',
     },
     client: {
       installPrompt: true,
