@@ -1,12 +1,14 @@
 <template>
   <div class="dashboard-switcher-anchor relative min-w-0">
     <!-- No @click.stop on this root, unlike DashboardMembershipPicker. This
-         lives inside AppHeader next to the user menu, which closes via its own
-         document listener — swallowing the click would leave both panels open
-         at once. The closest() check in onDocClick is enough to keep us open.
+         lives in dashboard.vue's mobile controls row, directly below AppHeader
+         (moved out of the header itself per #322 follow-up). AppHeader's user
+         menu closes via its own document listener — swallowing the click here
+         would leave both panels open at once if they were ever both mounted.
+         The closest() check in onDocClick is enough to keep us open.
 
-         Keep this a single root element: dashboard.vue passes class="sm:hidden"
-         and attribute fallthrough is what applies it. -->
+         Keep this a single root element: the parent wraps us for layout, and
+         any class passed in relies on attribute fallthrough to this root. -->
     <button
       class="flex items-center gap-1 min-w-0 max-w-[45vw] px-2 py-1 rounded-md text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
       @click="open = !open"

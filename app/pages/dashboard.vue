@@ -1,22 +1,43 @@
 <template>
   <div class="min-h-screen bg-neutral-50 dark:bg-neutral-950">
-    <AppHeader>
-      <DashboardSwitcher
-        v-if="isAuthenticated && db.loaded.value && db.dashboards.value.length"
-        class="sm:hidden"
-        @select="onSelectDashboard"
-        @new="newDashboardOpen = true"
-        @delete="onDeleteDashboard"
-        @rename="(slug, name) => db.rename(slug, name)"
-        @share="shareOpen = true"
-      />
+    <AppHeader />
 
-      <template #actions>
-        <!-- Content switch (Runs / Gauges) — mobile, icon-only, lives in the header now.
+    <!-- Unified sticky header: mobile controls row + tab bar + controls bar,
+         one block anchored at AppHeader bottom (AppHeader is h-[50px], z-30;
+         this whole block sits at top-[50px], z-20, per feedback_sticky_zindex_stacking). -->
+    <div
+      v-if="isAuthenticated && db.loaded.value"
+      class="sticky top-[50px] z-20"
+    >
+      <!-- Mobile-only dashboard controls row — dashboard switcher + Runs/Gauges
+           toggle. Relocated from AppHeader (was injected via slots) per #322
+           follow-up: owner wants these below the navbar, not in it. Desktop
+           gets the equivalent controls from DashboardTabBar (below, hidden
+           below sm) and the labeled Runs/Gauges switch inline in the controls
+           bar (hidden sm:flex), so this row is hidden at sm and up to match. -->
+      <div
+        v-if="db.dashboards.value.length || hasAnyContent"
+        class="sm:hidden relative z-10 flex items-center gap-2 px-4 py-1.5 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800"
+      ><!-- relative z-10: backdrop-blur gives this row (and the toolbar below)
+           their own stacking contexts, so the switcher dropdown's z-40 is
+           trapped in here — without lifting the whole row, the later toolbar
+           sibling paints over the open menu. -->
+        <div class="min-w-0 flex-1">
+          <DashboardSwitcher
+            v-if="db.dashboards.value.length"
+            @select="onSelectDashboard"
+            @new="newDashboardOpen = true"
+            @delete="onDeleteDashboard"
+            @rename="(slug, name) => db.rename(slug, name)"
+            @share="shareOpen = true"
+          />
+        </div>
+
+        <!-- Content switch (Runs / Gauges) — mobile, icon-only.
              Desktop keeps the labeled switch inline in the controls bar below. -->
         <div
           v-if="hasAnyContent"
-          class="sm:hidden shrink-0 flex items-center gap-0.5 p-0.5 rounded-lg bg-neutral-100 dark:bg-neutral-800"
+          class="shrink-0 flex items-center gap-0.5 p-0.5 rounded-lg bg-neutral-100 dark:bg-neutral-800"
         >
           <button
             class="w-7 h-7 flex items-center justify-center rounded-md transition-colors"
@@ -48,14 +69,8 @@
             </svg>
           </button>
         </div>
-      </template>
-    </AppHeader>
+      </div>
 
-    <!-- Unified sticky header: tab bar + controls bar in one block anchored at AppHeader bottom -->
-    <div
-      v-if="isAuthenticated && db.loaded.value"
-      class="sticky top-[50px] z-20"
-    >
       <DashboardTabBar
         v-if="db.dashboards.value.length"
         :dashboards="db.dashboards.value"
