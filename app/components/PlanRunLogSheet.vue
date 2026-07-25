@@ -305,7 +305,7 @@ const { apiBase } = useRuntimeConfig().public
 const { getToken } = useAuth()
 const toast = useToast()
 
-const { isOpen, mode, planId, runId, prefillDate, planVisibility, close } = usePlanRunLogSheet()
+const { isOpen, mode, planId, runId, prefillDate, planVisibility, close, markSaved } = usePlanRunLogSheet()
 const { addRun, patchRun } = usePlans()
 const calendar = useCalendar()
 
@@ -534,6 +534,7 @@ async function submit() {
     } else {
       toast.add({ title: form.value.paddled ? 'Run logged — nice paddle!' : 'Run saved to your plan', color: 'success' })
     }
+    markSaved()
     close()
     return
   }
@@ -552,6 +553,7 @@ async function submit() {
   if (!ok) return
 
   toast.add({ title: form.value.paddled ? 'Run logged — nice paddle!' : 'Changes saved', color: 'success' })
+  markSaved()
   close()
 }
 </script>

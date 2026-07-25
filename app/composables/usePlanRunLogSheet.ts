@@ -50,5 +50,14 @@ export function usePlanRunLogSheet() {
     isOpen.value = false
   }
 
-  return { isOpen, mode, planId, runId, prefillDate, planVisibility, openCreate, openEdit, close }
+  // Bumped by PlanRunLogSheet after every successful save — pages that render
+  // their own itinerary fetch (the plan detail page) watch this to refetch.
+  // The sheet only refreshes the CALENDAR store itself, which left the plan
+  // page stale until a manual reload (prod bug, 2026-07-25).
+  const savedCount = useState('plan-run-log-sheet:saved-count', () => 0)
+  function markSaved() {
+    savedCount.value++
+  }
+
+  return { isOpen, mode, planId, runId, prefillDate, planVisibility, savedCount, markSaved, openCreate, openEdit, close }
 }

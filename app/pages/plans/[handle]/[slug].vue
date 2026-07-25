@@ -102,6 +102,7 @@ import type { PlanDetailResponse, PlanInviteTokenRun } from '~/utils/plan'
 import { aggregatePlanMembers } from '~/utils/plan'
 import { useInvites } from '~/composables/useInvites'
 import { useMyProfile } from '~/composables/useMyProfile'
+import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
 import { fmtRange } from '~/utils/calendarDate'
 import { planTypeMeta } from '~/utils/planType'
 
@@ -157,6 +158,12 @@ watch([authReady, isAuthenticated], () => {
   if (isAuthenticated.value || inviteToken.value) load()
   else loaded.value = true // standard gate handles the render, nothing to fetch
 }, { immediate: true })
+
+// Refetch the itinerary after the log sheet saves a run — the sheet only
+// refreshes the calendar store, which left this page stale until a manual
+// reload (prod bug, 2026-07-25).
+const { savedCount: logSheetSavedCount } = usePlanRunLogSheet()
+watch(logSheetSavedCount, () => { load() })
 
 const plan = computed(() => data.value?.plan ?? null)
 
