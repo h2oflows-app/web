@@ -527,7 +527,9 @@ function onMeetupBlur() {
 
 function pickMeetupSuggestion(s: MeetupSuggestion) {
   meetupText.value = s.name
-  meetupFeatureRef.value = { type: s.type, id: s.id }
+  // Endpoint picks (River Put-In/Take-Out) are text-only — the api's
+  // meetup_feature validation accepts rapids + eligible access types only.
+  meetupFeatureRef.value = s.type === 'endpoint' ? null : { type: s.type, id: s.id }
   meetupLinkedName.value = s.name
   meetupFocused.value = false
 }

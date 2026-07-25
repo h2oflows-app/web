@@ -32,7 +32,10 @@ export interface MeetupFeatureRef {
 }
 
 export interface MeetupSuggestion {
-  type: MeetupFeatureType
+  // 'endpoint' = the run's own put-in/take-out — synthetic text-only
+  // suggestions (no feature ref; the api's meetup_feature validation only
+  // accepts rapids + the meetup-eligible access types).
+  type: MeetupFeatureType | 'endpoint'
   id: string
   name: string
   // access_type (camp/parking/boat_ramp/intermediate/shuttle_drop) — undefined for rapids.
@@ -63,6 +66,13 @@ interface WireRunDetail {
 const MEETUP_ELIGIBLE_ACCESS_TYPES = new Set(['camp', 'parking', 'boat_ramp', 'intermediate', 'shuttle_drop'])
 
 export function suggestionsFromRunDetail(data: WireRunDetail): MeetupSuggestion[] {
+  // Every run has a put-in and take-out on its flow line — offer them first
+  // (product request 2026-07-25). Text-only picks: no feature ref is sent.
+  const endpoints: MeetupSuggestion[] = [
+    { type: 'endpoint', id: 'put-in', name: 'River Put-In' },
+    { type: 'endpoint', id: 'take-out', name: 'River Take-Out' },
+  ]
+
   const rapids = (data.rapids ?? [])
     .filter(r => !!r.name)
     .map((r): MeetupSuggestion => ({ type: 'rapid', id: r.id, name: r.name, isSurfWave: !!r.is_surf_wave }))
@@ -71,13 +81,14 @@ export function suggestionsFromRunDetail(data: WireRunDetail): MeetupSuggestion[
     .filter(a => !!a.name && MEETUP_ELIGIBLE_ACCESS_TYPES.has(a.access_type))
     .map((a): MeetupSuggestion => ({ type: 'access', id: a.id, name: a.name as string, accessType: a.access_type }))
 
-  return [...rapids, ...access]
+  return [...endpoints, ...rapids, ...access]
 }
 
 // Maps a suggestion onto the existing run-feature palette (runFeatureTypes.ts)
 // for a cheap color/label chip — reuses the palette rather than inventing a
 // second one for this combobox.
 function paletteKeyForSuggestion(s: MeetupSuggestion): RunFeatureType {
+  if (s.type === 'endpoint') return 'access' // green access chip for put-in/take-out
   if (s.type === 'rapid') return s.isSurfWave ? 'surf' : 'rapid'
   if (s.accessType === 'intermediate') return 'access' // DB value 'intermediate' == palette 'access'
   return (s.accessType as RunFeatureType) ?? 'access'

@@ -80,7 +80,7 @@
       <!-- Itinerary — crew meter, Join, and per-run accept/decline now live
            on each run row (#246 W5, mig 000144). -->
       <section class="space-y-2">
-        <h2 class="text-xs font-semibold uppercase tracking-wide text-neutral-400">Itinerary</h2>
+        <h2 class="text-xs font-semibold uppercase tracking-wide text-neutral-400">Paddle plans</h2>
         <PlanItinerary
           :plan="plan"
           :itinerary="data?.itinerary ?? []"
