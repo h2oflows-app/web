@@ -17,7 +17,7 @@
       <div class="space-y-2">
         <div
           v-for="run in plan.runs_looking_for_crew"
-          :key="run.id"
+          :key="run.plan_run_id"
           class="rounded-lg border border-neutral-100 dark:border-neutral-800 px-3 py-2.5 space-y-2"
         >
           <div class="flex items-center justify-between gap-2">
@@ -43,7 +43,7 @@
                 :class="rsvpFor(run) === 'requested' || rsvpFor(run) === 'accepted'
                   ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400'
                   : 'bg-primary-600 hover:bg-primary-700 text-white'"
-                :disabled="busyId === run.id || rsvpFor(run) === 'requested' || rsvpFor(run) === 'accepted' || isFull(run)"
+                :disabled="busyId === run.plan_run_id || rsvpFor(run) === 'requested' || rsvpFor(run) === 'accepted' || isFull(run)"
                 @click="onJoin(run)"
               >{{ joinLabel(run) }}</button>
             </template>
@@ -67,13 +67,14 @@ const props = defineProps<{ plan: DiscoverPlan }>()
 
 const { joinPlanRun } = usePlans()
 
-// Local optimistic overlay, keyed by run id — survives until the parent
-// page's next full reload (which will carry the server's real my_rsvp).
+// Local optimistic overlay, keyed by plan_run_id — cleared as soon as the
+// join call settles (success or failure) rather than lingering until a
+// full reload, so a later debounced re-search's fresh my_rsvp always wins.
 const override = ref<Record<string, string>>({})
 const busyId = ref<string | null>(null)
 
 function rsvpFor(run: DiscoverRun): string | null | undefined {
-  return override.value[run.id] ?? run.my_rsvp
+  return override.value[run.plan_run_id] ?? run.my_rsvp
 }
 
 function isFull(run: DiscoverRun): boolean {
@@ -81,7 +82,7 @@ function isFull(run: DiscoverRun): boolean {
 }
 
 function joinLabel(run: DiscoverRun): string {
-  if (busyId.value === run.id) return '…'
+  if (busyId.value === run.plan_run_id) return '…'
   const r = rsvpFor(run)
   if (r === 'requested') return 'Requested'
   if (r === 'accepted') return "You're in"
@@ -91,14 +92,16 @@ function joinLabel(run: DiscoverRun): string {
 
 async function onJoin(run: DiscoverRun) {
   if (busyId.value || rsvpFor(run) === 'requested' || rsvpFor(run) === 'accepted' || isFull(run)) return
-  busyId.value = run.id
-  override.value = { ...override.value, [run.id]: 'requested' }
-  const ok = await joinPlanRun(run.id)
+  busyId.value = run.plan_run_id
+  override.value = { ...override.value, [run.plan_run_id]: 'requested' }
+  const ok = await joinPlanRun(run.plan_run_id)
   busyId.value = null
-  if (!ok) {
-    const next = { ...override.value }
-    delete next[run.id]
-    override.value = next
-  }
+  // Cleared regardless of outcome (not just on failure) — otherwise a
+  // stale 'requested' override permanently masks server truth (e.g. the
+  // host later declines, or crew fills) across this card's debounced
+  // re-searches, since it's never re-derived from a fresh my_rsvp.
+  const next = { ...override.value }
+  delete next[run.plan_run_id]
+  override.value = next
 }
 </script>

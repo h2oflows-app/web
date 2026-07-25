@@ -188,10 +188,11 @@ function onAddRun() {
 const crewPanelRunId = ref<string | null>(null)
 
 // ── Per-run Join / invite accept-decline (non-host) ──────────────────────
-// Optimistic overlay on top of each run's server-supplied my_rsvp — cleared
-// implicitly on the next `refresh` (parent reloads the plan, which comes
-// back with the real my_rsvp and this overlay's stale entry is simply never
-// read again since it's keyed by run id, not by rsvp value).
+// Optimistic overlay on top of each run's server-supplied my_rsvp. Cleared
+// explicitly on a successful action (before `refresh` is emitted) so later
+// server truth — e.g. the host declines the request, or the crew fills up
+// after this client's optimistic snapshot — is what's shown post-refresh
+// instead of a permanently frozen 'requested'/'accepted'/'declined' value.
 const rsvpOverride = ref<Record<string, PlanRunRsvpStatus>>({})
 const rsvpBusyId = ref<string | null>(null)
 
@@ -210,12 +211,10 @@ async function joinRun(run: PlanRunDetail) {
   rsvpOverride.value = { ...rsvpOverride.value, [run.id]: 'requested' }
   const ok = await joinPlanRun(run.id)
   rsvpBusyId.value = null
-  if (!ok) {
-    const next = { ...rsvpOverride.value }
-    delete next[run.id]
-    rsvpOverride.value = next
-    return
-  }
+  const next = { ...rsvpOverride.value }
+  delete next[run.id]
+  rsvpOverride.value = next
+  if (!ok) return
   emit('refresh')
 }
 
@@ -229,12 +228,10 @@ async function declineInvite(run: PlanRunDetail) {
   rsvpOverride.value = { ...rsvpOverride.value, [run.id]: 'declined' }
   const ok = await dismissInviteMember(run.my_member_id)
   rsvpBusyId.value = null
-  if (!ok) {
-    const next = { ...rsvpOverride.value }
-    delete next[run.id]
-    rsvpOverride.value = next
-    return
-  }
+  const next = { ...rsvpOverride.value }
+  delete next[run.id]
+  rsvpOverride.value = next
+  if (!ok) return
   emit('refresh')
 }
 
@@ -244,12 +241,10 @@ async function acceptInvite(run: PlanRunDetail) {
   rsvpOverride.value = { ...rsvpOverride.value, [run.id]: 'accepted' }
   const ok = await acceptInviteMember(run.my_member_id)
   rsvpBusyId.value = null
-  if (!ok) {
-    const next = { ...rsvpOverride.value }
-    delete next[run.id]
-    rsvpOverride.value = next
-    return
-  }
+  const next = { ...rsvpOverride.value }
+  delete next[run.id]
+  rsvpOverride.value = next
+  if (!ok) return
   emit('refresh')
 }
 

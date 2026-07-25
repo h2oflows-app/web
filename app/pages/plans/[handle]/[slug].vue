@@ -69,7 +69,7 @@
       <template v-if="isAuthenticated">
         <!-- Members + invite -->
         <PlanMembersRow
-          :members="data?.members ?? []"
+          :members="members"
           :plan-type="plan.type"
           :plan-id="plan.id"
           :is-host="isHost"
@@ -99,6 +99,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import type { PlanDetailResponse, PlanInviteTokenRun } from '~/utils/plan'
+import { aggregatePlanMembers } from '~/utils/plan'
 import { useInvites } from '~/composables/useInvites'
 import { useMyProfile } from '~/composables/useMyProfile'
 import { fmtRange } from '~/utils/calendarDate'
@@ -158,6 +159,10 @@ watch([authReady, isAuthenticated], () => {
 }, { immediate: true })
 
 const plan = computed(() => data.value?.plan ?? null)
+
+// The API emits one flat row per (person, run) — group into one summary
+// per person for PlanMembersRow (see PlanMemberRow/aggregatePlanMembers).
+const members = computed(() => aggregatePlanMembers(data.value?.members ?? []))
 
 // ── Identity ──────────────────────────────────────────────────────────────
 const { handle: myHandle, load: loadMyProfile } = useMyProfile()

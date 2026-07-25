@@ -10,7 +10,7 @@
 import type { PlanRunCrew, PlanRunRsvpStatus } from '~/utils/planRun'
 
 export interface DiscoverRun {
-  id: string // plan_run_id
+  plan_run_id: string
   name?: string | null
   run_date: string
   run_time?: string | null

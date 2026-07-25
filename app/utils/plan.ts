@@ -53,6 +53,42 @@ export interface PlanMemberSummary {
   total_count: number
 }
 
+// The wire shape GET /plans/{handle}/{slug} actually emits (renderPlan /
+// planMember, plans.go): ONE FLAT ROW PER (person, run) — never aggregated
+// server-side. `plan_run_id` is null for a plan-level (runless) row.
+// PlanMembersRow wants PlanMemberSummary (per-person); use
+// aggregatePlanMembers() to bridge the two, rather than teaching the
+// component about the flat shape.
+export interface PlanMemberRow {
+  handle?: string | null
+  invite_email?: string | null
+  status: string // invited | requested | accepted | declined
+  plan_run_id?: string | null
+}
+
+// Groups the API's flat per-(person,run) rows into one PlanMemberSummary per
+// person, keyed by handle (falling back to invite_email for unbound
+// invitees) — mirrors the "@handle · N/M runs" / "M invited" rollup
+// PlanMembersRow renders.
+export function aggregatePlanMembers(rows: PlanMemberRow[]): PlanMemberSummary[] {
+  const byKey = new Map<string, PlanMemberSummary>()
+  for (const row of rows) {
+    const key = row.handle ?? row.invite_email
+    if (!key) continue // no stable identity to group on — drop rather than fabricate a per-row entry
+    let summary = byKey.get(key)
+    if (!summary) {
+      summary = { handle: row.handle, invite_email: row.invite_email, runs: [], accepted_count: 0, total_count: 0 }
+      byKey.set(key, summary)
+    }
+    if (row.plan_run_id) {
+      summary.runs.push({ plan_run_id: row.plan_run_id, status: row.status })
+    }
+    summary.total_count += 1
+    if (row.status === 'accepted') summary.accepted_count += 1
+  }
+  return Array.from(byKey.values())
+}
+
 export interface PlanCrewMeterInfo {
   filled: number
   max?: number | null
@@ -75,7 +111,9 @@ export interface PlanInviteTokenRun {
 export interface PlanDetailResponse {
   plan: PlanDetail
   itinerary: PlanItineraryDay[]
-  members: PlanMemberSummary[]
+  // Flat per-(person,run) rows as emitted by the API — see PlanMemberRow.
+  // Pass through aggregatePlanMembers() before handing to PlanMembersRow.
+  members: PlanMemberRow[]
   // Present only when a valid ?invite=<token> was forwarded on the request.
   invite_token_runs?: PlanInviteTokenRun[]
 }
