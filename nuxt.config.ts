@@ -114,8 +114,9 @@ export default defineNuxtConfig({
   },
 
   // PWA (fixes #265 — Android Chrome / desktop install prompt)
-  // navigateFallback intentionally omitted to avoid intercepting /confirm OAuth
-  // hash-token callback and /login redirects.
+  // navigateFallback is set to the 404.html SPA shell (see workbox block) —
+  // safe for the /confirm OAuth callback: the shell carries no route payload,
+  // hydrates to the current path, and the URL hash (#access_token) survives.
   pwa: {
     registerType: 'autoUpdate',
     manifest: {
@@ -134,9 +135,15 @@ export default defineNuxtConfig({
       ],
     },
     workbox: {
-      // Precache static assets only — no navigateFallback (see comment above)
       globPatterns:          ['**/*.{js,css,html,svg,png,ico,woff2}'],
       cleanupOutdatedCaches: true,
+      // vite-pwa DEFAULTS navigateFallback to '/' — which made the sw answer
+      // every navigation to a non-prerendered path (/dashboard, /plans/*, …)
+      // with the precached hero page, whose inlined payload hydrates as the
+      // '/' route and rewrites the URL — i.e. "reload → kicked to hero".
+      // The 404.html SPA shell carries no route payload, so it hydrates to
+      // whatever path the browser is on, and keeps navigations offline-capable.
+      navigateFallback:      '/404.html',
     },
     client: {
       installPrompt: true,

@@ -59,7 +59,13 @@
                     class="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-neutral-50 dark:bg-neutral-800/50"
                   >
                     <PlanTypeBadge :type="plan.type" />
-                    <span class="min-w-0 flex-1 text-sm font-medium text-neutral-700 dark:text-neutral-200 truncate">{{ plan.name }}</span>
+                    <NuxtLink
+                      v-if="planLink(plan)"
+                      :to="planLink(plan)"
+                      class="min-w-0 flex-1 text-sm font-medium text-neutral-700 dark:text-neutral-200 truncate hover:text-primary-600 dark:hover:text-primary-400 hover:underline"
+                      @click="close()"
+                    >{{ plan.name }}</NuxtLink>
+                    <span v-else class="min-w-0 flex-1 text-sm font-medium text-neutral-700 dark:text-neutral-200 truncate">{{ plan.name }}</span>
                     <button
                       v-if="plan.role === 'own'"
                       type="button"
@@ -96,10 +102,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import type { CalendarPlan, CalendarRun } from '~/composables/useCalendar'
 import { fmtDate } from '~/utils/calendarDate'
 import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
+import { useMyProfile } from '~/composables/useMyProfile'
 
 const props = defineProps<{
   open: boolean
@@ -118,6 +125,16 @@ const emit = defineEmits<{
 }>()
 
 const planRunLogSheet = usePlanRunLogSheet()
+
+// Plan-name rows link to the plan page; own plans can link via the viewer's
+// handle even before the api ships host_handle (api#163).
+const { handle: myHandle, load: loadProfile } = useMyProfile()
+onMounted(() => { loadProfile() })
+
+function planLink(plan: CalendarPlan): string {
+  const handle = plan.host_handle || (plan.role === 'own' ? myHandle.value : '')
+  return handle ? `/plans/${handle}/${plan.slug}` : ''
+}
 
 function close() {
   emit('update:open', false)

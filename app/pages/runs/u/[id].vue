@@ -235,21 +235,20 @@
         </div>
       </section>
 
-      <!-- Reports -->
-      <section>
+      <!-- Reports — anon-gated (contract §6 REVISED: trip logs are auth-only,
+           GET /user-runs/{id}/reports is repointed to plan_runs post-A6 and
+           won't be anon-readable) — hide the section entirely for anon so
+           there's no 401/empty flash, rather than gating just the fetch. -->
+      <section v-if="isAuthenticated">
         <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
           <div class="flex items-center justify-between px-4 pt-4 pb-2">
             <h2 class="text-sm font-semibold text-neutral-800 dark:text-neutral-200">Trip Reports</h2>
             <NuxtLink
-              v-if="isAuthenticated"
               :to="`/my/runs/${run.slug}`"
               class="text-xs text-primary-500 hover:text-primary-600 dark:text-primary-400 font-medium transition-colors"
             >
               + Add report
             </NuxtLink>
-            <span v-else class="text-xs text-neutral-400">
-              <NuxtLink to="/login" class="text-primary-500 hover:underline">Sign in</NuxtLink> to add a report
-            </span>
           </div>
 
           <div v-if="!reportsFetchDone" class="px-4 pb-4 text-xs text-neutral-400">Loading reports…</div>
@@ -263,7 +262,7 @@
               <div class="flex items-start justify-between gap-2 mb-1">
                 <div class="min-w-0">
                   <span class="text-sm font-medium text-neutral-800 dark:text-neutral-200">{{ rep.name }}</span>
-                  <span v-if="rep.handle" class="ml-1.5 text-xs text-neutral-400">@{{ rep.handle }}</span>
+                  <span v-if="rep.handle && rep.handle !== rep.name" class="ml-1.5 text-xs text-neutral-400">@{{ rep.handle }}</span>
                 </div>
                 <div class="shrink-0 text-right">
                   <div class="text-xs text-neutral-400">{{ rep.report_date }}</div>
@@ -271,7 +270,7 @@
                 </div>
               </div>
               <p class="text-sm text-neutral-600 dark:text-neutral-400 line-clamp-3">{{ extractPreview(rep.content) }}</p>
-              <NuxtLink :to="`/reports/${rep.id}`" class="text-xs text-primary-500 hover:underline mt-1 inline-block">Read more →</NuxtLink>
+              <NuxtLink :to="rep.url || `/plan-runs/${rep.id}`" class="text-xs text-primary-500 hover:underline mt-1 inline-block">Read more →</NuxtLink>
             </div>
           </div>
 
@@ -575,10 +574,12 @@ function extractPreview(content: string): string {
 }
 
 async function loadReports(cursor?: string) {
+  if (!isAuthenticated.value) { reportsFetchDone.value = true; return }
   const url = cursor
     ? `${apiBase}/api/v1/user-runs/${runId.value}/reports?cursor=${cursor}`
     : `${apiBase}/api/v1/user-runs/${runId.value}/reports`
-  const res = await fetch(url).catch(() => null)
+  const headers = await authHeaders()
+  const res = await fetch(url, { headers }).catch(() => null)
   if (!res?.ok) { reportsFetchDone.value = true; return }
   const data = await res.json()
   if (cursor) {
@@ -589,6 +590,12 @@ async function loadReports(cursor?: string) {
   reportsNextCursor.value = data.next_cursor ?? null
   reportsFetchDone.value = true
 }
+
+// Supabase session restoration is async — isAuthenticated can flip true
+// shortly after mount, well after onMounted's own loadReports() already
+// skipped (anon at that instant). Re-fire once it settles so a signed-in
+// user's session catching up late still gets the reports list.
+watch(isAuthenticated, (v) => { if (v) loadReports() })
 
 async function loadMoreReports() {
   if (!reportsNextCursor.value || reportsLoadingMore.value) return

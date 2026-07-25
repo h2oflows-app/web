@@ -21,6 +21,8 @@
 
     <!-- Authenticated -->
     <main v-else class="max-w-3xl mx-auto px-4 py-6 pb-24 sm:pb-6 space-y-5">
+      <InviteBanner />
+
       <div class="flex items-center justify-between gap-3">
         <h1 class="text-xl font-bold text-neutral-900 dark:text-white">My Calendar</h1>
         <CalendarViewToggle v-model="view" />
