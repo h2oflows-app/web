@@ -6,6 +6,9 @@ import { flowBandLabel } from '~/utils/flowBand'
 // crew/max_crew validation) reverts the optimistic insert and toasts the
 // server's `error` message verbatim.
 
+// #246 W5: looking_for_crew/max_crew moved OFF plans onto plan_runs (mig
+// 000144, IMPLEMENTATION_PLAN.md §6 REVISED 2026-07-25) — a plan is just the
+// container now. visibility stays plan-level.
 export interface CreatePlanBody {
   name: string
   type?: string
@@ -13,8 +16,6 @@ export interface CreatePlanBody {
   end_date: string
   location?: string
   visibility?: string
-  looking_for_crew?: boolean
-  max_crew?: number
 }
 
 export interface CreatePlanRunBody {
@@ -25,6 +26,8 @@ export interface CreatePlanRunBody {
   notes?: string
   companions?: string
   paddled?: boolean
+  looking_for_crew?: boolean
+  max_crew?: number
 }
 
 export interface UpdatePlanRunBody {
@@ -34,6 +37,8 @@ export interface UpdatePlanRunBody {
   companions?: string
   sort_order?: number
   paddled?: boolean
+  looking_for_crew?: boolean
+  max_crew?: number
 }
 
 async function apiErrorMessage(res: Response | null): Promise<string | undefined> {
@@ -213,5 +218,45 @@ export function usePlans() {
     return true
   }
 
-  return { createPlan, patchPlan, deletePlan, addRun, patchRun, markPaddled, deleteRun }
+  // Join Run (#246 W5) — per-run now: POST /plan-runs/{id}/join replaces the
+  // old plan-level /plans/{id}/join. origin=request/status=requested;
+  // 409 unless public plan + looking_for_crew + filled<max_crew + not
+  // already a member of THIS run; dup -> 200 existing (treated as success).
+  async function joinPlanRun(runId: string): Promise<boolean> {
+    const headers = await authHeaders()
+    const res = await fetch(`${apiBase}/api/v1/plan-runs/${runId}/join`, {
+      method: 'POST', headers, body: JSON.stringify({}),
+    }).catch(() => null)
+    if (!res?.ok) {
+      const msg = await apiErrorMessage(res)
+      toast.add({ title: res?.status === 409 ? 'Crew is full' : 'Could not send join request', description: msg, color: 'error' })
+      return false
+    }
+    toast.add({ title: "Request sent — you'll hear back", color: 'success' })
+    return true
+  }
+
+  // Resend an email invite (#246 W5 item 2) — host action, per email chip in
+  // PlanMembersRow. Re-sends the plan link + .ics to an invite_email that
+  // hasn't resolved to an account yet; 409 means every run row for that
+  // email is already accepted.
+  async function resendInvite(planId: string, email: string): Promise<boolean> {
+    const headers = await authHeaders()
+    const res = await fetch(`${apiBase}/api/v1/plans/${planId}/invite/resend`, {
+      method: 'POST', headers, body: JSON.stringify({ email }),
+    }).catch(() => null)
+    if (!res?.ok) {
+      if (res?.status === 409) {
+        toast.add({ title: 'Already accepted', color: 'info' })
+        return false
+      }
+      const msg = await apiErrorMessage(res)
+      toast.add({ title: 'Could not resend invite', description: msg, color: 'error' })
+      return false
+    }
+    toast.add({ title: 'Invite resent', color: 'success' })
+    return true
+  }
+
+  return { createPlan, patchPlan, deletePlan, addRun, patchRun, markPaddled, deleteRun, joinPlanRun, resendInvite }
 }

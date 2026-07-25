@@ -175,6 +175,49 @@
 
                   <hr class="border-neutral-100 dark:border-neutral-800" />
 
+                  <!-- Crew (#246 W5: moved here from the plan-level New-plan
+                       sheet — looking_for_crew/max_crew are per-run now).
+                       Only meaningful once the run isn't paddled yet (crew
+                       calls are for runs still ahead) and the sheet knows
+                       the parent plan's visibility. -->
+                  <div v-if="!form.paddled" class="rounded-xl border border-neutral-100 dark:border-neutral-800 divide-y divide-neutral-100 dark:divide-neutral-800">
+                    <div class="flex items-center justify-between gap-3 px-3.5 py-3">
+                      <div>
+                        <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100">Looking for crew</p>
+                        <p class="text-[11px] text-neutral-400 mt-0.5">Show in Discover · paddlers can Join Run</p>
+                      </div>
+                      <USwitch v-model="form.lookingForCrew" :disabled="!crewAllowed" />
+                    </div>
+
+                    <!-- Client rule mirroring the api join gate: a crew run
+                         needs a public plan. Visibility itself lives on the
+                         plan (edited elsewhere) — this is a hint, not an
+                         auto-flip, since the sheet can't reach across
+                         entities to change it. -->
+                    <p v-if="!crewAllowed" class="px-3.5 py-2 text-[11px] text-amber-600 dark:text-amber-400">
+                      This plan is private — make the plan public to look for crew on this run.
+                    </p>
+
+                    <div v-if="form.lookingForCrew && crewAllowed" class="flex items-center justify-between gap-3 px-3.5 py-3">
+                      <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100">Max crew</p>
+                      <div class="flex items-center gap-2">
+                        <button
+                          type="button"
+                          class="w-7 h-7 rounded-full border border-neutral-200 dark:border-neutral-700 flex items-center justify-center text-neutral-500 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 disabled:opacity-30"
+                          :disabled="form.maxCrew <= 1"
+                          @click="form.maxCrew = Math.max(1, form.maxCrew - 1)"
+                        >−</button>
+                        <span class="w-6 text-center text-sm font-semibold text-neutral-800 dark:text-neutral-100">{{ form.maxCrew }}</span>
+                        <button
+                          type="button"
+                          class="w-7 h-7 rounded-full border border-neutral-200 dark:border-neutral-700 flex items-center justify-center text-neutral-500 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 disabled:opacity-30"
+                          :disabled="form.maxCrew >= 20"
+                          @click="form.maxCrew = Math.min(20, form.maxCrew + 1)"
+                        >+</button>
+                      </div>
+                    </div>
+                  </div>
+
                   <!-- Log section: paddled + notes — locked until the run date -->
                   <div class="space-y-3">
                     <p class="text-[11px] font-medium text-neutral-400 uppercase tracking-wide">Log</p>
@@ -262,7 +305,7 @@ const { apiBase } = useRuntimeConfig().public
 const { getToken } = useAuth()
 const toast = useToast()
 
-const { isOpen, mode, planId, runId, prefillDate, close } = usePlanRunLogSheet()
+const { isOpen, mode, planId, runId, prefillDate, planVisibility, close } = usePlanRunLogSheet()
 const { addRun, patchRun } = usePlans()
 const calendar = useCalendar()
 
@@ -273,7 +316,14 @@ const form = ref({
   runTime: '',
   notes: '',
   paddled: false,
+  lookingForCrew: false,
+  maxCrew: 4,
 })
+
+// #246 W5: crew requires a public PLAN (client mirror of the api join gate).
+// Unknown (null, briefly before edit-mode's fetch resolves it) is treated as
+// not-allowed so the toggle never renders enabled-then-flickers-disabled.
+const crewAllowed = computed(() => planVisibility.value === 'public')
 
 // ── Create mode: run picker ─────────────────────────────────────────────
 // Two scopes: your own runs, and the global community catalog. A plan run
@@ -376,6 +426,9 @@ async function loadEditRun(id: string) {
   if (res?.ok) {
     const data = await res.json().catch(() => null)
     editRun.value = data?.run ?? null
+    // Edit mode has no separate plan fetch — the parent plan's visibility
+    // (needed for the crew-toggle gate) rides along on this response.
+    planVisibility.value = data?.plan?.visibility ?? null
   }
   editLoaded.value = true
   if (editRun.value) {
@@ -384,6 +437,8 @@ async function loadEditRun(id: string) {
       runTime: (editRun.value.run_time ?? '').slice(0, 5),
       notes: editRun.value.notes ?? '',
       paddled: false, // edit mode only opens for planned (unpaddled) runs
+      lookingForCrew: editRun.value.looking_for_crew ?? false,
+      maxCrew: editRun.value.max_crew ?? 4,
     }
   }
 }
@@ -391,7 +446,10 @@ async function loadEditRun(id: string) {
 watch(isOpen, (open) => {
   if (!open) return
   if (mode.value === 'create') {
-    form.value = { runDate: prefillDate.value ?? todayYMD(), runTime: '', notes: '', paddled: false }
+    form.value = {
+      runDate: prefillDate.value ?? todayYMD(), runTime: '', notes: '', paddled: false,
+      lookingForCrew: false, maxCrew: 4,
+    }
     selectedRunId.value = ''
     runFilter.value = ''
     loadMyRuns()
@@ -404,6 +462,9 @@ watch(isOpen, (open) => {
 const canTogglePaddled = computed(() => isPastOrToday(form.value.runDate))
 watch(() => form.value.runDate, () => {
   if (!canTogglePaddled.value) form.value.paddled = false
+})
+watch(crewAllowed, (allowed) => {
+  if (!allowed) form.value.lookingForCrew = false
 })
 
 // ── Flow (auto) preview ──────────────────────────────────────────────────
@@ -459,6 +520,8 @@ async function submit() {
       // Notes belong to the log — locked (and not sent) for future dates.
       notes: canTogglePaddled.value ? form.value.notes.trim() || undefined : undefined,
       paddled: form.value.paddled || undefined,
+      looking_for_crew: crewAllowed.value ? form.value.lookingForCrew : undefined,
+      max_crew: crewAllowed.value && form.value.lookingForCrew ? form.value.maxCrew : undefined,
     })
     submitting.value = false
     if (!result) return // error toast already shown by usePlans
@@ -482,6 +545,8 @@ async function submit() {
     run_time: form.value.runTime || undefined,
     notes: form.value.notes.trim() || undefined,
     paddled: form.value.paddled || undefined,
+    looking_for_crew: crewAllowed.value ? form.value.lookingForCrew : undefined,
+    max_crew: crewAllowed.value && form.value.lookingForCrew ? form.value.maxCrew : undefined,
   })
   submitting.value = false
   if (!ok) return

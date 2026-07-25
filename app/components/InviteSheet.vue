@@ -43,6 +43,31 @@
             </div>
 
             <div class="flex-1 overflow-y-auto p-4 space-y-4">
+              <!-- Run selector (#246 W5: invites RSVP per run now — an
+                   invite fans out to one row per checked run). All checked
+                   by default so the common "invite to the whole plan" case
+                   is zero extra taps. -->
+              <div v-if="runs.length > 1">
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400">Invite to which runs?</label>
+                  <button type="button" class="text-[11px] text-primary-600 dark:text-primary-400 hover:underline" @click="toggleAllRuns">
+                    {{ selectedRunIds.length === runs.length ? 'Clear all' : 'Select all' }}
+                  </button>
+                </div>
+                <div class="rounded-lg border border-neutral-100 dark:border-neutral-800 divide-y divide-neutral-100 dark:divide-neutral-800 max-h-32 overflow-y-auto">
+                  <label
+                    v-for="r in runs"
+                    :key="r.id"
+                    class="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                  >
+                    <input type="checkbox" :value="r.id" v-model="selectedRunIds" class="rounded border-neutral-300 dark:border-neutral-600 text-primary-600 focus:ring-primary-500/40" />
+                    <span class="min-w-0 flex-1 truncate text-neutral-700 dark:text-neutral-300">{{ r.name ?? 'Untitled run' }}</span>
+                    <span class="shrink-0 text-xs text-neutral-400">{{ fmtDate(r.run_date) }}</span>
+                  </label>
+                </div>
+                <p v-if="!selectedRunIds.length" class="text-xs text-red-500 mt-1">Select at least one run</p>
+              </div>
+
               <!-- Mode toggle -->
               <div class="flex items-center gap-1.5">
                 <button
@@ -107,10 +132,20 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { fmtDate } from '~/utils/calendarDate'
+
+export interface InviteSheetRun {
+  id: string
+  name?: string | null
+  run_date: string
+}
 
 const props = defineProps<{
   planId: string
   open: boolean
+  // The plan's runs, for the run-selector checkbox list (#246 W5). A
+  // single-run plan skips the selector entirely (nothing to choose).
+  runs: InviteSheetRun[]
 }>()
 
 const emit = defineEmits<{ 'update:open': [boolean]; sent: [] }>()
@@ -124,6 +159,11 @@ const email = ref('')
 const attachIcs = ref(true)
 const sending = ref(false)
 const results = ref<{ label: string; ok: boolean; message: string }[]>([])
+const selectedRunIds = ref<string[]>([])
+
+function toggleAllRuns() {
+  selectedRunIds.value = selectedRunIds.value.length === props.runs.length ? [] : props.runs.map(r => r.id)
+}
 
 watch(() => props.open, (o) => {
   if (!o) return
@@ -132,9 +172,11 @@ watch(() => props.open, (o) => {
   email.value = ''
   attachIcs.value = true
   results.value = []
+  selectedRunIds.value = props.runs.map(r => r.id) // all checked by default
 })
 
 const canSend = computed(() => {
+  if (props.runs.length > 1 && !selectedRunIds.value.length) return false
   if (mode.value === 'handle') return handles.value.length > 0
   return /\S+@\S+\.\S+/.test(email.value.trim())
 })
@@ -170,13 +212,20 @@ async function send() {
   sending.value = true
   results.value = []
 
+  // Omit plan_run_ids entirely when every run is selected (or there's only
+  // one run) — the contract's default ("all runs") already covers it, and
+  // sending the full list either way is equally correct, just noisier.
+  const planRunIds = selectedRunIds.value.length && selectedRunIds.value.length < props.runs.length
+    ? selectedRunIds.value
+    : undefined
+
   if (mode.value === 'handle') {
     for (const h of handles.value) {
-      const r = await sendOne({ handle: h })
+      const r = await sendOne({ handle: h, plan_run_ids: planRunIds })
       results.value = [...results.value, { label: `@${h}`, ...r }]
     }
   } else {
-    const r = await sendOne({ email: email.value.trim().toLowerCase(), attach_ics: attachIcs.value })
+    const r = await sendOne({ email: email.value.trim().toLowerCase(), attach_ics: attachIcs.value, plan_run_ids: planRunIds })
     results.value = [...results.value, { label: email.value.trim(), ...r }]
   }
 

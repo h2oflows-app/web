@@ -54,15 +54,16 @@
         </div>
       </div>
 
-      <!-- Pending invite (viewer, anon token-carve-out, or authed token-holder
-           not yet bound to the invite — different-email conversion) -->
+      <!-- Pending invite(s) — #246 W5: per-run now. Covers the two cases the
+           itinerary's own per-run buttons can't: anon token-carve-out
+           (sign-in prompt), and an authed-but-unbound token holder (signed
+           up with a different email than the invite). -->
       <InviteAcceptCard
-        v-if="showInviteAcceptCard"
+        v-if="pendingInviteRuns.length"
         :plan="plan"
-        :member-id="myPendingInvite?.member_id ?? data?.invite_member_id ?? ''"
+        :runs="pendingInviteRuns"
         :token="inviteToken ?? undefined"
-        @accepted="onInviteResolved"
-        @dismissed="onInviteResolved"
+        @resolved="onInviteResolved"
       />
 
       <template v-if="isAuthenticated">
@@ -70,36 +71,14 @@
         <PlanMembersRow
           :members="data?.members ?? []"
           :plan-type="plan.type"
+          :plan-id="plan.id"
           :is-host="isHost"
           @invite="inviteSheetOpen = true"
         />
-
-        <!-- Crew meter -->
-        <div v-if="plan.looking_for_crew" class="rounded-xl border border-neutral-100 dark:border-neutral-800 px-3.5 py-3">
-          <PlanCrewMeter :filled="data?.crew.filled ?? 0" :max="data?.crew.max">
-            <template v-if="isHost" #action>
-              <button type="button" class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline" @click="crewPanelOpen = true">Manage</button>
-            </template>
-          </PlanCrewMeter>
-        </div>
-
-        <!-- Join Run (authed non-member, public + looking-for-crew) -->
-        <div v-if="showJoin" class="flex items-center justify-between gap-3 rounded-xl border border-primary-100 dark:border-primary-900/50 bg-primary-50/60 dark:bg-primary-950/20 px-3.5 py-3">
-          <div>
-            <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100">Looking for crew</p>
-            <p class="text-[11px] text-neutral-400 mt-0.5">Send the host a request to join</p>
-          </div>
-          <button
-            type="button"
-            class="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-            :class="joinRequested ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400' : 'bg-primary-600 hover:bg-primary-700 text-white'"
-            :disabled="joining || joinRequested || crewFull"
-            @click="onJoin"
-          >{{ joinRequested ? 'Requested' : crewFull ? 'Crew full' : joining ? '…' : 'Join Run' }}</button>
-        </div>
       </template>
 
-      <!-- Itinerary -->
+      <!-- Itinerary — crew meter, Join, and per-run accept/decline now live
+           on each run row (#246 W5, mig 000144). -->
       <section class="space-y-2">
         <h2 class="text-xs font-semibold uppercase tracking-wide text-neutral-400">Itinerary</h2>
         <PlanItinerary
@@ -107,19 +86,19 @@
           :itinerary="data?.itinerary ?? []"
           :is-host="isHost"
           :is-accepted-member="isAcceptedMember"
+          :highlight-run-id="highlightRunId"
           @refresh="load"
         />
       </section>
     </main>
 
-    <InviteSheet v-if="plan" v-model:open="inviteSheetOpen" :plan-id="plan.id" @sent="load" />
-    <PlanCrewPanel v-if="plan" v-model:open="crewPanelOpen" :plan-id="plan.id" @refresh="load" />
+    <InviteSheet v-if="plan" v-model:open="inviteSheetOpen" :plan-id="plan.id" :runs="inviteSheetRuns" @sent="load" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import type { PlanDetailResponse } from '~/utils/plan'
+import type { PlanDetailResponse, PlanInviteTokenRun } from '~/utils/plan'
 import { useInvites } from '~/composables/useInvites'
 import { useMyProfile } from '~/composables/useMyProfile'
 import { fmtRange } from '~/utils/calendarDate'
@@ -130,7 +109,6 @@ definePageMeta({ ssr: false })
 const route = useRoute()
 const { apiBase } = useRuntimeConfig().public
 const { isAuthenticated, getToken } = useAuth()
-const toast = useToast()
 
 const handleParam = route.params.handle as string
 const slugParam = route.params.slug as string
@@ -145,6 +123,11 @@ const slugParam = route.params.slug as string
 // different email than the invite) would otherwise fail the private-plan
 // visibility gate too.
 const inviteToken = computed(() => (typeof route.query.invite === 'string' ? route.query.invite : null))
+
+// Email-link landing (#246 W5 item 3): the reworked invite emails link
+// straight to the invited run — ?run={plan_run_id} — so the itinerary can
+// scroll to + highlight it, alongside the existing ?invite= token flow.
+const highlightRunId = computed(() => (typeof route.query.run === 'string' ? route.query.run : null))
 
 const authReady = ref(false)
 onMounted(() => { authReady.value = true })
@@ -183,28 +166,45 @@ watch(isAuthenticated, (v) => { if (v) loadMyProfile() })
 
 const isHost = computed(() => !!plan.value && !!myHandle.value && myHandle.value.toLowerCase() === plan.value.host_handle.toLowerCase())
 
-const myMember = computed(() => {
-  if (!myHandle.value || !data.value) return null
-  return data.value.members.find(m => m.handle.toLowerCase() === myHandle.value!.toLowerCase()) ?? null
+// #246 W5: "accepted member" is now derived straight off the itinerary —
+// any run row where the viewer's own RSVP is accepted — rather than a
+// single plan-wide membership status (crew/RSVPs are per-run).
+const isAcceptedMember = computed(() => {
+  if (isHost.value || !data.value) return false
+  return data.value.itinerary.some(day => day.runs.some(r => r.my_rsvp === 'accepted'))
 })
-const isAcceptedMember = computed(() => !isHost.value && myMember.value?.status === 'accepted')
 
-// ── Pending invite (viewer) ──────────────────────────────────────────────
+// ── Pending invite(s) (viewer) ────────────────────────────────────────────
 const { invites: myInvites, refresh: refreshInvites } = useInvites()
 watch(isAuthenticated, (v) => { if (v) refreshInvites() }, { immediate: true })
 
-const myPendingInvite = computed(() => {
-  if (!plan.value) return null
-  return myInvites.value.find(i => i.plan.id === plan.value!.id && i.status === 'invited' && !i.dismissed_at) ?? null
+// Bound invite: this account's own pending run rows on THIS plan, sourced
+// from /me/invites (covers the common case — already-signed-up invitee).
+const myPendingRuns = computed<PlanInviteTokenRun[]>(() => {
+  if (!plan.value) return []
+  const group = myInvites.value.find(i => i.plan.id === plan.value!.id)
+  if (!group) return []
+  return group.runs
+    .filter(r => r.status === 'invited' && !r.dismissed_at)
+    .map(r => ({ member_id: r.member_id, plan_run_id: r.plan_run_id, run_name: r.run_name, run_date: r.run_date, run_time: r.run_time }))
 })
 
-const showInviteAcceptCard = computed(() => {
-  if (!plan.value || isHost.value) return false
-  if (!isAuthenticated.value) return !!inviteToken.value
-  // Either the invite is already bound/discoverable via /me/invites, or the
-  // caller is holding a valid token the API resolved to a not-yet-bound
-  // invite (different-email conversion — invite_member_id on the response).
-  return !!myPendingInvite.value || !!(inviteToken.value && data.value?.invite_member_id)
+// Unbound token holder (different-email conversion) — API-resolved rows
+// that aren't reachable via /me/invites yet.
+const tokenRuns = computed<PlanInviteTokenRun[]>(() => data.value?.invite_token_runs ?? [])
+
+// Union, de-duped by member_id (a bound invite that ALSO forwarded a valid
+// token would otherwise double-list the same run).
+const pendingInviteRuns = computed<PlanInviteTokenRun[]>(() => {
+  if (!plan.value || isHost.value) return []
+  const seen = new Set<string>()
+  const merged: PlanInviteTokenRun[] = []
+  for (const r of [...myPendingRuns.value, ...tokenRuns.value]) {
+    if (seen.has(r.member_id)) continue
+    seen.add(r.member_id)
+    merged.push(r)
+  }
+  return merged
 })
 
 async function onInviteResolved() {
@@ -212,43 +212,11 @@ async function onInviteResolved() {
   await load()
 }
 
-// ── Join Run (authed non-member, public + looking-for-crew) ─────────────
-const joining = ref(false)
-const joinRequested = ref(false)
-
-const crewFull = computed(() => {
-  const c = data.value?.crew
-  return !!c && c.max != null && c.filled >= c.max
-})
-
-const showJoin = computed(() => {
-  if (!plan.value || isHost.value) return false
-  if (myMember.value) return false // already invited/requested/accepted/declined
-  return plan.value.visibility === 'public' && plan.value.looking_for_crew
-})
-
-async function onJoin() {
-  if (!plan.value || joining.value) return
-  joining.value = true
-  const token = await getToken()
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (token) headers.Authorization = `Bearer ${token}`
-  const res = await fetch(`${apiBase}/api/v1/plans/${plan.value.id}/join`, {
-    method: 'POST', headers, body: JSON.stringify({}),
-  }).catch(() => null)
-  joining.value = false
-
-  if (!res?.ok) {
-    const msg = await res?.json().catch(() => null)
-    toast.add({ title: res?.status === 409 ? 'Crew is full' : 'Could not send join request', description: msg?.error, color: 'error' })
-    return
-  }
-  joinRequested.value = true
-  toast.add({ title: "Request sent — you'll hear back", color: 'success' })
-  await load()
-}
-
 // ── Sheets ────────────────────────────────────────────────────────────────
 const inviteSheetOpen = ref(false)
-const crewPanelOpen = ref(false)
+
+// Flattened run list for InviteSheet's run-selector checkbox list.
+const inviteSheetRuns = computed(() =>
+  (data.value?.itinerary ?? []).flatMap(day => day.runs.map(r => ({ id: r.id, name: r.name, run_date: r.run_date })))
+)
 </script>

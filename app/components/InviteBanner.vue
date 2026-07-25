@@ -10,9 +10,16 @@
     </div>
 
     <div class="min-w-0 flex-1">
-      <p class="text-sm font-medium truncate">@{{ invite.plan.host_handle }} invited you to {{ invite.plan.name }}</p>
+      <!-- #246 W5: headline names the RUN, not the plan (invite RSVPs are
+           per-run) — e.g. "@maya invited you to run Foxton on 7/26". Falls
+           back to the plan name if no run row could be resolved. -->
+      <p class="text-sm font-medium truncate">
+        @{{ invite.plan.host_handle }} invited you to
+        <template v-if="firstRun">run {{ firstRun.run_name ?? 'a run' }} on {{ fmtDate(firstRun.run_date) }}</template>
+        <template v-else>{{ invite.plan.name }}</template>
+      </p>
       <p class="text-xs text-white/80 truncate">
-        {{ fmtRange(invite.plan.start_date, invite.plan.end_date) }}
+        {{ invite.plan.name }} · {{ fmtRange(invite.plan.start_date, invite.plan.end_date) }}
         <template v-if="extraCount > 0"> · +{{ extraCount }} more</template>
       </p>
     </div>
@@ -36,24 +43,27 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useInvites } from '~/composables/useInvites'
-import { fmtRange } from '~/utils/calendarDate'
+import { useInvites, type InviteRun } from '~/composables/useInvites'
+import { fmtDate, fmtRange } from '~/utils/calendarDate'
 
-const { invites, firstPending, dismiss } = useInvites()
+const { invites, firstPending, firstPendingRun, isPendingRun, dismiss } = useInvites()
 const invite = firstPending
 
-// "+N more" — every OTHER still-pending invite beyond the one shown.
+const firstRun = computed<InviteRun | undefined>(() => invite.value ? firstPendingRun(invite.value) : undefined)
+
+// "+N more" — every OTHER still-pending RUN invite beyond the one named
+// above (whether from this same plan or another pending invite entirely).
 const extraCount = computed(() => {
-  const pendingCount = invites.value.filter(i => i.status === 'invited' && !i.dismissed_at).length
-  return Math.max(0, pendingCount - 1)
+  const totalPendingRuns = invites.value.reduce((n, i) => n + i.runs.filter(isPendingRun).length, 0)
+  return Math.max(0, totalPendingRuns - 1)
 })
 
 const dismissing = ref(false)
 
 async function onDismiss() {
-  if (!invite.value || dismissing.value) return
+  if (!invite.value || !firstRun.value || dismissing.value) return
   dismissing.value = true
-  await dismiss(invite.value.member_id)
+  await dismiss(firstRun.value.member_id)
   dismissing.value = false
 }
 </script>
