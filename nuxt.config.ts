@@ -114,8 +114,9 @@ export default defineNuxtConfig({
   },
 
   // PWA (fixes #265 — Android Chrome / desktop install prompt)
-  // navigateFallback intentionally omitted to avoid intercepting /confirm OAuth
-  // hash-token callback and /login redirects.
+  // navigateFallback is set to the 404.html SPA shell (see workbox block) —
+  // safe for the /confirm OAuth callback: the shell carries no route payload,
+  // hydrates to the current path, and the URL hash (#access_token) survives.
   pwa: {
     registerType: 'autoUpdate',
     manifest: {
