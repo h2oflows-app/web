@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="$emit('cancel')">
+    <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center p-4" @pointerdown="backdropDown" @pointerup="backdropUp($event) && $emit('cancel')">
       <div class="absolute inset-0 bg-black/40" @click="$emit('cancel')" />
       <div class="relative w-full max-w-xs bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-xl p-5 space-y-3">
         <h3 class="text-sm font-semibold">Delete this dashboard?</h3>

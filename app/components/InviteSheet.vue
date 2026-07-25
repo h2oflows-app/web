@@ -11,7 +11,7 @@
       <div
         v-if="open"
         class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm"
-        @click.self="close"
+        @pointerdown="backdropDown" @pointerup="backdropUp($event) && close()"
       >
         <Transition
           enter-active-class="transition duration-200 ease-out"

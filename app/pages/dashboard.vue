@@ -810,7 +810,7 @@
 
     <!-- New dashboard modal -->
     <Teleport to="body">
-      <div v-if="newDashboardOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="newDashboardOpen = false">
+      <div v-if="newDashboardOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4" @pointerdown="backdropDown" @pointerup="backdropUp($event) && (newDashboardOpen = false)">
         <div class="absolute inset-0 bg-black/40" @click="newDashboardOpen = false" />
         <div class="relative w-full max-w-xs bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-xl p-5 space-y-4">
           <h3 class="text-sm font-semibold">New dashboard</h3>

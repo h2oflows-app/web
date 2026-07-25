@@ -11,7 +11,7 @@
       <div
         v-if="open"
         class="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40 backdrop-blur-sm"
-        @click.self="$emit('cancel')"
+        @pointerdown="backdropDown" @pointerup="backdropUp($event) && $emit('cancel')"
       >
         <div class="w-full max-w-sm bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden">
           <div class="px-5 py-4 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
