@@ -223,10 +223,10 @@
 
                   <!-- Crew (#246 W5: moved here from the plan-level New-plan
                        sheet — looking_for_crew/max_crew are per-run now).
-                       Only meaningful once the run isn't paddled yet (crew
-                       calls are for runs still ahead) and the sheet knows
-                       the parent plan's visibility. -->
-                  <div v-if="!form.paddled" class="rounded-xl border border-neutral-100 dark:border-neutral-800 divide-y divide-neutral-100 dark:divide-neutral-800">
+                       Hidden for strictly-past dates (a run that already
+                       happened can't recruit crew; TODAY keeps it — "paddling
+                       this afternoon, need crew" is legit) and once paddled. -->
+                  <div v-if="!form.paddled && !isPastDate" class="rounded-xl border border-neutral-100 dark:border-neutral-800 divide-y divide-neutral-100 dark:divide-neutral-800">
                     <div class="flex items-center justify-between gap-3 px-3.5 py-3">
                       <div>
                         <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100">Looking for crew</p>
@@ -264,19 +264,20 @@
                     </div>
                   </div>
 
-                  <!-- Log section: paddled + notes — locked until the run date -->
-                  <div class="space-y-3">
+                  <!-- Log section: paddled + notes. Shown ONLY when the run
+                       date is today or past (unlocked); future dates hide it
+                       entirely — future days are plans, nothing to log yet
+                       (product feedback 2026-07-25, replaces the old
+                       disabled-with-hint treatment). -->
+                  <div v-if="canTogglePaddled" class="space-y-3">
                     <p class="text-[11px] font-medium text-neutral-400 uppercase tracking-wide">Log</p>
 
-                    <div v-if="canTogglePaddled" class="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20 px-3.5 py-3">
+                    <div class="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20 px-3.5 py-3">
                       <div>
                         <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100">I paddled this</p>
                         <p class="text-[11px] text-neutral-400 mt-0.5">Locks the flow reading and marks it logged.</p>
                       </div>
                       <USwitch v-model="form.paddled" />
-                    </div>
-                    <div v-else class="rounded-xl border border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/40 px-3.5 py-3 text-xs text-neutral-500 dark:text-neutral-400">
-                      Saving as a <strong class="text-neutral-700 dark:text-neutral-200">plan</strong>. Logging unlocks on {{ fmtDate(form.runDate) }}.
                     </div>
 
                     <div>
@@ -286,9 +287,8 @@
                       <textarea
                         v-model="form.notes"
                         rows="3"
-                        :disabled="!canTogglePaddled"
-                        :placeholder="canTogglePaddled ? 'How was it? Conditions, hazards, lines…' : `Notes unlock on ${fmtDate(form.runDate)}.`"
-                        class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-neutral-50 dark:disabled:bg-neutral-800/40"
+                        placeholder="How was it? Conditions, hazards, lines…"
+                        class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500/40"
                       />
                     </div>
                   </div>
@@ -327,7 +327,7 @@ import { computed, ref, watch } from 'vue'
 import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
 import { usePlans } from '~/composables/usePlans'
 import { useCalendar } from '~/composables/useCalendar'
-import { todayYMD, fmtDate, isPastOrToday } from '~/utils/calendarDate'
+import { todayYMD, isPastOrToday } from '~/utils/calendarDate'
 import { classRange } from '~/utils/classRating'
 import { flowBandLabel, flowBandSolidColor, colorKeyToHex } from '~/utils/flowBand'
 import type { PlanRunDetail } from '~/utils/planRun'
@@ -590,11 +590,18 @@ watch(isOpen, (open) => {
 
 // ── Paddled toggle gating ────────────────────────────────────────────────
 const canTogglePaddled = computed(() => isPastOrToday(form.value.runDate))
+// Strictly past (not today): a run that already happened can't recruit crew.
+const isPastDate = computed(() => !!form.value.runDate && form.value.runDate < todayYMD())
 watch(() => form.value.runDate, () => {
   if (!canTogglePaddled.value) form.value.paddled = false
 })
 watch(crewAllowed, (allowed) => {
   if (!allowed) form.value.lookingForCrew = false
+})
+// Date flipped into the past while the toggle was on (section now hidden) —
+// don't silently submit a stale crew call for a run that already happened.
+watch(isPastDate, (past) => {
+  if (past) form.value.lookingForCrew = false
 })
 
 // ── Flow (auto) preview ──────────────────────────────────────────────────
