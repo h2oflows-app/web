@@ -10,6 +10,10 @@
       >{{ run.name ?? 'Untitled run' }}</NuxtLink>
       <p v-else class="text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">{{ run.name ?? 'Untitled run' }}</p>
       <p v-if="run.run_time" class="text-xs text-neutral-400">{{ fmtTime(run.run_time) }}</p>
+      <p v-if="run.meetup_spot" class="flex items-center gap-1 text-xs text-neutral-400 truncate">
+        <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.5-7-11a7 7 0 1 1 14 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+        <span class="truncate">Meet: {{ run.meetup_spot }}</span>
+      </p>
     </div>
 
     <span

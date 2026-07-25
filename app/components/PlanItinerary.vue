@@ -144,6 +144,7 @@ function toCalendarRun(run: PlanRunDetail): CalendarRun {
     run_time: run.run_time ?? undefined,
     plan_id: props.plan.id,
     notes: run.notes ?? undefined,
+    meetup_spot: run.meetup_spot ?? undefined,
   }
 }
 

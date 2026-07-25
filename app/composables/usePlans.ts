@@ -18,6 +18,21 @@ export interface CreatePlanBody {
   visibility?: string
 }
 
+// "Meet up at" (product request 2026-07-25). ASSUMED CONTRACT — the api's
+// parallel meetup patch had not landed on feat/246-crew-per-run as of this
+// writing; verify field names against that branch before this ships.
+//
+// Clear semantics (documented per the PlanRunLogSheet spec): meetup_spot,
+// meetup_feature_type, and meetup_feature_id are a trio — a feature ref is
+// inherently nullable state (not a plain optional edit like `notes`, which
+// this handler's COALESCE-on-omit pattern only ever SETS, never clears —
+// existing behavior, out of scope here). So:
+//  - CREATE: omit all three when nothing was entered/picked. Send meetup_spot
+//    alone for free text; send all three once a suggestion was picked.
+//  - PATCH (edit mode): always send all three together, never omitted —
+//    '' clears the spot text; meetup_feature_type/id: null clears a
+//    previously-picked ref while KEEPING the (possibly hand-edited)
+//    meetup_spot text ("typing after a pick clears the ref, text stays").
 export interface CreatePlanRunBody {
   user_reach_id?: string
   reach_slug?: string
@@ -28,6 +43,9 @@ export interface CreatePlanRunBody {
   paddled?: boolean
   looking_for_crew?: boolean
   max_crew?: number
+  meetup_spot?: string
+  meetup_feature_type?: 'rapid' | 'access'
+  meetup_feature_id?: string
 }
 
 export interface UpdatePlanRunBody {
@@ -39,6 +57,9 @@ export interface UpdatePlanRunBody {
   paddled?: boolean
   looking_for_crew?: boolean
   max_crew?: number
+  meetup_spot?: string
+  meetup_feature_type?: 'rapid' | 'access' | null
+  meetup_feature_id?: string | null
 }
 
 async function apiErrorMessage(res: Response | null): Promise<string | undefined> {

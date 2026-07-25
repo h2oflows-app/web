@@ -162,6 +162,52 @@
                     </div>
                   </div>
 
+                  <!-- Meet up at — free-text combobox with suggestions drawn
+                       from this run's own rapids/access features (#312),
+                       shown while focused. Picking one fills the text and
+                       stores a feature ref; typing after that clears the ref
+                       (text-only) — see meetupSpot.ts for the wire contract. -->
+                  <div class="relative">
+                    <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">
+                      Meet up at <span class="text-neutral-400">(optional)</span>
+                    </label>
+                    <input
+                      v-model="meetupText"
+                      type="text"
+                      placeholder="e.g. gas station on CO-126"
+                      class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                      @focus="meetupFocused = true"
+                      @blur="onMeetupBlur"
+                    />
+                    <p v-if="meetupFeatureRef" class="mt-1 flex items-center gap-1 text-[11px] text-primary-600 dark:text-primary-400">
+                      <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.5-7-11a7 7 0 1 1 14 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+                      Linked to a run feature
+                    </p>
+
+                    <div
+                      v-if="meetupFocused && meetupReachRef"
+                      class="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg divide-y divide-neutral-100 dark:divide-neutral-800"
+                    >
+                      <div v-if="!meetupFetchDone" class="px-3 py-2.5 text-xs text-neutral-400 text-center">Loading features…</div>
+                      <template v-else-if="filteredMeetupSuggestions.length">
+                        <button
+                          v-for="s in filteredMeetupSuggestions"
+                          :key="`${s.type}-${s.id}`"
+                          type="button"
+                          class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                          @click="pickMeetupSuggestion(s)"
+                        >
+                          <span
+                            class="shrink-0 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded text-white"
+                            :style="{ background: suggestionChipColor(s) }"
+                          >{{ suggestionChipLabel(s) }}</span>
+                          <span class="text-sm text-neutral-700 dark:text-neutral-200 truncate">{{ s.name }}</span>
+                        </button>
+                      </template>
+                      <div v-else class="px-3 py-2.5 text-xs text-neutral-400 text-center">No features on this run yet.</div>
+                    </div>
+                  </div>
+
                   <!-- Flow chip — only when there's something to show; the
                        auto-stamp explanation lives in the notice below -->
                   <div v-if="flowPreview" class="rounded-lg bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-100 dark:border-neutral-800 px-3 py-2.5">
@@ -285,6 +331,10 @@ import { todayYMD, fmtDate, isPastOrToday } from '~/utils/calendarDate'
 import { classRange } from '~/utils/classRating'
 import { flowBandLabel, flowBandSolidColor, colorKeyToHex } from '~/utils/flowBand'
 import type { PlanRunDetail } from '~/utils/planRun'
+import {
+  fetchMeetupSuggestions, suggestionChipLabel, suggestionChipColor,
+  type MeetupSuggestion, type MeetupFeatureRef,
+} from '~/utils/meetupSpot'
 
 interface MyRun {
   id: string
@@ -358,9 +408,16 @@ const selectedRun = computed(() =>
   selectedRunId.value && pickedRun.value?.id === selectedRunId.value ? pickedRun.value : null
 )
 
+// Reach owner handle for the picked run — null means "the caller's own run"
+// (fetch its features via /me/runs/{slug}); set means a community pick,
+// fetched via the public /users/{handle}/runs/{slug}. Only used to drive the
+// meet-up-spot feature-suggestion fetch below.
+const pickedRunHandle = ref<string | null>(null)
+
 function pickMine(r: MyRun) {
   pickedRun.value = r
   selectedRunId.value = r.id
+  pickedRunHandle.value = null
 }
 
 function pickCommunity(c: CommunityRun) {
@@ -374,6 +431,7 @@ function pickCommunity(c: CommunityRun) {
     flow_status: null,
   }
   selectedRunId.value = c.id
+  pickedRunHandle.value = c.handle
 }
 
 const filteredRuns = computed(() => {
@@ -440,8 +498,75 @@ async function loadEditRun(id: string) {
       lookingForCrew: editRun.value.looking_for_crew ?? false,
       maxCrew: editRun.value.max_crew ?? 4,
     }
+    meetupText.value = editRun.value.meetup_spot ?? ''
+    meetupFeatureRef.value = editRun.value.meetup_feature_type && editRun.value.meetup_feature_id
+      ? { type: editRun.value.meetup_feature_type, id: editRun.value.meetup_feature_id }
+      : null
+    meetupLinkedName.value = meetupFeatureRef.value ? meetupText.value : null
   }
 }
+
+// ── Meet up at: free-text + feature-suggestion combobox ─────────────────
+const meetupText = ref('')
+const meetupFeatureRef = ref<MeetupFeatureRef | null>(null)
+// The text that was current the moment meetupFeatureRef was last set (by a
+// pick, or by edit-mode prefill) — if meetupText later diverges from this,
+// the ref is stale (the user typed over a picked/prefilled spot) and gets
+// cleared, per the spec's "typing after a pick clears the ref" rule.
+const meetupLinkedName = ref<string | null>(null)
+const meetupFocused = ref(false)
+const meetupSuggestions = ref<MeetupSuggestion[]>([])
+const meetupFetchDone = ref(false)
+let meetupBlurTimer: ReturnType<typeof setTimeout> | null = null
+
+function onMeetupBlur() {
+  if (meetupBlurTimer) clearTimeout(meetupBlurTimer)
+  // Delay so a click on a suggestion button fires before the list unmounts.
+  meetupBlurTimer = setTimeout(() => { meetupFocused.value = false }, 150)
+}
+
+function pickMeetupSuggestion(s: MeetupSuggestion) {
+  meetupText.value = s.name
+  meetupFeatureRef.value = { type: s.type, id: s.id }
+  meetupLinkedName.value = s.name
+  meetupFocused.value = false
+}
+
+watch(meetupText, (val) => {
+  if (meetupFeatureRef.value && val !== meetupLinkedName.value) {
+    meetupFeatureRef.value = null
+  }
+})
+
+// Reach identity to fetch suggestions for — create mode uses the picked run
+// (mine or community); edit mode needs the api's parallel meetup patch to
+// have added user_reach_slug/user_reach_owner_handle to GET /plan-runs/{id}
+// (see planRun.ts) — absent, this stays null and the combobox degrades to
+// free-text-only (fetchDone still flips true so the list never spins forever).
+const meetupReachRef = computed<{ slug: string; handle?: string | null } | null>(() => {
+  if (mode.value === 'create') {
+    return selectedRun.value ? { slug: selectedRun.value.slug, handle: pickedRunHandle.value } : null
+  }
+  if (mode.value === 'edit' && editRun.value?.user_reach_slug) {
+    return { slug: editRun.value.user_reach_slug, handle: editRun.value.user_reach_owner_handle ?? null }
+  }
+  return null
+})
+
+watch(meetupReachRef, async (ref) => {
+  meetupSuggestions.value = []
+  meetupFetchDone.value = false
+  if (!ref) { meetupFetchDone.value = true; return }
+  const token = ref.handle ? null : await getToken()
+  meetupSuggestions.value = await fetchMeetupSuggestions(apiBase, ref, token)
+  meetupFetchDone.value = true
+}, { immediate: true })
+
+const filteredMeetupSuggestions = computed(() => {
+  const q = meetupText.value.trim().toLowerCase()
+  if (!q) return meetupSuggestions.value
+  return meetupSuggestions.value.filter(s => s.name.toLowerCase().includes(q))
+})
 
 watch(isOpen, (open) => {
   if (!open) return
@@ -452,6 +577,10 @@ watch(isOpen, (open) => {
     }
     selectedRunId.value = ''
     runFilter.value = ''
+    meetupText.value = ''
+    meetupFeatureRef.value = null
+    meetupLinkedName.value = null
+    pickedRunHandle.value = null
     loadMyRuns()
   } else if (mode.value === 'edit' && runId.value) {
     loadEditRun(runId.value)
@@ -522,6 +651,11 @@ async function submit() {
       paddled: form.value.paddled || undefined,
       looking_for_crew: crewAllowed.value ? form.value.lookingForCrew : undefined,
       max_crew: crewAllowed.value && form.value.lookingForCrew ? form.value.maxCrew : undefined,
+      // Meet up at — create has no prior state to clear, so omit entirely
+      // when empty/unpicked (see usePlans.ts CreatePlanRunBody contract note).
+      meetup_spot: meetupText.value.trim() || undefined,
+      meetup_feature_type: meetupFeatureRef.value?.type,
+      meetup_feature_id: meetupFeatureRef.value?.id,
     })
     submitting.value = false
     if (!result) return // error toast already shown by usePlans
@@ -548,6 +682,12 @@ async function submit() {
     paddled: form.value.paddled || undefined,
     looking_for_crew: crewAllowed.value ? form.value.lookingForCrew : undefined,
     max_crew: crewAllowed.value && form.value.lookingForCrew ? form.value.maxCrew : undefined,
+    // Meet up at — edit mode always sends the trio together (never omitted)
+    // so a cleared field actually clears server-side; see usePlans.ts
+    // UpdatePlanRunBody contract note for the full rationale.
+    meetup_spot: meetupText.value.trim(),
+    meetup_feature_type: meetupFeatureRef.value?.type ?? null,
+    meetup_feature_id: meetupFeatureRef.value?.id ?? null,
   })
   submitting.value = false
   if (!ok) return

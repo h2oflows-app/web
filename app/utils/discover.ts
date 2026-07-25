@@ -20,6 +20,9 @@ export interface DiscoverRun {
   flow_color?: string | null
   gauge_cfs?: number | null
   crew: PlanRunCrew
+  // "Meet up at" display text — see planRun.ts PlanRunDetail for the full
+  // contract note (assumed pending the api's parallel meetup patch).
+  meetup_spot?: string | null
   // The signed-in caller's own RSVP against this specific run, if any —
   // drives the Join button's optimistic Requested/full-disabled state
   // surviving a page reload (rather than resetting on every fetch).

@@ -27,6 +27,10 @@
                 {{ fmtDate(run.run_date) }}<template v-if="run.run_time"> · {{ fmtTime(run.run_time) }}</template>
                 <template v-if="run.class_min != null || run.class_max != null"> · Class {{ classRange(run.class_min ?? null, run.class_max ?? null) }}</template>
               </p>
+              <p v-if="run.meetup_spot" class="flex items-center gap-1 text-xs text-neutral-400 truncate">
+                <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.5-7-11a7 7 0 1 1 14 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+                <span class="truncate">Meet: {{ run.meetup_spot }}</span>
+              </p>
             </div>
             <span
               v-if="run.flow_band || run.gauge_cfs != null"
