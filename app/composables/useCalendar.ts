@@ -39,6 +39,7 @@ export interface CalendarPlan {
   visibility: string
   role: PlanRole
   member_status?: string
+  host_handle?: string
 }
 
 interface RangeCache {
