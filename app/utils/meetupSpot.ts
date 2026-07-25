@@ -2,9 +2,10 @@
 // product request 2026-07-25 — "necessity" so invitees/crew know where to
 // gather for a plan_run).
 //
-// Storage contract (assumed — the api's parallel meetup-spot patch had not
-// landed on feat/246-crew-per-run as of this writing; verify field names
-// against that branch before relying on this beyond scaffolding):
+// Storage contract (verified against the api's meetup-spot patch on
+// feat/246-crew-per-run, plan_runs.go) — these are the RESPONSE field names
+// (GET /plan-runs/{id}); the create/patch REQUEST body nests the picked
+// feature as `meetup_feature: {type, id}` instead (see usePlans.ts):
 //   meetup_spot          TEXT     — display text, either typed free-text or
 //                                   the picked feature's name (a snapshot:
 //                                   survives the feature being deleted/re-

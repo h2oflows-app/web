@@ -539,10 +539,11 @@ watch(meetupText, (val) => {
 })
 
 // Reach identity to fetch suggestions for — create mode uses the picked run
-// (mine or community); edit mode needs the api's parallel meetup patch to
-// have added user_reach_slug/user_reach_owner_handle to GET /plan-runs/{id}
-// (see planRun.ts) — absent, this stays null and the combobox degrades to
-// free-text-only (fetchDone still flips true so the list never spins forever).
+// (mine or community); edit mode uses user_reach_slug/user_reach_owner_handle
+// off GET /plan-runs/{id} (see planRun.ts, plan_runs.go renderPlanRun). If a
+// run somehow has no user_reach_id attached this stays null and the combobox
+// degrades to free-text-only (fetchDone still flips true so the list never
+// spins forever).
 const meetupReachRef = computed<{ slug: string; handle?: string | null } | null>(() => {
   if (mode.value === 'create') {
     return selectedRun.value ? { slug: selectedRun.value.slug, handle: pickedRunHandle.value } : null
@@ -654,8 +655,9 @@ async function submit() {
       // Meet up at — create has no prior state to clear, so omit entirely
       // when empty/unpicked (see usePlans.ts CreatePlanRunBody contract note).
       meetup_spot: meetupText.value.trim() || undefined,
-      meetup_feature_type: meetupFeatureRef.value?.type,
-      meetup_feature_id: meetupFeatureRef.value?.id,
+      meetup_feature: meetupFeatureRef.value
+        ? { type: meetupFeatureRef.value.type, id: meetupFeatureRef.value.id }
+        : undefined,
     })
     submitting.value = false
     if (!result) return // error toast already shown by usePlans
@@ -682,12 +684,15 @@ async function submit() {
     paddled: form.value.paddled || undefined,
     looking_for_crew: crewAllowed.value ? form.value.lookingForCrew : undefined,
     max_crew: crewAllowed.value && form.value.lookingForCrew ? form.value.maxCrew : undefined,
-    // Meet up at — edit mode always sends the trio together (never omitted)
-    // so a cleared field actually clears server-side; see usePlans.ts
-    // UpdatePlanRunBody contract note for the full rationale.
+    // Meet up at — edit mode always sends both together (never omitted) so
+    // a cleared field actually clears server-side; see usePlans.ts
+    // UpdatePlanRunBody contract note for the full rationale. `?? null` (not
+    // `?? undefined`) is load-bearing: the api distinguishes an explicit
+    // null from an omitted key to clear a stale ref without wiping the text.
     meetup_spot: meetupText.value.trim(),
-    meetup_feature_type: meetupFeatureRef.value?.type ?? null,
-    meetup_feature_id: meetupFeatureRef.value?.id ?? null,
+    meetup_feature: meetupFeatureRef.value
+      ? { type: meetupFeatureRef.value.type, id: meetupFeatureRef.value.id }
+      : null,
   })
   submitting.value = false
   if (!ok) return

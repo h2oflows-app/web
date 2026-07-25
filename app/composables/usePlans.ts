@@ -18,21 +18,33 @@ export interface CreatePlanBody {
   visibility?: string
 }
 
-// "Meet up at" (product request 2026-07-25). ASSUMED CONTRACT — the api's
-// parallel meetup patch had not landed on feat/246-crew-per-run as of this
-// writing; verify field names against that branch before this ships.
+// "Meet up at" (product request 2026-07-25). Verified against the api's
+// meetup patch on feat/246-crew-per-run (plan_runs.go): the request body
+// nests the picked feature as `meetup_feature: {type, id}` — NOT flat
+// meetup_feature_type/meetup_feature_id (those flat names are the RESPONSE
+// shape only, see planRun.ts/PlanRunDetail; do not conflate the two).
 //
-// Clear semantics (documented per the PlanRunLogSheet spec): meetup_spot,
-// meetup_feature_type, and meetup_feature_id are a trio — a feature ref is
-// inherently nullable state (not a plain optional edit like `notes`, which
-// this handler's COALESCE-on-omit pattern only ever SETS, never clears —
-// existing behavior, out of scope here). So:
-//  - CREATE: omit all three when nothing was entered/picked. Send meetup_spot
-//    alone for free text; send all three once a suggestion was picked.
-//  - PATCH (edit mode): always send all three together, never omitted —
-//    '' clears the spot text; meetup_feature_type/id: null clears a
+// Clear semantics: meetup_spot and meetup_feature are a pair — a feature ref
+// is inherently nullable state (not a plain optional edit like `notes`,
+// which this handler's COALESCE-on-omit pattern only ever SETS, never
+// clears — existing behavior, out of scope here). So:
+//  - CREATE: omit meetup_feature when nothing was picked (undefined drops
+//    the key). Send meetup_spot alone for free text; send meetup_feature
+//    once a suggestion was picked.
+//  - PATCH (edit mode): always send both, never omitted — '' clears the
+//    spot text (and, per the api's binding rule, ALSO clears any feature
+//    ref — the two can't be split in that direction); an explicit
+//    `meetup_feature: null` (as opposed to the key being absent) clears a
 //    previously-picked ref while KEEPING the (possibly hand-edited)
 //    meetup_spot text ("typing after a pick clears the ref, text stays").
+//    The api distinguishes an explicit null from an omitted key via a raw
+//    JSON presence check, so `?? null` (not `?? undefined`) is load-bearing
+//    here — see plan_runs.go's updatePlanRunBody doc comment.
+export interface MeetupFeatureBody {
+  type: 'rapid' | 'access'
+  id: string
+}
+
 export interface CreatePlanRunBody {
   user_reach_id?: string
   reach_slug?: string
@@ -44,8 +56,7 @@ export interface CreatePlanRunBody {
   looking_for_crew?: boolean
   max_crew?: number
   meetup_spot?: string
-  meetup_feature_type?: 'rapid' | 'access'
-  meetup_feature_id?: string
+  meetup_feature?: MeetupFeatureBody
 }
 
 export interface UpdatePlanRunBody {
@@ -58,8 +69,7 @@ export interface UpdatePlanRunBody {
   looking_for_crew?: boolean
   max_crew?: number
   meetup_spot?: string
-  meetup_feature_type?: 'rapid' | 'access' | null
-  meetup_feature_id?: string | null
+  meetup_feature?: MeetupFeatureBody | null
 }
 
 async function apiErrorMessage(res: Response | null): Promise<string | undefined> {

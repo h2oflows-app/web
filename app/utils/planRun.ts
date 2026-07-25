@@ -35,19 +35,19 @@ export interface PlanRunDetail {
   // (typed free-text OR the picked feature's name at pick-time; survives the
   // feature being deleted/re-imported later). meetup_feature_type/id are the
   // nullable soft ref, present only when the spot was picked from one of the
-  // run's own features (rapid vs access, #312) rather than typed.
-  // ASSUMED CONTRACT (api's parallel #246 meetup patch had not landed on
-  // feat/246-crew-per-run as of this writing) — verify field names once it
-  // merges.
+  // run's own features (rapid vs access, #312) rather than typed. Verified
+  // against the api's meetup patch (plan_runs.go planRunSummary) — these
+  // flat field names are the RESPONSE shape only; the request body for
+  // create/patch nests `meetup_feature: {type, id}` instead (usePlans.ts).
   meetup_spot?: string | null
   meetup_feature_type?: 'rapid' | 'access' | null
   meetup_feature_id?: string | null
   // The underlying river run's OWN slug/owner handle (distinct from this
   // plan_run's `slug` above) — needed to fetch that run's rapids/access
-  // points for the meet-up-spot suggestion combobox in edit mode. ASSUMED —
-  // same caveat as above; a null/undefined owner handle means the run is
-  // the caller's own (fetch via /me/runs/{slug} instead of the public
-  // /users/{handle}/runs/{slug}).
+  // points for the meet-up-spot suggestion combobox in edit mode. Verified
+  // against renderPlanRun (plan_runs.go, #246 W5 review "should" fix) — a
+  // null/undefined owner handle means the run is the caller's own (fetch via
+  // /me/runs/{slug} instead of the public /users/{handle}/runs/{slug}).
   user_reach_slug?: string | null
   user_reach_owner_handle?: string | null
   looking_for_crew: boolean
