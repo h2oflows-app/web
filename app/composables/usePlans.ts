@@ -6,6 +6,9 @@ import { flowBandLabel } from '~/utils/flowBand'
 // crew/max_crew validation) reverts the optimistic insert and toasts the
 // server's `error` message verbatim.
 
+// #246 W5: looking_for_crew/max_crew moved OFF plans onto plan_runs (mig
+// 000144, IMPLEMENTATION_PLAN.md §6 REVISED 2026-07-25) — a plan is just the
+// container now. visibility stays plan-level.
 export interface CreatePlanBody {
   name: string
   type?: string
@@ -13,8 +16,33 @@ export interface CreatePlanBody {
   end_date: string
   location?: string
   visibility?: string
-  looking_for_crew?: boolean
-  max_crew?: number
+}
+
+// "Meet up at" (product request 2026-07-25). Verified against the api's
+// meetup patch on feat/246-crew-per-run (plan_runs.go): the request body
+// nests the picked feature as `meetup_feature: {type, id}` — NOT flat
+// meetup_feature_type/meetup_feature_id (those flat names are the RESPONSE
+// shape only, see planRun.ts/PlanRunDetail; do not conflate the two).
+//
+// Clear semantics: meetup_spot and meetup_feature are a pair — a feature ref
+// is inherently nullable state (not a plain optional edit like `notes`,
+// which this handler's COALESCE-on-omit pattern only ever SETS, never
+// clears — existing behavior, out of scope here). So:
+//  - CREATE: omit meetup_feature when nothing was picked (undefined drops
+//    the key). Send meetup_spot alone for free text; send meetup_feature
+//    once a suggestion was picked.
+//  - PATCH (edit mode): always send both, never omitted — '' clears the
+//    spot text (and, per the api's binding rule, ALSO clears any feature
+//    ref — the two can't be split in that direction); an explicit
+//    `meetup_feature: null` (as opposed to the key being absent) clears a
+//    previously-picked ref while KEEPING the (possibly hand-edited)
+//    meetup_spot text ("typing after a pick clears the ref, text stays").
+//    The api distinguishes an explicit null from an omitted key via a raw
+//    JSON presence check, so `?? null` (not `?? undefined`) is load-bearing
+//    here — see plan_runs.go's updatePlanRunBody doc comment.
+export interface MeetupFeatureBody {
+  type: 'rapid' | 'access'
+  id: string
 }
 
 export interface CreatePlanRunBody {
@@ -25,6 +53,10 @@ export interface CreatePlanRunBody {
   notes?: string
   companions?: string
   paddled?: boolean
+  looking_for_crew?: boolean
+  max_crew?: number
+  meetup_spot?: string
+  meetup_feature?: MeetupFeatureBody
 }
 
 export interface UpdatePlanRunBody {
@@ -34,6 +66,10 @@ export interface UpdatePlanRunBody {
   companions?: string
   sort_order?: number
   paddled?: boolean
+  looking_for_crew?: boolean
+  max_crew?: number
+  meetup_spot?: string
+  meetup_feature?: MeetupFeatureBody | null
 }
 
 async function apiErrorMessage(res: Response | null): Promise<string | undefined> {
@@ -213,5 +249,45 @@ export function usePlans() {
     return true
   }
 
-  return { createPlan, patchPlan, deletePlan, addRun, patchRun, markPaddled, deleteRun }
+  // Join Run (#246 W5) — per-run now: POST /plan-runs/{id}/join replaces the
+  // old plan-level /plans/{id}/join. origin=request/status=requested;
+  // 409 unless public plan + looking_for_crew + filled<max_crew + not
+  // already a member of THIS run; dup -> 200 existing (treated as success).
+  async function joinPlanRun(runId: string): Promise<boolean> {
+    const headers = await authHeaders()
+    const res = await fetch(`${apiBase}/api/v1/plan-runs/${runId}/join`, {
+      method: 'POST', headers, body: JSON.stringify({}),
+    }).catch(() => null)
+    if (!res?.ok) {
+      const msg = await apiErrorMessage(res)
+      toast.add({ title: res?.status === 409 ? 'Crew is full' : 'Could not send join request', description: msg, color: 'error' })
+      return false
+    }
+    toast.add({ title: "Request sent — you'll hear back", color: 'success' })
+    return true
+  }
+
+  // Resend an email invite (#246 W5 item 2) — host action, per email chip in
+  // PlanMembersRow. Re-sends the plan link + .ics to an invite_email that
+  // hasn't resolved to an account yet; 409 means every run row for that
+  // email is already accepted.
+  async function resendInvite(planId: string, email: string): Promise<boolean> {
+    const headers = await authHeaders()
+    const res = await fetch(`${apiBase}/api/v1/plans/${planId}/invite/resend`, {
+      method: 'POST', headers, body: JSON.stringify({ email }),
+    }).catch(() => null)
+    if (!res?.ok) {
+      if (res?.status === 409) {
+        toast.add({ title: 'Already accepted', color: 'info' })
+        return false
+      }
+      const msg = await apiErrorMessage(res)
+      toast.add({ title: 'Could not resend invite', description: msg, color: 'error' })
+      return false
+    }
+    toast.add({ title: 'Invite resent', color: 'success' })
+    return true
+  }
+
+  return { createPlan, patchPlan, deletePlan, addRun, patchRun, markPaddled, deleteRun, joinPlanRun, resendInvite }
 }

@@ -275,7 +275,7 @@
       <div
         v-if="askOpen"
         class="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] px-4 bg-black/20 backdrop-blur-sm"
-        @click.self="closeAsk"
+        @pointerdown="backdropDown" @pointerup="backdropUp($event) && closeAsk()"
       >
         <div class="w-full max-w-xl bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden">
           <form class="flex items-center gap-2 px-4 py-3 border-b border-neutral-100 dark:border-neutral-800" @submit.prevent="askQuestion">

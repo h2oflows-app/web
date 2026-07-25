@@ -43,9 +43,9 @@
       <div v-else class="space-y-3">
         <InviteFeedCard
           v-for="i in invites"
-          :key="i.member_id"
+          :key="i.plan.id + i.created_at"
           :invite="i"
-          :busy="busyId === i.member_id"
+          :busy="busyId"
           @accept="onAccept"
           @dismiss="onDismiss"
         />
@@ -65,10 +65,12 @@ const { isAuthenticated } = useAuth()
 const authReady = ref(false)
 onMounted(() => { authReady.value = true })
 
-const { invites, loaded, refresh, accept, dismiss } = useInvites()
+const { invites, loaded, unreadCount, refresh, accept, dismiss } = useInvites()
 const busyId = ref<string | null>(null)
 
-const pendingCount = computed(() => invites.value.filter(i => i.status === 'invited' && !i.dismissed_at).length)
+// #246 W5: RSVPs are per-run — "pending" counts individual run rows still
+// awaiting a response, matching the bell badge (useInvites.unreadCount).
+const pendingCount = computed(() => unreadCount.value)
 
 // NotificationBell (in AppHeader, same page) already triggers a load on
 // mount, but this page owns its own fetchDone gate — don't rely on sibling

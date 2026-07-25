@@ -11,7 +11,7 @@
       <div
         v-if="isOpen"
         class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm"
-        @click.self="cancel"
+        @pointerdown="backdropDown" @pointerup="backdropUp($event) && cancel()"
       >
         <Transition
           enter-active-class="transition duration-200 ease-out"
@@ -104,8 +104,8 @@
                 />
               </div>
 
-              <!-- Visibility & crew -->
-              <div class="rounded-xl border border-neutral-100 dark:border-neutral-800 divide-y divide-neutral-100 dark:divide-neutral-800">
+              <!-- Visibility (crew toggle/max-crew moved to PlanRunLogSheet, #246 W5 — crew is per-run now) -->
+              <div class="rounded-xl border border-neutral-100 dark:border-neutral-800">
                 <div class="flex items-center justify-between gap-3 px-3.5 py-3">
                   <div>
                     <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100">{{ wizard.visibility === 'public' ? 'Public' : 'Private' }}</p>
@@ -113,43 +113,10 @@
                   </div>
                   <USwitch
                     :model-value="wizard.visibility === 'public'"
-                    :disabled="wizard.lookingForCrew"
                     @update:model-value="(v: boolean) => wizard.visibility = v ? 'public' : 'private'"
                   />
                 </div>
-
-                <div class="flex items-center justify-between gap-3 px-3.5 py-3">
-                  <div>
-                    <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100">Looking for crew</p>
-                    <p class="text-[11px] text-neutral-400 mt-0.5">Show in Discover · paddlers can Join Run</p>
-                  </div>
-                  <USwitch
-                    :model-value="wizard.lookingForCrew"
-                    @update:model-value="wizard.setLookingForCrew"
-                  />
-                </div>
-
-                <div v-if="wizard.lookingForCrew" class="flex items-center justify-between gap-3 px-3.5 py-3">
-                  <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100">Max crew</p>
-                  <div class="flex items-center gap-2">
-                    <button
-                      type="button"
-                      class="w-7 h-7 rounded-full border border-neutral-200 dark:border-neutral-700 flex items-center justify-center text-neutral-500 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 disabled:opacity-30"
-                      :disabled="wizard.maxCrew <= 1"
-                      @click="wizard.maxCrew = Math.max(1, wizard.maxCrew - 1)"
-                    >−</button>
-                    <span class="w-6 text-center text-sm font-semibold text-neutral-800 dark:text-neutral-100">{{ wizard.maxCrew }}</span>
-                    <button
-                      type="button"
-                      class="w-7 h-7 rounded-full border border-neutral-200 dark:border-neutral-700 flex items-center justify-center text-neutral-500 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 disabled:opacity-30"
-                      :disabled="wizard.maxCrew >= 20"
-                      @click="wizard.maxCrew = Math.min(20, wizard.maxCrew + 1)"
-                    >+</button>
-                  </div>
-                </div>
               </div>
-
-              <!-- TODO(W4): invite-by-handle/email section lands with InviteSheet -->
             </div>
 
             <div class="p-4 border-t border-neutral-100 dark:border-neutral-800 shrink-0">
@@ -208,8 +175,6 @@ async function submit() {
     end_date: wizard.endDate,
     location: wizard.location.trim() || undefined,
     visibility: wizard.visibility,
-    looking_for_crew: wizard.lookingForCrew,
-    max_crew: wizard.lookingForCrew ? wizard.maxCrew : undefined,
   })
   submitting.value = false
   if (!result) return // error toast already shown by usePlans

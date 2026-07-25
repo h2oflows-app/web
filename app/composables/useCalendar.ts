@@ -19,6 +19,10 @@ export interface CalendarRun {
   // future /me/calendar extension adds it. Optional so PlanRunFeedCard etc.
   // can render it when available and degrade gracefully when not.
   notes?: string
+  // "Meet up at" display text (see planRun.ts PlanRunDetail for the full
+  // contract note) — same lighter-payload caveat as `notes` above; renders
+  // only when present.
+  meetup_spot?: string
 }
 
 export interface CalendarDay {

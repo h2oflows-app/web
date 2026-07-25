@@ -8,7 +8,13 @@
       </div>
 
       <div class="flex flex-col gap-2">
-        <div v-for="run in day.runs" :key="run.id" class="space-y-1.5">
+        <div
+          v-for="run in day.runs"
+          :key="run.id"
+          :id="`plan-run-${run.id}`"
+          class="space-y-1.5 rounded-xl transition-shadow"
+          :class="run.id === highlightRunId ? 'ring-2 ring-primary-400 dark:ring-primary-500 ring-offset-2 ring-offset-neutral-50 dark:ring-offset-neutral-950' : ''"
+        >
           <PlanRunItem :run="toCalendarRun(run)" :date="day.date" :can-edit="isHost" @updated="$emit('refresh')" />
 
           <div v-if="canLogMine(run)" class="flex justify-end">
@@ -18,6 +24,57 @@
               :disabled="loggingId === run.id"
               @click="logMine(run)"
             >{{ loggingId === run.id ? 'Logging…' : 'Log my paddle' }}</button>
+          </div>
+
+          <!-- #246 W5: crew + RSVP moved onto the run row (mig 000144 —
+               looking_for_crew/max_crew/crew live on plan_runs now). -->
+          <div v-if="run.looking_for_crew" class="rounded-xl border border-neutral-100 dark:border-neutral-800 px-3.5 py-3 space-y-2">
+            <PlanCrewMeter :filled="run.crew?.filled ?? 0" :max="run.crew?.max">
+              <template v-if="isHost" #action>
+                <button type="button" class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline" @click="crewPanelRunId = run.id">Manage</button>
+              </template>
+            </PlanCrewMeter>
+
+            <!-- Host: nothing further here (Manage link above covers it). -->
+
+            <!-- Non-host: Join / pending-invite accept-decline / RSVP state. -->
+            <template v-if="!isHost">
+              <div v-if="rsvpFor(run) === 'accepted'" class="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+                You're in
+              </div>
+
+              <div v-else-if="rsvpFor(run) === 'invited'" class="flex items-center justify-between gap-3">
+                <p class="text-xs text-neutral-500 dark:text-neutral-400">You're invited to this run</p>
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    class="text-[11px] font-medium px-2.5 py-1 rounded-full border border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 disabled:opacity-50 transition-colors"
+                    :disabled="rsvpBusyId === run.id"
+                    @click="declineInvite(run)"
+                  >Decline</button>
+                  <button
+                    type="button"
+                    class="text-[11px] font-medium px-2.5 py-1 rounded-full bg-primary-600 hover:bg-primary-700 text-white disabled:opacity-50 transition-colors"
+                    :disabled="rsvpBusyId === run.id"
+                    @click="acceptInvite(run)"
+                  >{{ rsvpBusyId === run.id ? '…' : 'Accept' }}</button>
+                </div>
+              </div>
+
+              <div v-else-if="rsvpFor(run) === 'declined'" class="text-xs text-neutral-400">Declined</div>
+
+              <div v-else-if="plan.visibility === 'public'" class="flex items-center justify-between gap-3">
+                <p class="text-xs text-neutral-500 dark:text-neutral-400">Send the host a request to join</p>
+                <button
+                  type="button"
+                  class="shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  :class="rsvpFor(run) === 'requested' ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400' : 'bg-primary-600 hover:bg-primary-700 text-white'"
+                  :disabled="rsvpBusyId === run.id || rsvpFor(run) === 'requested' || isRunFull(run)"
+                  @click="joinRun(run)"
+                >{{ rsvpFor(run) === 'requested' ? 'Requested' : isRunFull(run) ? 'Crew full' : rsvpBusyId === run.id ? '…' : 'Join Run' }}</button>
+              </div>
+            </template>
           </div>
         </div>
       </div>
@@ -31,15 +88,25 @@
       class="w-full py-2.5 rounded-xl border border-dashed border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-500 dark:text-neutral-400 hover:border-primary-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
       @click="onAddRun"
     >+ Add a run to this plan</button>
+
+    <PlanCrewPanel
+      v-if="crewPanelRunId"
+      :plan-run-id="crewPanelRunId"
+      :open="!!crewPanelRunId"
+      @update:open="(v) => { if (!v) crewPanelRunId = null }"
+      @refresh="$emit('refresh')"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import type { PlanDetail, PlanItineraryDay } from '~/utils/plan'
-import type { PlanRunDetail } from '~/utils/planRun'
+import type { PlanRunDetail, PlanRunRsvpStatus } from '~/utils/planRun'
 import type { CalendarRun } from '~/composables/useCalendar'
 import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
+import { usePlans } from '~/composables/usePlans'
+import { useInvites } from '~/composables/useInvites'
 import { dow, fmtDate, isPastOrToday } from '~/utils/calendarDate'
 
 const props = defineProps<{
@@ -51,14 +118,19 @@ const props = defineProps<{
   // /plan-runs/{id}/log-mine) is host-or-accepted-member per the contract,
   // but the host already sees their own paddled state directly on the row.
   isAcceptedMember: boolean
+  // From the plan page's ?run= query (email-link landing, #246 W5 item 3) —
+  // scrolls to + rings this run once the itinerary renders.
+  highlightRunId?: string | null
 }>()
 
-defineEmits<{ refresh: [] }>()
+const emit = defineEmits<{ refresh: [] }>()
 
 const { apiBase } = useRuntimeConfig().public
 const { getToken } = useAuth()
 const toast = useToast()
 const planRunLogSheet = usePlanRunLogSheet()
+const { joinPlanRun } = usePlans()
+const { accept: acceptInviteMember, dismiss: dismissInviteMember } = useInvites()
 
 function toCalendarRun(run: PlanRunDetail): CalendarRun {
   return {
@@ -72,6 +144,7 @@ function toCalendarRun(run: PlanRunDetail): CalendarRun {
     run_time: run.run_time ?? undefined,
     plan_id: props.plan.id,
     notes: run.notes ?? undefined,
+    meetup_spot: run.meetup_spot ?? undefined,
   }
 }
 
@@ -101,7 +174,7 @@ async function logMine(run: PlanRunDetail) {
     toast.add({
       title: 'Logged — nice paddle!',
       color: 'success',
-      actions: data?.plan_run_id ? [{ label: 'View your log', onClick: () => navigateTo(`/plan-runs/${data.plan_run_id}`) }] : undefined,
+      actions: data?.plan_run_id ? [{ label: 'View your log', onClick: () => { navigateTo(`/plan-runs/${data.plan_run_id}`) } }] : undefined,
     })
   } finally {
     loggingId.value = null
@@ -109,6 +182,84 @@ async function logMine(run: PlanRunDetail) {
 }
 
 function onAddRun() {
-  planRunLogSheet.openCreate(props.plan.id, props.plan.start_date)
+  planRunLogSheet.openCreate(props.plan.id, props.plan.start_date, props.plan.visibility)
 }
+
+// ── Per-run crew panel (host) ─────────────────────────────────────────────
+const crewPanelRunId = ref<string | null>(null)
+
+// ── Per-run Join / invite accept-decline (non-host) ──────────────────────
+// Optimistic overlay on top of each run's server-supplied my_rsvp. Cleared
+// explicitly on a successful action (before `refresh` is emitted) so later
+// server truth — e.g. the host declines the request, or the crew fills up
+// after this client's optimistic snapshot — is what's shown post-refresh
+// instead of a permanently frozen 'requested'/'accepted'/'declined' value.
+const rsvpOverride = ref<Record<string, PlanRunRsvpStatus>>({})
+const rsvpBusyId = ref<string | null>(null)
+
+function rsvpFor(run: PlanRunDetail): PlanRunRsvpStatus | null | undefined {
+  return rsvpOverride.value[run.id] ?? run.my_rsvp
+}
+
+function isRunFull(run: PlanRunDetail): boolean {
+  const c = run.crew
+  return !!c && c.max != null && c.filled >= c.max
+}
+
+async function joinRun(run: PlanRunDetail) {
+  if (rsvpBusyId.value || rsvpFor(run) === 'requested' || isRunFull(run)) return
+  rsvpBusyId.value = run.id
+  rsvpOverride.value = { ...rsvpOverride.value, [run.id]: 'requested' }
+  const ok = await joinPlanRun(run.id)
+  rsvpBusyId.value = null
+  const next = { ...rsvpOverride.value }
+  delete next[run.id]
+  rsvpOverride.value = next
+  if (!ok) return
+  emit('refresh')
+}
+
+// "Decline" here calls the existing dismiss endpoint (POST
+// /invites/{memberId}/dismiss) — there is no separate decline verb for
+// origin=invite rows in the contract (only accept/dismiss); dismissing an
+// invited run is the closest match to "no thanks" from this surface.
+async function declineInvite(run: PlanRunDetail) {
+  if (rsvpBusyId.value || !run.my_member_id) return
+  rsvpBusyId.value = run.id
+  rsvpOverride.value = { ...rsvpOverride.value, [run.id]: 'declined' }
+  const ok = await dismissInviteMember(run.my_member_id)
+  rsvpBusyId.value = null
+  const next = { ...rsvpOverride.value }
+  delete next[run.id]
+  rsvpOverride.value = next
+  if (!ok) return
+  emit('refresh')
+}
+
+async function acceptInvite(run: PlanRunDetail) {
+  if (rsvpBusyId.value || !run.my_member_id) return
+  rsvpBusyId.value = run.id
+  rsvpOverride.value = { ...rsvpOverride.value, [run.id]: 'accepted' }
+  const ok = await acceptInviteMember(run.my_member_id)
+  rsvpBusyId.value = null
+  const next = { ...rsvpOverride.value }
+  delete next[run.id]
+  rsvpOverride.value = next
+  if (!ok) return
+  emit('refresh')
+}
+
+// ── Email-link landing (#246 W5 item 3): scroll to + ring the run named by
+// ?run= once the itinerary has rendered. Runs once per highlightRunId value
+// (a fresh plan-page mount gets a fresh instance, so no need to guard
+// re-firing beyond "itinerary must be non-empty first").
+watch(
+  () => [props.highlightRunId, props.itinerary.length] as const,
+  async ([id, len]) => {
+    if (!id || !len) return
+    await nextTick()
+    document.getElementById(`plan-run-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  },
+  { immediate: true }
+)
 </script>

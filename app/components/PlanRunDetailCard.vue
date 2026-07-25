@@ -56,6 +56,14 @@
         </span>
         <PlanVisibilityBadge :visibility="plan.visibility" />
       </div>
+
+      <div v-if="run.meetup_spot" class="flex items-center gap-2 pt-1">
+        <svg class="w-4 h-4 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.5-7-11a7 7 0 1 1 14 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+        <div class="min-w-0">
+          <p class="text-[11px] font-medium text-neutral-400 uppercase tracking-wide">Meet up at</p>
+          <p class="text-sm text-neutral-700 dark:text-neutral-200 truncate">{{ run.meetup_spot }}</p>
+        </div>
+      </div>
     </div>
 
     <!-- Notes -->

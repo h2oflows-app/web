@@ -1,12 +1,14 @@
 import { computed } from 'vue'
 
-// useInvites — GET /me/invites list + accept/dismiss (Trip Calendar #246 W4).
-// useState (not a plain module ref, unlike useCalendar) — NotificationBell
-// mounts inside AppHeader on every page, including ssr:true ones, so a plain
-// module ref would leak invite state across unrelated SSR requests the way
-// useCalendar's own doc comment warns against. useState is per-request on
-// the server and a hydrated singleton on the client, matching useMyProfile's
-// handle/loaded pattern for the same reason.
+// useInvites — GET /me/invites list + accept/dismiss (Trip Calendar #246 W4;
+// remodeled #246 W5 per IMPLEMENTATION_PLAN.md §6 REVISED 2026-07-25: crew
+// and invite RSVPs are PER-RUN, not per-plan). useState (not a plain module
+// ref, unlike useCalendar) — NotificationBell mounts inside AppHeader on
+// every page, including ssr:true ones, so a plain module ref would leak
+// invite state across unrelated SSR requests the way useCalendar's own doc
+// comment warns against. useState is per-request on the server and a
+// hydrated singleton on the client, matching useMyProfile's handle/loaded
+// pattern for the same reason.
 
 export interface InvitePlanSummary {
   id: string
@@ -19,21 +21,45 @@ export interface InvitePlanSummary {
   host_handle: string
 }
 
-export interface Invite {
+// One row per invited run within this invite batch — membership rows are
+// run-scoped now, so a single "invite" (one handle-add or one email send)
+// fans out to one plan_members row (member_id) per plan_run_id, each with
+// its own accept/decline lifecycle.
+export interface InviteRun {
   member_id: string
-  status: string // invited | accepted | declined (this feed is origin='invite' only)
+  plan_run_id: string
+  run_name?: string | null
+  run_date: string
+  run_time?: string | null
+  status: string // invited | accepted | declined
   dismissed_at?: string | null
+}
+
+export interface Invite {
+  // Groups the fanned-out per-run rows that were created by the same invite
+  // action (same plan + same recipient) — the feed card/banner render ONE
+  // item per group with a per-run row list, per the contract ("feed card
+  // lists the invited runs each with its own Accept button").
   invited_via: 'handle' | 'email'
   created_at: string
   plan: InvitePlanSummary
+  runs: InviteRun[]
 }
 
-// pending = the definition the banner/badge/day-ribbon all key off: still
-// awaiting a response AND not dismissed. Dismissed invites stay in the
-// /invites feed (contract: "dismiss keeps the row") but drop out of the
-// badge count and banner.
+function isPendingRun(r: InviteRun): boolean {
+  return r.status === 'invited' && !r.dismissed_at
+}
+
+// A group is "pending" iff at least one of its per-run rows still needs a
+// response — the banner/badge/plan-ribbon surfaces all key off this.
 function isPending(i: Invite): boolean {
-  return i.status === 'invited' && !i.dismissed_at
+  return i.runs.some(isPendingRun)
+}
+
+// First still-pending run within a group, for surfaces that name ONE run
+// (the banner: "invited you to run Foxton on 7/26 at 10:00 AM").
+function firstPendingRun(i: Invite): InviteRun | undefined {
+  return i.runs.find(isPendingRun)
 }
 
 export function useInvites() {
@@ -45,8 +71,11 @@ export function useInvites() {
   const { getToken, isAuthenticated } = useAuth()
   const toast = useToast()
 
+  // Counts individual pending RUN rows (not invite groups) — matches the
+  // per-run RSVP model literally: "@maya invited to 2 runs" is 2 pending
+  // items, not 1, until each run gets its own response.
   function recomputeUnread() {
-    unreadCount.value = invites.value.filter(isPending).length
+    unreadCount.value = invites.value.reduce((n, i) => n + i.runs.filter(isPendingRun).length, 0)
   }
 
   async function authHeaders(): Promise<Record<string, string>> {
@@ -73,14 +102,24 @@ export function useInvites() {
     loaded.value = true
   }
 
+  // Patches ONE run row (by member_id) across all invite groups — accept/
+  // dismiss both target a single per-run plan_members row now.
+  function patchRun(memberId: string, patch: Partial<InviteRun>) {
+    invites.value = invites.value.map(i => ({
+      ...i,
+      runs: i.runs.map(r => (r.member_id === memberId ? { ...r, ...patch } : r)),
+    }))
+  }
+
   // token: the ?invite=<token> from the email link, forwarded in the POST
   // body — API's AcceptInvite (invites.go) accepts it as a fallback match
   // for the "signed up with a different email than the invite" case, where
   // the invite's plan_members row isn't bound to (or discoverable via
-  // /me/invites' email match for) this account yet.
+  // /me/invites' email match for) this account yet. memberId identifies a
+  // single RUN's row — accept is per-run, not per-plan.
   async function accept(memberId: string, token?: string): Promise<boolean> {
     const prev = invites.value
-    invites.value = invites.value.map(i => i.member_id === memberId ? { ...i, status: 'accepted' } : i)
+    patchRun(memberId, { status: 'accepted' })
     recomputeUnread()
 
     const headers = await authHeaders()
@@ -111,7 +150,7 @@ export function useInvites() {
   async function dismiss(memberId: string): Promise<boolean> {
     const prev = invites.value
     const now = new Date().toISOString()
-    invites.value = invites.value.map(i => i.member_id === memberId ? { ...i, dismissed_at: now } : i)
+    patchRun(memberId, { dismissed_at: now })
     recomputeUnread()
 
     const headers = await authHeaders()
@@ -126,12 +165,13 @@ export function useInvites() {
   }
 
   // The banner (and any "first pending invite" surface) always shows the
-  // OLDEST pending invite first — /me/invites is already ORDER BY created_at
-  // DESC, so pending-only + reverse gives oldest-first without a second sort.
+  // OLDEST pending invite GROUP first — /me/invites is already ORDER BY
+  // created_at DESC, so pending-only + reverse gives oldest-first without a
+  // second sort.
   const firstPending = computed(() => {
     const pending = invites.value.filter(isPending)
     return pending.length ? pending[pending.length - 1] : null
   })
 
-  return { invites, loaded, unreadCount, firstPending, refresh, accept, dismiss }
+  return { invites, loaded, unreadCount, firstPending, refresh, accept, dismiss, firstPendingRun, isPendingRun }
 }

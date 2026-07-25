@@ -21,12 +21,19 @@ export function usePlanRunLogSheet() {
   const planId = useState<string | null>('plan-run-log-sheet:plan-id', () => null)
   const runId = useState<string | null>('plan-run-log-sheet:run-id', () => null)
   const prefillDate = useState<string | null>('plan-run-log-sheet:prefill-date', () => null)
+  // #246 W5: the crew toggle moved into this sheet (from PlanCreateSheet) and
+  // the client rule "crew run requires public plan" needs the PARENT plan's
+  // visibility to gate/hint — create mode gets it from the caller (already
+  // has the plan in hand, e.g. PlanItinerary); edit mode reads it off the
+  // GET /plan-runs/{id} response's embedded `plan` alongside the run itself.
+  const planVisibility = useState<string | null>('plan-run-log-sheet:plan-visibility', () => null)
 
-  function openCreate(targetPlanId: string, date?: string) {
+  function openCreate(targetPlanId: string, date?: string, visibility?: string) {
     mode.value = 'create'
     planId.value = targetPlanId
     runId.value = null
     prefillDate.value = date ?? null
+    planVisibility.value = visibility ?? null
     isOpen.value = true
   }
 
@@ -35,6 +42,7 @@ export function usePlanRunLogSheet() {
     runId.value = targetRunId
     planId.value = null
     prefillDate.value = null
+    planVisibility.value = null // resolved from the fetch response in edit mode
     isOpen.value = true
   }
 
@@ -42,5 +50,14 @@ export function usePlanRunLogSheet() {
     isOpen.value = false
   }
 
-  return { isOpen, mode, planId, runId, prefillDate, openCreate, openEdit, close }
+  // Bumped by PlanRunLogSheet after every successful save — pages that render
+  // their own itinerary fetch (the plan detail page) watch this to refetch.
+  // The sheet only refreshes the CALENDAR store itself, which left the plan
+  // page stale until a manual reload (prod bug, 2026-07-25).
+  const savedCount = useState('plan-run-log-sheet:saved-count', () => 0)
+  function markSaved() {
+    savedCount.value++
+  }
+
+  return { isOpen, mode, planId, runId, prefillDate, planVisibility, savedCount, markSaved, openCreate, openEdit, close }
 }

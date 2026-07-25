@@ -4,7 +4,7 @@
       <div
         v-if="open"
         class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
-        @click.self="$emit('close')"
+        @pointerdown="backdropDown" @pointerup="backdropUp($event) && $emit('close')"
       >
         <div class="absolute inset-0 bg-black/40" @click="$emit('close')" />
 

@@ -46,8 +46,10 @@
 import { computed, ref, watch } from 'vue'
 import type { CrewListResponse, CrewRequest } from '~/utils/plan'
 
+// #246 W5: re-pointed to run scope — crew is per-run now (mig 000144). Opens
+// against a single plan_run's roster, not the whole plan's.
 const props = defineProps<{
-  planId: string
+  planRunId: string
   open: boolean
 }>()
 
@@ -76,7 +78,7 @@ async function authHeaders(): Promise<Record<string, string>> {
 async function load() {
   loading.value = true
   const headers = await authHeaders()
-  const res = await fetch(`${apiBase}/api/v1/plans/${props.planId}/crew`, { headers }).catch(() => null)
+  const res = await fetch(`${apiBase}/api/v1/plan-runs/${props.planRunId}/crew`, { headers }).catch(() => null)
   if (res?.ok) {
     const data: CrewListResponse = await res.json().catch(() => ({ members: [], meter: { filled: 0, max: null } }))
     members.value = data.members ?? []
@@ -92,7 +94,7 @@ async function accept(memberId: string) {
   if (busyId.value) return
   busyId.value = memberId
   const headers = await authHeaders()
-  const res = await fetch(`${apiBase}/api/v1/plans/${props.planId}/crew/${memberId}/accept`, {
+  const res = await fetch(`${apiBase}/api/v1/plan-runs/${props.planRunId}/crew/${memberId}/accept`, {
     method: 'POST', headers,
   }).catch(() => null)
   busyId.value = null
@@ -110,7 +112,7 @@ async function decline(memberId: string) {
   if (busyId.value) return
   busyId.value = memberId
   const headers = await authHeaders()
-  const res = await fetch(`${apiBase}/api/v1/plans/${props.planId}/crew/${memberId}/decline`, {
+  const res = await fetch(`${apiBase}/api/v1/plan-runs/${props.planRunId}/crew/${memberId}/decline`, {
     method: 'POST', headers,
   }).catch(() => null)
   busyId.value = null
