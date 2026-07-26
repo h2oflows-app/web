@@ -1,23 +1,22 @@
 // Shared TS shapes for GET /plans/{handle}/{slug} (+ /plans/{id} alias) —
-// Trip Calendar #246 W4. Mirrors planRun.ts's pattern: a plain .ts module (not
-// exported from a .vue SFC) so plans/[handle]/[slug].vue, PlanItinerary,
-// PlanMembersRow, PlanCrewMeter/Panel, InviteSheet all import the same
-// canonical shape instead of drifting local copies. Never bare `Plan` —
-// these ARE the canonical `Plan`/`PlanMember` types per the naming rules.
+// Trip Calendar #246 W4, reworked web#354 A1/W1. Mirrors planRun.ts's
+// pattern: a plain .ts module (not exported from a .vue SFC) so
+// plans/[handle]/[slug].vue, PlanItinerary, PlanMembersRow, PlanCrewMeter/
+// Panel, InviteSheet all import the same canonical shape instead of
+// drifting local copies.
 
 // planRunSummary (Go) and PlanRunDetail (TS) are the identical field set —
 // itinerary rows reuse PlanRunDetail rather than a second drifting type.
 import type { PlanRunDetail } from '~/utils/planRun'
 
-// #246 W5 remodel (IMPLEMENTATION_PLAN.md §6 REVISED 2026-07-25): a plan is
-// just the container — looking_for_crew/max_crew/crew live on PlanRunDetail
-// now, never on PlanDetail.
-export interface PlanDetail {
+// CalendarEventDetail (was PlanDetail) — web#354 A1/W1: `type` and
+// `visibility` dropped entirely (event-type + visibility concepts removed).
+// Events are owner-only now; looking_for_crew/max_crew live on
+// PlanRunDetail (per-run, #246 W5 remodel), never here.
+export interface CalendarEventDetail {
   id: string
   slug: string
   name: string
-  type: string
-  visibility: string
   start_date: string
   end_date: string
   location?: string | null
@@ -59,6 +58,14 @@ export interface PlanMemberSummary {
 // PlanMembersRow wants PlanMemberSummary (per-person); use
 // aggregatePlanMembers() to bridge the two, rather than teaching the
 // component about the flat shape.
+//
+// TODO(W2): the api's renderPlan (web#354 A1) no longer returns a `members`
+// key at all (event-level members/invite plumbing moved off this response —
+// invites are per-run, plan_members query dropped from renderPlan). This
+// type + aggregatePlanMembers() are effectively dead until W2 removes
+// PlanMembersRow's event-page usage per the plan (§4); left in place so
+// PlanMembersRow/InviteSheet still compile in the interim (they render an
+// always-empty member list, degrading gracefully rather than crashing).
 export interface PlanMemberRow {
   handle?: string | null
   invite_email?: string | null
@@ -100,6 +107,12 @@ export interface PlanCrewMeterInfo {
 // the itinerary's normal my_rsvp/my_member_id resolution (owner_id match)
 // or via /me/invites. Carries enough to render its own accept/decline row
 // without cross-referencing the itinerary.
+//
+// TODO(W2): the api's renderPlan (web#354 A1) dropped the `?invite=` token
+// carve-out from the event page entirely — it now lives on the run page
+// (GET /plan-runs/{param}) per §1. `invite_token_runs` is never populated by
+// the current event-detail response; kept so InviteAcceptCard's prop still
+// typechecks until W2 moves this plumbing to plan-runs/[id].vue.
 export interface PlanInviteTokenRun {
   member_id: string
   plan_run_id: string
@@ -108,12 +121,16 @@ export interface PlanInviteTokenRun {
   run_time?: string | null
 }
 
+// web#354 A1 JSON wrapper rename (user-approved): `plan`→`event`. The
+// current renderPlan response no longer includes `members`/
+// `invite_token_runs` at all (see TODOs above) — kept as optional here so
+// consumers degrade to an empty list rather than failing to compile.
 export interface PlanDetailResponse {
-  plan: PlanDetail
+  event: CalendarEventDetail
   itinerary: PlanItineraryDay[]
   // Flat per-(person,run) rows as emitted by the API — see PlanMemberRow.
   // Pass through aggregatePlanMembers() before handing to PlanMembersRow.
-  members: PlanMemberRow[]
+  members?: PlanMemberRow[]
   // Present only when a valid ?invite=<token> was forwarded on the request.
   invite_token_runs?: PlanInviteTokenRun[]
 }

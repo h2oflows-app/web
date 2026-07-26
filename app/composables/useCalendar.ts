@@ -1,9 +1,11 @@
 import { ref } from 'vue'
 import { clientTz } from '~/utils/calendarDate'
 
-// TS types — Trip Calendar (#246). Never bare `Run`/`Report`: a CalendarRun
-// is a `plan_runs` row (a dated log entry inside a Plan), distinct from a
-// river run (`user_reaches`, rendered by RunRow.vue).
+// TS types — Trip Calendar (#246, reworked web#354 A1/W1). Never bare
+// `Run`/`Report`: a CalendarRun is a `calendar_runs` row (a dated log entry
+// on the calendar), distinct from a river run (`user_reaches`, rendered by
+// RunRow.vue). web#354: Events and Runs are decoupled — no plan_id anywhere;
+// they're related only by date.
 export interface CalendarRun {
   id: string
   user_reach_id?: string
@@ -13,7 +15,6 @@ export interface CalendarRun {
   gauge_cfs?: number
   paddled: boolean
   run_time?: string
-  plan_id: string
   // Not populated by GET /me/calendar today (lighter list payload) — present
   // when a run is fetched individually (GET /plan-runs/{id}) or once a
   // future /me/calendar extension adds it. Optional so PlanRunFeedCard etc.
@@ -31,18 +32,17 @@ export interface CalendarDay {
   needs_confirm: boolean // Tier-A nudge candidate day (#246 A5/W6) — drives CalendarDayCell's '?' badge
 }
 
-export type PlanRole = 'own' | 'member' | 'invited'
-
-export interface CalendarPlan {
+// CalendarEvent (was CalendarPlan) — web#354 A1/W1: event-type and
+// visibility concepts dropped entirely (no `type`, no `visibility`); events
+// are owner-only now, so there's no `role`/`member_status` either (every
+// event in this feed is the viewer's own).
+export interface CalendarEvent {
   id: string
   slug: string
   name: string
-  type: string
   start_date: string
   end_date: string
-  visibility: string
-  role: PlanRole
-  member_status?: string
+  location?: string | null
   host_handle?: string
 }
 
@@ -50,7 +50,7 @@ interface RangeCache {
   from: string
   to: string
   days: CalendarDay[]
-  plans: CalendarPlan[]
+  events: CalendarEvent[]
   nudgeDotDates: string[]
 }
 
@@ -59,14 +59,14 @@ interface RangeCache {
 // ssr:false (a module ref would otherwise leak across SSR requests).
 const cache = new Map<string, RangeCache>()
 const days = ref<CalendarDay[]>([])
-const plans = ref<CalendarPlan[]>([])
+const events = ref<CalendarEvent[]>([])
 const nudgeDots = ref<string[]>([])
 const loading = ref(false)
 const lastRange = ref<{ from: string; to: string; key: string } | null>(null)
 
-// Shared "jump to this date" signal — set by PlanCreateSheet after a
-// successful create so calendar/index.vue can flip its month view to
-// contain the new plan's start_date (works whether the sheet was opened
+// Shared "jump to this date" signal — set by PlanRunLogSheet's event branch
+// after a successful create so calendar/index.vue can flip its month view to
+// contain the new event's start_date (works whether the sheet was opened
 // from /calendar itself or navigated to from elsewhere, e.g. the tab-bar +).
 export function useCalendarFocusDate() {
   const focusDate = useState<string | null>('calendar:focus-date', () => null)
@@ -85,7 +85,7 @@ export function useCalendar() {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } }).catch(() => null)
     if (!res?.ok) return null
     const data = await res.json()
-    return { from, to, days: data.days ?? [], plans: data.plans ?? [], nudgeDotDates: data.nudge_dot_dates ?? [] }
+    return { from, to, days: data.days ?? [], events: data.events ?? [], nudgeDotDates: data.nudge_dot_dates ?? [] }
   }
 
   // cacheKey defaults to the from/to pair; callers with a natural key (e.g.
@@ -96,7 +96,7 @@ export function useCalendar() {
     if (!force && cache.has(key)) {
       const c = cache.get(key)!
       days.value = c.days
-      plans.value = c.plans
+      events.value = c.events
       nudgeDots.value = c.nudgeDotDates
       lastRange.value = { from, to, key }
       return
@@ -107,13 +107,13 @@ export function useCalendar() {
     if (!result) return
     cache.set(key, result)
     days.value = result.days
-    plans.value = result.plans
+    events.value = result.events
     nudgeDots.value = result.nudgeDotDates
     lastRange.value = { from, to, key }
   }
 
   // Refetches the most recently loaded range, bypassing its cache entry —
-  // used after any plan/run mutation so the grid reflects server truth.
+  // used after any event/run mutation so the grid reflects server truth.
   async function refresh() {
     if (!lastRange.value) return
     await loadRange(lastRange.value.from, lastRange.value.to, lastRange.value.key, true)
@@ -121,12 +121,12 @@ export function useCalendar() {
 
   // ── Optimistic helpers (create-then-refresh pattern, usePlans) ──────────
 
-  function insertPlanOptimistic(plan: CalendarPlan) {
-    plans.value = [...plans.value, plan]
+  function insertEventOptimistic(event: CalendarEvent) {
+    events.value = [...events.value, event]
   }
 
-  function removePlanOptimistic(id: string) {
-    plans.value = plans.value.filter(p => p.id !== id)
+  function removeEventOptimistic(id: string) {
+    events.value = events.value.filter(e => e.id !== id)
   }
 
   function insertRunOptimistic(date: string, run: CalendarRun) {
@@ -164,9 +164,9 @@ export function useCalendar() {
   }
 
   return {
-    days, plans, nudgeDots, loading,
+    days, events, nudgeDots, loading,
     loadRange, refresh,
-    insertPlanOptimistic, removePlanOptimistic,
+    insertEventOptimistic, removeEventOptimistic,
     insertRunOptimistic, removeRunOptimistic, patchRunOptimistic,
   }
 }
