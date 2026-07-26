@@ -78,15 +78,17 @@
                 <!-- Compact inline nudge row (#246 W6) — same confirm/dismiss
                      actions as NudgeCard, scoped to THIS opened day. Distinct
                      surface from the calendar-top nudge card (recon: "same
-                     suggestion but scoped-to-day copy"); targets whichever
-                     unpaddled run on this day earned the day's needs_confirm
-                     flag (Tier-A guarantees at most one candidate/day). -->
+                     suggestion but scoped-to-day copy"); driven by the shared
+                     nudge candidate (GET /me/nudge/candidate via useNudge),
+                     matched to this day by run_date — NOT inferred from
+                     "first unpaddled run" (needs_confirm is day-level only
+                     and doesn't identify which run on a multi-run day). -->
                 <div
                   v-if="nudgeRun"
                   class="flex items-center gap-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/40 px-3 py-2.5"
                 >
                   <div class="min-w-0 flex-1">
-                    <p class="text-sm font-medium text-amber-800 dark:text-amber-300">Did you paddle {{ nudgeRun.name ?? 'this' }}?</p>
+                    <p class="text-sm font-medium text-amber-800 dark:text-amber-300">Did you paddle {{ nudgeRun.run_name ?? 'this' }}?</p>
                     <p class="text-xs text-amber-700/80 dark:text-amber-400/80">
                       It ran {{ flowBandLabel(nudgeRun.flow_band) }}<template v-if="nudgeRun.gauge_cfs != null"> · {{ Math.round(nudgeRun.gauge_cfs).toLocaleString() }} cfs</template> — you'd planned to be on it.
                     </p>
@@ -138,7 +140,7 @@ import { fmtDate } from '~/utils/calendarDate'
 import { flowBandLabel } from '~/utils/flowBand'
 import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
 import { useMyProfile } from '~/composables/useMyProfile'
-import { useNudge } from '~/composables/useNudge'
+import { useNudge, type NudgeMember } from '~/composables/useNudge'
 
 const props = defineProps<{
   open: boolean
@@ -160,20 +162,28 @@ const emit = defineEmits<{
 }>()
 
 const planRunLogSheet = usePlanRunLogSheet()
-const { dismiss: dismissNudge } = useNudge()
+const { member: nudgeMember, dismiss: dismissNudge } = useNudge()
 const toast = useToast()
 const nudgeActing = ref(false)
 
-// The specific run this day's needs_confirm flag is about — Tier-A
-// guarantees at most one unpaddled, in-band candidate per day, so the first
-// unpaddled run on the day (if any) is it.
-const nudgeRun = computed(() => (props.needsConfirm ? props.runs.find(r => !r.paddled) ?? null : null))
+// The specific run this day's needs_confirm flag is about. needs_confirm is
+// a day-level boolean only — it does NOT identify which run on a multi-run
+// day earned it, so "first unpaddled run" is not a safe stand-in (could
+// confirm/dismiss the wrong reach). Instead we key off the same
+// GET /me/nudge/candidate result NudgeCard uses (shared useState — already
+// loaded by NudgeCard's onMounted at the top of /calendar), matching it to
+// this day by run_date. Only renders once that identity is confirmed.
+const nudgeRun = computed<NudgeMember | null>(() => {
+  if (!props.needsConfirm || !props.date) return null
+  const m = nudgeMember.value
+  return m && m.run_date === props.date ? m : null
+})
 
 function onNudgeYes() {
   if (!nudgeRun.value?.user_reach_id || !props.date) return
   planRunLogSheet.openConfirm({
     user_reach_id: nudgeRun.value.user_reach_id,
-    run_name: nudgeRun.value.name ?? 'this run',
+    run_name: nudgeRun.value.run_name ?? 'this run',
     run_date: props.date,
     flow_band: nudgeRun.value.flow_band ?? '',
     gauge_cfs: nudgeRun.value.gauge_cfs,

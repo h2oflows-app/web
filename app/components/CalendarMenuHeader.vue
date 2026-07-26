@@ -12,23 +12,24 @@
 </template>
 
 <script setup lang="ts">
-import { watch } from 'vue'
+import { onMounted } from 'vue'
 import { useMyProfile } from '~/composables/useMyProfile'
 import { useSeason } from '~/composables/useSeason'
 
-// Mounted at the top of AppHeader's avatar dropdown — fetches lazily, only
-// once the menu is actually opened (`open` prop), so a season call doesn't
-// ride along on every single page load (AppHeader mounts on every page,
-// including ssr:true ones). Both loadProfile/load are internally
-// idempotent/cached, so re-opening the menu is cheap.
+// Mounted at the top of AppHeader's avatar dropdown — only exists in the DOM
+// while the menu is open (parent wraps us in `v-if="userMenuOpen"`), so
+// `open` is already true by the time we mount and a re-open remounts us
+// fresh. Fetch on mount rather than watching `open` (which would never
+// change post-mount). Both loadProfile/load are internally idempotent/
+// cached, so re-opening the menu is cheap.
 const props = defineProps<{ open: boolean }>()
 
 const { user, isAuthenticated } = useAuth()
 const { handle, load: loadProfile } = useMyProfile()
 const { stats, loading, load } = useSeason()
 
-watch(() => props.open, (isOpen) => {
-  if (isOpen && isAuthenticated.value) {
+onMounted(() => {
+  if (props.open && isAuthenticated.value) {
     loadProfile()
     load()
   }
