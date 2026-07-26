@@ -1,8 +1,9 @@
 <template>
-  <!-- Global mount point for the "+" create menu: the chooser, plus the New
-       plan sheet it (and CalendarDaySheet's "+ New plan here") can open. -->
+  <!-- Global mount point for the "+" create menu: the chooser, plus the
+       unified create sheet (web#354 W1 — absorbs the deleted
+       PlanCreateSheet) it (and CalendarDaySheet's day-scoped "+ New") can
+       open. -->
   <CreateChooserSheet />
-  <PlanCreateSheet />
   <PlanRunLogSheet />
 </template>
 
