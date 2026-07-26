@@ -35,14 +35,16 @@
       title="Conditions look good"
     />
 
-    <!-- Plan ribbon: 4px bottom bar, rounded at span start/end, dashed when pending invite -->
+    <!-- Event ribbon: 4px bottom bar, rounded at span start/end. web#354 A1:
+         single Event color (event-type concept removed) — events are
+         owner-only now, so there's no more pending-invite dashed variant
+         either. -->
     <span
       v-if="ribbon"
       class="absolute left-0 right-0 bottom-0 h-1"
       :class="[
-        ribbon.dashed ? 'opacity-70' : '',
         ribbon.pos === 'single' ? 'mx-1 rounded-full' : ribbon.pos === 'start' ? 'ml-1 rounded-l-full' : ribbon.pos === 'end' ? 'mr-1 rounded-r-full' : '',
-        ribbon.dashed ? 'ribbon-dashed' : planTypeMeta(ribbon.type).ribbonClass,
+        EVENT_COLOR.ribbonClass,
       ]"
     />
   </button>
@@ -51,14 +53,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { CalendarRun } from '~/composables/useCalendar'
-import { planTypeMeta } from '~/utils/planType'
+import { EVENT_COLOR } from '~/utils/planType'
 import { colorKeyToHex } from '~/utils/flowBand'
 import { useFlowBandPalette } from '~/composables/useFlowBandPalette'
 
 export interface RibbonVM {
-  type: string
   pos: 'start' | 'mid' | 'end' | 'single'
-  dashed: boolean
 }
 
 const props = defineProps<{
@@ -78,8 +78,7 @@ const { bandSolid } = useFlowBandPalette()
 
 const cellBgClass = computed(() => {
   if (props.isToday) return 'bg-primary-600'
-  if (props.ribbon && !props.ribbon.dashed) return planTypeMeta(props.ribbon.type).tintClass
-  if (props.ribbon && props.ribbon.dashed) return 'bg-violet-50/60 dark:bg-violet-950/20'
+  if (props.ribbon) return EVENT_COLOR.tintClass
   if (props.runs.length) return 'bg-neutral-100 dark:bg-neutral-800/60'
   return 'hover:bg-neutral-50 dark:hover:bg-neutral-900'
 })
@@ -95,9 +94,3 @@ function dotStyle(run: CalendarRun): Record<string, string> {
   }
 }
 </script>
-
-<style scoped>
-.ribbon-dashed {
-  background-image: repeating-linear-gradient(90deg, var(--color-violet-500, #8b5cf6) 0 4px, transparent 4px 8px);
-}
-</style>

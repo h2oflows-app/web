@@ -51,26 +51,32 @@
               </template>
 
               <template v-else>
-                <!-- Plans spanning this day — each can log a run against it -->
-                <div v-if="plans.length" class="flex flex-col gap-2">
+                <!-- Events spanning this day (web#354 A1: events are
+                     owner-only now, so every row here is the viewer's own —
+                     no more role check). -->
+                <div v-if="events.length" class="flex flex-col gap-2">
                   <div
-                    v-for="plan in plans"
-                    :key="plan.id"
+                    v-for="event in events"
+                    :key="event.id"
                     class="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-neutral-50 dark:bg-neutral-800/50"
                   >
-                    <PlanTypeBadge :type="plan.type" />
+                    <span class="w-2 h-2 rounded-full shrink-0" :class="EVENT_COLOR.dotClass" />
                     <NuxtLink
-                      v-if="planLink(plan)"
-                      :to="planLink(plan)"
+                      v-if="eventLink(event)"
+                      :to="eventLink(event)"
                       class="min-w-0 flex-1 text-sm font-medium text-neutral-700 dark:text-neutral-200 truncate hover:text-primary-600 dark:hover:text-primary-400 hover:underline"
                       @click="close()"
-                    >{{ plan.name }}</NuxtLink>
-                    <span v-else class="min-w-0 flex-1 text-sm font-medium text-neutral-700 dark:text-neutral-200 truncate">{{ plan.name }}</span>
+                    >{{ event.name }}</NuxtLink>
+                    <span v-else class="min-w-0 flex-1 text-sm font-medium text-neutral-700 dark:text-neutral-200 truncate">{{ event.name }}</span>
+                    <!-- TODO(W3): this per-event "+ Add a run" row is removed
+                         entirely per web#354 §4 (day-sheet cleanup) — runs
+                         are decoupled from events now, so it just opens the
+                         unified sheet's run branch with this day prefilled
+                         (no planId; standalone create, web#354 A1). -->
                     <button
-                      v-if="plan.role === 'own'"
                       type="button"
                       class="shrink-0 text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline"
-                      @click="addRunTo(plan.id)"
+                      @click="addRunHere()"
                     >+ Add a run</button>
                   </div>
                 </div>
@@ -135,9 +141,10 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import type { CalendarPlan, CalendarRun } from '~/composables/useCalendar'
+import type { CalendarEvent, CalendarRun } from '~/composables/useCalendar'
 import { fmtDate } from '~/utils/calendarDate'
 import { flowBandLabel } from '~/utils/flowBand'
+import { EVENT_COLOR } from '~/utils/planType'
 import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
 import { useMyProfile } from '~/composables/useMyProfile'
 import { useNudge, type NudgeMember } from '~/composables/useNudge'
@@ -146,10 +153,11 @@ const props = defineProps<{
   open: boolean
   date: string | null
   runs: CalendarRun[]
-  // Plans whose [start_date, end_date] spans this day (own + member) — the
-  // day sheet lists each with its own "Add a run" button (fixes "made a
-  // plan, tapped its day, sheet looked empty" — real user feedback).
-  plans: CalendarPlan[]
+  // Events whose [start_date, end_date] spans this day (web#354 A1:
+  // owner-only, so always the viewer's own) — the day sheet lists each with
+  // its own "Add a run" button (fixes "made an event, tapped its day, sheet
+  // looked empty" — real user feedback).
+  events: CalendarEvent[]
   loading?: boolean
   // true when this day earned a Tier-A '?' badge (CalendarDay.needs_confirm)
   // — drives the inline nudge row below.
@@ -198,14 +206,15 @@ async function onNudgeNo() {
   if (ok) toast.add({ title: "No worries — won't ask again", color: 'info' })
 }
 
-// Plan-name rows link to the plan page; own plans can link via the viewer's
-// handle even before the api ships host_handle (api#163).
+// Event-name rows link to the event page; every event here is the viewer's
+// own (web#354 A1: owner-only) — fall back to the viewer's own handle even
+// before the api ships host_handle on an optimistic entry.
 const { handle: myHandle, load: loadProfile } = useMyProfile()
 onMounted(() => { loadProfile() })
 
-function planLink(plan: CalendarPlan): string {
-  const handle = plan.host_handle || (plan.role === 'own' ? myHandle.value : '')
-  return handle ? `/plans/${handle}/${plan.slug}` : ''
+function eventLink(event: CalendarEvent): string {
+  const handle = event.host_handle || myHandle.value
+  return handle ? `/plans/${handle}/${event.slug}` : ''
 }
 
 function close() {
@@ -223,8 +232,8 @@ const subline = computed(() => {
   return n === 0 ? 'Nothing planned yet' : `${n} run${n === 1 ? '' : 's'}`
 })
 
-function addRunTo(planId: string) {
+function addRunHere() {
   close()
-  planRunLogSheet.openCreate(planId, props.date ?? undefined)
+  planRunLogSheet.openCreate(props.date ?? undefined)
 }
 </script>

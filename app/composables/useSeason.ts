@@ -21,6 +21,8 @@ export interface SeasonNewRun {
   date: string
 }
 
+// web#354 A1: seasonRecentRun (nudges.go) has no plan_id — runs are
+// decoupled from events entirely.
 export interface SeasonRecentRun {
   id: string
   slug: string
@@ -30,7 +32,6 @@ export interface SeasonRecentRun {
   flow_color?: string | null
   gauge_cfs?: number | null
   notes?: string | null
-  plan_id: string
 }
 
 export interface SeasonStats {

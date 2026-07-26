@@ -54,12 +54,12 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { PlanDetail, PlanInviteTokenRun } from '~/utils/plan'
+import type { CalendarEventDetail, PlanInviteTokenRun } from '~/utils/plan'
 import { fmtDate, fmtRange, fmtTime } from '~/utils/calendarDate'
 import { useInvites } from '~/composables/useInvites'
 
 const props = defineProps<{
-  plan: PlanDetail
+  plan: CalendarEventDetail
   runs: PlanInviteTokenRun[]
   // ?invite=<token> from the email link, when present — threaded through to
   // accept() so a signed-up-with-a-different-email invitee (member_owner_id

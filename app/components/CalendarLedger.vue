@@ -22,12 +22,6 @@
             {{ row.run.name ?? 'Untitled run' }}<span v-if="!row.run.paddled" class="text-neutral-400 font-normal"> · planned</span>
           </p>
         </div>
-        <svg v-if="row.plan?.visibility === 'private'" class="w-3 h-3 text-neutral-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-        </svg>
-        <svg v-else class="w-3 h-3 text-neutral-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"/>
-        </svg>
       </div>
     </div>
 
@@ -42,14 +36,13 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { CalendarDay, CalendarPlan, CalendarRun } from '~/composables/useCalendar'
+import type { CalendarDay, CalendarRun } from '~/composables/useCalendar'
 import { dow, fmtDate } from '~/utils/calendarDate'
 import { colorKeyToHex } from '~/utils/flowBand'
 import { useFlowBandPalette } from '~/composables/useFlowBandPalette'
 
 const props = defineProps<{
   days: CalendarDay[]
-  plans: CalendarPlan[]
   loading?: boolean
 }>()
 
@@ -61,16 +54,16 @@ interface Row {
   id: string
   date: string
   run: CalendarRun
-  plan: CalendarPlan | null
 }
 
-const planById = computed(() => new Map(props.plans.map(p => [p.id, p])))
-
+// web#354 A1: calendar_runs has no plan_id anymore (decoupled) — this row
+// no longer carries an owning event at all (a run isn't structurally tied
+// to one; see §1 "Runs during this Event" date-containment semantics).
 const allRows = computed<Row[]>(() => {
   const out: Row[] = []
   for (const day of props.days) {
     for (const run of day.runs) {
-      out.push({ id: run.id, date: day.date, run, plan: planById.value.get(run.plan_id) ?? null })
+      out.push({ id: run.id, date: day.date, run })
     }
   }
   return out.sort((a, b) => b.date.localeCompare(a.date))

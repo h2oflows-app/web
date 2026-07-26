@@ -23,8 +23,6 @@
         class="text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0"
         :class="colorKeyToBadgeClass(run.flow_color ?? '')"
       >{{ flowBandLabel(run.flow_band) }}</span>
-
-      <PlanTypeBadge v-if="plan" :type="plan.type" />
     </div>
 
     <p v-if="run.notes" class="mt-2 text-xs text-neutral-500 dark:text-neutral-400 line-clamp-2">{{ run.notes }}</p>
@@ -35,7 +33,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { CalendarPlan, CalendarRun } from '~/composables/useCalendar'
+import type { CalendarRun } from '~/composables/useCalendar'
 import { dow, fmtDate } from '~/utils/calendarDate'
 import { colorKeyToHex, colorKeyToBadgeClass, flowBandLabel } from '~/utils/flowBand'
 import { useFlowBandPalette } from '~/composables/useFlowBandPalette'
@@ -43,7 +41,6 @@ import { useFlowBandPalette } from '~/composables/useFlowBandPalette'
 const props = defineProps<{
   run: CalendarRun
   date: string
-  plan?: CalendarPlan | null
 }>()
 
 const { bandSolid } = useFlowBandPalette()

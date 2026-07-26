@@ -27,9 +27,11 @@
           </div>
 
           <!-- #246 W5: crew + RSVP moved onto the run row (mig 000144 —
-               looking_for_crew/max_crew/crew live on plan_runs now). -->
-          <div v-if="run.looking_for_crew" class="rounded-xl border border-neutral-100 dark:border-neutral-800 px-3.5 py-3 space-y-2">
-            <PlanCrewMeter :filled="run.crew?.filled ?? 0" :max="run.crew?.max">
+               looking_for_crew/max_crew/crew live on plan_runs now). web#354
+               A1: looking_for_crew now nests inside `crew` (always present),
+               not a top-level field. -->
+          <div v-if="run.crew.looking_for_crew" class="rounded-xl border border-neutral-100 dark:border-neutral-800 px-3.5 py-3 space-y-2">
+            <PlanCrewMeter :filled="run.crew.filled" :max="run.crew.max">
               <template v-if="isHost" #action>
                 <button type="button" class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline" @click="crewPanelRunId = run.id">Manage</button>
               </template>
@@ -64,7 +66,11 @@
 
               <div v-else-if="rsvpFor(run) === 'declined'" class="text-xs text-neutral-400">Declined</div>
 
-              <div v-else-if="plan.visibility === 'public'" class="flex items-center justify-between gap-3">
+              <!-- web#354 A1: no more "public plan" gate — the api's only
+                   crew-join gate is this run's OWN looking_for_crew (already
+                   guaranteed true by the wrapping v-if above), so this is
+                   the plain fallthrough now. -->
+              <div v-else class="flex items-center justify-between gap-3">
                 <p class="text-xs text-neutral-500 dark:text-neutral-400">Send the host a request to join</p>
                 <button
                   type="button"
@@ -101,7 +107,7 @@
 
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue'
-import type { PlanDetail, PlanItineraryDay } from '~/utils/plan'
+import type { CalendarEventDetail, PlanItineraryDay } from '~/utils/plan'
 import type { PlanRunDetail, PlanRunRsvpStatus } from '~/utils/planRun'
 import type { CalendarRun } from '~/composables/useCalendar'
 import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
@@ -110,7 +116,7 @@ import { useInvites } from '~/composables/useInvites'
 import { dow, fmtDate, isPastOrToday } from '~/utils/calendarDate'
 
 const props = defineProps<{
-  plan: PlanDetail
+  plan: CalendarEventDetail
   itinerary: PlanItineraryDay[]
   isHost: boolean
   // true when the caller is an accepted crew member (not the host) — the
@@ -142,7 +148,6 @@ function toCalendarRun(run: PlanRunDetail): CalendarRun {
     gauge_cfs: run.gauge_cfs ?? undefined,
     paddled: run.paddled,
     run_time: run.run_time ?? undefined,
-    plan_id: props.plan.id,
     notes: run.notes ?? undefined,
     meetup_spot: run.meetup_spot ?? undefined,
   }
@@ -181,8 +186,12 @@ async function logMine(run: PlanRunDetail) {
   }
 }
 
+// TODO(W2): this button's full removal (invite entry moves to a per-run
+// affordance instead) is web#354 W2's job (§4 plan) — for now it just opens
+// the unified sheet's run branch with the event's start_date prefilled and
+// no planId (runs are standalone/decoupled from any event, web#354 A1).
 function onAddRun() {
-  planRunLogSheet.openCreate(props.plan.id, props.plan.start_date, props.plan.visibility)
+  planRunLogSheet.openCreate(props.plan.start_date)
 }
 
 // ── Per-run crew panel (host) ─────────────────────────────────────────────
@@ -202,8 +211,7 @@ function rsvpFor(run: PlanRunDetail): PlanRunRsvpStatus | null | undefined {
 }
 
 function isRunFull(run: PlanRunDetail): boolean {
-  const c = run.crew
-  return !!c && c.max != null && c.filled >= c.max
+  return run.crew.max != null && run.crew.filled >= run.crew.max
 }
 
 async function joinRun(run: PlanRunDetail) {

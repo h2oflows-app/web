@@ -111,7 +111,6 @@ function toCalendarRun(r: SeasonRecentRun): CalendarRun {
     flow_color: r.flow_color ?? undefined,
     gauge_cfs: r.gauge_cfs ?? undefined,
     paddled: true, // season `recent` is always WHERE pr.paddled
-    plan_id: r.plan_id,
     notes: r.notes ?? undefined,
   }
 }
