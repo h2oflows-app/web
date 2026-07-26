@@ -28,7 +28,7 @@ export interface CalendarRun {
 export interface CalendarDay {
   date: string // YYYY-MM-DD
   runs: CalendarRun[]
-  needs_confirm: boolean // A5 data always empty for now — see day-cell TODO(W6)
+  needs_confirm: boolean // Tier-A nudge candidate day (#246 A5/W6) — drives CalendarDayCell's '?' badge
 }
 
 export type PlanRole = 'own' | 'member' | 'invited'

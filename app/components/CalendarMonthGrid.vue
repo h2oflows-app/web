@@ -48,6 +48,8 @@
         :is-today="cell.ymd === today"
         :runs="cell.runs"
         :ribbon="cell.ribbon"
+        :needs-confirm="cell.needsConfirm"
+        :quiet-dot="cell.quietDot"
         @select-day="$emit('select-day', $event)"
       />
     </div>
@@ -65,6 +67,10 @@ const props = defineProps<{
   month: number // 1-12
   days: CalendarDay[]
   plans: CalendarPlan[]
+  // Tier-B "quiet dot" dates (nudgeDots from useCalendar) — a passive hint,
+  // never a popup; mutually exclusive with a day's own needs_confirm (the
+  // api skips a date from nudge_dot_dates once it already earned the '?').
+  nudgeDots?: string[]
 }>()
 
 const emit = defineEmits<{
@@ -97,6 +103,14 @@ const runsByDate = computed(() => {
   return map
 })
 
+const needsConfirmByDate = computed(() => {
+  const map = new Map<string, boolean>()
+  for (const d of props.days) map.set(d.date, d.needs_confirm)
+  return map
+})
+
+const nudgeDotSet = computed(() => new Set(props.nudgeDots ?? []))
+
 // Primary plan per date, own/member preferred over invited when overlapping.
 function ribbonForDate(ymd: string): RibbonVM | null {
   const covering = props.plans.filter(p => p.start_date <= ymd && p.end_date >= ymd)
@@ -117,6 +131,8 @@ const cells = computed(() =>
     ...c,
     runs: runsByDate.value.get(c.ymd) ?? [],
     ribbon: ribbonForDate(c.ymd),
+    needsConfirm: needsConfirmByDate.value.get(c.ymd) ?? false,
+    quietDot: nudgeDotSet.value.has(c.ymd),
   }))
 )
 </script>

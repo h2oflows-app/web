@@ -75,6 +75,38 @@
                   </div>
                 </div>
 
+                <!-- Compact inline nudge row (#246 W6) — same confirm/dismiss
+                     actions as NudgeCard, scoped to THIS opened day. Distinct
+                     surface from the calendar-top nudge card (recon: "same
+                     suggestion but scoped-to-day copy"); driven by the shared
+                     nudge candidate (GET /me/nudge/candidate via useNudge),
+                     matched to this day by run_date — NOT inferred from
+                     "first unpaddled run" (needs_confirm is day-level only
+                     and doesn't identify which run on a multi-run day). -->
+                <div
+                  v-if="nudgeRun"
+                  class="flex items-center gap-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/40 px-3 py-2.5"
+                >
+                  <div class="min-w-0 flex-1">
+                    <p class="text-sm font-medium text-amber-800 dark:text-amber-300">Did you paddle {{ nudgeRun.run_name ?? 'this' }}?</p>
+                    <p class="text-xs text-amber-700/80 dark:text-amber-400/80">
+                      It ran {{ flowBandLabel(nudgeRun.flow_band) }}<template v-if="nudgeRun.gauge_cfs != null"> · {{ Math.round(nudgeRun.gauge_cfs).toLocaleString() }} cfs</template> — you'd planned to be on it.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    class="shrink-0 rounded-full bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
+                    :disabled="nudgeActing"
+                    @click="onNudgeYes"
+                  >Paddled it</button>
+                  <button
+                    type="button"
+                    class="shrink-0 rounded-full bg-white/70 dark:bg-black/20 hover:bg-white text-amber-700 dark:text-amber-400 px-2.5 py-1 text-xs font-semibold transition-colors disabled:opacity-50"
+                    :disabled="nudgeActing"
+                    @click="onNudgeNo"
+                  >No</button>
+                </div>
+
                 <div class="flex flex-col gap-2">
                   <PlanRunItem
                     v-for="run in runs"
@@ -102,11 +134,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import type { CalendarPlan, CalendarRun } from '~/composables/useCalendar'
 import { fmtDate } from '~/utils/calendarDate'
+import { flowBandLabel } from '~/utils/flowBand'
 import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
 import { useMyProfile } from '~/composables/useMyProfile'
+import { useNudge, type NudgeMember } from '~/composables/useNudge'
 
 const props = defineProps<{
   open: boolean
@@ -117,6 +151,9 @@ const props = defineProps<{
   // plan, tapped its day, sheet looked empty" — real user feedback).
   plans: CalendarPlan[]
   loading?: boolean
+  // true when this day earned a Tier-A '?' badge (CalendarDay.needs_confirm)
+  // — drives the inline nudge row below.
+  needsConfirm?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -125,6 +162,41 @@ const emit = defineEmits<{
 }>()
 
 const planRunLogSheet = usePlanRunLogSheet()
+const { member: nudgeMember, dismiss: dismissNudge } = useNudge()
+const toast = useToast()
+const nudgeActing = ref(false)
+
+// The specific run this day's needs_confirm flag is about. needs_confirm is
+// a day-level boolean only — it does NOT identify which run on a multi-run
+// day earned it, so "first unpaddled run" is not a safe stand-in (could
+// confirm/dismiss the wrong reach). Instead we key off the same
+// GET /me/nudge/candidate result NudgeCard uses (shared useState — already
+// loaded by NudgeCard's onMounted at the top of /calendar), matching it to
+// this day by run_date. Only renders once that identity is confirmed.
+const nudgeRun = computed<NudgeMember | null>(() => {
+  if (!props.needsConfirm || !props.date) return null
+  const m = nudgeMember.value
+  return m && m.run_date === props.date ? m : null
+})
+
+function onNudgeYes() {
+  if (!nudgeRun.value?.user_reach_id || !props.date) return
+  planRunLogSheet.openConfirm({
+    user_reach_id: nudgeRun.value.user_reach_id,
+    run_name: nudgeRun.value.run_name ?? 'this run',
+    run_date: props.date,
+    flow_band: nudgeRun.value.flow_band ?? '',
+    gauge_cfs: nudgeRun.value.gauge_cfs,
+  })
+}
+
+async function onNudgeNo() {
+  if (!nudgeRun.value?.user_reach_id || !props.date || nudgeActing.value) return
+  nudgeActing.value = true
+  const ok = await dismissNudge(nudgeRun.value.user_reach_id, props.date)
+  nudgeActing.value = false
+  if (ok) toast.add({ title: "No worries — won't ask again", color: 'info' })
+}
 
 // Plan-name rows link to the plan page; own plans can link via the viewer's
 // handle even before the api ships host_handle (api#163).

@@ -30,7 +30,7 @@
             </div>
 
             <div class="px-5 py-4 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between shrink-0">
-              <h2 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">{{ mode === 'edit' ? 'Edit run' : 'Add a run' }}</h2>
+              <h2 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">{{ mode === 'edit' ? 'Edit run' : mode === 'confirm' ? 'Confirm your paddle' : 'Add a run' }}</h2>
               <button
                 class="p-1 rounded text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
                 aria-label="Close"
@@ -43,6 +43,45 @@
             </div>
 
             <div class="flex-1 overflow-y-auto p-4 space-y-4">
+              <!-- Confirm mode (#246 W6 nudge confirm) — the candidate is
+                   already fully resolved by GET /me/nudge/candidate, so
+                   there's no fetch/loading gate here; standalone branch,
+                   deliberately NOT threaded through the create/edit form
+                   below (no run picker, date/time, meetup, or crew — none
+                   apply to a past, already-in-band day). -->
+              <template v-if="mode === 'confirm'">
+                <div class="flex items-center gap-2 rounded-lg bg-neutral-100 dark:bg-neutral-800 px-3 py-2 text-sm">
+                  <svg class="w-4 h-4 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14c3-6 6-9 8-9s5 9 8 9"/></svg>
+                  <span class="text-neutral-700 dark:text-neutral-300 truncate">{{ confirmMember?.run_name ?? 'Untitled run' }}</span>
+                </div>
+
+                <div class="rounded-lg bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-100 dark:border-neutral-800 px-3 py-2.5 flex items-center justify-between gap-2 text-sm">
+                  <span class="text-neutral-500 dark:text-neutral-400">{{ confirmMember ? fmtDate(confirmMember.run_date, { weekday: 'short', month: 'short', day: 'numeric' }) : '' }}</span>
+                  <span class="flex items-center gap-1.5 text-neutral-700 dark:text-neutral-300">
+                    <span class="w-2 h-2 rounded-full shrink-0" :style="{ background: flowBandSolidColor(confirmMember?.flow_band) }" />
+                    {{ flowBandLabel(confirmMember?.flow_band) }}<template v-if="confirmMember?.gauge_cfs != null"> · {{ Math.round(confirmMember.gauge_cfs).toLocaleString() }} cfs</template>
+                  </span>
+                </div>
+
+                <div class="rounded-xl border border-emerald-100 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20 px-3.5 py-3 flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                  <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  Logging this as paddled
+                </div>
+
+                <div>
+                  <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">
+                    Notes <span class="text-neutral-400">(optional, markdown supported)</span>
+                  </label>
+                  <textarea
+                    v-model="form.notes"
+                    rows="3"
+                    placeholder="How was it? Conditions, hazards, lines…"
+                    class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                  />
+                </div>
+              </template>
+
+              <template v-else>
               <!-- Locked (edit mode, run somehow already paddled) -->
               <div v-if="mode === 'edit' && editLoaded && editRun?.paddled" class="text-center py-8 space-y-2">
                 <p class="text-sm text-neutral-500 dark:text-neutral-400">This run has already been logged.</p>
@@ -305,6 +344,7 @@
                   </div>
                 </template>
               </template>
+              </template>
             </div>
 
             <div v-if="!(mode === 'edit' && editLoaded && (editRun?.paddled || !editRun))" class="p-4 border-t border-neutral-100 dark:border-neutral-800 shrink-0">
@@ -327,7 +367,8 @@ import { computed, ref, watch } from 'vue'
 import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
 import { usePlans } from '~/composables/usePlans'
 import { useCalendar } from '~/composables/useCalendar'
-import { todayYMD, isPastOrToday } from '~/utils/calendarDate'
+import { useNudge } from '~/composables/useNudge'
+import { todayYMD, isPastOrToday, fmtDate } from '~/utils/calendarDate'
 import { classRange } from '~/utils/classRating'
 import { flowBandLabel, flowBandSolidColor, colorKeyToHex } from '~/utils/flowBand'
 import type { PlanRunDetail } from '~/utils/planRun'
@@ -355,9 +396,10 @@ const { apiBase } = useRuntimeConfig().public
 const { getToken } = useAuth()
 const toast = useToast()
 
-const { isOpen, mode, planId, runId, prefillDate, planVisibility, close, markSaved } = usePlanRunLogSheet()
+const { isOpen, mode, planId, runId, prefillDate, planVisibility, confirmMember, close, markSaved } = usePlanRunLogSheet()
 const { addRun, patchRun } = usePlans()
 const calendar = useCalendar()
+const { confirm: confirmNudge } = useNudge()
 
 const submitting = ref(false)
 
@@ -587,6 +629,11 @@ watch(isOpen, (open) => {
     loadMyRuns()
   } else if (mode.value === 'edit' && runId.value) {
     loadEditRun(runId.value)
+  } else if (mode.value === 'confirm') {
+    form.value = {
+      runDate: confirmMember.value?.run_date ?? todayYMD(), runTime: '', notes: '', paddled: true,
+      lookingForCrew: false, maxCrew: 4,
+    }
   }
 })
 
@@ -633,10 +680,12 @@ const flowPreview = computed(() => {
 
 const saveLabel = computed(() => {
   if (mode.value === 'edit') return 'Save changes'
+  if (mode.value === 'confirm') return 'Log paddle'
   return form.value.paddled ? 'Log paddle' : 'Save to plan'
 })
 
 const canSubmit = computed(() => {
+  if (mode.value === 'confirm') return !!confirmMember.value
   if (!form.value.runDate) return false
   if (mode.value === 'create') return !!selectedRunId.value
   return true
@@ -649,6 +698,20 @@ function cancel() {
 async function submit() {
   if (!canSubmit.value || submitting.value) return
   submitting.value = true
+
+  if (mode.value === 'confirm') {
+    if (!confirmMember.value) { submitting.value = false; return }
+    const ok = await confirmNudge(confirmMember.value.user_reach_id, confirmMember.value.run_date, form.value.notes.trim() || undefined)
+    submitting.value = false
+    if (!ok) {
+      toast.add({ title: 'Could not log paddle', color: 'error' })
+      return
+    }
+    toast.add({ title: 'Run logged — nice paddle!', color: 'success' })
+    markSaved()
+    close()
+    return
+  }
 
   if (mode.value === 'create') {
     if (!planId.value) { submitting.value = false; return }
