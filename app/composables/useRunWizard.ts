@@ -1,5 +1,7 @@
 /**
- * useRunWizard — shared state for the WizardEntryModal.
+ * useRunWizard — shared open-state for the run-creation entry flow
+ * (dashboard.vue's GaugeSearchModal @create-run wiring; the old
+ * WizardEntryModal consumer was retired in the #246 W7 cutover).
  *
  * The modal is mounted once in AppHeader. Any page can call open() to trigger it.
  * Uses useState so the ref is shared across all callers (same key per SSR context).

@@ -324,10 +324,10 @@
           <div class="flex items-center justify-between px-4 pt-4 pb-2">
             <h2 class="text-sm font-semibold text-neutral-800 dark:text-neutral-200">Trip Reports</h2>
             <NuxtLink
-              :to="`/my/runs/${runSlug}`"
+              to="/calendar"
               class="text-xs text-primary-500 hover:text-primary-600 dark:text-primary-400 font-medium transition-colors"
             >
-              + Add report
+              + Log a paddle
             </NuxtLink>
           </div>
           <div v-if="!reportsFetchDone" class="px-4 pb-4 text-xs text-neutral-400">Loading reports…</div>
@@ -422,7 +422,7 @@
           <div class="bg-primary-600 dark:bg-primary-700 text-white px-4 py-3 sm:py-4 flex items-center gap-3 sm:gap-4 shadow-lg">
             <div class="flex-1 min-w-0">
               <p class="text-sm font-semibold leading-snug">Track your runs on H2OFlows</p>
-              <p class="text-xs text-primary-100 mt-0.5 leading-snug hidden sm:block">Log flows, add reports, and get live gauge alerts for your favorite sections.</p>
+              <p class="text-xs text-primary-100 mt-0.5 leading-snug hidden sm:block">Log paddles, track flows, and get live gauge alerts for your favorite sections.</p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
               <NuxtLink to="/login" class="px-3 py-1.5 rounded-lg bg-white text-primary-700 hover:bg-primary-50 text-xs font-semibold transition-colors">Get started</NuxtLink>
