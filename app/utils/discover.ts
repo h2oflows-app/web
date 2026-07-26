@@ -29,6 +29,11 @@ export interface DiscoverRun {
   my_rsvp?: PlanRunRsvpStatus | null
 }
 
+// TODO(W4): GET /discover/plans reshaped entirely in web#354 A1 (discover.go
+// ListPlans doc comment) — the response is now a flat, run_date-sorted list
+// of crew-seeking calendar_runs (`discoverCrewRun`), not `DiscoverPlan[]`
+// each carrying `runs_looking_for_crew`. This type + DiscoverPlanCard are
+// dead until W4's DiscoverRunCard regroup (§4/§5) replaces them.
 export interface DiscoverPlan {
   id: string
   slug: string

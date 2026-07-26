@@ -1,8 +1,15 @@
 <template>
+  <!-- TODO(W4): GET /discover/plans reshaped entirely in web#354 A1 — it's a
+       flat, run_date-sorted list of crew-seeking calendar_runs now (events
+       are owner-only, no more public-plan browse to group by; discover.go
+       ListPlans doc comment), not plans each carrying
+       runs_looking_for_crew[]. This component (props, DiscoverPlan type)
+       still expects the OLD shape and is effectively dead until W4's
+       DiscoverRunCard regroup (§4/§5) replaces it — only the compile-forcing
+       PlanTypeBadge usage is fixed here in W1. -->
   <div class="rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-700">
-    <div class="px-4 py-3 flex items-center justify-between gap-2" :class="planTypeMeta(plan.type).tintClass">
+    <div class="px-4 py-3 flex items-center justify-between gap-2" :class="EVENT_COLOR.tintClass">
       <div class="flex items-center gap-1.5 min-w-0">
-        <PlanTypeBadge :type="plan.type" />
         <NuxtLink :to="`/plans/${plan.host_handle}/${plan.slug}`" class="font-semibold text-sm text-neutral-900 dark:text-white hover:underline truncate">{{ plan.name }}</NuxtLink>
       </div>
       <span class="shrink-0 text-xs text-neutral-500 dark:text-neutral-400">{{ fmtRange(plan.start_date, plan.end_date) }}</span>
@@ -61,7 +68,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { DiscoverPlan, DiscoverRun } from '~/utils/discover'
-import { planTypeMeta } from '~/utils/planType'
+import { EVENT_COLOR } from '~/utils/planType'
 import { fmtDate, fmtRange, fmtTime } from '~/utils/calendarDate'
 import { classRange } from '~/utils/classRating'
 import { flowBandLabel, colorKeyToBadgeClass } from '~/utils/flowBand'

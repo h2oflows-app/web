@@ -10,11 +10,13 @@ import { computed } from 'vue'
 // hydrated singleton on the client, matching useMyProfile's handle/loaded
 // pattern for the same reason.
 
-export interface InvitePlanSummary {
+// web#354 A1: invitedEvent (invites.go) dropped `type` entirely (event-type
+// concept removed) and the JSON wrapper key itself renamed `plan`→`event`
+// (see Invite below).
+export interface InviteEventSummary {
   id: string
   slug: string
   name: string
-  type: string
   start_date: string
   end_date: string
   location?: string | null
@@ -37,12 +39,12 @@ export interface InviteRun {
 
 export interface Invite {
   // Groups the fanned-out per-run rows that were created by the same invite
-  // action (same plan + same recipient) — the feed card/banner render ONE
+  // action (same event + same recipient) — the feed card/banner render ONE
   // item per group with a per-run row list, per the contract ("feed card
   // lists the invited runs each with its own Accept button").
   invited_via: 'handle' | 'email'
   created_at: string
-  plan: InvitePlanSummary
+  event: InviteEventSummary
   runs: InviteRun[]
 }
 
@@ -138,9 +140,8 @@ export function useInvites() {
 
     toast.add({ title: 'Added to your calendar', color: 'success' })
     await refresh()
-    // The invited plan's ribbon on /calendar flips dashed→solid purely off
-    // useCalendar's cached `plans[].role` — refreshing it here (rather than
-    // making every caller remember to) is what makes that flip happen
+    // Refreshing the calendar store here (rather than making every caller
+    // remember to) is what surfaces the newly-accepted run on /calendar
     // without a reload. Safe to call even off /calendar: refresh() is a
     // no-op until a range has been loaded at least once.
     await useCalendar().refresh()

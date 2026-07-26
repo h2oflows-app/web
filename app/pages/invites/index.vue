@@ -43,7 +43,7 @@
       <div v-else class="space-y-3">
         <InviteFeedCard
           v-for="i in invites"
-          :key="i.plan.id + i.created_at"
+          :key="i.event.id + i.created_at"
           :invite="i"
           :busy="busyId"
           @accept="onAccept"
