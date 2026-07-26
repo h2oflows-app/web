@@ -224,7 +224,7 @@
               <div class="flex items-center gap-1 shrink-0">
                 <NuxtLink
                   v-if="flag.target_slug"
-                  :to="flag.target_type === 'run' ? `/runs/u/${flag.target_id}` : `/reports/${flag.target_id}`"
+                  :to="flag.target_type === 'run' ? `/runs/u/${flag.target_id}` : `/plan-runs/${flag.target_id}`"
                   target="_blank"
                   class="p-1.5 rounded text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
                   title="View"
