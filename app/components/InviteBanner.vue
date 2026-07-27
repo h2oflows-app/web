@@ -25,7 +25,8 @@
     </div>
 
     <NuxtLink
-      :to="`/plans/${invite.event.host_handle}/${invite.event.slug}`"
+      v-if="firstRun"
+      :to="`/plan-runs/${firstRun.plan_run_id}`"
       class="shrink-0 rounded-full bg-white/20 hover:bg-white/30 px-3 py-1.5 text-xs font-semibold transition-colors"
     >View</NuxtLink>
 

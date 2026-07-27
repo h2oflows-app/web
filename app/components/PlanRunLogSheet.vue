@@ -723,6 +723,11 @@ watch(() => form.value.runDate, () => {
 watch(isPastDate, (past) => {
   if (past) form.value.lookingForCrew = false
 })
+// Same rule for the paddled toggle: a logged run can't recruit crew, and the
+// section hiding via v-if would otherwise leave the flag set and submitted.
+watch(() => form.value.paddled, (p) => {
+  if (p) form.value.lookingForCrew = false
+})
 
 // ── Flow (auto) preview ──────────────────────────────────────────────────
 const flowPreview = computed(() => {
@@ -813,8 +818,8 @@ async function submit() {
       // Notes belong to the log — locked (and not sent) for future dates.
       notes: canTogglePaddled.value ? form.value.notes.trim() || undefined : undefined,
       paddled: form.value.paddled || undefined,
-      looking_for_crew: form.value.lookingForCrew || undefined,
-      max_crew: form.value.lookingForCrew ? form.value.maxCrew : undefined,
+      looking_for_crew: (!form.value.paddled && form.value.lookingForCrew) || undefined,
+      max_crew: !form.value.paddled && form.value.lookingForCrew ? form.value.maxCrew : undefined,
       // Meet up at — create has no prior state to clear, so omit entirely
       // when empty/unpicked (see usePlans.ts CreatePlanRunBody contract note).
       meetup_spot: meetupText.value.trim() || undefined,
@@ -845,8 +850,10 @@ async function submit() {
     run_time: form.value.runTime || undefined,
     notes: form.value.notes.trim() || undefined,
     paddled: form.value.paddled || undefined,
-    looking_for_crew: form.value.lookingForCrew || undefined,
-    max_crew: form.value.lookingForCrew ? form.value.maxCrew : undefined,
+    // Always explicit on PATCH: an omitted key means "no change" server-side,
+    // so hiding/unchecking crew must actively send false to clear a stale flag.
+    looking_for_crew: form.value.paddled ? false : form.value.lookingForCrew,
+    max_crew: !form.value.paddled && form.value.lookingForCrew ? form.value.maxCrew : undefined,
     // Meet up at — edit mode always sends both together (never omitted) so
     // a cleared field actually clears server-side; see usePlans.ts
     // UpdatePlanRunBody contract note for the full rationale. `?? null` (not

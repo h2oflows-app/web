@@ -60,9 +60,10 @@
       </div>
 
       <NuxtLink
-        :to="`/plans/${invite.event.host_handle}/${invite.event.slug}`"
+        v-if="viewRunId"
+        :to="`/plan-runs/${viewRunId}`"
         class="inline-block text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline pt-1"
-      >View plan →</NuxtLink>
+      >View run →</NuxtLink>
     </div>
   </div>
 </template>
@@ -81,6 +82,12 @@ const props = defineProps<{
 defineEmits<{ accept: [string]; dismiss: [string] }>()
 
 const allResolved = computed(() => props.invite.runs.every(r => r.status !== 'invited' || !!r.dismissed_at))
+
+// The event page went owner-only in #354 A1, so "view" lands on the invited
+// run instead — first still-pending one, else the first run of the invite.
+const viewRunId = computed(() =>
+  (props.invite.runs.find(r => r.status === 'invited' && !r.dismissed_at) ?? props.invite.runs[0])?.plan_run_id,
+)
 
 function reltime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime()
