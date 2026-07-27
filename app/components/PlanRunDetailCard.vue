@@ -153,7 +153,7 @@
     <!-- Delete confirm -->
     <UModal v-model:open="deleteOpen" title="Delete this run?">
       <template #body>
-        <p class="text-sm text-neutral-600 dark:text-neutral-400">This removes it from your plan. This can't be undone.</p>
+        <p class="text-sm text-neutral-600 dark:text-neutral-400">This can't be undone.</p>
         <p v-if="deleteError" class="text-xs text-red-500 mt-2">{{ deleteError }}</p>
       </template>
       <template #footer>
@@ -187,14 +187,12 @@ const { isAuthenticated, getToken } = useAuth()
 const { patchRun } = usePlans()
 const { apiBase } = useRuntimeConfig().public
 
-// TODO(W2): web#354 A1 dropped the `plan` wrapper from GET /plan-runs/{id}
-// entirely (see planRun.ts's PlanRunDetailPlan-removal note) — the response
-// carries no owner/host signal at all anymore, so there's no way to derive
-// "is this viewer the run's owner" client-side. Conservatively false (hides
-// Edit-notes/Delete rather than showing them to a non-owner viewer, e.g.
-// anyone viewing a paddled run under the new visibility model) until W2
-// restores an ownership signal on this response.
-const isOwner = computed(() => false)
+// web#354 A2 added `is_owner` directly onto GET /plan-runs/{id}'s response
+// (plans.go/plan_runs.go's planRunSummary) — the run has no `plan` wrapper
+// (standalone, decoupled), but the api now tells us straight up whether the
+// viewer is this run's own owner, restoring the pre-354 owner-only
+// affordances below (edit notes, delete).
+const isOwner = computed(() => props.run.is_owner)
 
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 const renderedNotes = computed(() => md.render(props.run.notes || ''))

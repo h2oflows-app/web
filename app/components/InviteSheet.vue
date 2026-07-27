@@ -43,29 +43,18 @@
             </div>
 
             <div class="flex-1 overflow-y-auto p-4 space-y-4">
-              <!-- Run selector (#246 W5: invites RSVP per run now — an
-                   invite fans out to one row per checked run). All checked
-                   by default so the common "invite to the whole plan" case
-                   is zero extra taps. -->
-              <div v-if="runs.length > 1">
-                <div class="flex items-center justify-between mb-1">
-                  <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400">Invite to which runs?</label>
-                  <button type="button" class="text-[11px] text-primary-600 dark:text-primary-400 hover:underline" @click="toggleAllRuns">
-                    {{ selectedRunIds.length === runs.length ? 'Clear all' : 'Select all' }}
-                  </button>
+              <!-- Existing crew on this run — read-only reference so the host
+                   doesn't blindly re-invite someone already aboard. Managing
+                   pending JOIN requests (accept/decline) stays in the
+                   "Manage" crew panel (PlanCrewPanel) — not duplicated here. -->
+              <div v-if="crewLoaded && crew.length">
+                <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Already on this run</label>
+                <div class="rounded-lg border border-neutral-100 dark:border-neutral-800 divide-y divide-neutral-100 dark:divide-neutral-800 max-h-28 overflow-y-auto">
+                  <div v-for="m in crew" :key="m.member_id" class="flex items-center justify-between gap-2 px-3 py-1.5 text-sm">
+                    <span class="min-w-0 flex-1 truncate text-neutral-700 dark:text-neutral-300">@{{ m.handle || 'paddler' }}</span>
+                    <span class="shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full" :class="crewStatusClass(m.status)">{{ crewStatusLabel(m.status) }}</span>
+                  </div>
                 </div>
-                <div class="rounded-lg border border-neutral-100 dark:border-neutral-800 divide-y divide-neutral-100 dark:divide-neutral-800 max-h-32 overflow-y-auto">
-                  <label
-                    v-for="r in runs"
-                    :key="r.id"
-                    class="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-800"
-                  >
-                    <input type="checkbox" :value="r.id" v-model="selectedRunIds" class="rounded border-neutral-300 dark:border-neutral-600 text-primary-600 focus:ring-primary-500/40" />
-                    <span class="min-w-0 flex-1 truncate text-neutral-700 dark:text-neutral-300">{{ r.name ?? 'Untitled run' }}</span>
-                    <span class="shrink-0 text-xs text-neutral-400">{{ fmtDate(r.run_date) }}</span>
-                  </label>
-                </div>
-                <p v-if="!selectedRunIds.length" class="text-xs text-red-500 mt-1">Select at least one run</p>
               </div>
 
               <!-- Mode toggle -->
@@ -98,6 +87,15 @@
                     class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
                   />
                 </div>
+                <div>
+                  <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Message <span class="text-neutral-400 font-normal">(optional)</span></label>
+                  <textarea
+                    v-model="message"
+                    rows="2"
+                    placeholder="Add a note…"
+                    class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                  />
+                </div>
                 <div class="flex items-center justify-between gap-3 rounded-xl border border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/40 px-3.5 py-3">
                   <div>
                     <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100">Attach calendar invite (.ics)</p>
@@ -108,10 +106,17 @@
               </template>
 
               <!-- Per-item send summary -->
-              <div v-if="results.length" class="space-y-1 rounded-lg bg-neutral-50 dark:bg-neutral-800/40 px-3 py-2">
-                <p v-for="(r, i) in results" :key="i" class="text-xs" :class="r.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'">
-                  {{ r.label }} — {{ r.message }}
-                </p>
+              <div v-if="results.length" class="space-y-1.5 rounded-lg bg-neutral-50 dark:bg-neutral-800/40 px-3 py-2">
+                <div v-for="r in results" :key="r.key" class="flex items-center justify-between gap-2 text-xs" :class="resultClass(r.kind)">
+                  <span class="min-w-0 truncate">{{ r.label }} — {{ r.message }}</span>
+                  <button
+                    v-if="r.resendEmail && !r.resent"
+                    type="button"
+                    class="shrink-0 font-medium text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50"
+                    :disabled="r.resending"
+                    @click="resend(r)"
+                  >{{ r.resending ? 'Resending…' : 'Resend' }}</button>
+                </div>
               </div>
             </div>
 
@@ -132,20 +137,16 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { fmtDate } from '~/utils/calendarDate'
+import type { CrewListResponse, CrewRequest } from '~/utils/plan'
 
-export interface InviteSheetRun {
-  id: string
-  name?: string | null
-  run_date: string
-}
-
+// InviteSheet — run-scoped (web#354 W2; was plan-scoped with a run-selector
+// checkbox list, #246 W5/A1). Invites live on run_invites keyed by run_id
+// only now (no plan fan-out, web#354 A2) — one sheet instance targets
+// exactly the run its "Invite" button was opened from (PlanItinerary owns
+// the runId state, mirrors its existing PlanCrewPanel pattern).
 const props = defineProps<{
-  planId: string
+  runId: string
   open: boolean
-  // The plan's runs, for the run-selector checkbox list (#246 W5). A
-  // single-run plan skips the selector entirely (nothing to choose).
-  runs: InviteSheetRun[]
 }>()
 
 const emit = defineEmits<{ 'update:open': [boolean]; sent: [] }>()
@@ -156,27 +157,36 @@ const { getToken } = useAuth()
 const mode = ref<'handle' | 'email'>('handle')
 const handles = ref<string[]>([])
 const email = ref('')
+const message = ref('')
 const attachIcs = ref(true)
 const sending = ref(false)
-const results = ref<{ label: string; ok: boolean; message: string }[]>([])
-const selectedRunIds = ref<string[]>([])
 
-function toggleAllRuns() {
-  selectedRunIds.value = selectedRunIds.value.length === props.runs.length ? [] : props.runs.map(r => r.id)
+interface ResultItem {
+  key: string
+  label: string
+  kind: 'success' | 'existing' | 'duplicate' | 'error'
+  message: string
+  // Set only for a 409 hit on an EMAIL send — a handle invite has no token
+  // to resend (accept is by account match, nothing to re-deliver; see
+  // invites.go ResendInvite's own doc comment on why it's email-only).
+  resendEmail?: string
+  resending?: boolean
+  resent?: boolean
 }
+const results = ref<ResultItem[]>([])
 
 watch(() => props.open, (o) => {
   if (!o) return
   mode.value = 'handle'
   handles.value = []
   email.value = ''
+  message.value = ''
   attachIcs.value = true
   results.value = []
-  selectedRunIds.value = props.runs.map(r => r.id) // all checked by default
+  loadCrew()
 })
 
 const canSend = computed(() => {
-  if (props.runs.length > 1 && !selectedRunIds.value.length) return false
   if (mode.value === 'handle') return handles.value.length > 0
   return /\S+@\S+\.\S+/.test(email.value.trim())
 })
@@ -191,52 +201,126 @@ function close() {
   emit('update:open', false)
 }
 
-async function sendOne(body: Record<string, unknown>): Promise<{ ok: boolean; message: string }> {
+async function authHeaders(): Promise<Record<string, string>> {
   const token = await getToken()
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (token) headers.Authorization = `Bearer ${token}`
-  const res = await fetch(`${apiBase}/api/v1/plans/${props.planId}/invite`, {
+  return headers
+}
+
+function resultClass(kind: ResultItem['kind']): string {
+  if (kind === 'success') return 'text-emerald-600 dark:text-emerald-400'
+  if (kind === 'error') return 'text-red-500'
+  // 'existing' (self-invite no-op, handle mode only) and 'duplicate' (409
+  // already-invited) are both non-error, informational outcomes — neutral
+  // tone, never red (contract: 409 is "a friendly inline note, not an error
+  // toast").
+  return 'text-neutral-500 dark:text-neutral-400'
+}
+
+function resultKey(): string {
+  return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`
+}
+
+async function sendOne(body: Record<string, unknown>): Promise<{ status: number; body: any }> {
+  const headers = await authHeaders()
+  const res = await fetch(`${apiBase}/api/v1/plan-runs/${props.runId}/invite`, {
     method: 'POST', headers, body: JSON.stringify(body),
   }).catch(() => null)
-  if (!res?.ok) {
-    const msg = await res?.json().catch(() => null)
-    return { ok: false, message: msg?.error ?? `Failed (${res?.status ?? 'network'})` }
-  }
-  const data = await res.json().catch(() => null)
-  if (data?.status === 'existing') return { ok: true, message: 'already invited' }
-  return { ok: true, message: data?.sent ? 'invited — email sent' : 'invited' }
+  const json = await res?.json().catch(() => null)
+  return { status: res?.status ?? 0, body: json }
+}
+
+function classifyHandleResult(handle: string, status: number, body: any): ResultItem {
+  const label = `@${handle}`
+  if (status === 201) return { key: resultKey(), label, kind: 'success', message: 'invited' }
+  if (status === 200) return { key: resultKey(), label, kind: 'existing', message: "that's you — already in this run" }
+  if (status === 409) return { key: resultKey(), label, kind: 'duplicate', message: 'already invited to this run' }
+  return { key: resultKey(), label, kind: 'error', message: body?.error ?? `Failed (${status || 'network'})` }
+}
+
+function classifyEmailResult(emailAddr: string, status: number, body: any): ResultItem {
+  if (status === 201) return { key: resultKey(), label: emailAddr, kind: 'success', message: body?.sent ? 'invited — email sent' : 'invited' }
+  if (status === 409) return { key: resultKey(), label: emailAddr, kind: 'duplicate', message: 'already invited to this run', resendEmail: emailAddr }
+  return { key: resultKey(), label: emailAddr, kind: 'error', message: body?.error ?? `Failed (${status || 'network'})` }
 }
 
 async function send() {
   if (!canSend.value || sending.value) return
   sending.value = true
-  results.value = []
-
-  // Omit plan_run_ids entirely when every run is selected (or there's only
-  // one run) — the contract's default ("all runs") already covers it, and
-  // sending the full list either way is equally correct, just noisier.
-  const planRunIds = selectedRunIds.value.length && selectedRunIds.value.length < props.runs.length
-    ? selectedRunIds.value
-    : undefined
 
   if (mode.value === 'handle') {
     for (const h of handles.value) {
-      const r = await sendOne({ handle: h, plan_run_ids: planRunIds })
-      results.value = [...results.value, { label: `@${h}`, ...r }]
+      const { status, body } = await sendOne({ handle: h })
+      results.value = [...results.value, classifyHandleResult(h, status, body)]
     }
   } else {
-    const r = await sendOne({ email: email.value.trim().toLowerCase(), attach_ics: attachIcs.value, plan_run_ids: planRunIds })
-    results.value = [...results.value, { label: email.value.trim(), ...r }]
+    const trimmedEmail = email.value.trim().toLowerCase()
+    const { status, body } = await sendOne({
+      email: trimmedEmail,
+      attach_ics: attachIcs.value,
+      message: message.value.trim() || undefined,
+    })
+    results.value = [...results.value, classifyEmailResult(trimmedEmail, status, body)]
   }
 
   sending.value = false
   emit('sent')
 
-  // Give the per-item results a beat on screen before auto-closing when
-  // everything sent cleanly; leave the sheet open on any failure so the
-  // host can see which invite(s) need retrying.
-  if (results.value.every(r => r.ok)) {
+  // Give the per-item results a beat on screen before auto-closing — only
+  // when every result was a clean 201, never on a 409/self-invite/error, so
+  // a duplicate's inline Resend action doesn't vanish before the host can
+  // use it.
+  if (results.value.every(r => r.kind === 'success')) {
     setTimeout(() => { if (props.open) close() }, 900)
   }
+}
+
+async function resend(item: ResultItem) {
+  if (!item.resendEmail || item.resending) return
+  item.resending = true
+  const headers = await authHeaders()
+  const res = await fetch(`${apiBase}/api/v1/plan-runs/${props.runId}/invite/resend`, {
+    method: 'POST', headers, body: JSON.stringify({ email: item.resendEmail }),
+  }).catch(() => null)
+  item.resending = false
+  if (!res?.ok) {
+    const msg = await res?.json().catch(() => null)
+    item.message = msg?.error ?? 'could not resend'
+    return
+  }
+  item.resent = true
+  item.message = 'already invited to this run — resent'
+}
+
+// ── Existing crew (read-only reference) ───────────────────────────────────
+// GET /plan-runs/{id}/crew (RunCrewList): accepted members of any origin +
+// pending JOIN requests — NOT a live feed of not-yet-responded invites (an
+// invited-but-unaccepted row has no home here; the 409 branch above, on a
+// repeat invite attempt, is how the host discovers a still-pending one).
+// Shown for context so the host doesn't blindly re-invite someone already
+// aboard.
+const crew = ref<CrewRequest[]>([])
+const crewLoaded = ref(false)
+
+async function loadCrew() {
+  crewLoaded.value = false
+  const headers = await authHeaders()
+  const res = await fetch(`${apiBase}/api/v1/plan-runs/${props.runId}/crew`, { headers }).catch(() => null)
+  const data: CrewListResponse | null = res?.ok ? await res.json().catch(() => null) : null
+  crew.value = data?.members ?? []
+  crewLoaded.value = true
+}
+
+function crewStatusLabel(status: string): string {
+  if (status === 'accepted') return 'Accepted'
+  if (status === 'declined') return 'Declined'
+  return 'Requested'
+}
+
+function crewStatusClass(status: string): string {
+  if (status === 'accepted') return 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400'
+  if (status === 'declined') return 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400'
+  return 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400'
 }
 </script>
