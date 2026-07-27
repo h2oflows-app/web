@@ -24,9 +24,11 @@
       <InviteBanner />
       <NudgeCard />
 
-      <div class="flex items-center justify-between gap-3">
+      <!-- flex-wrap + ml-auto: on narrow phones the controls drop to their own
+           line (right-aligned) instead of wrapping the title / clipping the toggle -->
+      <div class="flex flex-wrap items-center gap-3">
         <h1 class="text-xl font-bold text-neutral-900 dark:text-white">My Calendar</h1>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 ml-auto">
           <button
             type="button"
             class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold transition-colors shrink-0"
