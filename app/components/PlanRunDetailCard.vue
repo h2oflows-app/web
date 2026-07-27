@@ -5,10 +5,6 @@
       <div class="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 class="text-lg font-bold text-neutral-900 dark:text-white">{{ run.name ?? 'Untitled run' }}</h1>
-          <p class="text-xs text-neutral-400 mt-0.5">
-            Part of
-            <NuxtLink :to="`/plans/${plan.host_handle}/${plan.slug}`" class="text-neutral-500 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 font-medium hover:underline">{{ plan.name }}</NuxtLink>
-          </p>
         </div>
         <div class="flex items-center gap-3 shrink-0">
           <button
@@ -54,7 +50,6 @@
           <svg v-if="run.paddled" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12c2-4 4-6 6-6s4 6 6 6 4-6 6-6"/></svg>
           {{ run.paddled ? 'Logged' : 'Planned' }}
         </span>
-        <PlanVisibilityBadge :visibility="plan.visibility" />
       </div>
 
       <div v-if="run.meetup_spot" class="flex items-center gap-2 pt-1">
@@ -176,13 +171,11 @@ import MarkdownIt from 'markdown-it'
 import { computed, ref } from 'vue'
 import { fmtDate, fmtTime } from '~/utils/calendarDate'
 import { colorKeyToBadgeClass, flowBandLabel } from '~/utils/flowBand'
-import { useMyProfile } from '~/composables/useMyProfile'
 import { usePlans } from '~/composables/usePlans'
-import type { PlanRunDetail, PlanRunDetailPlan } from '~/utils/planRun'
+import type { PlanRunDetail } from '~/utils/planRun'
 
 const props = defineProps<{
   run: PlanRunDetail
-  plan: PlanRunDetailPlan
 }>()
 
 const emit = defineEmits<{
@@ -191,12 +184,17 @@ const emit = defineEmits<{
 }>()
 
 const { isAuthenticated, getToken } = useAuth()
-const { isMine, load: loadMyProfile } = useMyProfile()
 const { patchRun } = usePlans()
 const { apiBase } = useRuntimeConfig().public
 
-loadMyProfile()
-const isOwner = computed(() => isMine(props.plan.host_handle))
+// TODO(W2): web#354 A1 dropped the `plan` wrapper from GET /plan-runs/{id}
+// entirely (see planRun.ts's PlanRunDetailPlan-removal note) — the response
+// carries no owner/host signal at all anymore, so there's no way to derive
+// "is this viewer the run's owner" client-side. Conservatively false (hides
+// Edit-notes/Delete rather than showing them to a non-owner viewer, e.g.
+// anyone viewing a paddled run under the new visibility model) until W2
+// restores an ownership signal on this response.
+const isOwner = computed(() => false)
 
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 const renderedNotes = computed(() => md.render(props.run.notes || ''))

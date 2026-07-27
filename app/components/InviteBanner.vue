@@ -14,18 +14,19 @@
            per-run) — e.g. "@maya invited you to run Foxton on 7/26". Falls
            back to the plan name if no run row could be resolved. -->
       <p class="text-sm font-medium truncate">
-        @{{ invite.plan.host_handle }} invited you to
+        @{{ invite.event.host_handle }} invited you to
         <template v-if="firstRun">run {{ firstRun.run_name ?? 'a run' }} on {{ fmtDate(firstRun.run_date) }}</template>
-        <template v-else>{{ invite.plan.name }}</template>
+        <template v-else>{{ invite.event.name }}</template>
       </p>
       <p class="text-xs text-white/80 truncate">
-        {{ invite.plan.name }} · {{ fmtRange(invite.plan.start_date, invite.plan.end_date) }}
+        {{ invite.event.name }} · {{ fmtRange(invite.event.start_date, invite.event.end_date) }}
         <template v-if="extraCount > 0"> · +{{ extraCount }} more</template>
       </p>
     </div>
 
     <NuxtLink
-      :to="`/plans/${invite.plan.host_handle}/${invite.plan.slug}`"
+      v-if="firstRun"
+      :to="`/plan-runs/${firstRun.plan_run_id}`"
       class="shrink-0 rounded-full bg-white/20 hover:bg-white/30 px-3 py-1.5 text-xs font-semibold transition-colors"
     >View</NuxtLink>
 

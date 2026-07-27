@@ -6,21 +6,20 @@
       : 'border-neutral-200 dark:border-neutral-700'"
   >
     <div class="w-9 h-9 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center shrink-0 text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase">
-      {{ invite.plan.host_handle.slice(0, 2) }}
+      {{ invite.event.host_handle.slice(0, 2) }}
     </div>
 
     <div class="min-w-0 flex-1 space-y-1">
       <div class="flex items-center gap-1.5 flex-wrap">
-        <PlanTypeBadge :type="invite.plan.type" />
         <span class="text-xs text-neutral-400">{{ reltime(invite.created_at) }}</span>
       </div>
       <p class="text-sm text-neutral-700 dark:text-neutral-300">
-        <strong class="text-neutral-900 dark:text-white">@{{ invite.plan.host_handle }}</strong>
-        invited you to <strong class="text-neutral-900 dark:text-white">{{ invite.plan.name }}</strong>
+        <strong class="text-neutral-900 dark:text-white">@{{ invite.event.host_handle }}</strong>
+        invited you to <strong class="text-neutral-900 dark:text-white">{{ invite.event.name }}</strong>
         <template v-if="invite.runs.length > 1"> · {{ invite.runs.length }} runs</template>
       </p>
       <p class="text-xs text-neutral-400">
-        {{ fmtRange(invite.plan.start_date, invite.plan.end_date) }}<template v-if="invite.plan.location"> · {{ invite.plan.location }}</template>
+        {{ fmtRange(invite.event.start_date, invite.event.end_date) }}<template v-if="invite.event.location"> · {{ invite.event.location }}</template>
       </p>
 
       <!-- #246 W5: one row per invited RUN, each with its own accept
@@ -61,9 +60,10 @@
       </div>
 
       <NuxtLink
-        :to="`/plans/${invite.plan.host_handle}/${invite.plan.slug}`"
+        v-if="viewRunId"
+        :to="`/plan-runs/${viewRunId}`"
         class="inline-block text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline pt-1"
-      >View plan →</NuxtLink>
+      >View run →</NuxtLink>
     </div>
   </div>
 </template>
@@ -82,6 +82,12 @@ const props = defineProps<{
 defineEmits<{ accept: [string]; dismiss: [string] }>()
 
 const allResolved = computed(() => props.invite.runs.every(r => r.status !== 'invited' || !!r.dismissed_at))
+
+// The event page went owner-only in #354 A1, so "view" lands on the invited
+// run instead — first still-pending one, else the first run of the invite.
+const viewRunId = computed(() =>
+  (props.invite.runs.find(r => r.status === 'invited' && !r.dismissed_at) ?? props.invite.runs[0])?.plan_run_id,
+)
 
 function reltime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime()

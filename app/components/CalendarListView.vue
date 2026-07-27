@@ -7,12 +7,15 @@
       Nothing in this range yet.
     </div>
     <template v-else>
+      <!-- TODO(W3): "build out — grouped by date, Events + Runs interleaved"
+           per web#354 §4. web#354 A1 decoupled runs from events entirely (no
+           plan_id), so there's no per-run event to look up anymore here —
+           this stub now renders runs only until W3's interleaved rebuild. -->
       <PlanRunFeedCard
         v-for="row in rows"
         :key="row.id"
         :run="row.run"
         :date="row.date"
-        :plan="row.plan"
       />
     </template>
   </div>
@@ -20,11 +23,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { CalendarDay, CalendarPlan, CalendarRun } from '~/composables/useCalendar'
+import type { CalendarDay, CalendarEvent, CalendarRun } from '~/composables/useCalendar'
 
 const props = defineProps<{
   days: CalendarDay[]
-  plans: CalendarPlan[]
+  events: CalendarEvent[]
   loading?: boolean
 }>()
 
@@ -32,16 +35,13 @@ interface Row {
   id: string
   date: string
   run: CalendarRun
-  plan: CalendarPlan | null
 }
-
-const planById = computed(() => new Map(props.plans.map(p => [p.id, p])))
 
 const rows = computed<Row[]>(() => {
   const out: Row[] = []
   for (const day of props.days) {
     for (const run of day.runs) {
-      out.push({ id: run.id, date: day.date, run, plan: planById.value.get(run.plan_id) ?? null })
+      out.push({ id: run.id, date: day.date, run })
     }
   }
   return out.sort((a, b) => a.date.localeCompare(b.date))

@@ -35,14 +35,11 @@
         You're viewing a shared invite. <NuxtLink :to="`/login?redirect=${encodeURIComponent(route.fullPath)}`" class="font-semibold hover:underline">Sign in or create an account</NuxtLink> to respond.
       </div>
 
-      <!-- Cover + header -->
+      <!-- Cover + header. web#354 A1/W1: no badges — event-type + visibility
+           concepts removed entirely; a single Event tint replaces the old
+           per-type cover color. -->
       <div class="rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-700">
-        <div class="h-28 flex items-end justify-between p-4" :class="planTypeMeta(plan.type).tintClass">
-          <div class="flex items-center gap-1.5">
-            <PlanTypeBadge :type="plan.type" />
-            <PlanVisibilityBadge :visibility="plan.visibility" />
-          </div>
-        </div>
+        <div class="h-28 flex items-end justify-between p-4" :class="EVENT_COLOR.tintClass" />
         <div class="bg-white dark:bg-neutral-900 px-4 py-4 space-y-2">
           <h1 class="text-lg font-bold text-neutral-900 dark:text-white">{{ plan.name }}</h1>
           <p class="text-xs text-neutral-400">Organized by @{{ plan.host_handle }}</p>
@@ -70,7 +67,6 @@
         <!-- Members + invite -->
         <PlanMembersRow
           :members="members"
-          :plan-type="plan.type"
           :plan-id="plan.id"
           :is-host="isHost"
           @invite="inviteSheetOpen = true"
@@ -104,7 +100,7 @@ import { useInvites } from '~/composables/useInvites'
 import { useMyProfile } from '~/composables/useMyProfile'
 import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
 import { fmtRange } from '~/utils/calendarDate'
-import { planTypeMeta } from '~/utils/planType'
+import { EVENT_COLOR } from '~/utils/planType'
 
 definePageMeta({ ssr: false })
 
@@ -115,15 +111,13 @@ const { isAuthenticated, getToken } = useAuth()
 const handleParam = route.params.handle as string
 const slugParam = route.params.slug as string
 
-// Anon token carve-out (contract §6 REVISED): an invite-email link
-// (?invite={token}) grants a signed-out viewer read access to conversion
-// — accepting still requires an account. Forwarded to the API as a query
-// param per the implementation plan; the API honors it for BOTH anon and
-// authed callers (renderPlan, plans.go) — the authed case matters because
-// an email invite's plan_members row keeps member_owner_id NULL until
-// accept, so an authed-but-unbound invitee (e.g. signed up with a
-// different email than the invite) would otherwise fail the private-plan
-// visibility gate too.
+// TODO(W2): web#354 A1's renderPlan (plans.go) dropped the anon ?invite=
+// token carve-out entirely — the event page is owner-only now (uniform 401
+// for anon, no existence oracle); the carve-out moves to the RUN page
+// (renderPlanRun) per §1. This computed + the anon-carve-out banner below
+// are stale until W2 removes them (an anon caller with a token still hits
+// the ordinary "Sign in to view this plan" gate below — degrades, doesn't
+// crash).
 const inviteToken = computed(() => (typeof route.query.invite === 'string' ? route.query.invite : null))
 
 // Email-link landing (#246 W5 item 3): the reworked invite emails link
@@ -165,10 +159,14 @@ watch([authReady, isAuthenticated], () => {
 const { savedCount: logSheetSavedCount } = usePlanRunLogSheet()
 watch(logSheetSavedCount, () => { load() })
 
-const plan = computed(() => data.value?.plan ?? null)
+// web#354 A1 JSON wrapper rename: `plan`→`event`. Kept the local var name
+// `plan` (minimal churn — every other reference in this file already reads
+// `plan.value.*`).
+const plan = computed(() => data.value?.event ?? null)
 
-// The API emits one flat row per (person, run) — group into one summary
-// per person for PlanMembersRow (see PlanMemberRow/aggregatePlanMembers).
+// TODO(W2): renderPlan (web#354 A1) no longer returns a `members` key at
+// all — this always aggregates an empty list until W2 removes
+// PlanMembersRow's event-page usage per the plan (§4).
 const members = computed(() => aggregatePlanMembers(data.value?.members ?? []))
 
 // ── Identity ──────────────────────────────────────────────────────────────
@@ -194,7 +192,7 @@ watch(isAuthenticated, (v) => { if (v) refreshInvites() }, { immediate: true })
 // from /me/invites (covers the common case — already-signed-up invitee).
 const myPendingRuns = computed<PlanInviteTokenRun[]>(() => {
   if (!plan.value) return []
-  const group = myInvites.value.find(i => i.plan.id === plan.value!.id)
+  const group = myInvites.value.find(i => i.event.id === plan.value!.id)
   if (!group) return []
   return group.runs
     .filter(r => r.status === 'invited' && !r.dismissed_at)

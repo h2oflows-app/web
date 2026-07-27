@@ -1,5 +1,5 @@
 <template>
-  <div class="rounded-xl overflow-hidden" :class="planTypeMeta(planType).tintClass">
+  <div class="rounded-xl overflow-hidden" :class="EVENT_COLOR.tintClass">
     <div class="flex items-center justify-between gap-3 px-3.5 py-3">
       <div class="flex items-center gap-2.5 min-w-0">
         <div class="flex -space-x-2 shrink-0">
@@ -52,12 +52,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { PlanMemberSummary } from '~/utils/plan'
-import { planTypeMeta } from '~/utils/planType'
+import { EVENT_COLOR } from '~/utils/planType'
 import { usePlans } from '~/composables/usePlans'
 
 const props = defineProps<{
   members: PlanMemberSummary[]
-  planType: string
   planId: string
   isHost: boolean
 }>()

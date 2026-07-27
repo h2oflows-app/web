@@ -98,6 +98,9 @@ const loadingMore = ref(false)
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 
+// TODO(W4): see utils/discover.ts — GET /discover/plans reshaped to a flat
+// run list in web#354 A1; this page's DiscoverPlan[] typing is stale until
+// W4's regroup lands.
 async function fetchPage(offset: number): Promise<{ items: DiscoverPlan[]; has_more: boolean; next_offset: number } | null> {
   const token = await getToken()
   const headers: Record<string, string> = {}

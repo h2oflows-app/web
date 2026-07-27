@@ -30,7 +30,7 @@
             </div>
 
             <div class="px-5 py-4 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between shrink-0">
-              <h2 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">{{ mode === 'edit' ? 'Edit run' : mode === 'confirm' ? 'Confirm your paddle' : 'Add a run' }}</h2>
+              <h2 class="text-sm font-semibold text-neutral-800 dark:text-neutral-100">{{ headerTitle }}</h2>
               <button
                 class="p-1 rounded text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
                 aria-label="Close"
@@ -101,6 +101,73 @@
                 </div>
 
                 <template v-else>
+                  <!-- Unified create-sheet branch toggle (web#354 W1 — absorbs
+                       the deleted PlanCreateSheet). Picking a run makes this
+                       item a Run; "No run" makes it an Event. Kind is fixed
+                       at creation — no morphing afterward. -->
+                  <div v-if="mode === 'create'" class="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      class="flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
+                      :class="branch === 'run' ? 'bg-primary-600 text-white' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'"
+                      @click="branch = 'run'"
+                    >Pick a run</button>
+                    <button
+                      type="button"
+                      class="flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
+                      :class="branch === 'event' ? 'bg-primary-600 text-white' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'"
+                      @click="branch = 'event'"
+                    >No run — create an Event</button>
+                  </div>
+
+                  <!-- Event branch (create mode only): name/date-range/
+                       location ONLY — no type pills (event-type concept
+                       removed), no visibility control (concept removed). -->
+                  <template v-if="mode === 'create' && branch === 'event'">
+                    <div>
+                      <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Name</label>
+                      <input
+                        v-model="wizard.name"
+                        type="text"
+                        placeholder="e.g. Gore Canyon weekend"
+                        class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                      />
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                      <div>
+                        <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Start date</label>
+                        <input
+                          v-model="wizard.startDate"
+                          type="date"
+                          class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                        />
+                      </div>
+                      <div>
+                        <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">End date</label>
+                        <input
+                          v-model="wizard.endDate"
+                          type="date"
+                          :min="wizard.startDate || undefined"
+                          class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                        />
+                      </div>
+                    </div>
+                    <p v-if="wizard.dateError" class="text-xs text-red-500 -mt-2">{{ wizard.dateError }}</p>
+
+                    <div>
+                      <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Location <span class="text-neutral-400">(optional)</span></label>
+                      <input
+                        v-model="wizard.location"
+                        type="text"
+                        placeholder="e.g. Pumphouse to State Bridge"
+                        class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                      />
+                    </div>
+                  </template>
+
+                  <!-- Run branch (create + edit) -->
+                  <template v-else>
                   <!-- Run picker (create mode) -->
                   <div v-if="mode === 'create'">
                     <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Run</label>
@@ -262,28 +329,22 @@
 
                   <!-- Crew (#246 W5: moved here from the plan-level New-plan
                        sheet — looking_for_crew/max_crew are per-run now).
-                       Hidden for strictly-past dates (a run that already
-                       happened can't recruit crew; TODAY keeps it — "paddling
-                       this afternoon, need crew" is legit) and once paddled. -->
+                       web#354 A1: the client-side "requires a public plan"
+                       gate is gone — the api's only crew gate is this run's
+                       OWN looking_for_crew (invites.go JoinRun). Hidden for
+                       strictly-past dates (a run that already happened can't
+                       recruit crew; TODAY keeps it — "paddling this
+                       afternoon, need crew" is legit) and once paddled. -->
                   <div v-if="!form.paddled && !isPastDate" class="rounded-xl border border-neutral-100 dark:border-neutral-800 divide-y divide-neutral-100 dark:divide-neutral-800">
                     <div class="flex items-center justify-between gap-3 px-3.5 py-3">
                       <div>
                         <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100">Looking for crew</p>
                         <p class="text-[11px] text-neutral-400 mt-0.5">Show in Discover · paddlers can Join Run</p>
                       </div>
-                      <USwitch v-model="form.lookingForCrew" :disabled="!crewAllowed" />
+                      <USwitch v-model="form.lookingForCrew" />
                     </div>
 
-                    <!-- Client rule mirroring the api join gate: a crew run
-                         needs a public plan. Visibility itself lives on the
-                         plan (edited elsewhere) — this is a hint, not an
-                         auto-flip, since the sheet can't reach across
-                         entities to change it. -->
-                    <p v-if="!crewAllowed" class="px-3.5 py-2 text-[11px] text-amber-600 dark:text-amber-400">
-                      This plan is private — make the plan public to look for crew on this run.
-                    </p>
-
-                    <div v-if="form.lookingForCrew && crewAllowed" class="flex items-center justify-between gap-3 px-3.5 py-3">
+                    <div v-if="form.lookingForCrew" class="flex items-center justify-between gap-3 px-3.5 py-3">
                       <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100">Max crew</p>
                       <div class="flex items-center gap-2">
                         <button
@@ -332,9 +393,13 @@
                     </div>
                   </div>
 
-                  <!-- Public-by-default notice -->
+                  <!-- Runs-are-visible notice (web#354 W1 copy change —
+                       replaces the old "Logged runs are public... Keep a
+                       plan private" note; the visibility concept is gone,
+                       so this is just an explanation of what happens on
+                       save, not a privacy control). -->
                   <p class="text-xs text-neutral-500 dark:text-neutral-400 rounded-lg bg-primary-50/60 dark:bg-primary-950/20 px-3 py-2">
-                    Logged runs are <strong class="text-neutral-700 dark:text-neutral-200">public</strong> — they share conditions & shots on the run page, and flow is recorded automatically from the nearest gauge reading when you log. Keep a plan private before you paddle it.
+                    Runs on the calendar are visible to other h2oflows users — they share conditions & shots on the run page, and flow is recorded automatically from the nearest gauge reading when you log.
                   </p>
 
                   <!-- Photos stub -->
@@ -342,6 +407,7 @@
                     <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
                     @nuxt/image + TwicPics — responsive uploads land here next
                   </div>
+                  </template>
                 </template>
               </template>
               </template>
@@ -366,7 +432,8 @@
 import { computed, ref, watch } from 'vue'
 import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
 import { usePlans } from '~/composables/usePlans'
-import { useCalendar } from '~/composables/useCalendar'
+import { useCalendar, useCalendarFocusDate } from '~/composables/useCalendar'
+import { usePlanWizard } from '~/stores/planWizard'
 import { useNudge } from '~/composables/useNudge'
 import { todayYMD, isPastOrToday, fmtDate } from '~/utils/calendarDate'
 import { classRange } from '~/utils/classRating'
@@ -395,13 +462,22 @@ function riverLine(river: string | null | undefined, state: string | null | unde
 const { apiBase } = useRuntimeConfig().public
 const { getToken } = useAuth()
 const toast = useToast()
+const route = useRoute()
 
-const { isOpen, mode, planId, runId, prefillDate, planVisibility, confirmMember, close, markSaved } = usePlanRunLogSheet()
-const { addRun, patchRun } = usePlans()
+const { isOpen, mode, branch, runId, prefillDate, confirmMember, close, markSaved } = usePlanRunLogSheet()
+const { createRun, patchRun, createPlan } = usePlans()
 const calendar = useCalendar()
+const focusDate = useCalendarFocusDate()
+const wizard = usePlanWizard()
 const { confirm: confirmNudge } = useNudge()
 
 const submitting = ref(false)
+
+const headerTitle = computed(() => {
+  if (mode.value === 'edit') return 'Edit run'
+  if (mode.value === 'confirm') return 'Confirm your paddle'
+  return branch.value === 'event' ? 'New Event' : 'Create a Run'
+})
 
 const form = ref({
   runDate: todayYMD(),
@@ -412,15 +488,10 @@ const form = ref({
   maxCrew: 4,
 })
 
-// #246 W5: crew requires a public PLAN (client mirror of the api join gate).
-// Unknown (null, briefly before edit-mode's fetch resolves it) is treated as
-// not-allowed so the toggle never renders enabled-then-flickers-disabled.
-const crewAllowed = computed(() => planVisibility.value === 'public')
-
 // ── Create mode: run picker ─────────────────────────────────────────────
-// Two scopes: your own runs, and the global community catalog. A plan run
-// may reference ANY live river run (they're all public) — the API resolves
-// user_reach_id without an ownership gate.
+// Two scopes: your own runs, and the global community catalog. A calendar
+// run may reference ANY live river run (they're all public) — the API
+// resolves user_reach_id without an ownership gate.
 const runs = ref<MyRun[]>([])
 const runsLoading = ref(false)
 const runsLoaded = ref(false)
@@ -525,10 +596,9 @@ async function loadEditRun(id: string) {
   const res = await fetch(`${apiBase}/api/v1/plan-runs/${id}`, { headers }).catch(() => null)
   if (res?.ok) {
     const data = await res.json().catch(() => null)
+    // web#354 A1: no more `plan` wrapper on this response — the run is
+    // standalone, fields flat under `run`.
     editRun.value = data?.run ?? null
-    // Edit mode has no separate plan fetch — the parent plan's visibility
-    // (needed for the crew-toggle gate) rides along on this response.
-    planVisibility.value = data?.plan?.visibility ?? null
   }
   editLoaded.value = true
   if (editRun.value) {
@@ -537,8 +607,8 @@ async function loadEditRun(id: string) {
       runTime: (editRun.value.run_time ?? '').slice(0, 5),
       notes: editRun.value.notes ?? '',
       paddled: false, // edit mode only opens for planned (unpaddled) runs
-      lookingForCrew: editRun.value.looking_for_crew ?? false,
-      maxCrew: editRun.value.max_crew ?? 4,
+      lookingForCrew: editRun.value.crew.looking_for_crew ?? false,
+      maxCrew: editRun.value.crew.max ?? 4,
     }
     meetupText.value = editRun.value.meetup_spot ?? ''
     meetupFeatureRef.value = editRun.value.meetup_feature_type && editRun.value.meetup_feature_id
@@ -626,6 +696,10 @@ watch(isOpen, (open) => {
     meetupFeatureRef.value = null
     meetupLinkedName.value = null
     pickedRunHandle.value = null
+    // Event branch state — branch itself is set by openCreate/openCreateEvent
+    // BEFORE isOpen flips true, so it's intentionally left untouched here.
+    wizard.reset()
+    wizard.prefillDate(prefillDate.value ?? todayYMD())
     loadMyRuns()
   } else if (mode.value === 'edit' && runId.value) {
     loadEditRun(runId.value)
@@ -644,13 +718,15 @@ const isPastDate = computed(() => !!form.value.runDate && form.value.runDate < t
 watch(() => form.value.runDate, () => {
   if (!canTogglePaddled.value) form.value.paddled = false
 })
-watch(crewAllowed, (allowed) => {
-  if (!allowed) form.value.lookingForCrew = false
-})
 // Date flipped into the past while the toggle was on (section now hidden) —
 // don't silently submit a stale crew call for a run that already happened.
 watch(isPastDate, (past) => {
   if (past) form.value.lookingForCrew = false
+})
+// Same rule for the paddled toggle: a logged run can't recruit crew, and the
+// section hiding via v-if would otherwise leave the flag set and submitted.
+watch(() => form.value.paddled, (p) => {
+  if (p) form.value.lookingForCrew = false
 })
 
 // ── Flow (auto) preview ──────────────────────────────────────────────────
@@ -681,11 +757,13 @@ const flowPreview = computed(() => {
 const saveLabel = computed(() => {
   if (mode.value === 'edit') return 'Save changes'
   if (mode.value === 'confirm') return 'Log paddle'
-  return form.value.paddled ? 'Log paddle' : 'Save to plan'
+  if (mode.value === 'create' && branch.value === 'event') return 'Create Event'
+  return form.value.paddled ? 'Log paddle' : 'Save run'
 })
 
 const canSubmit = computed(() => {
   if (mode.value === 'confirm') return !!confirmMember.value
+  if (mode.value === 'create' && branch.value === 'event') return wizard.isValid
   if (!form.value.runDate) return false
   if (mode.value === 'create') return !!selectedRunId.value
   return true
@@ -713,17 +791,35 @@ async function submit() {
     return
   }
 
+  if (mode.value === 'create' && branch.value === 'event') {
+    const result = await createPlan({
+      name: wizard.name.trim(),
+      start_date: wizard.startDate,
+      end_date: wizard.endDate,
+      location: wizard.location.trim() || undefined,
+    })
+    submitting.value = false
+    if (!result) return // error toast already shown by usePlans
+
+    focusDate.value = wizard.startDate
+    wizard.reset()
+    markSaved()
+    close()
+    if (route.path !== '/calendar') await navigateTo('/calendar')
+    return
+  }
+
   if (mode.value === 'create') {
-    if (!planId.value) { submitting.value = false; return }
-    const result = await addRun(planId.value, {
+    // web#354 A1/W1: standalone run create — no planId, no parent event.
+    const result = await createRun({
       user_reach_id: selectedRunId.value,
       run_date: form.value.runDate,
       run_time: form.value.runTime || undefined,
       // Notes belong to the log — locked (and not sent) for future dates.
       notes: canTogglePaddled.value ? form.value.notes.trim() || undefined : undefined,
       paddled: form.value.paddled || undefined,
-      looking_for_crew: crewAllowed.value ? form.value.lookingForCrew : undefined,
-      max_crew: crewAllowed.value && form.value.lookingForCrew ? form.value.maxCrew : undefined,
+      looking_for_crew: (!form.value.paddled && form.value.lookingForCrew) || undefined,
+      max_crew: !form.value.paddled && form.value.lookingForCrew ? form.value.maxCrew : undefined,
       // Meet up at — create has no prior state to clear, so omit entirely
       // when empty/unpicked (see usePlans.ts CreatePlanRunBody contract note).
       meetup_spot: meetupText.value.trim() || undefined,
@@ -740,7 +836,7 @@ async function submit() {
       const cfsPart = saved.gauge_cfs != null ? ` · ${Math.round(saved.gauge_cfs).toLocaleString()} cfs` : ''
       toast.add({ title: `Logged — ${flowBandLabel(saved.flow_band)}${cfsPart}`, color: 'success' })
     } else {
-      toast.add({ title: form.value.paddled ? 'Run logged — nice paddle!' : 'Run saved to your plan', color: 'success' })
+      toast.add({ title: form.value.paddled ? 'Run logged — nice paddle!' : 'Run saved', color: 'success' })
     }
     markSaved()
     close()
@@ -754,8 +850,10 @@ async function submit() {
     run_time: form.value.runTime || undefined,
     notes: form.value.notes.trim() || undefined,
     paddled: form.value.paddled || undefined,
-    looking_for_crew: crewAllowed.value ? form.value.lookingForCrew : undefined,
-    max_crew: crewAllowed.value && form.value.lookingForCrew ? form.value.maxCrew : undefined,
+    // Always explicit on PATCH: an omitted key means "no change" server-side,
+    // so hiding/unchecking crew must actively send false to clear a stale flag.
+    looking_for_crew: form.value.paddled ? false : form.value.lookingForCrew,
+    max_crew: !form.value.paddled && form.value.lookingForCrew ? form.value.maxCrew : undefined,
     // Meet up at — edit mode always sends both together (never omitted) so
     // a cleared field actually clears server-side; see usePlans.ts
     // UpdatePlanRunBody contract note for the full rationale. `?? null` (not

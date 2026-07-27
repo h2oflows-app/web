@@ -59,14 +59,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { monthMatrix, monthLabel, todayYMD } from '~/utils/calendarDate'
-import type { CalendarDay, CalendarPlan } from '~/composables/useCalendar'
+import type { CalendarDay, CalendarEvent } from '~/composables/useCalendar'
 import type { RibbonVM } from '~/components/CalendarDayCell.vue'
 
 const props = defineProps<{
   year: number
   month: number // 1-12
   days: CalendarDay[]
-  plans: CalendarPlan[]
+  events: CalendarEvent[]
   // Tier-B "quiet dot" dates (nudgeDots from useCalendar) — a passive hint,
   // never a popup; mutually exclusive with a day's own needs_confirm (the
   // api skips a date from nudge_dot_dates once it already earned the '?').
@@ -111,19 +111,21 @@ const needsConfirmByDate = computed(() => {
 
 const nudgeDotSet = computed(() => new Set(props.nudgeDots ?? []))
 
-// Primary plan per date, own/member preferred over invited when overlapping.
+// Primary event per date — web#354 A1: events are owner-only now (no more
+// own/member/invited role to prefer between), so this just picks the first
+// event covering this date. Single Event color throughout (event-type
+// concept removed) — see CalendarDayCell's EVENT_COLOR usage.
 function ribbonForDate(ymd: string): RibbonVM | null {
-  const covering = props.plans.filter(p => p.start_date <= ymd && p.end_date >= ymd)
-  if (!covering.length) return null
-  const plan = covering.find(p => p.role !== 'invited') ?? covering[0]
-  const pos = plan.start_date === plan.end_date
+  const event = props.events.find(e => e.start_date <= ymd && e.end_date >= ymd)
+  if (!event) return null
+  const pos = event.start_date === event.end_date
     ? 'single'
-    : ymd === plan.start_date
+    : ymd === event.start_date
       ? 'start'
-      : ymd === plan.end_date
+      : ymd === event.end_date
         ? 'end'
         : 'mid'
-  return { type: plan.type, pos, dashed: plan.role === 'invited' }
+  return { pos }
 }
 
 const cells = computed(() =>

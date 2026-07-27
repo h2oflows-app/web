@@ -108,11 +108,11 @@
 
 <script setup lang="ts">
 const { isOpen, close } = useCreateMenu()
-const planCreateSheet = usePlanCreateSheet()
+const planRunLogSheet = usePlanRunLogSheet()
 
 function chooseNewPlan() {
   close()
-  planCreateSheet.open()
+  planRunLogSheet.openCreateEvent()
 }
 
 function chooseCreateRun() {

@@ -1,22 +1,21 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import type { PlanType } from '~/utils/planType'
 
-// usePlanWizard — ephemeral New-plan form state (PlanCreateSheet). Setup-store,
-// non-persisted, mirrors runWizard.ts's pattern (complex multi-field workflow
-// that should NOT survive a reload, unlike watchlist/theme).
+// usePlanWizard — ephemeral New-event form state (the unified create sheet's
+// event branch, PlanRunLogSheet.vue). Setup-store, non-persisted, mirrors
+// runWizard.ts's pattern (complex multi-field workflow that should NOT
+// survive a reload, unlike watchlist/theme).
 //
-// #246 W5 (IMPLEMENTATION_PLAN.md §6 REVISED 2026-07-25): looking_for_crew/
-// max_crew moved OFF the plan onto each plan_run (mig 000144) — a plan is
-// just the container now. The crew toggle + max-crew stepper live in
-// PlanRunLogSheet instead; this store keeps only what's still plan-level.
+// web#354 W1: `type` and `visibility` dropped entirely (event-type concept
+// removed, visibility concept removed) — an event is just name/date-range/
+// location now. PlanCreateSheet.vue (the old dedicated sheet) is deleted;
+// PlanRunLogSheet absorbs event creation as one branch of the unified
+// "+ New" sheet.
 export const usePlanWizard = defineStore('planWizard', () => {
   const name = ref('')
-  const type = ref<PlanType>('personal')
   const startDate = ref('') // YYYY-MM-DD
   const endDate = ref('')   // YYYY-MM-DD
   const location = ref('')
-  const visibility = ref<'public' | 'private'>('public')
 
   const dateError = computed(() => {
     if (!startDate.value || !endDate.value) return null
@@ -36,15 +35,13 @@ export const usePlanWizard = defineStore('planWizard', () => {
 
   function reset() {
     name.value = ''
-    type.value = 'personal'
     startDate.value = ''
     endDate.value = ''
     location.value = ''
-    visibility.value = 'public'
   }
 
   return {
-    name, type, startDate, endDate, location, visibility,
+    name, startDate, endDate, location,
     dateError, isValid, prefillDate, reset,
   }
 })

@@ -35,7 +35,7 @@
         :year="year"
         :month="month"
         :days="days"
-        :plans="plans"
+        :events="events"
         :nudge-dots="nudgeDots"
         @select-day="openDay"
         @update:year="year = $event"
@@ -52,13 +52,13 @@
       <CalendarListView
         v-else
         :days="days"
-        :plans="plans"
+        :events="events"
         :loading="loading"
       />
 
       <template v-if="view === 'month'">
-        <CalendarLedger :days="monthOnlyDays" :plans="monthOnlyPlans" :loading="loading" @view-list="view = 'list'" />
-        <CalendarEventsList :days="monthOnlyDays" :plans="monthOnlyPlans" :loading="loading" @new-plan="openNewPlan" />
+        <CalendarLedger :days="monthOnlyDays" :loading="loading" @view-list="view = 'list'" />
+        <CalendarEventsList :days="monthOnlyDays" :events="monthOnlyEvents" :loading="loading" @new-plan="openNewPlan" />
       </template>
     </main>
 
@@ -66,7 +66,7 @@
       v-model:open="daySheetOpen"
       :date="selectedDay"
       :runs="selectedDayRuns"
-      :plans="selectedDayPlans"
+      :events="selectedDayEvents"
       :loading="loading"
       :needs-confirm="selectedDayNeedsConfirm"
       @new-plan-here="openNewPlanForSelectedDay"
@@ -79,7 +79,7 @@ definePageMeta({ ssr: false })
 
 import { ref, computed, watch, onMounted } from 'vue'
 import { useCalendar, useCalendarFocusDate } from '~/composables/useCalendar'
-import { usePlanCreateSheet } from '~/composables/usePlanCreateSheet'
+import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
 import { parseYMD, monthMatrix } from '~/utils/calendarDate'
 import type { CalendarView } from '~/components/CalendarViewToggle.vue'
 
@@ -88,8 +88,8 @@ const { isAuthenticated } = useAuth()
 const authReady = ref(false)
 onMounted(() => { authReady.value = true })
 
-const { days, plans, nudgeDots, loading, loadRange } = useCalendar()
-const planCreateSheet = usePlanCreateSheet()
+const { days, events, nudgeDots, loading, loadRange } = useCalendar()
+const planRunLogSheet = usePlanRunLogSheet()
 const focusDate = useCalendarFocusDate()
 
 const now = new Date()
@@ -109,11 +109,12 @@ const selectedDayNeedsConfirm = computed(() => {
   return days.value.find(d => d.date === selectedDay.value)?.needs_confirm ?? false
 })
 
-// Plans (own + member) whose date range spans the selected day — feeds the
-// day sheet's "N plans here, each with Add a run" section.
-const selectedDayPlans = computed(() => {
+// Events whose date range spans the selected day (web#354 A1: owner-only,
+// so always the viewer's own) — feeds the day sheet's "N events here, each
+// with Add a run" section.
+const selectedDayEvents = computed(() => {
   if (!selectedDay.value) return []
-  return plans.value.filter(p => p.start_date <= selectedDay.value! && p.end_date >= selectedDay.value!)
+  return events.value.filter(e => e.start_date <= selectedDay.value! && e.end_date >= selectedDay.value!)
 })
 
 // Loaded separately (whole-year range) only when the Year view is active.
@@ -136,9 +137,9 @@ const monthOnlyDays = computed(() => {
   return days.value.filter(d => d.date >= from && d.date <= to)
 })
 
-const monthOnlyPlans = computed(() => {
+const monthOnlyEvents = computed(() => {
   const { from, to } = monthBounds(year.value, month.value)
-  return plans.value.filter(p => p.start_date <= to && p.end_date >= from)
+  return events.value.filter(e => e.start_date <= to && e.end_date >= from)
 })
 
 async function loadMonth() {
@@ -187,15 +188,17 @@ function openDay(ymd: string) {
 }
 
 function openNewPlan() {
-  planCreateSheet.open()
+  planRunLogSheet.openCreateEvent()
 }
 
 function openNewPlanForSelectedDay() {
   daySheetOpen.value = false
-  if (selectedDay.value) planCreateSheet.open(selectedDay.value)
+  planRunLogSheet.openCreateEvent(selectedDay.value ?? undefined)
 }
 
-// After PlanCreateSheet creates a plan, jump the month view to contain it.
+// After the unified sheet's event branch creates an event, jump the month
+// view to contain it (web#354 W1 — was PlanCreateSheet, now absorbed into
+// PlanRunLogSheet).
 watch(focusDate, (date) => {
   if (!date) return
   const d = parseYMD(date)

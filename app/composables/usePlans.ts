@@ -1,21 +1,19 @@
-import type { CalendarPlan, CalendarRun } from '~/composables/useCalendar'
+import type { CalendarEvent, CalendarRun } from '~/composables/useCalendar'
 import { flowBandLabel } from '~/utils/flowBand'
 
-// usePlans — CRUD for plans + plan-runs (Trip Calendar #246 W2). Optimistic
-// calendar insert then refresh; useToast on error; 422 (e.g. future-paddle,
-// crew/max_crew validation) reverts the optimistic insert and toasts the
-// server's `error` message verbatim.
+// usePlans — CRUD for events + calendar runs (Trip Calendar #246 W2,
+// reworked web#354 A1/W1). Optimistic calendar insert then refresh;
+// useToast on error; 422 (e.g. future-paddle, crew/max_crew validation)
+// reverts the optimistic insert and toasts the server's `error` message
+// verbatim.
 
-// #246 W5: looking_for_crew/max_crew moved OFF plans onto plan_runs (mig
-// 000144, IMPLEMENTATION_PLAN.md §6 REVISED 2026-07-25) — a plan is just the
-// container now. visibility stays plan-level.
+// web#354 A1/W1: `type`/`visibility` dropped entirely (event-type + event
+// visibility concepts removed) — an event is just name/date-range/location.
 export interface CreatePlanBody {
   name: string
-  type?: string
   start_date: string
   end_date: string
   location?: string
-  visibility?: string
 }
 
 // "Meet up at" (product request 2026-07-25). Verified against the api's
@@ -45,6 +43,10 @@ export interface MeetupFeatureBody {
   id: string
 }
 
+// web#354 A1: standalone run create body (POST /plan-runs) — no planId, no
+// parent event; runs are decoupled entirely. Same field set the old
+// plan-scoped create body had (CreateRun's addRun equivalent), minus the
+// plan_id it never carried in the request anyway.
 export interface CreatePlanRunBody {
   user_reach_id?: string
   reach_slug?: string
@@ -97,17 +99,15 @@ export function usePlans() {
 
   async function createPlan(body: CreatePlanBody): Promise<{ id: string; slug: string; url: string } | null> {
     const tempId = `tmp-${Date.now()}`
-    const optimistic: CalendarPlan = {
+    const optimistic: CalendarEvent = {
       id: tempId,
       slug: '',
       name: body.name,
-      type: body.type ?? 'personal',
       start_date: body.start_date,
       end_date: body.end_date,
-      visibility: body.visibility ?? 'public',
-      role: 'own',
+      host_handle: '',
     }
-    calendar.insertPlanOptimistic(optimistic)
+    calendar.insertEventOptimistic(optimistic)
 
     const headers = await authHeaders()
     const res = await fetch(`${apiBase}/api/v1/plans`, {
@@ -115,16 +115,16 @@ export function usePlans() {
     }).catch(() => null)
 
     if (!res?.ok) {
-      calendar.removePlanOptimistic(tempId)
+      calendar.removeEventOptimistic(tempId)
       const msg = await apiErrorMessage(res)
-      toast.add({ title: 'Could not create plan', description: msg, color: 'error' })
+      toast.add({ title: 'Could not create event', description: msg, color: 'error' })
       return null
     }
 
     const data = await res.json()
-    calendar.removePlanOptimistic(tempId)
+    calendar.removeEventOptimistic(tempId)
     await calendar.refresh()
-    toast.add({ title: 'Plan created', color: 'success' })
+    toast.add({ title: 'Event created', color: 'success' })
     return data
   }
 
@@ -135,7 +135,7 @@ export function usePlans() {
     }).catch(() => null)
     if (!res?.ok) {
       const msg = await apiErrorMessage(res)
-      toast.add({ title: 'Could not update plan', description: msg, color: 'error' })
+      toast.add({ title: 'Could not update event', description: msg, color: 'error' })
       return false
     }
     await calendar.refresh()
@@ -149,28 +149,28 @@ export function usePlans() {
     }).catch(() => null)
     if (!res?.ok && res?.status !== 204) {
       const msg = await apiErrorMessage(res)
-      toast.add({ title: 'Could not delete plan', description: msg, color: 'error' })
+      toast.add({ title: 'Could not delete event', description: msg, color: 'error' })
       return false
     }
-    calendar.removePlanOptimistic(id)
+    calendar.removeEventOptimistic(id)
     await calendar.refresh()
-    toast.add({ title: 'Plan deleted', color: 'success' })
+    toast.add({ title: 'Event deleted', color: 'success' })
     return true
   }
 
-  async function addRun(planId: string, body: CreatePlanRunBody): Promise<{ id: string; slug: string } | null> {
+  // web#354 A1/W1: standalone run create — replaces the old plan-scoped
+  // addRun(planId, body); POSTs the new POST /plan-runs (no parent event).
+  async function createRun(body: CreatePlanRunBody): Promise<{ id: string; slug: string } | null> {
     const tempId = `tmp-${Date.now()}`
     const optimistic: CalendarRun = {
       id: tempId,
-      plan_id: planId,
-      run_date: body.run_date,
-      paddled: !!body.paddled,
       run_time: body.run_time,
+      paddled: !!body.paddled,
     } as CalendarRun
     calendar.insertRunOptimistic(body.run_date, optimistic)
 
     const headers = await authHeaders()
-    const res = await fetch(`${apiBase}/api/v1/plans/${planId}/runs`, {
+    const res = await fetch(`${apiBase}/api/v1/plan-runs`, {
       method: 'POST', headers, body: JSON.stringify(body),
     }).catch(() => null)
 
@@ -249,10 +249,10 @@ export function usePlans() {
     return true
   }
 
-  // Join Run (#246 W5) — per-run now: POST /plan-runs/{id}/join replaces the
-  // old plan-level /plans/{id}/join. origin=request/status=requested;
-  // 409 unless public plan + looking_for_crew + filled<max_crew + not
-  // already a member of THIS run; dup -> 200 existing (treated as success).
+  // Join Run (#246 W5) — per-run: POST /plan-runs/{id}/join. web#354 A1: the
+  // api's only gate is the run's OWN looking_for_crew + crew headroom — the
+  // old "parent plan must be public" layer is gone along with the
+  // visibility concept entirely (invites.go JoinRun doc comment).
   async function joinPlanRun(runId: string): Promise<boolean> {
     const headers = await authHeaders()
     const res = await fetch(`${apiBase}/api/v1/plan-runs/${runId}/join`, {
@@ -268,9 +268,13 @@ export function usePlans() {
   }
 
   // Resend an email invite (#246 W5 item 2) — host action, per email chip in
-  // PlanMembersRow. Re-sends the plan link + .ics to an invite_email that
+  // PlanMembersRow. Re-sends the event link + .ics to an invite_email that
   // hasn't resolved to an account yet; 409 means every run row for that
   // email is already accepted.
+  //
+  // TODO(W4): still targets /api/v1/plans/{planId}/invite/resend — A2
+  // re-keys invites to run_invites/run-scoped endpoints per the plan (§3);
+  // this call site needs to follow once that lands.
   async function resendInvite(planId: string, email: string): Promise<boolean> {
     const headers = await authHeaders()
     const res = await fetch(`${apiBase}/api/v1/plans/${planId}/invite/resend`, {
@@ -289,5 +293,5 @@ export function usePlans() {
     return true
   }
 
-  return { createPlan, patchPlan, deletePlan, addRun, patchRun, markPaddled, deleteRun, joinPlanRun, resendInvite }
+  return { createPlan, patchPlan, deletePlan, createRun, patchRun, markPaddled, deleteRun, joinPlanRun, resendInvite }
 }
