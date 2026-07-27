@@ -267,17 +267,18 @@ export function usePlans() {
     return true
   }
 
-  // Resend an email invite (#246 W5 item 2) — host action, per email chip in
-  // PlanMembersRow. Re-sends the event link + .ics to an invite_email that
-  // hasn't resolved to an account yet; 409 means every run row for that
-  // email is already accepted.
-  //
-  // TODO(W4): still targets /api/v1/plans/{planId}/invite/resend — A2
-  // re-keys invites to run_invites/run-scoped endpoints per the plan (§3);
-  // this call site needs to follow once that lands.
-  async function resendInvite(planId: string, email: string): Promise<boolean> {
+  // Resend an email invite (#246 W5 item 2, re-keyed web#354 W4) — host
+  // action, backs InviteSheet's "Pending invites" resend button. Re-sends
+  // the run link + .ics to an invite_email that hasn't resolved to an
+  // account yet; 409 means it's already been accepted or declined.
+  // web#354 A2/W4: invites are run-scoped now (run_invites, no more
+  // plan-wide fan-out) — this targets the run-scoped
+  // POST /plan-runs/{id}/invite/resend (invites.go ResendInvite); the old
+  // plan-scoped /plans/{planId}/invite/resend endpoint (and its
+  // PlanMembersRow caller) are gone.
+  async function resendInvite(runId: string, email: string): Promise<boolean> {
     const headers = await authHeaders()
-    const res = await fetch(`${apiBase}/api/v1/plans/${planId}/invite/resend`, {
+    const res = await fetch(`${apiBase}/api/v1/plan-runs/${runId}/invite/resend`, {
       method: 'POST', headers, body: JSON.stringify({ email }),
     }).catch(() => null)
     if (!res?.ok) {

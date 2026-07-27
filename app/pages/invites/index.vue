@@ -37,13 +37,13 @@
           <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
         </svg>
         <p class="text-sm">No invites right now.</p>
-        <p class="text-xs">When a paddler invites you to a plan, it'll show up here.</p>
+        <p class="text-xs">When a paddler invites you to a run, it'll show up here.</p>
       </div>
 
       <div v-else class="space-y-3">
         <InviteFeedCard
           v-for="i in invites"
-          :key="i.event.id + i.created_at"
+          :key="i.id"
           :invite="i"
           :busy="busyId"
           @accept="onAccept"
@@ -68,8 +68,8 @@ onMounted(() => { authReady.value = true })
 const { invites, loaded, unreadCount, refresh, accept, dismiss } = useInvites()
 const busyId = ref<string | null>(null)
 
-// #246 W5: RSVPs are per-run — "pending" counts individual run rows still
-// awaiting a response, matching the bell badge (useInvites.unreadCount).
+// web#354 W4: invites are flat (one item = one run) — "pending" is just
+// unreadCount straight off useInvites, matching the bell badge.
 const pendingCount = computed(() => unreadCount.value)
 
 // NotificationBell (in AppHeader, same page) already triggers a load on
@@ -77,17 +77,17 @@ const pendingCount = computed(() => unreadCount.value)
 // component timing to avoid an empty-state flash before that load resolves.
 watch(isAuthenticated, (v) => { if (v) refresh() }, { immediate: true })
 
-async function onAccept(memberId: string) {
+async function onAccept(id: string) {
   if (busyId.value) return
-  busyId.value = memberId
-  await accept(memberId)
+  busyId.value = id
+  await accept(id)
   busyId.value = null
 }
 
-async function onDismiss(memberId: string) {
+async function onDismiss(id: string) {
   if (busyId.value) return
-  busyId.value = memberId
-  await dismiss(memberId)
+  busyId.value = id
+  await dismiss(id)
   busyId.value = null
 }
 </script>

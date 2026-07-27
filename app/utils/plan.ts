@@ -1,9 +1,8 @@
 // Shared TS shapes for GET /plans/{handle}/{slug} (+ /plans/{id} alias) —
 // Trip Calendar #246 W4, reworked web#354 A1/W1. Mirrors planRun.ts's
 // pattern: a plain .ts module (not exported from a .vue SFC) so
-// plans/[handle]/[slug].vue, PlanItinerary, PlanMembersRow, PlanCrewMeter/
-// Panel, InviteSheet all import the same canonical shape instead of
-// drifting local copies.
+// plans/[handle]/[slug].vue, PlanItinerary, PlanCrewMeter/Panel, InviteSheet
+// all import the same canonical shape instead of drifting local copies.
 
 // planRunSummary (Go) and PlanRunDetail (TS) are the identical field set —
 // itinerary rows reuse PlanRunDetail rather than a second drifting type.
@@ -29,27 +28,6 @@ export interface CalendarEventDetail {
 export interface PlanItineraryDay {
   date: string
   runs: PlanRunDetail[]
-}
-
-// One row per (member, plan_run) — membership is run-scoped for BOTH
-// origins (invite/request) per the remodel: an invite fans out to one row
-// per invited run, each independently accepted/declined.
-export interface PlanMemberRunStatus {
-  plan_run_id: string
-  plan_run_name?: string | null
-  status: string // invited | requested | accepted | declined
-}
-
-// One row per PERSON, aggregating their per-run rows — this is what
-// PlanMembersRow renders ("@maya · 2/3 runs" / email chip + invited count).
-// A person is either a bound account (handle) or an unresolved email invite
-// (invite_email, member_owner_id still NULL server-side).
-export interface PlanMemberSummary {
-  handle?: string | null
-  invite_email?: string | null
-  runs: PlanMemberRunStatus[]
-  accepted_count: number
-  total_count: number
 }
 
 export interface PlanCrewMeterInfo {
@@ -78,6 +56,11 @@ export interface CrewRequest {
   message?: string | null
   created_at: string
   handle: string
+  // Owner-only: set only on a still-pending EMAIL invite row (origin=invite,
+  // status=invited) — invites.go RunCrewList's "host feedback gap fix"
+  // (web#354 A2 review). A handle-based pending invite has `handle` instead
+  // and this stays undefined.
+  invite_email?: string | null
 }
 
 export interface CrewListResponse {

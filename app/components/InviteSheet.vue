@@ -46,13 +46,39 @@
               <!-- Existing crew on this run — read-only reference so the host
                    doesn't blindly re-invite someone already aboard. Managing
                    pending JOIN requests (accept/decline) stays in the
-                   "Manage" crew panel (PlanCrewPanel) — not duplicated here. -->
-              <div v-if="crewLoaded && crew.length">
+                   "Manage" crew panel (PlanCrewPanel) — not duplicated here.
+                   web#354 W4: GET /plan-runs/{id}/crew now ALSO returns
+                   still-pending invite rows (invites.go RunCrewList, "host
+                   feedback gap fix") — those are split out into "Pending
+                   invites" below, not mixed into this list. -->
+              <div v-if="crewLoaded && existingCrew.length">
                 <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Already on this run</label>
                 <div class="rounded-lg border border-neutral-100 dark:border-neutral-800 divide-y divide-neutral-100 dark:divide-neutral-800 max-h-28 overflow-y-auto">
-                  <div v-for="m in crew" :key="m.member_id" class="flex items-center justify-between gap-2 px-3 py-1.5 text-sm">
+                  <div v-for="m in existingCrew" :key="m.member_id" class="flex items-center justify-between gap-2 px-3 py-1.5 text-sm">
                     <span class="min-w-0 flex-1 truncate text-neutral-700 dark:text-neutral-300">@{{ m.handle || 'paddler' }}</span>
                     <span class="shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full" :class="crewStatusClass(m.status)">{{ crewStatusLabel(m.status) }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Pending invites — not-yet-accepted invite rows for this
+                   run (web#354 A2/W4). A handle invite has no token to
+                   resend (accept is by account match, nothing to
+                   re-deliver — invites.go ResendInvite's own doc comment),
+                   so only an email row gets the Resend action. -->
+              <div v-if="crewLoaded && pendingInvites.length">
+                <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Pending invites</label>
+                <div class="rounded-lg border border-neutral-100 dark:border-neutral-800 divide-y divide-neutral-100 dark:divide-neutral-800 max-h-28 overflow-y-auto">
+                  <div v-for="m in pendingInvites" :key="m.member_id" class="flex items-center justify-between gap-2 px-3 py-1.5 text-sm">
+                    <span class="min-w-0 flex-1 truncate text-neutral-700 dark:text-neutral-300">{{ m.handle ? `@${m.handle}` : m.invite_email }}</span>
+                    <button
+                      v-if="m.invite_email"
+                      type="button"
+                      class="shrink-0 text-[11px] font-medium text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50"
+                      :disabled="pendingResendingId === m.member_id"
+                      @click="resendPending(m)"
+                    >{{ pendingResendingId === m.member_id ? 'Resending…' : 'Resend' }}</button>
+                    <span v-else class="shrink-0 text-[11px] text-neutral-400">Invited</span>
                   </div>
                 </div>
               </div>
@@ -138,6 +164,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { CrewListResponse, CrewRequest } from '~/utils/plan'
+import { usePlans } from '~/composables/usePlans'
 
 // InviteSheet — run-scoped (web#354 W2; was plan-scoped with a run-selector
 // checkbox list, #246 W5/A1). Invites live on run_invites keyed by run_id
@@ -293,13 +320,13 @@ async function resend(item: ResultItem) {
   item.message = 'already invited to this run — resent'
 }
 
-// ── Existing crew (read-only reference) ───────────────────────────────────
-// GET /plan-runs/{id}/crew (RunCrewList): accepted members of any origin +
-// pending JOIN requests — NOT a live feed of not-yet-responded invites (an
-// invited-but-unaccepted row has no home here; the 409 branch above, on a
-// repeat invite attempt, is how the host discovers a still-pending one).
-// Shown for context so the host doesn't blindly re-invite someone already
-// aboard.
+// ── Crew roster (read-only reference + pending-invite management) ────────
+// GET /plan-runs/{id}/crew (RunCrewList): accepted members of any origin,
+// pending JOIN requests, AND — as of the A2 review "host feedback gap fix"
+// — still-pending, non-dismissed INVITE rows too (previously invisible
+// here; a repeat invite attempt's 409 branch above used to be the only way
+// a host discovered one was already outstanding). Split into `existingCrew`
+// ("Already on this run") and `pendingInvites` ("Pending invites") below.
 const crew = ref<CrewRequest[]>([])
 const crewLoaded = ref(false)
 
@@ -310,6 +337,23 @@ async function loadCrew() {
   const data: CrewListResponse | null = res?.ok ? await res.json().catch(() => null) : null
   crew.value = data?.members ?? []
   crewLoaded.value = true
+}
+
+// Split the roster (web#354 W4): a still-pending invite (origin=invite,
+// status=invited) gets its own "Pending invites" section below rather than
+// being mixed into "Already on this run".
+const pendingInvites = computed(() => crew.value.filter(m => m.origin === 'invite' && m.status === 'invited'))
+const existingCrew = computed(() => crew.value.filter(m => !(m.origin === 'invite' && m.status === 'invited')))
+
+const { resendInvite } = usePlans()
+const pendingResendingId = ref<string | null>(null)
+
+async function resendPending(m: CrewRequest) {
+  if (!m.invite_email || pendingResendingId.value) return
+  pendingResendingId.value = m.member_id
+  await resendInvite(props.runId, m.invite_email)
+  pendingResendingId.value = null
+  await loadCrew()
 }
 
 function crewStatusLabel(status: string): string {

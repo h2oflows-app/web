@@ -12,13 +12,12 @@
       <div class="w-6 h-6 rounded-full border-2 border-primary-500 border-t-transparent animate-spin" />
     </div>
 
-    <!-- Not signed in (contract §6 REVISED: calendar domain is auth-only, no anon read).
-         TODO(W4): the api's renderPlanRun (web#354 A1) already added a
-         `?invite=<token>` anon carve-out on THIS route (moved from the old
-         event-page carve-out, see plan_runs.go) — the web-side landing
-         (banner + InviteAcceptCard for the token-bound run) is W4's job per
-         the plan (§4 "Run detail"); this gate stays unconditional until then. -->
-    <div v-else-if="!isAuthenticated" class="max-w-2xl mx-auto px-4 py-20 flex flex-col items-center gap-3 text-center">
+    <!-- Not signed in, no invite-token carve-out — standard gate. web#354
+         W4: the api's ?invite=<token> carve-out (renderPlanRun, plan_runs.go)
+         moved here from the old event-page carve-out — an anon viewer
+         WITHOUT a token still gets the ordinary auth gate; WITH one, they
+         fall through to the fetch below. -->
+    <div v-else-if="!isAuthenticated && !inviteToken" class="max-w-2xl mx-auto px-4 py-20 flex flex-col items-center gap-3 text-center">
       <svg class="w-10 h-10 text-neutral-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
       </svg>
@@ -34,7 +33,21 @@
       Run not found.
     </div>
 
-    <main v-else class="max-w-2xl mx-auto px-4 py-8 pb-20 sm:pb-8">
+    <main v-else class="max-w-2xl mx-auto px-4 py-8 pb-20 sm:pb-8 space-y-4">
+      <!-- Anon token carve-out banner (web#354 W4 — moved here from the old
+           plan-page carve-out): they can see it, but need an account to
+           respond. -->
+      <div v-if="!isAuthenticated" class="rounded-lg bg-primary-50 dark:bg-primary-950/20 px-3.5 py-2.5 text-xs text-primary-700 dark:text-primary-400">
+        You're viewing a shared invite. <NuxtLink :to="`/login?redirect=${encodeURIComponent(route.fullPath)}`" class="font-semibold hover:underline">Sign in or create an account</NuxtLink> to respond.
+      </div>
+
+      <InviteAcceptCard
+        v-if="showInviteAccept"
+        :run="run"
+        :token="inviteToken ?? undefined"
+        @resolved="refresh"
+      />
+
       <PlanRunDetailCard :run="run" @refresh="refresh" @deleted="onDeleted" />
     </main>
   </div>
@@ -59,6 +72,17 @@ interface PlanRunResponse {
 
 const param = route.params.id as string
 
+// Anon token carve-out (web#354 §1, moved here from the old event-page
+// carve-out — GetRun/renderPlanRun in plan_runs.go): an invite-email link
+// (?invite={token}) grants a signed-out viewer read access to conversion —
+// accepting still requires an account. Forwarded to the API as a query
+// param; the api honors it for BOTH anon and authed callers — the authed
+// case matters because an email invite's run_invites row keeps
+// member_owner_id NULL until accept, so an authed-but-unbound invitee (e.g.
+// signed up with a different email than the invite) would otherwise fail
+// the run's visibility gate too.
+const inviteToken = computed(() => (typeof route.query.invite === 'string' ? route.query.invite : null))
+
 const authReady = ref(false)
 onMounted(() => { authReady.value = true })
 
@@ -67,17 +91,37 @@ const pending = ref(false)
 
 async function load() {
   pending.value = true
-  const token = await getToken()
+  let url = `${config.public.apiBase}/api/v1/plan-runs/${param}`
+  if (inviteToken.value) url += `?invite=${encodeURIComponent(inviteToken.value)}`
+
   const headers: Record<string, string> = {}
-  if (token) headers.Authorization = `Bearer ${token}`
-  const res = await fetch(`${config.public.apiBase}/api/v1/plan-runs/${param}`, { headers }).catch(() => null)
+  if (isAuthenticated.value) {
+    const token = await getToken()
+    if (token) headers.Authorization = `Bearer ${token}`
+  }
+
+  const res = await fetch(url, { headers }).catch(() => null)
   data.value = res?.ok ? await res.json().catch(() => null) : null
   pending.value = false
 }
 
-watch(isAuthenticated, (v) => { if (v) load() }, { immediate: true })
+watch([authReady, isAuthenticated], () => {
+  if (!authReady.value) return
+  if (isAuthenticated.value || inviteToken.value) load()
+  else pending.value = false // standard gate handles the render, nothing to fetch
+}, { immediate: true })
 
 const run = computed(() => data.value?.run ?? null)
+
+// Show the invite-accept surface for: an anon viewer riding the token
+// carve-out (InviteAcceptCard itself only ever shows the sign-in prompt in
+// this case — see its own doc comment for why), or an authed viewer with a
+// still-pending invite bound to their account.
+const showInviteAccept = computed(() => {
+  if (!run.value) return false
+  if (!isAuthenticated.value) return !!inviteToken.value
+  return run.value.my_rsvp === 'invited'
+})
 
 async function refresh() {
   await load()
