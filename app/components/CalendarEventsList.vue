@@ -1,24 +1,19 @@
 <template>
   <div>
-    <!-- TODO(W3): header/empty-state/button copy ("Plans this month" ->
-         "Events this month", "+ New plan" -> "+ New event") + moving this
-         component to the bottom (above stats) is web#354 §4/W3's job — only
-         the underlying wiring (events rename, run-count fix, unified-sheet
-         open) is fixed here in W1. -->
     <div class="flex items-center justify-between mb-2">
-      <h3 class="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">Plans this month</h3>
+      <h3 class="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">Events this month</h3>
       <button
         type="button"
         class="text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline"
-        @click="$emit('new-plan')"
-      >+ New plan</button>
+        @click="$emit('new-event')"
+      >+ New event</button>
     </div>
 
     <div v-if="loading" class="flex flex-col gap-1.5 py-1">
       <div v-for="i in 2" :key="i" class="h-10 rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
     </div>
 
-    <div v-else-if="!events.length" class="text-sm text-neutral-400 py-3">No plans this month yet.</div>
+    <div v-else-if="!events.length" class="text-sm text-neutral-400 py-3">No events this month</div>
 
     <div v-else class="flex flex-col divide-y divide-neutral-100 dark:divide-neutral-800">
       <NuxtLink
@@ -51,7 +46,7 @@ const props = defineProps<{
   loading?: boolean
 }>()
 
-defineEmits<{ 'new-plan': [] }>()
+defineEmits<{ 'new-event': [] }>()
 
 const sortedEvents = computed(() => [...props.events].sort((a, b) => a.start_date.localeCompare(b.start_date)))
 

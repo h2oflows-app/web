@@ -68,16 +68,6 @@
                       @click="close()"
                     >{{ event.name }}</NuxtLink>
                     <span v-else class="min-w-0 flex-1 text-sm font-medium text-neutral-700 dark:text-neutral-200 truncate">{{ event.name }}</span>
-                    <!-- TODO(W3): this per-event "+ Add a run" row is removed
-                         entirely per web#354 §4 (day-sheet cleanup) — runs
-                         are decoupled from events now, so it just opens the
-                         unified sheet's run branch with this day prefilled
-                         (no planId; standalone create, web#354 A1). -->
-                    <button
-                      type="button"
-                      class="shrink-0 text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline"
-                      @click="addRunHere()"
-                    >+ Add a run</button>
                   </div>
                 </div>
 
@@ -129,8 +119,8 @@
               <button
                 type="button"
                 class="w-full py-2.5 rounded-xl border-2 border-dashed border-primary-300 dark:border-primary-700 text-primary-600 dark:text-primary-400 text-sm font-medium hover:bg-primary-50/50 dark:hover:bg-primary-950/30 transition-colors"
-                @click="$emit('new-plan-here')"
-              >+ New plan here</button>
+                @click="addRunHere"
+              >+ New</button>
             </div>
           </div>
         </Transition>
@@ -154,9 +144,11 @@ const props = defineProps<{
   date: string | null
   runs: CalendarRun[]
   // Events whose [start_date, end_date] spans this day (web#354 A1:
-  // owner-only, so always the viewer's own) — the day sheet lists each with
-  // its own "Add a run" button (fixes "made an event, tapped its day, sheet
-  // looked empty" — real user feedback).
+  // owner-only, so always the viewer's own) — the day sheet lists each,
+  // label only (fixes "made an event, tapped its day, sheet looked empty"
+  // — real user feedback). No per-event action (web#354 W3): runs are
+  // decoupled from events, so "add a run" is just the single day-scoped
+  // "+ New" button below, not something tied to a specific event.
   events: CalendarEvent[]
   loading?: boolean
   // true when this day earned a Tier-A '?' badge (CalendarDay.needs_confirm)
@@ -166,7 +158,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:open': [boolean]
-  'new-plan-here': []
 }>()
 
 const planRunLogSheet = usePlanRunLogSheet()
@@ -232,6 +223,10 @@ const subline = computed(() => {
   return n === 0 ? 'Nothing planned yet' : `${n} run${n === 1 ? '' : 's'}`
 })
 
+// Day-scoped "+ New" footer button (web#354 W3) — neutral branch (same
+// usePlanRunLogSheet.openCreate() the calendar page's own "+ New" button
+// calls), just with this day's date prefilled. Not run-branch-locked: the
+// sheet's own "No run — create an Event" toggle still applies.
 function addRunHere() {
   close()
   planRunLogSheet.openCreate(props.date ?? undefined)
