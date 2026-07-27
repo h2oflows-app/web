@@ -7,13 +7,12 @@
         </svg>
       </div>
       <div class="min-w-0">
-        <!-- #246 W5: RSVPs are per-run — name the run(s), not just the plan. -->
         <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100">
-          @{{ plan.host_handle }} invited you to
-          <strong v-if="soleRun">run {{ soleRun.run_name ?? 'a run' }}</strong>
-          <strong v-else>{{ runs.length }} runs on {{ plan.name }}</strong>
+          You're invited to run <strong>{{ run.name ?? 'this run' }}</strong>
         </p>
-        <p class="text-xs text-neutral-400 mt-0.5">{{ fmtRange(plan.start_date, plan.end_date) }}<template v-if="plan.location"> · {{ plan.location }}</template></p>
+        <p class="text-xs text-neutral-400 mt-0.5">
+          {{ fmtDate(run.run_date) }}<template v-if="run.run_time"> · {{ fmtTime(run.run_time) }}</template>
+        </p>
       </div>
     </div>
 
@@ -23,48 +22,61 @@
       </NuxtLink>
     </div>
 
-    <!-- Authenticated: one accept/decline row per invited run. -->
-    <div v-else class="space-y-1.5">
-      <div v-for="r in runs" :key="r.member_id" class="flex items-center justify-between gap-2 rounded-lg bg-white/60 dark:bg-neutral-900/40 px-2.5 py-1.5">
-        <p class="text-xs font-medium text-neutral-700 dark:text-neutral-300 truncate min-w-0">
-          {{ r.run_name ?? 'Untitled run' }}
-          <span class="text-neutral-400 font-normal">· {{ fmtDate(r.run_date) }}<template v-if="r.run_time"> · {{ fmtTime(r.run_time) }}</template></span>
-        </p>
+    <div v-else-if="resolved" class="text-xs font-medium" :class="resolved === 'accepted' ? 'text-emerald-600 dark:text-emerald-400' : 'text-neutral-400'">
+      {{ resolved === 'accepted' ? 'Accepted' : 'Dismissed' }}
+    </div>
 
-        <span v-if="resolved[r.member_id] === 'accepted'" class="shrink-0 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">Accepted</span>
-        <span v-else-if="resolved[r.member_id] === 'dismissed'" class="shrink-0 text-[11px] font-medium text-neutral-400">Dismissed</span>
-        <div v-else class="shrink-0 flex items-center gap-1.5">
-          <button
-            type="button"
-            class="py-1 px-2.5 rounded-full border border-neutral-200 dark:border-neutral-700 text-[11px] font-medium text-neutral-600 dark:text-neutral-300 hover:bg-white dark:hover:bg-neutral-800 disabled:opacity-50 transition-colors"
-            :disabled="busy === r.member_id"
-            @click="onDismiss(r)"
-          >Dismiss</button>
-          <button
-            type="button"
-            class="py-1 px-2.5 rounded-full bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-semibold disabled:opacity-50 transition-colors"
-            :disabled="busy === r.member_id"
-            @click="onAccept(r)"
-          >{{ busy === r.member_id ? '…' : 'Accept' }}</button>
-        </div>
-      </div>
+    <!-- Authenticated + bound to this account (run.my_member_id) — see the
+         gating note below for why an unbound token holder never reaches
+         this branch. -->
+    <div v-else-if="run.my_rsvp === 'invited' && run.my_member_id" class="flex items-center gap-2">
+      <button
+        type="button"
+        class="flex-1 py-2 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-600 dark:text-neutral-300 hover:bg-white dark:hover:bg-neutral-800 disabled:opacity-50 transition-colors"
+        :disabled="busy"
+        @click="onDismiss"
+      >Dismiss</button>
+      <button
+        type="button"
+        class="flex-1 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold disabled:opacity-50 transition-colors"
+        :disabled="busy"
+        @click="onAccept"
+      >{{ busy ? '…' : 'Accept' }}</button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import type { CalendarEventDetail, PlanInviteTokenRun } from '~/utils/plan'
-import { fmtDate, fmtRange, fmtTime } from '~/utils/calendarDate'
+import { ref } from 'vue'
+import type { PlanRunDetail } from '~/utils/planRun'
+import { fmtDate, fmtTime } from '~/utils/calendarDate'
 import { useInvites } from '~/composables/useInvites'
 
+// InviteAcceptCard — run-scoped rewrite (web#354 W4; was the #246 W5/A1
+// grouped-plan version, which took a `plan` + `runs: PlanInviteTokenRun[]`
+// pair — both gone with the event/invite model split (PlanInviteTokenRun
+// itself was already dropped from utils/plan.ts by W2, leaving this file's
+// import dangling until now). Invites live on run_invites keyed by run_id
+// only (A2) — this card renders against a SINGLE run's own
+// GET /plan-runs/{id} response, the same PlanRunDetail shape
+// PlanRunDetailCard consumes, so the run page (plan-runs/[id].vue) needs no
+// second fetch to drive it.
+//
+// Accept/Dismiss are gated on run.my_member_id (populated by
+// renderPlanRun's `me` LATERAL — a real ownerID or JWT-email match against
+// the invite row), NOT on the raw ?invite= token: the api's
+// AcceptInvite/DismissInvite endpoints still need a run_invites row id to
+// target, and the current api (plan_runs.go runInviteTokenGrant) only ever
+// surfaces a boolean grant for a token match, never the row id, for an
+// anonymous or unbound-email caller. So an anon viewer (or a signed-in
+// account whose email doesn't match the invite) only ever sees the sign-in
+// prompt above / nothing at all — never a broken Accept button with no id
+// behind it. `token` is still threaded through to accept() as a defensive
+// fallback match once my_member_id IS present, mirroring AcceptInvite's own
+// three-way allowed check (member_owner_id / email / token).
 const props = defineProps<{
-  plan: CalendarEventDetail
-  runs: PlanInviteTokenRun[]
-  // ?invite=<token> from the email link, when present — threaded through to
-  // accept() so a signed-up-with-a-different-email invitee (member_owner_id
-  // still NULL on these rows) can still accept (review finding, #246 W4;
-  // per-run rows, #246 W5).
+  run: PlanRunDetail
+  // ?invite=<token> from the email link, when present.
   token?: string
 }>()
 
@@ -74,28 +86,27 @@ const { isAuthenticated } = useAuth()
 const route = useRoute()
 const { accept, dismiss } = useInvites()
 
-const busy = ref<string | null>(null)
-const resolved = ref<Record<string, 'accepted' | 'dismissed'>>({})
-const soleRun = computed(() => (props.runs.length === 1 ? props.runs[0] : null))
+const busy = ref(false)
+const resolved = ref<'accepted' | 'dismissed' | null>(null)
 
-async function onAccept(r: PlanInviteTokenRun) {
-  if (busy.value) return
-  busy.value = r.member_id
-  const ok = await accept(r.member_id, props.token)
-  busy.value = null
+async function onAccept() {
+  if (busy.value || !props.run.my_member_id) return
+  busy.value = true
+  const ok = await accept(props.run.my_member_id, props.token)
+  busy.value = false
   if (ok) {
-    resolved.value = { ...resolved.value, [r.member_id]: 'accepted' }
+    resolved.value = 'accepted'
     emit('resolved')
   }
 }
 
-async function onDismiss(r: PlanInviteTokenRun) {
-  if (busy.value) return
-  busy.value = r.member_id
-  const ok = await dismiss(r.member_id)
-  busy.value = null
+async function onDismiss() {
+  if (busy.value || !props.run.my_member_id) return
+  busy.value = true
+  const ok = await dismiss(props.run.my_member_id)
+  busy.value = false
   if (ok) {
-    resolved.value = { ...resolved.value, [r.member_id]: 'dismissed' }
+    resolved.value = 'dismissed'
     emit('resolved')
   }
 }

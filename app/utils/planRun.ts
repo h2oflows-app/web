@@ -58,6 +58,13 @@ export interface PlanRunDetail {
   // Always present (web#354 A1) — filled/max/looking_for_crew for this run's
   // crew meter, never conditional/absent.
   crew: PlanRunCrew
+  // web#354 A2: true when the viewer is this run's own owner (plans.go
+  // renderPlan always sets this true — its itinerary is host-only by
+  // construction; plan_runs.go renderPlanRun compares callerID against the
+  // run's owner_id). Always populated (not optional) — drives the
+  // owner-only affordances (edit notes, delete) on PlanRunDetailCard, which
+  // previously had no ownership signal to key off at all.
+  is_owner: boolean
   // The signed-in viewer's OWN plan_members row against THIS run, if any
   // (invited/requested/accepted/declined) — drives the itinerary row's
   // Join / Accept-Decline / "You're in" state. Absent (undefined) means no
@@ -73,5 +80,5 @@ export interface PlanRunDetail {
 // plan_runs.go renderPlanRun's comment: "drop the `plan` wrapper — the run
 // is standalone now, its fields stay flat under `run`." Consumers
 // (pages/plan-runs/[id].vue, PlanRunDetailCard.vue) read `run` only now —
-// deeper page rework (any owner-derived affordances that used to key off
-// `plan.host_handle`) is W2/W4; see TODO(W2) at those call sites.
+// owner-derived affordances that used to key off `plan.host_handle` are
+// restored via the flat `is_owner` field above instead (web#354 A2/W2).

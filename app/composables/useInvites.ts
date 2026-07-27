@@ -1,67 +1,58 @@
 import { computed } from 'vue'
+import type { PlanCrewMeterInfo } from '~/utils/plan'
 
 // useInvites — GET /me/invites list + accept/dismiss (Trip Calendar #246 W4;
 // remodeled #246 W5 per IMPLEMENTATION_PLAN.md §6 REVISED 2026-07-25: crew
-// and invite RSVPs are PER-RUN, not per-plan). useState (not a plain module
-// ref, unlike useCalendar) — NotificationBell mounts inside AppHeader on
-// every page, including ssr:true ones, so a plain module ref would leak
-// invite state across unrelated SSR requests the way useCalendar's own doc
-// comment warns against. useState is per-request on the server and a
-// hydrated singleton on the client, matching useMyProfile's handle/loaded
-// pattern for the same reason.
+// and invite RSVPs are PER-RUN, not per-plan; re-keyed AGAIN web#354 W4 to
+// match invites.go's A2 rework — MyInvites now returns a FLAT,
+// run_date-sorted list of run_invites rows, one item per invited RUN, with
+// no plan/event wrapper and no runs[] fan-out to group. A single invite
+// action always targets exactly one run now (A2 dropped the old
+// multi-run-per-plan invite entirely), so "one list item = one run" needs no
+// grouping step at all — see plan.ts's CalendarEventDetail doc comment for
+// the parallel event-side rename.
+//
+// useState (not a plain module ref, unlike useCalendar) — NotificationBell
+// mounts inside AppHeader on every page, including ssr:true ones, so a plain
+// module ref would leak invite state across unrelated SSR requests the way
+// useCalendar's own doc comment warns against. useState is per-request on
+// the server and a hydrated singleton on the client, matching useMyProfile's
+// handle/loaded pattern for the same reason.
 
-// web#354 A1: invitedEvent (invites.go) dropped `type` entirely (event-type
-// concept removed) and the JSON wrapper key itself renamed `plan`→`event`
-// (see Invite below).
-export interface InviteEventSummary {
-  id: string
+// The run summary embedded on each invite item (invites.go inviteRunSummary)
+// — river/state, date/time, meetup, flow, crew meter, and the host's handle,
+// enough for the banner/card/accept-surface to render without a second
+// fetch.
+export interface InviteRunSummary {
+  run_id: string
   slug: string
   name: string
-  start_date: string
-  end_date: string
-  location?: string | null
+  river_name?: string | null
+  state_abbr?: string | null
+  run_date: string
+  run_time?: string | null
+  meetup_spot?: string | null
+  gauge_cfs?: number | null
+  flow_band?: string | null
+  flow_color?: string | null
+  crew: PlanCrewMeterInfo
   host_handle: string
 }
 
-// One row per invited run within this invite batch — membership rows are
-// run-scoped now, so a single "invite" (one handle-add or one email send)
-// fans out to one plan_members row (member_id) per plan_run_id, each with
-// its own accept/decline lifecycle.
-export interface InviteRun {
-  member_id: string
-  plan_run_id: string
-  run_name?: string | null
-  run_date: string
-  run_time?: string | null
+export interface Invite {
+  id: string
   status: string // invited | accepted | declined
   dismissed_at?: string | null
-}
-
-export interface Invite {
-  // Groups the fanned-out per-run rows that were created by the same invite
-  // action (same event + same recipient) — the feed card/banner render ONE
-  // item per group with a per-run row list, per the contract ("feed card
-  // lists the invited runs each with its own Accept button").
   invited_via: 'handle' | 'email'
   created_at: string
-  event: InviteEventSummary
-  runs: InviteRun[]
+  run: InviteRunSummary
 }
 
-function isPendingRun(r: InviteRun): boolean {
-  return r.status === 'invited' && !r.dismissed_at
-}
-
-// A group is "pending" iff at least one of its per-run rows still needs a
-// response — the banner/badge/plan-ribbon surfaces all key off this.
-function isPending(i: Invite): boolean {
-  return i.runs.some(isPendingRun)
-}
-
-// First still-pending run within a group, for surfaces that name ONE run
-// (the banner: "invited you to run Foxton on 7/26 at 10:00 AM").
-function firstPendingRun(i: Invite): InviteRun | undefined {
-  return i.runs.find(isPendingRun)
+// A single item is "pending" iff it still needs a response — every
+// surface (banner, badge, feed) keys off this. Exported so callers don't
+// re-derive the same two-field check independently.
+export function isPendingInvite(i: Invite): boolean {
+  return i.status === 'invited' && !i.dismissed_at
 }
 
 export function useInvites() {
@@ -73,11 +64,12 @@ export function useInvites() {
   const { getToken, isAuthenticated } = useAuth()
   const toast = useToast()
 
-  // Counts individual pending RUN rows (not invite groups) — matches the
-  // per-run RSVP model literally: "@maya invited to 2 runs" is 2 pending
-  // items, not 1, until each run gets its own response.
+  // web#354 W4: one list item IS one run now, so "pending" is a straight
+  // filter — no more per-group runs[] fan-out to flatten first (contrast the
+  // old #246 W5 version, which counted individual pending RUN rows across
+  // invite groups).
   function recomputeUnread() {
-    unreadCount.value = invites.value.reduce((n, i) => n + i.runs.filter(isPendingRun).length, 0)
+    unreadCount.value = invites.value.filter(isPendingInvite).length
   }
 
   async function authHeaders(): Promise<Record<string, string>> {
@@ -104,28 +96,22 @@ export function useInvites() {
     loaded.value = true
   }
 
-  // Patches ONE run row (by member_id) across all invite groups — accept/
-  // dismiss both target a single per-run plan_members row now.
-  function patchRun(memberId: string, patch: Partial<InviteRun>) {
-    invites.value = invites.value.map(i => ({
-      ...i,
-      runs: i.runs.map(r => (r.member_id === memberId ? { ...r, ...patch } : r)),
-    }))
+  function patchInvite(id: string, patch: Partial<Invite>) {
+    invites.value = invites.value.map(i => (i.id === id ? { ...i, ...patch } : i))
   }
 
   // token: the ?invite=<token> from the email link, forwarded in the POST
   // body — API's AcceptInvite (invites.go) accepts it as a fallback match
   // for the "signed up with a different email than the invite" case, where
-  // the invite's plan_members row isn't bound to (or discoverable via
-  // /me/invites' email match for) this account yet. memberId identifies a
-  // single RUN's row — accept is per-run, not per-plan.
-  async function accept(memberId: string, token?: string): Promise<boolean> {
+  // the invite's run_invites row isn't bound to (or discoverable via
+  // /me/invites' email match for) this account yet.
+  async function accept(id: string, token?: string): Promise<boolean> {
     const prev = invites.value
-    patchRun(memberId, { status: 'accepted' })
+    patchInvite(id, { status: 'accepted' })
     recomputeUnread()
 
     const headers = await authHeaders()
-    const res = await fetch(`${apiBase}/api/v1/invites/${memberId}/accept`, {
+    const res = await fetch(`${apiBase}/api/v1/invites/${id}/accept`, {
       method: 'POST',
       headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify(token ? { token } : {}),
@@ -145,17 +131,28 @@ export function useInvites() {
     // without a reload. Safe to call even off /calendar: refresh() is a
     // no-op until a range has been loaded at least once.
     await useCalendar().refresh()
+
+    // web#354 W4: the api names the run in its response ({status, run_id,
+    // slug}) specifically so the web can route straight there without a
+    // second lookup (invites.go AcceptInvite doc comment). Route by id
+    // (not slug) — GetRun's slug-resolution branch only fires when the slug
+    // is globally unique across ALL owners (plan_runs.go), which a run's own
+    // per-owner-unique slug doesn't guarantee; the id is always safe.
+    const body = await res.json().catch(() => null)
+    if (body?.run_id) {
+      await navigateTo(`/plan-runs/${body.run_id}`)
+    }
     return true
   }
 
-  async function dismiss(memberId: string): Promise<boolean> {
+  async function dismiss(id: string): Promise<boolean> {
     const prev = invites.value
     const now = new Date().toISOString()
-    patchRun(memberId, { dismissed_at: now })
+    patchInvite(id, { dismissed_at: now })
     recomputeUnread()
 
     const headers = await authHeaders()
-    const res = await fetch(`${apiBase}/api/v1/invites/${memberId}/dismiss`, { method: 'POST', headers }).catch(() => null)
+    const res = await fetch(`${apiBase}/api/v1/invites/${id}/dismiss`, { method: 'POST', headers }).catch(() => null)
     if (!res?.ok) {
       invites.value = prev
       recomputeUnread()
@@ -165,14 +162,11 @@ export function useInvites() {
     return true
   }
 
-  // The banner (and any "first pending invite" surface) always shows the
-  // OLDEST pending invite GROUP first — /me/invites is already ORDER BY
-  // created_at DESC, so pending-only + reverse gives oldest-first without a
-  // second sort.
-  const firstPending = computed(() => {
-    const pending = invites.value.filter(isPending)
-    return pending.length ? pending[pending.length - 1] : null
-  })
+  // The banner always shows the invite for the SOONEST upcoming run still
+  // needing a response — /me/invites is already ORDER BY run_date (then
+  // created_at) ASC (MyInvites, invites.go), so pending-only + first-match
+  // gives soonest-first with no extra sort needed here.
+  const firstPending = computed(() => invites.value.find(isPendingInvite) ?? null)
 
-  return { invites, loaded, unreadCount, firstPending, refresh, accept, dismiss, firstPendingRun, isPendingRun }
+  return { invites, loaded, unreadCount, firstPending, refresh, accept, dismiss }
 }

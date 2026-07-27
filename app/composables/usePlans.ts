@@ -260,24 +260,34 @@ export function usePlans() {
     }).catch(() => null)
     if (!res?.ok) {
       const msg = await apiErrorMessage(res)
-      toast.add({ title: res?.status === 409 ? 'Crew is full' : 'Could not send join request', description: msg, color: 'error' })
+      // JoinRun (invites.go) returns 409 for three distinct reasons — "crew
+      // is full", "host cannot request to join their own run", and "this
+      // run is not open for crew requests" — hardcoding "Crew is full" for
+      // every 409 mislabeled the other two. Surface the server's own
+      // message as the title when we have one; only fall back to the old
+      // defaults when the body carried no `error` (network failure).
+      const title = res?.status === 409
+        ? (msg ? msg.charAt(0).toUpperCase() + msg.slice(1) : 'Crew is full')
+        : 'Could not send join request'
+      toast.add({ title, description: res?.status === 409 ? undefined : msg, color: 'error' })
       return false
     }
     toast.add({ title: "Request sent — you'll hear back", color: 'success' })
     return true
   }
 
-  // Resend an email invite (#246 W5 item 2) — host action, per email chip in
-  // PlanMembersRow. Re-sends the event link + .ics to an invite_email that
-  // hasn't resolved to an account yet; 409 means every run row for that
-  // email is already accepted.
-  //
-  // TODO(W4): still targets /api/v1/plans/{planId}/invite/resend — A2
-  // re-keys invites to run_invites/run-scoped endpoints per the plan (§3);
-  // this call site needs to follow once that lands.
-  async function resendInvite(planId: string, email: string): Promise<boolean> {
+  // Resend an email invite (#246 W5 item 2, re-keyed web#354 W4) — host
+  // action, backs InviteSheet's "Pending invites" resend button. Re-sends
+  // the run link + .ics to an invite_email that hasn't resolved to an
+  // account yet; 409 means it's already been accepted or declined.
+  // web#354 A2/W4: invites are run-scoped now (run_invites, no more
+  // plan-wide fan-out) — this targets the run-scoped
+  // POST /plan-runs/{id}/invite/resend (invites.go ResendInvite); the old
+  // plan-scoped /plans/{planId}/invite/resend endpoint (and its
+  // PlanMembersRow caller) are gone.
+  async function resendInvite(runId: string, email: string): Promise<boolean> {
     const headers = await authHeaders()
-    const res = await fetch(`${apiBase}/api/v1/plans/${planId}/invite/resend`, {
+    const res = await fetch(`${apiBase}/api/v1/plan-runs/${runId}/invite/resend`, {
       method: 'POST', headers, body: JSON.stringify({ email }),
     }).catch(() => null)
     if (!res?.ok) {

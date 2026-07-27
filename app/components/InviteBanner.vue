@@ -10,23 +10,21 @@
     </div>
 
     <div class="min-w-0 flex-1">
-      <!-- #246 W5: headline names the RUN, not the plan (invite RSVPs are
-           per-run) — e.g. "@maya invited you to run Foxton on 7/26". Falls
-           back to the plan name if no run row could be resolved. -->
+      <!-- web#354 W4: invites are flat, one item = one run now — the
+           headline always names the run directly (no more "falls back to
+           the plan name" branch; there is no plan/event context on an
+           invite anymore, invites.go MyInvites). -->
       <p class="text-sm font-medium truncate">
-        @{{ invite.event.host_handle }} invited you to
-        <template v-if="firstRun">run {{ firstRun.run_name ?? 'a run' }} on {{ fmtDate(firstRun.run_date) }}</template>
-        <template v-else>{{ invite.event.name }}</template>
+        @{{ invite.run.host_handle }} invited you to run {{ invite.run.name }} on {{ fmtDate(invite.run.run_date) }}
       </p>
-      <p class="text-xs text-white/80 truncate">
-        {{ invite.event.name }} · {{ fmtRange(invite.event.start_date, invite.event.end_date) }}
+      <p v-if="riverLineText || extraCount > 0" class="text-xs text-white/80 truncate">
+        {{ riverLineText }}
         <template v-if="extraCount > 0"> · +{{ extraCount }} more</template>
       </p>
     </div>
 
     <NuxtLink
-      v-if="firstRun"
-      :to="`/plan-runs/${firstRun.plan_run_id}`"
+      :to="`/plan-runs/${invite.run.run_id}`"
       class="shrink-0 rounded-full bg-white/20 hover:bg-white/30 px-3 py-1.5 text-xs font-semibold transition-colors"
     >View</NuxtLink>
 
@@ -44,27 +42,30 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useInvites, type InviteRun } from '~/composables/useInvites'
-import { fmtDate, fmtRange } from '~/utils/calendarDate'
+import { useInvites, isPendingInvite } from '~/composables/useInvites'
+import { fmtDate } from '~/utils/calendarDate'
 
-const { invites, firstPending, firstPendingRun, isPendingRun, dismiss } = useInvites()
+// Local, matching PlanRunLogSheet.vue's identical one-liner (not a shared
+// util — there is no riverLine.ts module in this codebase, just the same
+// small helper duplicated per consumer).
+function riverLine(river?: string | null, state?: string | null): string {
+  return [river, state].filter(Boolean).join(' · ')
+}
+
+const { invites, firstPending, dismiss } = useInvites()
 const invite = firstPending
 
-const firstRun = computed<InviteRun | undefined>(() => invite.value ? firstPendingRun(invite.value) : undefined)
+const riverLineText = computed(() => invite.value ? riverLine(invite.value.run.river_name, invite.value.run.state_abbr) : '')
 
-// "+N more" — every OTHER still-pending RUN invite beyond the one named
-// above (whether from this same plan or another pending invite entirely).
-const extraCount = computed(() => {
-  const totalPendingRuns = invites.value.reduce((n, i) => n + i.runs.filter(isPendingRun).length, 0)
-  return Math.max(0, totalPendingRuns - 1)
-})
+// "+N more" — every OTHER still-pending invite beyond the one named above.
+const extraCount = computed(() => Math.max(0, invites.value.filter(isPendingInvite).length - 1))
 
 const dismissing = ref(false)
 
 async function onDismiss() {
-  if (!invite.value || !firstRun.value || dismissing.value) return
+  if (!invite.value || dismissing.value) return
   dismissing.value = true
-  await dismiss(firstRun.value.member_id)
+  await dismiss(invite.value.id)
   dismissing.value = false
 }
 </script>

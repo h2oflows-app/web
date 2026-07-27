@@ -12,29 +12,31 @@
       <div class="w-6 h-6 rounded-full border-2 border-primary-500 border-t-transparent animate-spin" />
     </div>
 
-    <!-- Not signed in, no invite-token carve-out — standard gate -->
-    <div v-else-if="!isAuthenticated && !inviteToken" class="max-w-2xl mx-auto px-4 py-20 flex flex-col items-center gap-3 text-center">
+    <!-- Not signed in — the event page is owner-only now (web#354 A1): there
+         is no anon carve-out here anymore (that moved to the run page,
+         renderPlanRun's ?invite= grant), so this is an unconditional gate. -->
+    <div v-else-if="!isAuthenticated" class="max-w-2xl mx-auto px-4 py-20 flex flex-col items-center gap-3 text-center">
       <svg class="w-10 h-10 text-neutral-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
       </svg>
-      <h2 class="text-lg font-semibold">Sign in to view this plan</h2>
+      <h2 class="text-lg font-semibold">Sign in to view this event</h2>
       <NuxtLink :to="`/login?redirect=${encodeURIComponent(route.fullPath)}`" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">Sign in</NuxtLink>
     </div>
 
-    <!-- Loading plan data -->
-    <div v-else-if="!loaded" class="max-w-2xl mx-auto px-4 py-20 flex justify-center">
+    <!-- Loading event data (+ own profile — isHost below needs myHandle, and
+         the two fetches race independently on a hard reload; without this,
+         a host whose profile resolves second briefly sees non-host Join UI
+         on their own event). -->
+    <div v-else-if="!loaded || !profileLoaded" class="max-w-2xl mx-auto px-4 py-20 flex justify-center">
       <div class="w-6 h-6 rounded-full border-2 border-primary-500 border-t-transparent animate-spin" />
     </div>
 
-    <div v-else-if="!plan" class="max-w-2xl mx-auto px-4 py-20 text-center text-neutral-400">Plan not found.</div>
+    <!-- 404 (non-owner) or a genuinely missing event both land here — the
+         api never distinguishes the two to an authed caller (uniform 404). -->
+    <div v-else-if="!plan" class="max-w-2xl mx-auto px-4 py-20 text-center text-neutral-400">Event not found.</div>
 
     <!-- Content -->
     <main v-else class="max-w-2xl mx-auto px-4 py-6 pb-24 sm:pb-8 space-y-5">
-      <!-- Anon token-carve-out banner: they can see it, but need an account to accept -->
-      <div v-if="!isAuthenticated" class="rounded-lg bg-primary-50 dark:bg-primary-950/20 px-3.5 py-2.5 text-xs text-primary-700 dark:text-primary-400">
-        You're viewing a shared invite. <NuxtLink :to="`/login?redirect=${encodeURIComponent(route.fullPath)}`" class="font-semibold hover:underline">Sign in or create an account</NuxtLink> to respond.
-      </div>
-
       <!-- Cover + header. web#354 A1/W1: no badges — event-type + visibility
            concepts removed entirely; a single Event tint replaces the old
            per-type cover color. -->
@@ -51,34 +53,12 @@
         </div>
       </div>
 
-      <!-- Pending invite(s) — #246 W5: per-run now. Covers the two cases the
-           itinerary's own per-run buttons can't: anon token-carve-out
-           (sign-in prompt), and an authed-but-unbound token holder (signed
-           up with a different email than the invite). -->
-      <InviteAcceptCard
-        v-if="pendingInviteRuns.length"
-        :plan="plan"
-        :runs="pendingInviteRuns"
-        :token="inviteToken ?? undefined"
-        @resolved="onInviteResolved"
-      />
-
-      <template v-if="isAuthenticated">
-        <!-- Members + invite -->
-        <PlanMembersRow
-          :members="members"
-          :plan-id="plan.id"
-          :is-host="isHost"
-          @invite="inviteSheetOpen = true"
-        />
-      </template>
-
-      <!-- Itinerary — crew meter, Join, and per-run accept/decline now live
-           on each run row (#246 W5, mig 000144). -->
+      <!-- Itinerary — crew meter, Join/Accept-decline, and per-run Invite all
+           live on each run row now (#246 W5, mig 000144; invite moved here
+           web#354 W2/A2). -->
       <section class="space-y-2">
-        <h2 class="text-xs font-semibold uppercase tracking-wide text-neutral-400">Paddle plans</h2>
+        <h2 class="text-xs font-semibold uppercase tracking-wide text-neutral-400">Runs during this Event</h2>
         <PlanItinerary
-          :plan="plan"
           :itinerary="data?.itinerary ?? []"
           :is-host="isHost"
           :is-accepted-member="isAcceptedMember"
@@ -87,16 +67,12 @@
         />
       </section>
     </main>
-
-    <InviteSheet v-if="plan" v-model:open="inviteSheetOpen" :plan-id="plan.id" :runs="inviteSheetRuns" @sent="load" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import type { PlanDetailResponse, PlanInviteTokenRun } from '~/utils/plan'
-import { aggregatePlanMembers } from '~/utils/plan'
-import { useInvites } from '~/composables/useInvites'
+import type { PlanDetailResponse } from '~/utils/plan'
 import { useMyProfile } from '~/composables/useMyProfile'
 import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
 import { fmtRange } from '~/utils/calendarDate'
@@ -111,18 +87,11 @@ const { isAuthenticated, getToken } = useAuth()
 const handleParam = route.params.handle as string
 const slugParam = route.params.slug as string
 
-// TODO(W2): web#354 A1's renderPlan (plans.go) dropped the anon ?invite=
-// token carve-out entirely — the event page is owner-only now (uniform 401
-// for anon, no existence oracle); the carve-out moves to the RUN page
-// (renderPlanRun) per §1. This computed + the anon-carve-out banner below
-// are stale until W2 removes them (an anon caller with a token still hits
-// the ordinary "Sign in to view this plan" gate below — degrades, doesn't
-// crash).
-const inviteToken = computed(() => (typeof route.query.invite === 'string' ? route.query.invite : null))
-
-// Email-link landing (#246 W5 item 3): the reworked invite emails link
-// straight to the invited run — ?run={plan_run_id} — so the itinerary can
-// scroll to + highlight it, alongside the existing ?invite= token flow.
+// Email-link landing (#246 W5 item 3): scrolls to + rings a specific run
+// named by ?run={plan_run_id} once the itinerary renders. Unrelated to the
+// (removed) ?invite= token carve-out, which lived at the EVENT level and
+// moved entirely to the run page in web#354 A1/A2 — this is just a same-page
+// anchor.
 const highlightRunId = computed(() => (typeof route.query.run === 'string' ? route.query.run : null))
 
 const authReady = ref(false)
@@ -133,8 +102,7 @@ const loaded = ref(false)
 
 async function load() {
   loaded.value = false
-  let url = `${apiBase}/api/v1/plans/${handleParam}/${slugParam}`
-  if (inviteToken.value) url += `?invite=${encodeURIComponent(inviteToken.value)}`
+  const url = `${apiBase}/api/v1/plans/${handleParam}/${slugParam}`
 
   const headers: Record<string, string> = {}
   if (isAuthenticated.value) {
@@ -149,7 +117,7 @@ async function load() {
 
 watch([authReady, isAuthenticated], () => {
   if (!authReady.value) return
-  if (isAuthenticated.value || inviteToken.value) load()
+  if (isAuthenticated.value) load()
   else loaded.value = true // standard gate handles the render, nothing to fetch
 }, { immediate: true })
 
@@ -164,69 +132,29 @@ watch(logSheetSavedCount, () => { load() })
 // `plan.value.*`).
 const plan = computed(() => data.value?.event ?? null)
 
-// TODO(W2): renderPlan (web#354 A1) no longer returns a `members` key at
-// all — this always aggregates an empty list until W2 removes
-// PlanMembersRow's event-page usage per the plan (§4).
-const members = computed(() => aggregatePlanMembers(data.value?.members ?? []))
-
 // ── Identity ──────────────────────────────────────────────────────────────
-const { handle: myHandle, load: loadMyProfile } = useMyProfile()
+// `loaded` here (renamed profileLoaded to not collide with the event
+// fetch's own `loaded` ref above) gates the content render below — the event
+// fetch and this profile fetch are two independent round-trips, and without
+// waiting on both, a host whose profile resolves after the event can briefly
+// compute isHost=false and see the non-host Join UI on their own event.
+const { handle: myHandle, loaded: profileLoaded, load: loadMyProfile } = useMyProfile()
 onMounted(() => { if (isAuthenticated.value) loadMyProfile() })
 watch(isAuthenticated, (v) => { if (v) loadMyProfile() })
 
 const isHost = computed(() => !!plan.value && !!myHandle.value && myHandle.value.toLowerCase() === plan.value.host_handle.toLowerCase())
 
-// #246 W5: "accepted member" is now derived straight off the itinerary —
-// any run row where the viewer's own RSVP is accepted — rather than a
-// single plan-wide membership status (crew/RSVPs are per-run).
+// #246 W5: "accepted member" is derived straight off the itinerary — any run
+// row where the viewer's own RSVP is accepted — rather than a single
+// plan-wide membership status (crew/RSVPs are per-run). web#354 A1: the
+// event page is owner-only now (renderPlan 404s any non-owner), so in
+// practice this is always false here (isHost is always true whenever `plan`
+// loaded at all, and now that content is also gated on profileLoaded above,
+// that holds from the first render) — kept as-is since PlanItinerary's
+// isAcceptedMember prop is a real, independently meaningful part of its
+// contract regardless of which page happens to render it.
 const isAcceptedMember = computed(() => {
   if (isHost.value || !data.value) return false
   return data.value.itinerary.some(day => day.runs.some(r => r.my_rsvp === 'accepted'))
 })
-
-// ── Pending invite(s) (viewer) ────────────────────────────────────────────
-const { invites: myInvites, refresh: refreshInvites } = useInvites()
-watch(isAuthenticated, (v) => { if (v) refreshInvites() }, { immediate: true })
-
-// Bound invite: this account's own pending run rows on THIS plan, sourced
-// from /me/invites (covers the common case — already-signed-up invitee).
-const myPendingRuns = computed<PlanInviteTokenRun[]>(() => {
-  if (!plan.value) return []
-  const group = myInvites.value.find(i => i.event.id === plan.value!.id)
-  if (!group) return []
-  return group.runs
-    .filter(r => r.status === 'invited' && !r.dismissed_at)
-    .map(r => ({ member_id: r.member_id, plan_run_id: r.plan_run_id, run_name: r.run_name, run_date: r.run_date, run_time: r.run_time }))
-})
-
-// Unbound token holder (different-email conversion) — API-resolved rows
-// that aren't reachable via /me/invites yet.
-const tokenRuns = computed<PlanInviteTokenRun[]>(() => data.value?.invite_token_runs ?? [])
-
-// Union, de-duped by member_id (a bound invite that ALSO forwarded a valid
-// token would otherwise double-list the same run).
-const pendingInviteRuns = computed<PlanInviteTokenRun[]>(() => {
-  if (!plan.value || isHost.value) return []
-  const seen = new Set<string>()
-  const merged: PlanInviteTokenRun[] = []
-  for (const r of [...myPendingRuns.value, ...tokenRuns.value]) {
-    if (seen.has(r.member_id)) continue
-    seen.add(r.member_id)
-    merged.push(r)
-  }
-  return merged
-})
-
-async function onInviteResolved() {
-  await refreshInvites()
-  await load()
-}
-
-// ── Sheets ────────────────────────────────────────────────────────────────
-const inviteSheetOpen = ref(false)
-
-// Flattened run list for InviteSheet's run-selector checkbox list.
-const inviteSheetRuns = computed(() =>
-  (data.value?.itinerary ?? []).flatMap(day => day.runs.map(r => ({ id: r.id, name: r.name, run_date: r.run_date })))
-)
 </script>

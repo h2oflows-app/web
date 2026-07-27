@@ -17,8 +17,20 @@
         >
           <PlanRunItem :run="toCalendarRun(run)" :date="day.date" :can-edit="isHost" @updated="$emit('refresh')" />
 
-          <div v-if="canLogMine(run)" class="flex justify-end">
+          <!-- Host: per-run Invite (web#354 W2 — replaces the removed
+               plan-level InviteSheet; invites are run-scoped now, A2).
+               Crew member: "Log my paddle" (unchanged, #246 W5). Mutually
+               exclusive in practice (isAcceptedMember is only ever true for
+               a non-host), grouped in one row when either applies. -->
+          <div v-if="isHost || canLogMine(run)" class="flex items-center justify-end gap-3">
             <button
+              v-if="isHost"
+              type="button"
+              class="text-[11px] font-medium text-primary-600 dark:text-primary-400 hover:underline"
+              @click="inviteRunId = run.id"
+            >Invite</button>
+            <button
+              v-if="canLogMine(run)"
               type="button"
               class="text-[11px] font-medium text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50 disabled:no-underline"
               :disabled="loggingId === run.id"
@@ -88,13 +100,6 @@
 
     <div v-if="!itinerary.length" class="text-center py-6 text-sm text-neutral-400">No runs on this plan yet.</div>
 
-    <button
-      v-if="isHost"
-      type="button"
-      class="w-full py-2.5 rounded-xl border border-dashed border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-500 dark:text-neutral-400 hover:border-primary-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-      @click="onAddRun"
-    >+ Add a run to this plan</button>
-
     <PlanCrewPanel
       v-if="crewPanelRunId"
       :plan-run-id="crewPanelRunId"
@@ -102,21 +107,27 @@
       @update:open="(v) => { if (!v) crewPanelRunId = null }"
       @refresh="$emit('refresh')"
     />
+
+    <InviteSheet
+      v-if="inviteRunId"
+      :run-id="inviteRunId"
+      :open="!!inviteRunId"
+      @update:open="(v) => { if (!v) inviteRunId = null }"
+      @sent="$emit('refresh')"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue'
-import type { CalendarEventDetail, PlanItineraryDay } from '~/utils/plan'
+import type { PlanItineraryDay } from '~/utils/plan'
 import type { PlanRunDetail, PlanRunRsvpStatus } from '~/utils/planRun'
 import type { CalendarRun } from '~/composables/useCalendar'
-import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
 import { usePlans } from '~/composables/usePlans'
 import { useInvites } from '~/composables/useInvites'
 import { dow, fmtDate, isPastOrToday } from '~/utils/calendarDate'
 
 const props = defineProps<{
-  plan: CalendarEventDetail
   itinerary: PlanItineraryDay[]
   isHost: boolean
   // true when the caller is an accepted crew member (not the host) — the
@@ -134,7 +145,6 @@ const emit = defineEmits<{ refresh: [] }>()
 const { apiBase } = useRuntimeConfig().public
 const { getToken } = useAuth()
 const toast = useToast()
-const planRunLogSheet = usePlanRunLogSheet()
 const { joinPlanRun } = usePlans()
 const { accept: acceptInviteMember, dismiss: dismissInviteMember } = useInvites()
 
@@ -186,16 +196,13 @@ async function logMine(run: PlanRunDetail) {
   }
 }
 
-// TODO(W2): this button's full removal (invite entry moves to a per-run
-// affordance instead) is web#354 W2's job (§4 plan) — for now it just opens
-// the unified sheet's run branch with the event's start_date prefilled and
-// no planId (runs are standalone/decoupled from any event, web#354 A1).
-function onAddRun() {
-  planRunLogSheet.openCreate(props.plan.start_date)
-}
-
 // ── Per-run crew panel (host) ─────────────────────────────────────────────
 const crewPanelRunId = ref<string | null>(null)
+
+// ── Per-run invite sheet (host) — web#354 W2, replaces the removed
+// plan-level InviteSheet (invites are run-scoped now, A2). Mirrors
+// crewPanelRunId's pattern exactly.
+const inviteRunId = ref<string | null>(null)
 
 // ── Per-run Join / invite accept-decline (non-host) ──────────────────────
 // Optimistic overlay on top of each run's server-supplied my_rsvp. Cleared

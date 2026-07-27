@@ -22,7 +22,7 @@
     <!-- Authenticated -->
     <main v-else class="max-w-3xl mx-auto px-4 py-6 pb-24 sm:pb-6 space-y-4">
       <h1 class="text-xl font-bold text-neutral-900 dark:text-white">Discover</h1>
-      <p class="text-xs text-neutral-400 -mt-2">Public plans looking for crew show here. Turn on <strong class="text-neutral-600 dark:text-neutral-300">Looking for crew</strong> on a run when you make a plan to appear.</p>
+      <p class="text-xs text-neutral-400 -mt-2">Runs looking for crew show here. Turn on <strong class="text-neutral-600 dark:text-neutral-300">Looking for crew</strong> on a run when you make one to appear.</p>
 
       <!-- Search + location filter -->
       <div class="flex flex-col sm:flex-row gap-2">
@@ -31,7 +31,7 @@
           <input
             v-model="q"
             type="text"
-            placeholder="Search plans by name…"
+            placeholder="Search runs by name…"
             class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
           />
         </div>
@@ -53,12 +53,22 @@
         <svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
-        <p class="text-sm">{{ q || location ? 'No plans match your search.' : 'No crew calls right now — check back soon.' }}</p>
+        <p class="text-sm">{{ q || location ? 'No runs match your search.' : 'No crew calls right now — check back soon.' }}</p>
       </div>
 
-      <!-- Results -->
-      <div v-else class="space-y-3">
-        <DiscoverPlanCard v-for="p in items" :key="p.id" :plan="p" />
+      <!-- Results — grouped by date (web#354 W4 regroup: flat run list now,
+           events aren't browsable), mirroring PlanItinerary's day-header
+           style. -->
+      <div v-else class="space-y-4">
+        <div v-for="g in groupedItems" :key="g.date" class="space-y-2">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold uppercase tracking-wide text-neutral-400">{{ dow(g.date) }} · {{ fmtDate(g.date) }}</span>
+            <div class="flex-1 h-px bg-neutral-100 dark:bg-neutral-800" />
+          </div>
+          <div class="space-y-3">
+            <DiscoverRunCard v-for="r in g.runs" :key="r.plan_run_id" :run="r" />
+          </div>
+        </div>
 
         <div v-if="hasMore" class="flex justify-center pt-2">
           <button
@@ -74,8 +84,9 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
-import type { DiscoverPlan } from '~/utils/discover'
+import { computed, onMounted, ref, watch } from 'vue'
+import type { DiscoverRun, DiscoverRunsResponse } from '~/utils/discover'
+import { dow, fmtDate } from '~/utils/calendarDate'
 
 definePageMeta({ ssr: false })
 
@@ -87,7 +98,7 @@ onMounted(() => { authReady.value = true })
 
 const q = ref('')
 const location = ref('')
-const items = ref<DiscoverPlan[]>([])
+const items = ref<DiscoverRun[]>([])
 const nextOffset = ref(0)
 const hasMore = ref(false)
 // fetchDone (house rule): gates the empty-state message so it never flashes
@@ -98,10 +109,10 @@ const loadingMore = ref(false)
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 
-// TODO(W4): see utils/discover.ts — GET /discover/plans reshaped to a flat
-// run list in web#354 A1; this page's DiscoverPlan[] typing is stale until
-// W4's regroup lands.
-async function fetchPage(offset: number): Promise<{ items: DiscoverPlan[]; has_more: boolean; next_offset: number } | null> {
+// web#354 A1/A2: GET /discover/plans is a flat, run_date-sorted list of
+// crew-seeking calendar_runs now (discover.go ListPlans) — the route path
+// is unchanged, only the response shape moved (utils/discover.ts).
+async function fetchPage(offset: number): Promise<DiscoverRunsResponse | null> {
   const token = await getToken()
   const headers: Record<string, string> = {}
   if (token) headers.Authorization = `Bearer ${token}`
@@ -141,5 +152,18 @@ watch([q, location], () => {
   if (!isAuthenticated.value) return
   if (searchTimer) clearTimeout(searchTimer)
   searchTimer = setTimeout(search, 350)
+})
+
+// Day-group the already run_date-sorted flat list for display — cheap
+// consecutive-run grouping, no re-sort needed since the api's ORDER BY
+// cr.run_date, cr.run_time already guarantees same-date items are adjacent.
+const groupedItems = computed(() => {
+  const groups: { date: string; runs: DiscoverRun[] }[] = []
+  for (const r of items.value) {
+    const last = groups[groups.length - 1]
+    if (last && last.date === r.run_date) last.runs.push(r)
+    else groups.push({ date: r.run_date, runs: [r] })
+  }
+  return groups
 })
 </script>
