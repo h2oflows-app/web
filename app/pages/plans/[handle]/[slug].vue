@@ -23,8 +23,11 @@
       <NuxtLink :to="`/login?redirect=${encodeURIComponent(route.fullPath)}`" class="text-sm text-primary-600 dark:text-primary-400 hover:underline">Sign in</NuxtLink>
     </div>
 
-    <!-- Loading event data -->
-    <div v-else-if="!loaded" class="max-w-2xl mx-auto px-4 py-20 flex justify-center">
+    <!-- Loading event data (+ own profile — isHost below needs myHandle, and
+         the two fetches race independently on a hard reload; without this,
+         a host whose profile resolves second briefly sees non-host Join UI
+         on their own event). -->
+    <div v-else-if="!loaded || !profileLoaded" class="max-w-2xl mx-auto px-4 py-20 flex justify-center">
       <div class="w-6 h-6 rounded-full border-2 border-primary-500 border-t-transparent animate-spin" />
     </div>
 
@@ -130,7 +133,12 @@ watch(logSheetSavedCount, () => { load() })
 const plan = computed(() => data.value?.event ?? null)
 
 // ── Identity ──────────────────────────────────────────────────────────────
-const { handle: myHandle, load: loadMyProfile } = useMyProfile()
+// `loaded` here (renamed profileLoaded to not collide with the event
+// fetch's own `loaded` ref above) gates the content render below — the event
+// fetch and this profile fetch are two independent round-trips, and without
+// waiting on both, a host whose profile resolves after the event can briefly
+// compute isHost=false and see the non-host Join UI on their own event.
+const { handle: myHandle, loaded: profileLoaded, load: loadMyProfile } = useMyProfile()
 onMounted(() => { if (isAuthenticated.value) loadMyProfile() })
 watch(isAuthenticated, (v) => { if (v) loadMyProfile() })
 
@@ -141,9 +149,10 @@ const isHost = computed(() => !!plan.value && !!myHandle.value && myHandle.value
 // plan-wide membership status (crew/RSVPs are per-run). web#354 A1: the
 // event page is owner-only now (renderPlan 404s any non-owner), so in
 // practice this is always false here (isHost is always true whenever `plan`
-// loaded at all) — kept as-is since PlanItinerary's isAcceptedMember prop is
-// a real, independently meaningful part of its contract regardless of which
-// page happens to render it.
+// loaded at all, and now that content is also gated on profileLoaded above,
+// that holds from the first render) — kept as-is since PlanItinerary's
+// isAcceptedMember prop is a real, independently meaningful part of its
+// contract regardless of which page happens to render it.
 const isAcceptedMember = computed(() => {
   if (isHost.value || !data.value) return false
   return data.value.itinerary.some(day => day.runs.some(r => r.my_rsvp === 'accepted'))

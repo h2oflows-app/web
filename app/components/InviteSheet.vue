@@ -268,6 +268,10 @@ function classifyHandleResult(handle: string, status: number, body: any): Result
 
 function classifyEmailResult(emailAddr: string, status: number, body: any): ResultItem {
   if (status === 201) return { key: resultKey(), label: emailAddr, kind: 'success', message: body?.sent ? 'invited — email sent' : 'invited' }
+  // Host-self guard (invites.go InviteToRun email branch): emailing your own
+  // login address is a deliberate no-op, 200 {status:"existing"} — mirrors
+  // classifyHandleResult's 200 branch below, not an error.
+  if (status === 200) return { key: resultKey(), label: emailAddr, kind: 'existing', message: "that's you — already on this run" }
   if (status === 409) return { key: resultKey(), label: emailAddr, kind: 'duplicate', message: 'already invited to this run', resendEmail: emailAddr }
   return { key: resultKey(), label: emailAddr, kind: 'error', message: body?.error ?? `Failed (${status || 'network'})` }
 }

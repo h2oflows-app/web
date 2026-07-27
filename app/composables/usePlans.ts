@@ -260,7 +260,16 @@ export function usePlans() {
     }).catch(() => null)
     if (!res?.ok) {
       const msg = await apiErrorMessage(res)
-      toast.add({ title: res?.status === 409 ? 'Crew is full' : 'Could not send join request', description: msg, color: 'error' })
+      // JoinRun (invites.go) returns 409 for three distinct reasons — "crew
+      // is full", "host cannot request to join their own run", and "this
+      // run is not open for crew requests" — hardcoding "Crew is full" for
+      // every 409 mislabeled the other two. Surface the server's own
+      // message as the title when we have one; only fall back to the old
+      // defaults when the body carried no `error` (network failure).
+      const title = res?.status === 409
+        ? (msg ? msg.charAt(0).toUpperCase() + msg.slice(1) : 'Crew is full')
+        : 'Could not send join request'
+      toast.add({ title, description: res?.status === 409 ? undefined : msg, color: 'error' })
       return false
     }
     toast.add({ title: "Request sent — you'll hear back", color: 'success' })

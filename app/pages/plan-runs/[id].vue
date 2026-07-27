@@ -34,13 +34,13 @@
     </div>
 
     <main v-else class="max-w-2xl mx-auto px-4 py-8 pb-20 sm:pb-8 space-y-4">
-      <!-- Anon token carve-out banner (web#354 W4 — moved here from the old
-           plan-page carve-out): they can see it, but need an account to
-           respond. -->
-      <div v-if="!isAuthenticated" class="rounded-lg bg-primary-50 dark:bg-primary-950/20 px-3.5 py-2.5 text-xs text-primary-700 dark:text-primary-400">
-        You're viewing a shared invite. <NuxtLink :to="`/login?redirect=${encodeURIComponent(route.fullPath)}`" class="font-semibold hover:underline">Sign in or create an account</NuxtLink> to respond.
-      </div>
-
+      <!-- Anon token carve-out (web#354 W4 — moved here from the old
+           plan-page carve-out): they can see the run, but need an account to
+           respond. No separate page-level banner here — an anon viewer only
+           ever reaches <main> with a valid token (see the gate above), which
+           means showInviteAccept is always true too, so InviteAcceptCard's
+           own "Sign in to accept" CTA below already covers this (with run
+           context); a second, page-level prompt was pure duplication. -->
       <InviteAcceptCard
         v-if="showInviteAccept"
         :run="run"
@@ -89,7 +89,17 @@ onMounted(() => { authReady.value = true })
 const data = ref<PlanRunResponse | null>(null)
 const pending = ref(false)
 
+// Monotonic request counter — the token-landing watch below can dispatch two
+// loads in quick succession (an anon-token fetch before the session
+// hydrates, then an authed re-fetch once it does; see useAuth's getToken doc
+// comment on why session hydration lags mount). Without a sequence guard the
+// two in-flight responses race and a naive last-writer-wins `data.value =`
+// can land the stale (anon) response after the authed one. Tag each call and
+// drop any response that isn't from the most recent call.
+let requestSeq = 0
+
 async function load() {
+  const seq = ++requestSeq
   pending.value = true
   let url = `${config.public.apiBase}/api/v1/plan-runs/${param}`
   if (inviteToken.value) url += `?invite=${encodeURIComponent(inviteToken.value)}`
@@ -101,7 +111,9 @@ async function load() {
   }
 
   const res = await fetch(url, { headers }).catch(() => null)
-  data.value = res?.ok ? await res.json().catch(() => null) : null
+  const json = res?.ok ? await res.json().catch(() => null) : null
+  if (seq !== requestSeq) return // a newer load() superseded this one
+  data.value = json
   pending.value = false
 }
 

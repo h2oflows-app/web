@@ -85,7 +85,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import type { DiscoverRun } from '~/utils/discover'
+import type { DiscoverRun, DiscoverRunsResponse } from '~/utils/discover'
 import { dow, fmtDate } from '~/utils/calendarDate'
 
 definePageMeta({ ssr: false })
@@ -112,7 +112,7 @@ let searchTimer: ReturnType<typeof setTimeout> | null = null
 // web#354 A1/A2: GET /discover/plans is a flat, run_date-sorted list of
 // crew-seeking calendar_runs now (discover.go ListPlans) — the route path
 // is unchanged, only the response shape moved (utils/discover.ts).
-async function fetchPage(offset: number): Promise<{ items: DiscoverRun[]; has_more: boolean; next_offset: number } | null> {
+async function fetchPage(offset: number): Promise<DiscoverRunsResponse | null> {
   const token = await getToken()
   const headers: Record<string, string> = {}
   if (token) headers.Authorization = `Bearer ${token}`

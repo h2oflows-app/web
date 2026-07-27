@@ -25,6 +25,7 @@
     <PlanCrewMeter :filled="run.crew.filled" :max="run.crew.max" title="Crew">
       <template #action>
         <button
+          v-if="!isOwnRun"
           type="button"
           class="shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           :class="rsvp === 'requested' || rsvp === 'accepted'
@@ -39,12 +40,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import type { DiscoverRun } from '~/utils/discover'
 import { fmtDate, fmtTime } from '~/utils/calendarDate'
 import { classRange } from '~/utils/classRating'
 import { flowBandLabel, colorKeyToBadgeClass } from '~/utils/flowBand'
 import { usePlans } from '~/composables/usePlans'
+import { useMyProfile } from '~/composables/useMyProfile'
 
 // DiscoverRunCard — regrouped from DiscoverPlanCard (web#354 W4; discover.go
 // ListPlans doc comment): one card = one crew-seeking calendar_run now, not
@@ -58,6 +60,14 @@ import { usePlans } from '~/composables/usePlans'
 const props = defineProps<{ run: DiscoverRun }>()
 
 const { joinPlanRun } = usePlans()
+
+// Discover applies no owner filter (a host's own looking_for_crew runs
+// legitimately show in their own feed — discover/index.vue's own copy
+// directs users to expect this), so hide the Join action on your own run:
+// tapping it only ever 409s ("host cannot request to join their own run").
+const { isMine, loaded: profileLoaded, load: loadMyProfile } = useMyProfile()
+onMounted(() => { void loadMyProfile() })
+const isOwnRun = computed(() => profileLoaded.value && isMine(props.run.host_handle))
 
 const override = ref<string | null>(null)
 const busy = ref(false)

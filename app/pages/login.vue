@@ -113,12 +113,23 @@ const signUpSent = ref(false)
 // Redirect destination — come from wherever they were trying to go
 const redirectTo = computed(() => (route.query.redirect as string) || '/dashboard')
 
+// The OAuth / sign-up flows bounce through Supabase and land on /confirm
+// (implicit-flow hash processing), not back on this page — so redirectTo
+// can't just be router.push'd like the email/password path does. Thread it
+// through as /confirm's own ?redirect= query (only when it differs from the
+// default, to keep the callback URL clean) so confirm.vue can finish the
+// trip once the session is live.
+function confirmUrl(): string {
+  const base = `${window.location.origin}/confirm`
+  return redirectTo.value !== '/dashboard' ? `${base}?redirect=${encodeURIComponent(redirectTo.value)}` : base
+}
+
 async function signInWithProvider(provider: 'google') {
   loading.value   = true
   authError.value = ''
   const { error } = await client.auth.signInWithOAuth({
     provider,
-    options: { redirectTo: `${window.location.origin}/confirm` },
+    options: { redirectTo: confirmUrl() },
   })
   if (error) {
     authError.value = error.message
@@ -150,7 +161,7 @@ async function signUpWithEmail() {
   const { error } = await client.auth.signUp({
     email:    email.value,
     password: password.value,
-    options:  { emailRedirectTo: `${window.location.origin}/confirm` },
+    options:  { emailRedirectTo: confirmUrl() },
   })
   loading.value = false
   if (error) {
