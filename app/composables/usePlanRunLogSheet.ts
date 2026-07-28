@@ -1,24 +1,31 @@
 /**
  * usePlanRunLogSheet — shared open/mode state for PlanRunLogSheet.vue, the
  * UNIFIED "+ New" create sheet (web#354 W1 — absorbs the deleted
- * PlanCreateSheet.vue). Mirrors the old usePlanCreateSheet's useState
- * pattern so the sheet can be mounted once globally (AppCreateOverlay) and
- * triggered from anywhere: the calendar "+ New" button, CalendarDaySheet's
- * day-scoped "+ New", PlanRunItem's "Edit" affordance on a planned
+ * PlanCreateSheet.vue; W5 — collapses the old explicit "Pick a run" / "No
+ * run — create an Event" branch toggle into one form). Mirrors the old
+ * usePlanCreateSheet's useState pattern so the sheet can be mounted once
+ * globally (AppCreateOverlay) and triggered from anywhere: the calendar
+ * "+ New" button, CalendarDaySheet's day-scoped "+ New", the global "+"
+ * chooser (CreateChooserSheet), PlanRunItem's "Edit" affordance on a planned
  * (unpaddled) run, NudgeCard's "Paddled it".
  *
  * Modes:
- *  - create: unified — the sheet opens with the library-run picker
- *    prominent, plus an explicit "No run — create an Event" branch toggle.
- *    Picking a run -> POSTs the new standalone POST /plan-runs (no parent
- *    event; web#354 decoupled runs entirely, no plan_id). Not picking a run
- *    -> the Event branch (name/date-range/location only, no type pills, no
- *    visibility) -> POSTs POST /plans. Kind is fixed at creation — no
- *    morphing between the two afterward.
+ *  - create: ONE form. Opens with the event fields (name/date-range/
+ *    location) plus an optional inline "Run" field — tap "Add a run" to open
+ *    the My runs | Community picker. No run picked at save time -> POSTs
+ *    POST /plans (an Event). A run picked -> the name/date-range/location
+ *    fields hide (the run supplies the name; its date collapses to a single
+ *    day) and the run-specific fields (date/time/meetup/crew/log) appear ->
+ *    POSTs the standalone POST /plan-runs (no parent event; web#354 decoupled
+ *    runs entirely, no plan_id). Clearing a picked run restores the event
+ *    fields with whatever was already typed intact. Kind is decided in-sheet
+ *    by whether a run ends up picked, not by which opener was called — there
+ *    is only one create opener now (see openCreate below).
  *  - edit: an EXISTING *planned* (unpaddled) run — freely editable
  *    (run_date/run_time/notes/companions), and can flip paddled:true here.
  *    Paddled runs are edited on their own /plan-runs/{id} detail page
- *    instead (24h notes-only lock lives there, not in this sheet).
+ *    instead (24h notes-only lock lives there, not in this sheet). No event
+ *    editing exists yet — this mode only ever targets a run.
  *  - confirm: a Tier-A nudge candidate (GET /me/nudge/candidate) — NOT a
  *    calendar_runs row the caller already has open in the sheet's other
  *    senses; posts POST /me/nudge/confirm {user_reach_id,run_date,notes?}
@@ -30,16 +37,15 @@
  * web#354 W1: `openCreate` drops the old `planId`/`visibility` params (runs
  * are standalone now, no parent event to attach to; the client-side
  * "crew requires a public plan" hint is gone too — the api's only crew gate
- * is a run's own looking_for_crew, see invites.go JoinRun). `openCreateEvent`
- * is new — entry points that want the sheet to open straight into the Event
- * branch (the old "+ New plan" buttons) call this instead of openCreate.
+ * is a run's own looking_for_crew, see invites.go JoinRun).
+ *
+ * web#354 W5: `openCreateEvent` and the `branch` state it drove are REMOVED
+ * — every entry point that used to jump straight to the event branch now
+ * calls the same `openCreate(date?)` the neutral "+ New" always used, since
+ * the unified form shows the event fields by default regardless (the run
+ * picker is an optional add-on, not a fork).
  */
 export type PlanRunSheetMode = 'create' | 'edit' | 'confirm'
-
-// Which half of the unified create sheet is showing — only meaningful in
-// 'create' mode. Fixed once a run is picked or the "No run" toggle is hit;
-// see PlanRunLogSheet.vue's branch-switching guard.
-export type PlanRunSheetBranch = 'run' | 'event'
 
 // Minimal shape needed to render the confirm-mode summary — matches
 // useNudge.ts's NudgeMember field-for-field (kept as a local structural type,
@@ -55,29 +61,15 @@ export interface ConfirmSheetMember {
 export function usePlanRunLogSheet() {
   const isOpen = useState('plan-run-log-sheet:open', () => false)
   const mode = useState<PlanRunSheetMode>('plan-run-log-sheet:mode', () => 'create')
-  // create-mode branch: 'run' (library-run picker, default) or 'event' (no
-  // run picked / entry points that jump straight to event fields).
-  const branch = useState<PlanRunSheetBranch>('plan-run-log-sheet:branch', () => 'run')
   const runId = useState<string | null>('plan-run-log-sheet:run-id', () => null)
   const prefillDate = useState<string | null>('plan-run-log-sheet:prefill-date', () => null)
   const confirmMember = useState<ConfirmSheetMember | null>('plan-run-log-sheet:confirm-member', () => null)
 
-  // create mode, run branch (default) — date prefill only; no planId (runs
-  // are standalone, web#354).
+  // create mode, the ONLY create opener (web#354 W5) — date prefill only; no
+  // planId (runs are standalone), no branch (the sheet itself decides Event
+  // vs Run based on whether the optional Run field ends up picked).
   function openCreate(date?: string) {
     mode.value = 'create'
-    branch.value = 'run'
-    runId.value = null
-    prefillDate.value = date ?? null
-    confirmMember.value = null
-    isOpen.value = true
-  }
-
-  // create mode, event branch — replaces the deleted PlanCreateSheet's
-  // open(date?). Used by every former "+ New plan" entry point.
-  function openCreateEvent(date?: string) {
-    mode.value = 'create'
-    branch.value = 'event'
     runId.value = null
     prefillDate.value = date ?? null
     confirmMember.value = null
@@ -86,7 +78,6 @@ export function usePlanRunLogSheet() {
 
   function openEdit(targetRunId: string) {
     mode.value = 'edit'
-    branch.value = 'run'
     runId.value = targetRunId
     prefillDate.value = null
     confirmMember.value = null
@@ -95,7 +86,6 @@ export function usePlanRunLogSheet() {
 
   function openConfirm(member: ConfirmSheetMember) {
     mode.value = 'confirm'
-    branch.value = 'run'
     runId.value = null
     prefillDate.value = null
     confirmMember.value = member
@@ -116,7 +106,7 @@ export function usePlanRunLogSheet() {
   }
 
   return {
-    isOpen, mode, branch, runId, prefillDate, confirmMember,
-    savedCount, markSaved, openCreate, openCreateEvent, openEdit, openConfirm, close,
+    isOpen, mode, runId, prefillDate, confirmMember,
+    savedCount, markSaved, openCreate, openEdit, openConfirm, close,
   }
 }

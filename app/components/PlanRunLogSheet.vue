@@ -101,76 +101,22 @@
                 </div>
 
                 <template v-else>
-                  <!-- Unified create-sheet branch toggle (web#354 W1 — absorbs
-                       the deleted PlanCreateSheet). Picking a run makes this
-                       item a Run; "No run" makes it an Event. Kind is fixed
-                       at creation — no morphing afterward. -->
-                  <div v-if="mode === 'create'" class="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      class="flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
-                      :class="branch === 'run' ? 'bg-primary-600 text-white' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'"
-                      @click="branch = 'run'"
-                    >Pick a run</button>
-                    <button
-                      type="button"
-                      class="flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
-                      :class="branch === 'event' ? 'bg-primary-600 text-white' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'"
-                      @click="branch = 'event'"
-                    >No run — create an Event</button>
-                  </div>
-
-                  <!-- Event branch (create mode only): name/date-range/
-                       location ONLY — no type pills (event-type concept
-                       removed), no visibility control (concept removed). -->
-                  <template v-if="mode === 'create' && branch === 'event'">
-                    <div>
-                      <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Name</label>
-                      <input
-                        v-model="wizard.name"
-                        type="text"
-                        placeholder="e.g. Gore Canyon weekend"
-                        class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
-                      />
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                      <div>
-                        <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Start date</label>
-                        <input
-                          v-model="wizard.startDate"
-                          type="date"
-                          class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
-                        />
-                      </div>
-                      <div>
-                        <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">End date</label>
-                        <input
-                          v-model="wizard.endDate"
-                          type="date"
-                          :min="wizard.startDate || undefined"
-                          class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
-                        />
-                      </div>
-                    </div>
-                    <p v-if="wizard.dateError" class="text-xs text-red-500 -mt-2">{{ wizard.dateError }}</p>
-
-                    <div>
-                      <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Location <span class="text-neutral-400">(optional)</span></label>
-                      <input
-                        v-model="wizard.location"
-                        type="text"
-                        placeholder="e.g. Pumphouse to State Bridge"
-                        class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
-                      />
-                    </div>
-                  </template>
-
-                  <!-- Run branch (create + edit) -->
-                  <template v-else>
-                  <!-- Run picker (create mode) -->
+                  <!-- Run — optional inline field, create mode only (web#354
+                       W5 — supersedes the old explicit "Pick a run" / "No
+                       run — create an Event" branch toggle). Tap "Add a run"
+                       to open the My runs | Community picker; tap Clear on a
+                       pick to drop back to the event fields below — whatever
+                       was already typed for name/dates/location is untouched
+                       either way, since picking/clearing a run never writes
+                       to the wizard store. No run picked at save time -> an
+                       Event (POST /plans); a run picked -> a Run
+                       (POST /plan-runs). Kind is fixed once created — edit
+                       mode never shows this field at all (a run's kind can't
+                       change after creation). -->
                   <div v-if="mode === 'create'">
-                    <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Run</label>
+                    <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">
+                      Run <span class="text-neutral-400">(optional)</span>
+                    </label>
 
                     <div v-if="selectedRun" class="flex items-center gap-2 rounded-lg border border-neutral-200 dark:border-neutral-700 px-3 py-2">
                       <svg class="w-4 h-4 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14c3-6 6-9 8-9s5 9 8 9"/></svg>
@@ -178,8 +124,18 @@
                         <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">{{ selectedRun.name }}</p>
                         <p v-if="riverLine(selectedRun.river_name, selectedRun.state_abbr)" class="text-xs text-neutral-400 truncate">{{ riverLine(selectedRun.river_name, selectedRun.state_abbr) }}</p>
                       </div>
-                      <button type="button" class="text-xs text-primary-600 dark:text-primary-400 hover:underline shrink-0" @click="selectedRunId = ''">Change</button>
+                      <button type="button" class="text-xs text-neutral-400 hover:text-red-500 dark:hover:text-red-400 hover:underline shrink-0" @click="clearRun">Clear</button>
                     </div>
+
+                    <button
+                      v-else-if="!runPickerOpen"
+                      type="button"
+                      class="w-full flex items-center gap-2 rounded-lg border border-dashed border-neutral-200 dark:border-neutral-700 px-3 py-2.5 text-sm text-neutral-500 dark:text-neutral-400 hover:border-primary-400 dark:hover:border-primary-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                      @click="runPickerOpen = true"
+                    >
+                      <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                      Add a run
+                    </button>
 
                     <div v-else class="space-y-2">
                       <div class="flex items-center gap-1.5">
@@ -195,6 +151,11 @@
                           :class="pickerScope === 'community' ? 'bg-primary-600 text-white' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700'"
                           @click="pickerScope = 'community'"
                         >Community</button>
+                        <button
+                          type="button"
+                          class="ml-auto text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 hover:underline"
+                          @click="runPickerOpen = false"
+                        >Cancel</button>
                       </div>
                       <input
                         v-model="runFilter"
@@ -242,12 +203,66 @@
                     </div>
                   </div>
 
+                  <!-- Event fields (create mode, no run picked): name/date-
+                       range/location ONLY — no type pills (event-type
+                       concept removed), no visibility control (concept
+                       removed). Hidden once a run is picked above — the run
+                       supplies the name, and its date collapses to the
+                       single-day field in the run-specific block below. -->
+                  <template v-if="mode === 'create' && !selectedRunId">
+                    <div>
+                      <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Name</label>
+                      <input
+                        v-model="wizard.name"
+                        type="text"
+                        placeholder="e.g. Gore Canyon weekend"
+                        class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                      />
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                      <div>
+                        <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Start date</label>
+                        <input
+                          v-model="wizard.startDate"
+                          type="date"
+                          class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                        />
+                      </div>
+                      <div>
+                        <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">End date</label>
+                        <input
+                          v-model="wizard.endDate"
+                          type="date"
+                          :min="wizard.startDate || undefined"
+                          class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                        />
+                      </div>
+                    </div>
+                    <p v-if="wizard.dateError" class="text-xs text-red-500 -mt-2">{{ wizard.dateError }}</p>
+
+                    <div>
+                      <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Location <span class="text-neutral-400">(optional)</span></label>
+                      <input
+                        v-model="wizard.location"
+                        type="text"
+                        placeholder="e.g. Pumphouse to State Bridge"
+                        class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                      />
+                    </div>
+                  </template>
+
                   <!-- Reach (read-only, edit mode) -->
-                  <div v-else class="flex items-center gap-2 rounded-lg bg-neutral-100 dark:bg-neutral-800 px-3 py-2 text-sm">
+                  <div v-if="mode === 'edit'" class="flex items-center gap-2 rounded-lg bg-neutral-100 dark:bg-neutral-800 px-3 py-2 text-sm">
                     <svg class="w-4 h-4 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14c3-6 6-9 8-9s5 9 8 9"/></svg>
                     <span class="text-neutral-700 dark:text-neutral-300 truncate">{{ editRun?.name ?? 'Untitled run' }}</span>
                   </div>
 
+                  <!-- Run-specific fields: shown once a run is picked above
+                       (create) or always (edit — a run's kind is fixed at
+                       creation, so an edit never shows the event fields or
+                       the picker). -->
+                  <template v-if="isRunKind">
                   <!-- Date + Time -->
                   <div class="grid grid-cols-2 gap-3">
                     <div>
@@ -368,7 +383,13 @@
                        date is today or past (unlocked); future dates hide it
                        entirely — future days are plans, nothing to log yet
                        (product feedback 2026-07-25, replaces the old
-                       disabled-with-hint treatment). -->
+                       disabled-with-hint treatment). Works identically in
+                       CREATE mode for a picked run on a past date (web#354
+                       W5) — toggling "I paddled this" here creates the run
+                       already-logged in one save, no separate log-mine step
+                       needed; the api only 422s a STRICTLY future run_date
+                       (insertPlanRun's `rd.After(today)` check), so today and
+                       any past date both save straight through. -->
                   <div v-if="canTogglePaddled" class="space-y-3">
                     <p class="text-[11px] font-medium text-neutral-400 uppercase tracking-wide">Log</p>
 
@@ -464,7 +485,7 @@ const { getToken } = useAuth()
 const toast = useToast()
 const route = useRoute()
 
-const { isOpen, mode, branch, runId, prefillDate, confirmMember, close, markSaved } = usePlanRunLogSheet()
+const { isOpen, mode, runId, prefillDate, confirmMember, close, markSaved } = usePlanRunLogSheet()
 const { createRun, patchRun, createPlan } = usePlans()
 const calendar = useCalendar()
 const focusDate = useCalendarFocusDate()
@@ -476,7 +497,7 @@ const submitting = ref(false)
 const headerTitle = computed(() => {
   if (mode.value === 'edit') return 'Edit run'
   if (mode.value === 'confirm') return 'Confirm your paddle'
-  return branch.value === 'event' ? 'New Event' : 'Create a Run'
+  return selectedRunId.value ? 'Create a Run' : 'New Event'
 })
 
 const form = ref({
@@ -488,7 +509,7 @@ const form = ref({
   maxCrew: 4,
 })
 
-// ── Create mode: run picker ─────────────────────────────────────────────
+// ── Create mode: run picker (optional field) ────────────────────────────
 // Two scopes: your own runs, and the global community catalog. A calendar
 // run may reference ANY live river run (they're all public) — the API
 // resolves user_reach_id without an ownership gate.
@@ -498,6 +519,10 @@ const runsLoaded = ref(false)
 const runFilter = ref('')
 const selectedRunId = ref('')
 const pickerScope = ref<'mine' | 'community'>('mine')
+// Collapsed/expanded state of the inline "Run" field's picker (web#354 W5) —
+// distinct from selectedRunId: this only controls whether the My runs |
+// Community picker UI is showing, not whether a run has been picked.
+const runPickerOpen = ref(false)
 
 interface CommunityRun {
   id: string
@@ -521,16 +546,38 @@ const selectedRun = computed(() =>
   selectedRunId.value && pickedRun.value?.id === selectedRunId.value ? pickedRun.value : null
 )
 
+// Whichever half of the unified form is showing: the run-specific fields
+// (Date+Time/Meetup/Crew/Log) once a run is picked in create mode, or always
+// in edit mode (a run's kind is fixed at creation — editing one never shows
+// the event fields or the picker). Confirm mode is its own top-level branch,
+// not part of this.
+const isRunKind = computed(() => {
+  if (mode.value === 'edit') return true
+  if (mode.value === 'create') return !!selectedRunId.value
+  return false
+})
+
 // Reach owner handle for the picked run — null means "the caller's own run"
 // (fetch its features via /me/runs/{slug}); set means a community pick,
 // fetched via the public /users/{handle}/runs/{slug}. Only used to drive the
 // meet-up-spot feature-suggestion fetch below.
 const pickedRunHandle = ref<string | null>(null)
 
+// One-time date transfer at pick time (NOT a continuous binding): if the
+// event date range already had a start date typed, the run's single date
+// field starts there instead of today. wizard.startDate/endDate themselves
+// are never touched here, so clearing the run later restores the range
+// exactly as the user left it.
+function onRunPicked() {
+  runPickerOpen.value = false
+  if (wizard.startDate) form.value.runDate = wizard.startDate
+}
+
 function pickMine(r: MyRun) {
   pickedRun.value = r
   selectedRunId.value = r.id
   pickedRunHandle.value = null
+  onRunPicked()
 }
 
 function pickCommunity(c: CommunityRun) {
@@ -545,6 +592,18 @@ function pickCommunity(c: CommunityRun) {
   }
   selectedRunId.value = c.id
   pickedRunHandle.value = c.handle
+  onRunPicked()
+}
+
+// "Clear" on the picked-run summary row (create mode only) — drops back to
+// the event fields. wizard.name/startDate/endDate/location are never
+// touched by pick/clear, so whatever was typed there before picking a run
+// is exactly as the user left it.
+function clearRun() {
+  selectedRunId.value = ''
+  pickedRun.value = null
+  pickedRunHandle.value = null
+  runPickerOpen.value = false
 }
 
 const filteredRuns = computed(() => {
@@ -691,13 +750,13 @@ watch(isOpen, (open) => {
       lookingForCrew: false, maxCrew: 4,
     }
     selectedRunId.value = ''
+    pickedRun.value = null
+    runPickerOpen.value = false
     runFilter.value = ''
     meetupText.value = ''
     meetupFeatureRef.value = null
     meetupLinkedName.value = null
     pickedRunHandle.value = null
-    // Event branch state — branch itself is set by openCreate/openCreateEvent
-    // BEFORE isOpen flips true, so it's intentionally left untouched here.
     wizard.reset()
     wizard.prefillDate(prefillDate.value ?? todayYMD())
     loadMyRuns()
@@ -757,13 +816,13 @@ const flowPreview = computed(() => {
 const saveLabel = computed(() => {
   if (mode.value === 'edit') return 'Save changes'
   if (mode.value === 'confirm') return 'Log paddle'
-  if (mode.value === 'create' && branch.value === 'event') return 'Create Event'
+  if (mode.value === 'create' && !selectedRunId.value) return 'Create Event'
   return form.value.paddled ? 'Log paddle' : 'Save run'
 })
 
 const canSubmit = computed(() => {
   if (mode.value === 'confirm') return !!confirmMember.value
-  if (mode.value === 'create' && branch.value === 'event') return wizard.isValid
+  if (mode.value === 'create' && !selectedRunId.value) return wizard.isValid
   if (!form.value.runDate) return false
   if (mode.value === 'create') return !!selectedRunId.value
   return true
@@ -791,7 +850,7 @@ async function submit() {
     return
   }
 
-  if (mode.value === 'create' && branch.value === 'event') {
+  if (mode.value === 'create' && !selectedRunId.value) {
     const result = await createPlan({
       name: wizard.name.trim(),
       start_date: wizard.startDate,
