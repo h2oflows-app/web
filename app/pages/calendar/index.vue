@@ -38,8 +38,6 @@
         </div>
       </div>
 
-      <CalendarRunsThisMonth v-if="view === 'month'" :days="monthOnlyDays" :loading="loading" />
-
       <CalendarMonthGrid
         v-if="view === 'month'"
         :year="year"
@@ -68,9 +66,7 @@
         :range-to="lastRange?.to ?? null"
       />
 
-      <template v-if="view === 'month'">
-        <CalendarEventsList :days="monthOnlyDays" :events="monthOnlyEvents" :loading="loading" @new-event="openNewEvent" />
-      </template>
+      <CalendarEventsSection :days="monthOnlyDays" :events="monthOnlyEvents" :loading="loading" />
 
       <CalendarQuickStatsBanner />
     </main>
@@ -134,8 +130,8 @@ const selectedDayEvents = computed(() => {
 const yearDays = ref<import('~/composables/useCalendar').CalendarDay[]>([])
 
 // Actual calendar-month boundaries (day 1 .. last day) — used to scope
-// "this month" stats (CalendarRunsThisMonth/CalendarEventsList). Distinct
-// from the wider grid-fetch range below, which also covers the
+// "this month" stats (CalendarEventsSection). Distinct from the wider
+// grid-fetch range below, which also covers the
 // leading/trailing adjacent-month cells the month grid displays (so those
 // cells' dots + the day sheet have data too), but must NOT leak into "this
 // month" counts.
@@ -199,10 +195,6 @@ function onSelectMonthFromYear(m: number) {
 function openDay(ymd: string) {
   selectedDay.value = ymd
   daySheetOpen.value = true
-}
-
-function openNewEvent() {
-  planRunLogSheet.openCreateEvent()
 }
 
 // After the unified sheet's event branch creates an event, jump the month

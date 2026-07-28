@@ -32,7 +32,7 @@
         </div>
 
         <!-- Runs on this date — same PlanRunItem row (and actions) as
-             CalendarDaySheet / CalendarRunsThisMonth. -->
+             CalendarDaySheet / CalendarEventsSection. -->
         <div v-if="group.runs.length" class="flex flex-col gap-2">
           <PlanRunItem
             v-for="run in group.runs"
@@ -80,7 +80,7 @@ interface Group {
 
 // host_handle ships with api#163; until that API is live, own events can
 // still link via the viewer's own handle (web#354 A1: every event here is
-// the viewer's own — owner-only). Mirrors CalendarDaySheet/CalendarEventsList.
+// the viewer's own — owner-only). Mirrors CalendarDaySheet/CalendarEventsSection.
 const { handle: myHandle, load: loadProfile } = useMyProfile()
 onMounted(() => { loadProfile() })
 
