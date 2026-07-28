@@ -164,7 +164,7 @@ export function useCalendar() {
   }
 
   return {
-    days, events, nudgeDots, loading,
+    days, events, nudgeDots, loading, lastRange,
     loadRange, refresh,
     insertEventOptimistic, removeEventOptimistic,
     insertRunOptimistic, removeRunOptimistic, patchRunOptimistic,

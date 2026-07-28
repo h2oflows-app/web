@@ -23,12 +23,22 @@
     <main v-else class="max-w-3xl mx-auto px-4 py-6 pb-24 sm:pb-6 space-y-5">
       <InviteBanner />
       <NudgeCard />
-      <CalendarQuickStatsBanner />
 
-      <div class="flex items-center justify-between gap-3">
+      <!-- flex-wrap + ml-auto: on narrow phones the controls drop to their own
+           line (right-aligned) instead of wrapping the title / clipping the toggle -->
+      <div class="flex flex-wrap items-center gap-3">
         <h1 class="text-xl font-bold text-neutral-900 dark:text-white">My Calendar</h1>
-        <CalendarViewToggle v-model="view" />
+        <div class="flex items-center gap-2 ml-auto">
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold transition-colors shrink-0"
+            @click="planRunLogSheet.openCreate()"
+          >+ New</button>
+          <CalendarViewToggle v-model="view" />
+        </div>
       </div>
+
+      <CalendarRunsThisMonth v-if="view === 'month'" :days="monthOnlyDays" :loading="loading" />
 
       <CalendarMonthGrid
         v-if="view === 'month'"
@@ -54,12 +64,15 @@
         :days="days"
         :events="events"
         :loading="loading"
+        :range-from="lastRange?.from ?? null"
+        :range-to="lastRange?.to ?? null"
       />
 
       <template v-if="view === 'month'">
-        <CalendarLedger :days="monthOnlyDays" :loading="loading" @view-list="view = 'list'" />
-        <CalendarEventsList :days="monthOnlyDays" :events="monthOnlyEvents" :loading="loading" @new-plan="openNewPlan" />
+        <CalendarEventsList :days="monthOnlyDays" :events="monthOnlyEvents" :loading="loading" @new-event="openNewEvent" />
       </template>
+
+      <CalendarQuickStatsBanner />
     </main>
 
     <CalendarDaySheet
@@ -69,7 +82,6 @@
       :events="selectedDayEvents"
       :loading="loading"
       :needs-confirm="selectedDayNeedsConfirm"
-      @new-plan-here="openNewPlanForSelectedDay"
     />
   </div>
 </template>
@@ -88,7 +100,7 @@ const { isAuthenticated } = useAuth()
 const authReady = ref(false)
 onMounted(() => { authReady.value = true })
 
-const { days, events, nudgeDots, loading, loadRange } = useCalendar()
+const { days, events, nudgeDots, loading, lastRange, loadRange } = useCalendar()
 const planRunLogSheet = usePlanRunLogSheet()
 const focusDate = useCalendarFocusDate()
 
@@ -110,8 +122,9 @@ const selectedDayNeedsConfirm = computed(() => {
 })
 
 // Events whose date range spans the selected day (web#354 A1: owner-only,
-// so always the viewer's own) — feeds the day sheet's "N events here, each
-// with Add a run" section.
+// so always the viewer's own) — feeds the day sheet's Events section
+// (label-only rows; the day sheet's own "+ New" is a single day-scoped
+// affordance, not per-event — web#354 W3).
 const selectedDayEvents = computed(() => {
   if (!selectedDay.value) return []
   return events.value.filter(e => e.start_date <= selectedDay.value! && e.end_date >= selectedDay.value!)
@@ -121,10 +134,11 @@ const selectedDayEvents = computed(() => {
 const yearDays = ref<import('~/composables/useCalendar').CalendarDay[]>([])
 
 // Actual calendar-month boundaries (day 1 .. last day) — used to scope
-// "this month" stats (Ledger/EventsList). Distinct from the wider grid-fetch
-// range below, which also covers the leading/trailing adjacent-month cells
-// the month grid displays (so those cells' dots + the day sheet have data
-// too), but must NOT leak into "this month" counts.
+// "this month" stats (CalendarRunsThisMonth/CalendarEventsList). Distinct
+// from the wider grid-fetch range below, which also covers the
+// leading/trailing adjacent-month cells the month grid displays (so those
+// cells' dots + the day sheet have data too), but must NOT leak into "this
+// month" counts.
 function monthBounds(y: number, m: number): { from: string; to: string } {
   const from = `${y}-${String(m).padStart(2, '0')}-01`
   const lastDay = new Date(y, m, 0).getDate()
@@ -187,13 +201,8 @@ function openDay(ymd: string) {
   daySheetOpen.value = true
 }
 
-function openNewPlan() {
+function openNewEvent() {
   planRunLogSheet.openCreateEvent()
-}
-
-function openNewPlanForSelectedDay() {
-  daySheetOpen.value = false
-  planRunLogSheet.openCreateEvent(selectedDay.value ?? undefined)
 }
 
 // After the unified sheet's event branch creates an event, jump the month
