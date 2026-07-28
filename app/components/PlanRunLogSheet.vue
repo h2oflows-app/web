@@ -598,12 +598,22 @@ function pickCommunity(c: CommunityRun) {
 // "Clear" on the picked-run summary row (create mode only) — drops back to
 // the event fields. wizard.name/startDate/endDate/location are never
 // touched by pick/clear, so whatever was typed there before picking a run
-// is exactly as the user left it.
+// is exactly as the user left it. Run-SPECIFIC state, however, must reset:
+// a later re-pick would otherwise submit the prior run's meetup feature
+// ref, paddled flag, and notes against the new run.
 function clearRun() {
   selectedRunId.value = ''
   pickedRun.value = null
   pickedRunHandle.value = null
   runPickerOpen.value = false
+  form.value.runTime = ''
+  form.value.paddled = false
+  form.value.notes = ''
+  form.value.lookingForCrew = false
+  form.value.maxCrew = 4
+  meetupText.value = ''
+  meetupFeatureRef.value = null
+  meetupLinkedName.value = null
 }
 
 const filteredRuns = computed(() => {

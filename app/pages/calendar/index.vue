@@ -66,7 +66,9 @@
         :range-to="lastRange?.to ?? null"
       />
 
-      <CalendarEventsSection :days="monthOnlyDays" :events="monthOnlyEvents" :loading="loading" />
+      <!-- List view is already a full runs+events agenda — skip the section there
+           so the same run doesn't render twice on one screen -->
+      <CalendarEventsSection v-if="view !== 'list'" :days="monthOnlyDays" :events="monthOnlyEvents" :loading="loading" />
 
       <CalendarQuickStatsBanner />
     </main>
