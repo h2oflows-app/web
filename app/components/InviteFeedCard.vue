@@ -21,7 +21,7 @@
         invited you to run <strong class="text-neutral-900 dark:text-white">{{ invite.run.name }}</strong>
       </p>
       <p class="text-xs text-neutral-400">
-        <template v-if="riverLineText">{{ riverLineText }} · </template>{{ fmtDate(invite.run.run_date) }}<template v-if="invite.run.run_time"> · {{ fmtTime(invite.run.run_time) }}</template>
+        <template v-if="subtitleText">{{ subtitleText }} · </template>{{ fmtDate(invite.run.run_date) }}<template v-if="invite.run.run_time"> · {{ fmtTime(invite.run.run_time) }}</template>
       </p>
       <p v-if="invite.run.meetup_spot" class="flex items-center gap-1 text-xs text-neutral-400 truncate">
         <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.5-7-11a7 7 0 1 1 14 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
@@ -91,6 +91,16 @@ function riverLine(river?: string | null, state?: string | null): string {
   return [river, state].filter(Boolean).join(' · ')
 }
 const riverLineText = computed(() => riverLine(props.invite.run.river_name, props.invite.run.state_abbr))
+
+// Attached library run's own name (web#354 A4/W6) — only when it adds
+// context beyond the headline's own `name` (avoid "Foxton — Foxton" dupes).
+// The river line stays untouched; this just prepends the reach name to that
+// same subtitle row.
+const reachNameText = computed(() => {
+  const run = props.invite.run
+  return run.reach_name && run.reach_name !== run.name ? run.reach_name : ''
+})
+const subtitleText = computed(() => [reachNameText.value, riverLineText.value].filter(Boolean).join(' · '))
 
 const resolved = computed(() => props.invite.status !== 'invited' || !!props.invite.dismissed_at)
 

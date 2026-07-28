@@ -7,8 +7,12 @@
         v-if="run.paddled"
         :to="`/plan-runs/${run.id}`"
         class="text-sm font-medium text-neutral-800 dark:text-neutral-100 hover:text-primary-600 dark:hover:text-primary-400 truncate block transition-colors"
-      >{{ run.name ?? 'Untitled run' }}</NuxtLink>
-      <p v-else class="text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">{{ run.name ?? 'Untitled run' }}</p>
+      >{{ run.name }}</NuxtLink>
+      <p v-else class="text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">{{ run.name }}</p>
+      <!-- Attached library run's own name (web#354 A4/W6) — secondary only,
+           and only when it actually adds context (avoid "Foxton — Foxton"
+           dupes when the calendar run kept the reach's default name). -->
+      <p v-if="run.reach_name && run.reach_name !== run.name" class="text-xs text-neutral-400 truncate">{{ run.reach_name }}</p>
       <p v-if="run.run_time" class="text-xs text-neutral-400">{{ fmtTime(run.run_time) }}</p>
       <p v-if="run.meetup_spot" class="flex items-center gap-1 text-xs text-neutral-400 truncate">
         <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.5-7-11a7 7 0 1 1 14 0c0 4.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>

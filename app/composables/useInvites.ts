@@ -26,7 +26,12 @@ import type { PlanCrewMeterInfo } from '~/utils/plan'
 export interface InviteRunSummary {
   run_id: string
   slug: string
+  // Name (web#354 A4) is the calendar run's OWN name — REQUIRED, always
+  // populated. ReachName is the attached library run's own name (nil for an
+  // orphaned run) — separate from RiverName below, which is the actual
+  // named river (e.g. "Blue River"), not the user's own saved-run name.
   name: string
+  reach_name?: string | null
   river_name?: string | null
   state_abbr?: string | null
   run_date: string

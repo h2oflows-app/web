@@ -12,7 +12,11 @@
       <span class="w-2 h-2 rounded-full shrink-0" :style="dotStyle" />
 
       <div class="min-w-0 flex-1">
-        <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">{{ run.name ?? 'Untitled run' }}</p>
+        <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">{{ run.name }}</p>
+        <!-- Attached library run's own name (web#354 A4/W6) — secondary
+             only, and only when it differs from the calendar run's own name
+             (avoid "Foxton — Foxton" dupes). -->
+        <p v-if="run.reach_name && run.reach_name !== run.name" class="text-xs text-neutral-400 truncate">{{ run.reach_name }}</p>
         <p class="text-xs text-neutral-400">
           {{ run.paddled ? 'Logged' : 'Planned' }}<template v-if="run.gauge_cfs != null"> · {{ Math.round(run.gauge_cfs).toLocaleString() }} cfs</template>
         </p>

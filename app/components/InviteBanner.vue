@@ -17,8 +17,8 @@
       <p class="text-sm font-medium truncate">
         @{{ invite.run.host_handle }} invited you to run {{ invite.run.name }} on {{ fmtDate(invite.run.run_date) }}
       </p>
-      <p v-if="riverLineText || extraCount > 0" class="text-xs text-white/80 truncate">
-        {{ riverLineText }}
+      <p v-if="subtitleText || extraCount > 0" class="text-xs text-white/80 truncate">
+        {{ subtitleText }}
         <template v-if="extraCount > 0"> · +{{ extraCount }} more</template>
       </p>
     </div>
@@ -56,6 +56,16 @@ const { invites, firstPending, dismiss } = useInvites()
 const invite = firstPending
 
 const riverLineText = computed(() => invite.value ? riverLine(invite.value.run.river_name, invite.value.run.state_abbr) : '')
+
+// Attached library run's own name (web#354 A4/W6) — only when it adds
+// context beyond the headline's own `name` (avoid "Foxton — Foxton" dupes).
+// The river line above stays untouched; this just prepends the reach name
+// to that same subtitle row.
+const reachNameText = computed(() => {
+  const run = invite.value?.run
+  return run?.reach_name && run.reach_name !== run.name ? run.reach_name : ''
+})
+const subtitleText = computed(() => [reachNameText.value, riverLineText.value].filter(Boolean).join(' · '))
 
 // "+N more" — every OTHER still-pending invite beyond the one named above.
 const extraCount = computed(() => Math.max(0, invites.value.filter(isPendingInvite).length - 1))

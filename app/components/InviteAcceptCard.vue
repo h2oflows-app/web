@@ -8,8 +8,12 @@
       </div>
       <div class="min-w-0">
         <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100">
-          You're invited to run <strong>{{ run.name ?? 'this run' }}</strong>
+          You're invited to run <strong>{{ run.name }}</strong>
         </p>
+        <!-- Attached library run's own name (web#354 A4/W6) — secondary
+             only, and only when it differs from the calendar run's own name
+             (avoid "Foxton — Foxton" dupes). -->
+        <p v-if="run.reach_name && run.reach_name !== run.name" class="text-xs text-neutral-400 mt-0.5">{{ run.reach_name }}</p>
         <p class="text-xs text-neutral-400 mt-0.5">
           {{ fmtDate(run.run_date) }}<template v-if="run.run_time"> · {{ fmtTime(run.run_time) }}</template>
         </p>

@@ -101,6 +101,52 @@
                 </div>
 
                 <template v-else>
+                  <!-- Name — shared field, ALWAYS visible + required in
+                       create mode (web#354 W6 — supersedes W5's "hidden once
+                       a run is picked" state; the attached library run must
+                       never take the name field away from a calendar item's
+                       own user-given title, e.g. "Lower Blue Cruise"). Bound
+                       to wizard.name continuously across the whole create
+                       session regardless of Event vs Run branch, so a typed
+                       name survives picking/clearing a run untouched. On a
+                       run pick, onRunPicked() below prefills this ONE TIME
+                       from the picked run's own library name — but only if
+                       still empty, never overwriting something already
+                       typed; a later Clear leaves whatever's in the field
+                       exactly as the user left it (clearRun() never touches
+                       wizard.name). Event branch -> POST /plans {name};
+                       Run branch -> POST /plan-runs {name} (now required
+                       server-side, api#A4). -->
+                  <div v-if="mode === 'create'">
+                    <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Name</label>
+                    <input
+                      v-model="wizard.name"
+                      type="text"
+                      :placeholder="selectedRunId ? 'e.g. Lower Blue Cruise' : 'e.g. Gore Canyon weekend'"
+                      class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                    />
+                  </div>
+
+                  <!-- Name — edit mode (web#354 W6). Editable regardless of
+                       run_date (unlike the structural fields below it, which
+                       lock 24h post-paddle) — the api groups name with notes
+                       as user-descriptive text, not trip logistics
+                       (updatePlanRunBody doc comment, plan_runs.go). This
+                       sheet's edit mode only ever targets a PLANNED
+                       (unpaddled) run though (see usePlanRunLogSheet.ts doc
+                       comment) — the post-paddle 24h name+notes lock window
+                       is handled on the run detail page instead
+                       (PlanRunDetailCard), never reachable from here. -->
+                  <div v-if="mode === 'edit'">
+                    <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Name</label>
+                    <input
+                      v-model="form.name"
+                      type="text"
+                      placeholder="e.g. Lower Blue Cruise"
+                      class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                    />
+                  </div>
+
                   <!-- Run — optional inline field, create mode only (web#354
                        W5 — supersedes the old explicit "Pick a run" / "No
                        run — create an Event" branch toggle). Tap "Add a run"
@@ -203,23 +249,14 @@
                     </div>
                   </div>
 
-                  <!-- Event fields (create mode, no run picked): name/date-
-                       range/location ONLY — no type pills (event-type
-                       concept removed), no visibility control (concept
-                       removed). Hidden once a run is picked above — the run
-                       supplies the name, and its date collapses to the
-                       single-day field in the run-specific block below. -->
+                  <!-- Event fields (create mode, no run picked): date-range/
+                       location ONLY (web#354 W6 — Name moved up top, shared
+                       across both branches, see above) — no type pills
+                       (event-type concept removed), no visibility control
+                       (concept removed). Hidden once a run is picked above —
+                       its date collapses to the single-day field in the
+                       run-specific block below. -->
                   <template v-if="mode === 'create' && !selectedRunId">
-                    <div>
-                      <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Name</label>
-                      <input
-                        v-model="wizard.name"
-                        type="text"
-                        placeholder="e.g. Gore Canyon weekend"
-                        class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
-                      />
-                    </div>
-
                     <div class="grid grid-cols-2 gap-3">
                       <div>
                         <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Start date</label>
@@ -252,10 +289,16 @@
                     </div>
                   </template>
 
-                  <!-- Reach (read-only, edit mode) -->
-                  <div v-if="mode === 'edit'" class="flex items-center gap-2 rounded-lg bg-neutral-100 dark:bg-neutral-800 px-3 py-2 text-sm">
+                  <!-- Reach (read-only, edit mode) — shows the ATTACHED
+                       LIBRARY run's own name (web#354 W6: editRun.name is now
+                       the calendar run's own name, already editable above;
+                       this chip is purely "which reach is this pointed at",
+                       so it reads reach_name instead). Absent for an
+                       orphaned run (user_reach_id cleared) — nothing to show,
+                       the field simply doesn't render. -->
+                  <div v-if="mode === 'edit' && editRun?.reach_name" class="flex items-center gap-2 rounded-lg bg-neutral-100 dark:bg-neutral-800 px-3 py-2 text-sm">
                     <svg class="w-4 h-4 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14c3-6 6-9 8-9s5 9 8 9"/></svg>
-                    <span class="text-neutral-700 dark:text-neutral-300 truncate">{{ editRun?.name ?? 'Untitled run' }}</span>
+                    <span class="text-neutral-700 dark:text-neutral-300 truncate">{{ editRun.reach_name }}</span>
                   </div>
 
                   <!-- Run-specific fields: shown once a run is picked above
@@ -501,6 +544,10 @@ const headerTitle = computed(() => {
 })
 
 const form = ref({
+  // Edit mode only (web#354 W6) — create mode's Name field is backed by
+  // wizard.name instead (see the shared Name field's template doc comment
+  // above), so this stays '' and unused for the whole create-mode session.
+  name: '',
   runDate: todayYMD(),
   runTime: '',
   notes: '',
@@ -571,6 +618,15 @@ const pickedRunHandle = ref<string | null>(null)
 function onRunPicked() {
   runPickerOpen.value = false
   if (wizard.startDate) form.value.runDate = wizard.startDate
+  // web#354 W6: one-time prefill from the picked run's own library name —
+  // ONLY when the shared Name field is still empty (never overwrites
+  // something the user already typed), and never re-fires on a later pick
+  // (this only runs at pick time, not reactively). Clearing the run
+  // afterward does NOT revert this — clearRun() deliberately leaves
+  // wizard.name untouched, same as it already does for the event fields.
+  if (!wizard.name.trim() && pickedRun.value?.name) {
+    wizard.name = pickedRun.value.name
+  }
 }
 
 function pickMine(r: MyRun) {
@@ -672,6 +728,7 @@ async function loadEditRun(id: string) {
   editLoaded.value = true
   if (editRun.value) {
     form.value = {
+      name: editRun.value.name,
       runDate: editRun.value.run_date,
       runTime: (editRun.value.run_time ?? '').slice(0, 5),
       notes: editRun.value.notes ?? '',
@@ -756,7 +813,7 @@ watch(isOpen, (open) => {
   if (!open) return
   if (mode.value === 'create') {
     form.value = {
-      runDate: prefillDate.value ?? todayYMD(), runTime: '', notes: '', paddled: false,
+      name: '', runDate: prefillDate.value ?? todayYMD(), runTime: '', notes: '', paddled: false,
       lookingForCrew: false, maxCrew: 4,
     }
     selectedRunId.value = ''
@@ -774,7 +831,7 @@ watch(isOpen, (open) => {
     loadEditRun(runId.value)
   } else if (mode.value === 'confirm') {
     form.value = {
-      runDate: confirmMember.value?.run_date ?? todayYMD(), runTime: '', notes: '', paddled: true,
+      name: '', runDate: confirmMember.value?.run_date ?? todayYMD(), runTime: '', notes: '', paddled: true,
       lookingForCrew: false, maxCrew: 4,
     }
   }
@@ -832,10 +889,17 @@ const saveLabel = computed(() => {
 
 const canSubmit = computed(() => {
   if (mode.value === 'confirm') return !!confirmMember.value
+  // Event branch: wizard.isValid already requires a non-empty trimmed name
+  // (planWizard.ts).
   if (mode.value === 'create' && !selectedRunId.value) return wizard.isValid
   if (!form.value.runDate) return false
-  if (mode.value === 'create') return !!selectedRunId.value
-  return true
+  // Run branch (web#354 W6): a picked run alone is no longer sufficient —
+  // the shared Name field is required here too, matching the api's
+  // insertPlanRun 422 ("name required").
+  if (mode.value === 'create') return !!selectedRunId.value && !!wizard.name.trim()
+  // Edit mode (web#354 W6): name required here too (validateRunName 422s an
+  // explicit empty string server-side).
+  return !!form.value.name.trim()
 })
 
 function cancel() {
@@ -881,6 +945,9 @@ async function submit() {
   if (mode.value === 'create') {
     // web#354 A1/W1: standalone run create — no planId, no parent event.
     const result = await createRun({
+      // web#354 A4/W6: now required server-side — the shared Name field
+      // above (canSubmit already blocks an empty trimmed value).
+      name: wizard.name.trim(),
       user_reach_id: selectedRunId.value,
       run_date: form.value.runDate,
       run_time: form.value.runTime || undefined,
@@ -915,6 +982,11 @@ async function submit() {
   // edit mode
   if (!runId.value) { submitting.value = false; return }
   const ok = await patchRun(runId.value, {
+    // web#354 A4/W6: always sent (never omitted) — canSubmit already blocks
+    // an empty trimmed value, and unlike notes there's no "clear" state to
+    // preserve here (validateRunName 422s an explicit empty string
+    // server-side, plan_runs.go).
+    name: form.value.name.trim(),
     run_date: form.value.runDate,
     run_time: form.value.runTime || undefined,
     notes: form.value.notes.trim() || undefined,

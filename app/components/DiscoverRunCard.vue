@@ -3,6 +3,10 @@
     <div class="flex items-start justify-between gap-2">
       <div class="min-w-0">
         <NuxtLink :to="`/plan-runs/${run.plan_run_id}`" class="font-semibold text-sm text-neutral-900 dark:text-white hover:underline truncate block">{{ run.name }}</NuxtLink>
+        <!-- Attached library run's own name (web#354 A4/W6) — secondary
+             only, and only when it differs from the calendar run's own name
+             (avoid "Foxton — Foxton" dupes). -->
+        <p v-if="run.reach_name && run.reach_name !== run.name" class="text-xs text-neutral-400 truncate">{{ run.reach_name }}</p>
         <p class="text-xs text-neutral-400">Hosted by <span class="font-medium text-neutral-600 dark:text-neutral-300">@{{ run.host_handle }}</span></p>
       </div>
       <span class="shrink-0 text-xs text-neutral-500 dark:text-neutral-400 text-right">

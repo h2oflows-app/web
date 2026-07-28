@@ -152,7 +152,8 @@ function toCalendarRun(run: PlanRunDetail): CalendarRun {
   return {
     id: run.id,
     user_reach_id: run.user_reach_id ?? undefined,
-    name: run.name ?? undefined,
+    name: run.name,
+    reach_name: run.reach_name ?? undefined,
     flow_band: run.flow_band ?? undefined,
     flow_color: run.flow_color ?? undefined,
     gauge_cfs: run.gauge_cfs ?? undefined,
