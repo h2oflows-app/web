@@ -17,20 +17,14 @@
         >
           <PlanRunItem :run="toCalendarRun(run)" :date="day.date" :can-edit="isHost" @updated="$emit('refresh')" />
 
-          <!-- Host: per-run Invite (web#354 W2 — replaces the removed
-               plan-level InviteSheet; invites are run-scoped now, A2).
-               Crew member: "Log my paddle" (unchanged, #246 W5). Mutually
-               exclusive in practice (isAcceptedMember is only ever true for
-               a non-host), grouped in one row when either applies. -->
-          <div v-if="isHost || canLogMine(run)" class="flex items-center justify-end gap-3">
+          <!-- Crew member: "Log my paddle" (unchanged, #246 W5). Invite moved
+               to the run detail page (web#354 W-fix2) — this is the EVENT
+               page's "Runs during this Event" list, and having the Invite
+               entry point here made invites read as event-scoped when
+               they're actually run-scoped (run_invites keyed to run_id
+               only). -->
+          <div v-if="canLogMine(run)" class="flex items-center justify-end gap-3">
             <button
-              v-if="isHost"
-              type="button"
-              class="text-[11px] font-medium text-primary-600 dark:text-primary-400 hover:underline"
-              @click="inviteRunId = run.id"
-            >Invite</button>
-            <button
-              v-if="canLogMine(run)"
               type="button"
               class="text-[11px] font-medium text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50 disabled:no-underline"
               :disabled="loggingId === run.id"
@@ -106,14 +100,6 @@
       :open="!!crewPanelRunId"
       @update:open="(v) => { if (!v) crewPanelRunId = null }"
       @refresh="$emit('refresh')"
-    />
-
-    <InviteSheet
-      v-if="inviteRunId"
-      :run-id="inviteRunId"
-      :open="!!inviteRunId"
-      @update:open="(v) => { if (!v) inviteRunId = null }"
-      @sent="$emit('refresh')"
     />
   </div>
 </template>
@@ -199,11 +185,6 @@ async function logMine(run: PlanRunDetail) {
 
 // ── Per-run crew panel (host) ─────────────────────────────────────────────
 const crewPanelRunId = ref<string | null>(null)
-
-// ── Per-run invite sheet (host) — web#354 W2, replaces the removed
-// plan-level InviteSheet (invites are run-scoped now, A2). Mirrors
-// crewPanelRunId's pattern exactly.
-const inviteRunId = ref<string | null>(null)
 
 // ── Per-run Join / invite accept-decline (non-host) ──────────────────────
 // Optimistic overlay on top of each run's server-supplied my_rsvp. Cleared

@@ -41,6 +41,20 @@
           <p v-if="run.reach_name && run.reach_name !== run.name" class="text-xs text-neutral-400 mt-0.5 truncate">{{ run.reach_name }}</p>
         </div>
         <div class="flex items-center gap-3 shrink-0">
+          <!-- Invite (owner only) — web#354 W-fix2: entry point moved here
+               from the event page's PlanItinerary rows (invites are
+               run-scoped, run_invites keyed to run_id only; having the
+               button live on the event page made invites read as
+               event-scoped). Same InviteSheet the removed itinerary button
+               opened. -->
+          <button
+            v-if="isOwner"
+            class="inline-flex items-center gap-1.5 rounded-lg bg-primary-50 dark:bg-primary-950/50 hover:bg-primary-100 dark:hover:bg-primary-950 px-3 py-1.5 text-sm font-medium text-primary-600 dark:text-primary-400 transition-colors"
+            @click="inviteOpen = true"
+          >
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+            Invite
+          </button>
           <button
             class="inline-flex items-center gap-1.5 rounded-lg bg-primary-50 dark:bg-primary-950/50 hover:bg-primary-100 dark:hover:bg-primary-950 px-3 py-1.5 text-sm font-medium text-primary-600 dark:text-primary-400 transition-colors"
             @click="shareOpen = true"
@@ -153,6 +167,15 @@
       :paddled="run.paddled"
       :open="shareOpen"
       @close="shareOpen = false"
+    />
+
+    <!-- Invite (owner only) — run-scoped, unchanged (web#354 A2). -->
+    <InviteSheet
+      v-if="isOwner"
+      :run-id="run.id"
+      :open="inviteOpen"
+      @update:open="inviteOpen = $event"
+      @sent="emit('refresh')"
     />
 
     <!-- Flag -->
@@ -286,6 +309,9 @@ async function saveName() {
 
 // ── Share ──────────────────────────────────────────────────────────────
 const shareOpen = ref(false)
+
+// ── Invite (owner only) — web#354 W-fix2 ─────────────────────────────────
+const inviteOpen = ref(false)
 
 // ── Flag (non-owners) ─────────────────────────────────────────────────
 const flagOpen = ref(false)
