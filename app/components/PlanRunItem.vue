@@ -3,12 +3,13 @@
     <span class="w-2 h-2 rounded-full shrink-0" :style="dotStyle" />
 
     <div class="min-w-0 flex-1">
+      <!-- Every run links to its detail page — planned ones too: that's
+           where Invite lives (web#354 W-fix2), and future runs are exactly
+           the ones you invite crew to. Edit stays as the explicit button. -->
       <NuxtLink
-        v-if="run.paddled"
         :to="`/plan-runs/${run.id}`"
         class="text-sm font-medium text-neutral-800 dark:text-neutral-100 hover:text-primary-600 dark:hover:text-primary-400 truncate block transition-colors"
       >{{ run.name }}</NuxtLink>
-      <p v-else class="text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">{{ run.name }}</p>
       <!-- Attached library run's own name (web#354 A4/W6) — secondary only,
            and only when it actually adds context (avoid "Foxton — Foxton"
            dupes when the calendar run kept the reach's default name). -->

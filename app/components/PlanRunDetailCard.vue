@@ -47,8 +47,11 @@
                button live on the event page made invites read as
                event-scoped). Same InviteSheet the removed itinerary button
                opened. -->
+          <!-- No inviting to a run that already happened and was logged —
+               the crew who ran it belongs in the log instead (display comes
+               with the invite-sync WEB-3 wave; server guard in API-2). -->
           <button
-            v-if="isOwner"
+            v-if="isOwner && !run.paddled"
             class="inline-flex items-center gap-1.5 rounded-lg bg-primary-50 dark:bg-primary-950/50 hover:bg-primary-100 dark:hover:bg-primary-950 px-3 py-1.5 text-sm font-medium text-primary-600 dark:text-primary-400 transition-colors"
             @click="inviteOpen = true"
           >
@@ -169,9 +172,9 @@
       @close="shareOpen = false"
     />
 
-    <!-- Invite (owner only) — run-scoped, unchanged (web#354 A2). -->
+    <!-- Invite (owner only, unlogged runs only) — run-scoped (web#354 A2). -->
     <InviteSheet
-      v-if="isOwner"
+      v-if="isOwner && !run.paddled"
       :run-id="run.id"
       :open="inviteOpen"
       @update:open="inviteOpen = $event"
