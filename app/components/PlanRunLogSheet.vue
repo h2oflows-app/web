@@ -422,17 +422,26 @@
                     </div>
                   </div>
 
-                  <!-- Log section: paddled + notes. Shown ONLY when the run
-                       date is today or past (unlocked); future dates hide it
-                       entirely — future days are plans, nothing to log yet
-                       (product feedback 2026-07-25, replaces the old
-                       disabled-with-hint treatment). Works identically in
-                       CREATE mode for a picked run on a past date (web#354
-                       W5) — toggling "I paddled this" here creates the run
-                       already-logged in one save, no separate log-mine step
-                       needed; the api only 422s a STRICTLY future run_date
-                       (insertPlanRun's `rd.After(today)` check), so today and
-                       any past date both save straight through. -->
+                  <!-- Log section: paddled toggle, then (once on) notes.
+                       Shown ONLY when the run date is today or past
+                       (unlocked); future dates hide it entirely — future
+                       days are plans, nothing to log yet (product feedback
+                       2026-07-25, replaces the old disabled-with-hint
+                       treatment). Works identically in CREATE mode for a
+                       picked run on a past date (web#354 W5) — toggling "I
+                       paddled this" here creates the run already-logged in
+                       one save, no separate log-mine step needed; the api
+                       only 422s a STRICTLY future run_date (insertPlanRun's
+                       `rd.After(today)` check), so today and any past date
+                       both save straight through.
+
+                       Notes gated on form.paddled (web#354 W-fix3, product
+                       feedback): the toggle alone is always visible once the
+                       date allows logging, but the notes textarea (a
+                       log-only field) only renders after the toggle is
+                       switched on — keeps the form simpler-looking at first
+                       glance instead of showing an empty notes box for a run
+                       that hasn't been marked paddled yet. -->
                   <div v-if="canTogglePaddled" class="space-y-3">
                     <p class="text-[11px] font-medium text-neutral-400 uppercase tracking-wide">Log</p>
 
@@ -444,7 +453,7 @@
                       <USwitch v-model="form.paddled" />
                     </div>
 
-                    <div>
+                    <div v-if="form.paddled">
                       <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">
                         Notes <span class="text-neutral-400">(optional, markdown supported)</span>
                       </label>
