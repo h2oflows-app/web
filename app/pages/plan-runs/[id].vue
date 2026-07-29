@@ -3,7 +3,7 @@
     <AppHeader>
       <template v-if="run">
         <span class="text-neutral-300 dark:text-neutral-700 shrink-0">/</span>
-        <span class="text-sm font-medium truncate text-neutral-700 dark:text-neutral-200">{{ run.name ?? 'Run' }}</span>
+        <span class="text-sm font-medium truncate text-neutral-700 dark:text-neutral-200">{{ run.name }}</span>
       </template>
     </AppHeader>
 

@@ -9,7 +9,14 @@ import { clientTz } from '~/utils/calendarDate'
 export interface CalendarRun {
   id: string
   user_reach_id?: string
-  name?: string
+  // Name (web#354 A4/W6) is the calendar run's OWN name — REQUIRED
+  // (calendar_runs.name NOT NULL), always populated on GET /me/calendar and
+  // GET /me/calendar/day (calendar.go calRun/dayRun). ReachName is the
+  // attached library run's own name (user_reaches.name), nil for an
+  // orphaned run — secondary/subtitle only, and only when it differs from
+  // Name.
+  name: string
+  reach_name?: string
   flow_band?: string
   flow_color?: string
   gauge_cfs?: number

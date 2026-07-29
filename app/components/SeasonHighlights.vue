@@ -13,7 +13,7 @@
       <div class="min-w-0 flex-1">
         <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">Highest flow paddled</p>
         <p class="text-xs text-neutral-400 truncate">
-          {{ stats.highest_flow.run_name || 'A run' }} · {{ Math.round(stats.highest_flow.cfs).toLocaleString() }} cfs<template v-if="stats.highest_flow.date"> · {{ fmtDate(stats.highest_flow.date) }}</template>
+          {{ stats.highest_flow.run_name || 'A run' }}<template v-if="stats.highest_flow.reach_name && stats.highest_flow.reach_name !== stats.highest_flow.run_name"> ({{ stats.highest_flow.reach_name }})</template> · {{ Math.round(stats.highest_flow.cfs).toLocaleString() }} cfs<template v-if="stats.highest_flow.date"> · {{ fmtDate(stats.highest_flow.date) }}</template>
         </p>
       </div>
       <svg class="w-4 h-4 text-neutral-300 dark:text-neutral-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg>

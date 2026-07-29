@@ -106,7 +106,13 @@ watch(isAuthenticated, (v) => {
 function toCalendarRun(r: SeasonRecentRun): CalendarRun {
   return {
     id: r.id,
-    name: r.name ?? undefined,
+    // r.name is guaranteed non-null in practice (calendar_runs.name is NOT
+    // NULL) but stays optional in the api's own seasonRecentRun struct (see
+    // useSeason.ts doc note) — reach_name is the next-best fallback, and
+    // PlanRunFeedCard's own template gates on truthiness rather than
+    // rendering "undefined" either way.
+    name: r.name ?? r.reach_name ?? 'Paddle',
+    reach_name: r.reach_name ?? undefined,
     flow_band: r.flow_band ?? undefined,
     flow_color: r.flow_color ?? undefined,
     gauge_cfs: r.gauge_cfs ?? undefined,

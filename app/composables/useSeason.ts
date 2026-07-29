@@ -11,7 +11,11 @@ export interface SeasonHighestFlow {
   cfs: number
   plan_run_id: string
   slug?: string
+  // RunName (web#354 A4) is the paddled calendar_run's own name; ReachName
+  // is the attached library run's own name (nil if hard-deleted since) —
+  // secondary/subtitle only, and only when it differs from RunName.
   run_name?: string
+  reach_name?: string | null
   date?: string
 }
 
@@ -26,7 +30,14 @@ export interface SeasonNewRun {
 export interface SeasonRecentRun {
   id: string
   slug: string
+  // Name (web#354 A4) is the calendar_run's own name — kept optional here
+  // (unlike the other calendar-domain summaries) because nudges.go's
+  // seasonRecentRun struct still tags it `*string,omitempty` (a pre-existing
+  // leftover, not tightened by A4); in practice it's always populated
+  // (calendar_runs.name is NOT NULL). ReachName is the attached library
+  // run's own name (nil for an orphaned run) — secondary/subtitle only.
   name?: string | null
+  reach_name?: string | null
   run_date: string
   flow_band?: string | null
   flow_color?: string | null

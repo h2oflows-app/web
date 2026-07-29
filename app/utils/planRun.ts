@@ -22,7 +22,15 @@ export interface PlanRunDetail {
   id: string
   slug: string
   user_reach_id?: string | null
-  name?: string | null
+  // Name (web#354 A4/W6) is the calendar run's OWN name — REQUIRED
+  // (calendar_runs.name NOT NULL, mig 000147), always populated on every
+  // response (planRunSummary, plans.go/plan_runs.go). ReachName is the
+  // attached library run's own name (user_reaches.name) — nil for an
+  // orphaned run (user_reach_id cleared, ON DELETE SET NULL); render it as a
+  // secondary/subtitle only, never the primary title, and only when it
+  // differs from Name (avoid "Foxton — Foxton" dupes).
+  name: string
+  reach_name?: string | null
   run_date: string
   run_time?: string | null
   sort_order: number

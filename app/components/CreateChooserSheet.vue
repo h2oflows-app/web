@@ -112,7 +112,7 @@ const planRunLogSheet = usePlanRunLogSheet()
 
 function chooseNewPlan() {
   close()
-  planRunLogSheet.openCreateEvent()
+  planRunLogSheet.openCreate()
 }
 
 function chooseCreateRun() {

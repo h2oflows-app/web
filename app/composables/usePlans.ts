@@ -48,6 +48,10 @@ export interface MeetupFeatureBody {
 // plan-scoped create body had (CreateRun's addRun equivalent), minus the
 // plan_id it never carried in the request anyway.
 export interface CreatePlanRunBody {
+  // Name (web#354 A4/W6) is the calendar run's OWN name — REQUIRED
+  // (insertPlanRun 422s "name required" on empty/whitespace-only), always
+  // sent. Independent of the attached library run's own name.
+  name: string
   user_reach_id?: string
   reach_slug?: string
   run_date: string
@@ -62,6 +66,13 @@ export interface CreatePlanRunBody {
 }
 
 export interface UpdatePlanRunBody {
+  // Name (web#354 A4/W6) follows the "key omitted = don't touch" convention
+  // like every other field here, EXCEPT it has no "clear" state — an
+  // explicit empty/whitespace-only string 422s server-side (validateRunName,
+  // plan_runs.go); only send a trimmed non-empty value. Also the ONE field
+  // (besides notes) still writable on a paddled run within the api's 24h
+  // post-paddle edit-lock window (UpdateRun's locked branch).
+  name?: string
   run_date?: string
   run_time?: string
   notes?: string
@@ -164,6 +175,7 @@ export function usePlans() {
     const tempId = `tmp-${Date.now()}`
     const optimistic: CalendarRun = {
       id: tempId,
+      name: body.name,
       run_time: body.run_time,
       paddled: !!body.paddled,
     } as CalendarRun

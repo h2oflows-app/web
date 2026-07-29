@@ -3,8 +3,42 @@
     <!-- Header card -->
     <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 px-5 py-4 space-y-3">
       <div class="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 class="text-lg font-bold text-neutral-900 dark:text-white">{{ run.name ?? 'Untitled run' }}</h1>
+        <div class="min-w-0">
+          <!-- Name (web#354 A4/W6) — the calendar run's OWN name, editable
+               inline by the owner under the same 24h post-paddle lock window
+               as Notes below (nameEditable is a plain alias of
+               notesEditable — the api groups name with notes as
+               user-descriptive text, not trip logistics, updatePlanRunBody
+               doc comment). Unpaddled runs stay freely editable here too
+               (notesEditable is true whenever !run.paddled), same as Notes
+               already was pre-W6. -->
+          <div v-if="editingName" class="flex items-center gap-2">
+            <input
+              v-model="nameDraft"
+              type="text"
+              class="min-w-0 flex-1 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2.5 py-1 text-lg font-bold text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+              @keyup.enter="saveName"
+              @keyup.escape="editingName = false"
+            />
+            <button type="button" class="shrink-0 text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:underline" :disabled="savingName" @click="editingName = false">Cancel</button>
+            <button type="button" class="shrink-0 text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50" :disabled="savingName || !nameDraft.trim()" @click="saveName">{{ savingName ? 'Saving…' : 'Save' }}</button>
+          </div>
+          <div v-else class="flex items-center gap-1.5">
+            <h1 class="text-lg font-bold text-neutral-900 dark:text-white truncate">{{ run.name }}</h1>
+            <button
+              v-if="isOwner && nameEditable"
+              type="button"
+              class="shrink-0 p-1 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+              title="Edit name"
+              @click="startEditName"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+            </button>
+          </div>
+          <!-- Attached library run's own name (web#354 A4/W6) — secondary
+               only, and only when it differs from the calendar run's own
+               name (avoid "Foxton — Foxton" dupes). -->
+          <p v-if="run.reach_name && run.reach_name !== run.name" class="text-xs text-neutral-400 mt-0.5 truncate">{{ run.reach_name }}</p>
         </div>
         <div class="flex items-center gap-3 shrink-0">
           <button
@@ -112,7 +146,7 @@
     <PlanRunShareSheet
       :id="run.id"
       :slug="run.slug"
-      :name="run.name ?? 'Untitled run'"
+      :name="run.name"
       :gauge-cfs="run.gauge_cfs"
       :run-date="run.run_date"
       :notes="run.notes"
@@ -220,6 +254,33 @@ async function saveNotes() {
   savingNotes.value = false
   if (!ok) return
   editingNotes.value = false
+  emit('refresh')
+}
+
+// ── Name edit (web#354 A4/W6) — SAME 24h post-paddle lock window as Notes
+// above (the api groups name with notes as the one pair still writable once
+// locked, updatePlanRunBody doc comment), so this reuses notesEditable
+// directly rather than re-deriving an identical rule under a second name.
+// Unpaddled runs stay freely editable (notesEditable is true whenever
+// !run.paddled) — same behavior Notes already had.
+const nameEditable = notesEditable
+const editingName = ref(false)
+const nameDraft = ref('')
+const savingName = ref(false)
+
+function startEditName() {
+  nameDraft.value = props.run.name
+  editingName.value = true
+}
+
+async function saveName() {
+  const trimmed = nameDraft.value.trim()
+  if (!trimmed) return // match the create/edit sheet's disabled-save pattern — block an empty name client-side too
+  savingName.value = true
+  const ok = await patchRun(props.run.id, { name: trimmed })
+  savingName.value = false
+  if (!ok) return
+  editingName.value = false
   emit('refresh')
 }
 

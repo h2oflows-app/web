@@ -17,7 +17,11 @@ export interface DiscoverRun {
   // names the /plan-runs/{id} permalink, same convention planRunSummary's
   // own field naming follows (plan.ts doc comment).
   plan_run_id: string
+  // Name (web#354 A4) is the calendar run's OWN name — REQUIRED, always
+  // populated. ReachName is the attached library run's own name (nil for an
+  // orphaned run) — secondary/subtitle only, and only when it differs.
   name: string
+  reach_name?: string | null
   host_handle: string
   run_date: string
   run_time?: string | null

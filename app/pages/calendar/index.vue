@@ -38,8 +38,6 @@
         </div>
       </div>
 
-      <CalendarRunsThisMonth v-if="view === 'month'" :days="monthOnlyDays" :loading="loading" />
-
       <CalendarMonthGrid
         v-if="view === 'month'"
         :year="year"
@@ -68,9 +66,9 @@
         :range-to="lastRange?.to ?? null"
       />
 
-      <template v-if="view === 'month'">
-        <CalendarEventsList :days="monthOnlyDays" :events="monthOnlyEvents" :loading="loading" @new-event="openNewEvent" />
-      </template>
+      <!-- List view is already a full runs+events agenda — skip the section there
+           so the same run doesn't render twice on one screen -->
+      <CalendarEventsSection v-if="view !== 'list'" :days="monthOnlyDays" :events="monthOnlyEvents" :loading="loading" />
 
       <CalendarQuickStatsBanner />
     </main>
@@ -100,7 +98,7 @@ const { isAuthenticated } = useAuth()
 const authReady = ref(false)
 onMounted(() => { authReady.value = true })
 
-const { days, events, nudgeDots, loading, lastRange, loadRange } = useCalendar()
+const { days, events, nudgeDots, loading, lastRange, loadRange, refresh } = useCalendar()
 const planRunLogSheet = usePlanRunLogSheet()
 const focusDate = useCalendarFocusDate()
 
@@ -134,8 +132,8 @@ const selectedDayEvents = computed(() => {
 const yearDays = ref<import('~/composables/useCalendar').CalendarDay[]>([])
 
 // Actual calendar-month boundaries (day 1 .. last day) — used to scope
-// "this month" stats (CalendarRunsThisMonth/CalendarEventsList). Distinct
-// from the wider grid-fetch range below, which also covers the
+// "this month" stats (CalendarEventsSection). Distinct from the wider
+// grid-fetch range below, which also covers the
 // leading/trailing adjacent-month cells the month grid displays (so those
 // cells' dots + the day sheet have data too), but must NOT leak into "this
 // month" counts.
@@ -156,20 +154,25 @@ const monthOnlyEvents = computed(() => {
   return events.value.filter(e => e.start_date <= to && e.end_date >= from)
 })
 
-async function loadMonth() {
+// force (web#354 W6 bug fix) — bypasses loadRange's Map cache; plumbed
+// through from the savedCount watcher below, whose whole point is
+// re-hitting the api after a mutation even when this exact range/key was
+// already cached from the initial page load (the common case: creating
+// something in the CURRENTLY VISIBLE month/year).
+async function loadMonth(force = false) {
   // Fetch the full 6-week grid span (not just this month's days) so
   // leading/trailing adjacent-month cells get dot data and the day sheet
   // works when tapping them.
   const cells = monthMatrix(year.value, month.value)
   const from = cells[0].ymd
   const to = cells[cells.length - 1].ymd
-  await loadRange(from, to, `${year.value}-${String(month.value).padStart(2, '0')}`)
+  await loadRange(from, to, `${year.value}-${String(month.value).padStart(2, '0')}`, force)
 }
 
-async function loadYear() {
+async function loadYear(force = false) {
   const from = `${year.value}-01-01`
   const to = `${year.value}-12-31`
-  await loadRange(from, to, `year:${year.value}`)
+  await loadRange(from, to, `year:${year.value}`, force)
   yearDays.value = days.value
 }
 
@@ -201,10 +204,6 @@ function openDay(ymd: string) {
   daySheetOpen.value = true
 }
 
-function openNewEvent() {
-  planRunLogSheet.openCreateEvent()
-}
-
 // After the unified sheet's event branch creates an event, jump the month
 // view to contain it (web#354 W1 — was PlanCreateSheet, now absorbed into
 // PlanRunLogSheet).
@@ -215,5 +214,39 @@ watch(focusDate, (date) => {
   month.value = d.getMonth() + 1
   view.value = 'month'
   focusDate.value = null
+})
+
+// web#354 W6 bug fix: force-refetch the currently visible range after ANY
+// create/edit sheet save (event or run, from any opener — the main "+ New",
+// a day-scoped "+ New", or an edit). PlanRunLogSheet's submit() already
+// bumps savedCount on every successful branch (see usePlanRunLogSheet.ts).
+//
+// Needed because two things that USED to be assumed to cover this don't,
+// for a save landing in the ALREADY-DISPLAYED month/year (the common case
+// — real user report: "after creating event i have to refresh for it to
+// show up"): (1) usePlans.ts's createPlan/createRun already call
+// calendar.refresh() internally, which mutates the shared days/events refs
+// — but that's an implicit side effect of a DIFFERENT composable instance,
+// not something this page's own load functions know to wait on or
+// re-derive `monthOnlyDays`/`yearDays` from in every case; (2) the
+// focusDate watch above only reassigns `year`/`month` for the EVENT branch,
+// and only ACTUALLY triggers watch([year,month]) -> loadMonth() when the
+// value genuinely changes — Vue's ref setter is a no-op for a same-value
+// assignment, so a same-month create never fires it at all, and the run
+// branch never touches focusDate to begin with.
+//
+// loadMonth(true)/loadYear(true) — NOT calendar.refresh() directly — so
+// this always targets whatever year/month is LIVE at the moment it runs
+// (race-safe against the focusDate watcher above, which may reassign
+// year/month in the same tick for an out-of-month event) and force=true
+// bypasses loadRange's Map cache (a plain re-call would otherwise
+// short-circuit on the already-cached key and just reapply stale data,
+// same bug in a different shape). List view has no load function of its
+// own (it reuses whatever month/year range is already loaded), so it just
+// force-refreshes that same lastRange directly.
+watch(planRunLogSheet.savedCount, () => {
+  if (view.value === 'year') loadYear(true)
+  else if (view.value === 'month') loadMonth(true)
+  else refresh()
 })
 </script>
