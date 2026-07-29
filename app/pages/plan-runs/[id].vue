@@ -55,6 +55,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
 import type { PlanRunDetail } from '~/utils/planRun'
 
 definePageMeta({ ssr: false })
@@ -138,6 +139,14 @@ const showInviteAccept = computed(() => {
 async function refresh() {
   await load()
 }
+
+// Refetch after the unified sheet's Edit button (PlanRunDetailCard) saves —
+// mirrors plans/[handle]/[slug].vue's own savedCount watch: the sheet only
+// refreshes the calendar store itself, which otherwise leaves this
+// standalone page's own `run` fetch stale until a manual reload (same class
+// of bug as the 2026-07-25 event-page report).
+const { savedCount: logSheetSavedCount } = usePlanRunLogSheet()
+watch(logSheetSavedCount, () => { refresh() })
 
 async function onDeleted() {
   await navigateTo('/calendar')

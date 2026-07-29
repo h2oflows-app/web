@@ -21,11 +21,15 @@
  *    fields with whatever was already typed intact. Kind is decided in-sheet
  *    by whether a run ends up picked, not by which opener was called — there
  *    is only one create opener now (see openCreate below).
- *  - edit: an EXISTING *planned* (unpaddled) run — freely editable
- *    (run_date/run_time/notes/companions), and can flip paddled:true here.
- *    Paddled runs are edited on their own /plan-runs/{id} detail page
- *    instead (24h notes-only lock lives there, not in this sheet). No event
- *    editing exists yet — this mode only ever targets a run.
+ *  - edit: an EXISTING run, planned or paddled (fix/run-detail-crew-edit —
+ *    was planned-only; the run detail page's own inline name/notes editors
+ *    were retired in favor of this one shared surface). Planned: freely
+ *    editable (run_date/run_time/notes/companions/meetup/crew), and can flip
+ *    paddled:true here. Paddled: PlanRunLogSheet.vue renders a reduced
+ *    Name+Notes-only form instead — the api locks every structural field once
+ *    a run is logged (plan_runs.go UpdateRun's curPaddled branch), so
+ *    submit() sends only {name, notes} for that branch. No event editing
+ *    exists yet — this mode only ever targets a run.
  *  - confirm: a Tier-A nudge candidate (GET /me/nudge/candidate) — NOT a
  *    calendar_runs row the caller already has open in the sheet's other
  *    senses; posts POST /me/nudge/confirm {user_reach_id,run_date,notes?}

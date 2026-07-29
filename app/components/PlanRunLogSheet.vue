@@ -82,11 +82,58 @@
               </template>
 
               <template v-else>
-              <!-- Locked (edit mode, run somehow already paddled) -->
-              <div v-if="mode === 'edit' && editLoaded && editRun?.paddled" class="text-center py-8 space-y-2">
-                <p class="text-sm text-neutral-500 dark:text-neutral-400">This run has already been logged.</p>
-                <NuxtLink :to="`/plan-runs/${runId}`" class="text-sm text-primary-600 dark:text-primary-400 hover:underline" @click="close">View the logged run →</NuxtLink>
-              </div>
+              <!-- Paddled (edit mode) — reduced form: Name + Notes are the
+                   ONLY editable fields (fix/run-detail-crew-edit, replaces
+                   the old "already been logged" dead-end). Everything else
+                   is read-only display or hidden entirely — the api 400s any
+                   structural field present at all on a paddled run's PATCH
+                   (plan_runs.go UpdateRun's curPaddled branch: date/time/
+                   companions/sort_order/paddled/crew/meetup are locked once
+                   a trip is logged), so submit() below sends only
+                   {name, notes} for this branch, never the rest of `form`. -->
+              <template v-if="mode === 'edit' && editLoaded && editRun?.paddled">
+                <div>
+                  <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Name</label>
+                  <input
+                    v-model="form.name"
+                    type="text"
+                    placeholder="e.g. Lower Blue Cruise"
+                    class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                  />
+                </div>
+
+                <div class="rounded-lg bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-100 dark:border-neutral-800 px-3 py-2.5 flex items-center justify-between gap-2 text-sm">
+                  <span class="text-neutral-500 dark:text-neutral-400">
+                    {{ fmtDate(editRun.run_date, { weekday: 'short', month: 'short', day: 'numeric' }) }}<template v-if="editRun.run_time"> · {{ fmtTime(editRun.run_time) }}</template>
+                  </span>
+                  <span v-if="flowPreview" class="flex items-center gap-1.5 text-neutral-700 dark:text-neutral-300">
+                    <span class="w-2 h-2 rounded-full shrink-0" :style="{ background: flowPreview.color }" />
+                    {{ flowPreview.label }}<template v-if="flowPreview.cfs != null"> · {{ flowPreview.cfs.toLocaleString() }} cfs</template>
+                  </span>
+                </div>
+
+                <div v-if="editRun.reach_name" class="flex items-center gap-2 rounded-lg bg-neutral-100 dark:bg-neutral-800 px-3 py-2 text-sm">
+                  <svg class="w-4 h-4 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 14c3-6 6-9 8-9s5 9 8 9"/></svg>
+                  <span class="text-neutral-700 dark:text-neutral-300 truncate">{{ editRun.reach_name }}</span>
+                </div>
+
+                <div class="rounded-xl border border-emerald-100 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20 px-3.5 py-3 flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                  <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  Logged — date, flow, and crew are locked
+                </div>
+
+                <div>
+                  <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">
+                    Notes <span class="text-neutral-400">(optional, markdown supported)</span>
+                  </label>
+                  <textarea
+                    v-model="form.notes"
+                    rows="4"
+                    placeholder="How was it? Conditions, hazards, lines…"
+                    class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                  />
+                </div>
+              </template>
 
               <!-- Fetch failure (edit mode) -->
               <div v-else-if="mode === 'edit' && editLoaded && !editRun" class="text-center py-8">
@@ -132,11 +179,11 @@
                        always editable) — the api groups name with notes
                        as user-descriptive text, not trip logistics
                        (updatePlanRunBody doc comment, plan_runs.go). This
-                       sheet's edit mode only ever targets a PLANNED
-                       (unpaddled) run though (see usePlanRunLogSheet.ts doc
-                       comment) — name+notes stay editable on paddled runs
-                       is handled on the run detail page instead
-                       (PlanRunDetailCard), never reachable from here. -->
+                       particular input only ever renders for a PLANNED
+                       (unpaddled) edit — the paddled case has its own Name
+                       input in the reduced form above (fix/run-detail-crew-
+                       edit), reached via a separate top-level branch, never
+                       falling through to this one. -->
                   <div v-if="mode === 'edit'">
                     <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Name</label>
                     <input
@@ -486,7 +533,10 @@
               </template>
             </div>
 
-            <div v-if="!(mode === 'edit' && editLoaded && (editRun?.paddled || !editRun))" class="p-4 border-t border-neutral-100 dark:border-neutral-800 shrink-0">
+            <!-- Hidden only on an edit-mode fetch failure now — the paddled
+                 branch above is a real (reduced) form, not a dead-end, so it
+                 keeps the Save button (fix/run-detail-crew-edit). -->
+            <div v-if="!(mode === 'edit' && editLoaded && !editRun)" class="p-4 border-t border-neutral-100 dark:border-neutral-800 shrink-0">
               <button
                 type="button"
                 class="w-full py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
@@ -508,7 +558,7 @@ import { usePlans } from '~/composables/usePlans'
 import { useCalendar, useCalendarFocusDate } from '~/composables/useCalendar'
 import { usePlanWizard } from '~/stores/planWizard'
 import { useNudge } from '~/composables/useNudge'
-import { todayYMD, isPastOrToday, fmtDate } from '~/utils/calendarDate'
+import { todayYMD, isPastOrToday, fmtDate, fmtTime } from '~/utils/calendarDate'
 import { classRange } from '~/utils/classRating'
 import { flowBandLabel, flowBandSolidColor, colorKeyToHex } from '~/utils/flowBand'
 import type { PlanRunDetail } from '~/utils/planRun'
@@ -741,7 +791,11 @@ async function loadEditRun(id: string) {
       runDate: editRun.value.run_date,
       runTime: (editRun.value.run_time ?? '').slice(0, 5),
       notes: editRun.value.notes ?? '',
-      paddled: false, // edit mode only opens for planned (unpaddled) runs
+      // `form.paddled` itself is never submitted for a paddled run's edit —
+      // that branch sends only {name, notes} (submit() below) — this is just
+      // the shared form-shape default; the reduced template above never
+      // renders the toggle either way.
+      paddled: false,
       lookingForCrew: editRun.value.crew.looking_for_crew ?? false,
       maxCrew: editRun.value.crew.max ?? 4,
     }
@@ -992,6 +1046,30 @@ async function submit() {
 
   // edit mode
   if (!runId.value) { submitting.value = false; return }
+
+  if (editRun.value?.paddled) {
+    // Paddled — reduced form (fix/run-detail-crew-edit): the api 400s the
+    // WHOLE request if any structural key is merely PRESENT in the body on
+    // a locked run, regardless of value (plan_runs.go UpdateRun's
+    // curPaddled branch: date/time/companions/sort_order/paddled/crew/
+    // meetup all reject presence, not just a changed value) — so this sends
+    // exactly {name, notes}, never the rest of `form`. Notes sent as
+    // whatever's currently in the textarea (not `|| undefined`, unlike the
+    // planned-run branch below) so clearing it to empty actually clears
+    // server-side, matching the old PlanRunDetailCard inline editor's
+    // saveNotes behavior this replaces.
+    const ok = await patchRun(runId.value, {
+      name: form.value.name.trim(),
+      notes: form.value.notes.trim(),
+    })
+    submitting.value = false
+    if (!ok) return
+    toast.add({ title: 'Changes saved', color: 'success' })
+    markSaved()
+    close()
+    return
+  }
+
   const ok = await patchRun(runId.value, {
     // web#354 A4/W6: always sent (never omitted) — canSubmit already blocks
     // an empty trimmed value, and unlike notes there's no "clear" state to
