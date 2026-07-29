@@ -66,9 +66,15 @@
         :range-to="lastRange?.to ?? null"
       />
 
-      <!-- List view is already a full runs+events agenda — skip the section there
-           so the same run doesn't render twice on one screen -->
-      <CalendarEventsSection v-if="view !== 'list'" :days="monthOnlyDays" :events="monthOnlyEvents" :loading="loading" />
+      <!-- List view is already a full runs+events agenda — skip these
+           sections there so the same run doesn't render twice on one screen.
+           Runs before Events (web#354 W-fix1): two separate sections, not one
+           interleaved list — mixing them made runs look tied to events they
+           have no structural relation to (decoupled, related only by date). -->
+      <template v-if="view !== 'list'">
+        <CalendarRunsSection :days="monthOnlyDays" :loading="loading" />
+        <CalendarEventsSection :days="monthOnlyDays" :events="monthOnlyEvents" :loading="loading" />
+      </template>
 
       <CalendarQuickStatsBanner />
     </main>
