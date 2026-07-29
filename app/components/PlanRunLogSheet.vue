@@ -960,8 +960,10 @@ async function submit() {
       user_reach_id: selectedRunId.value,
       run_date: form.value.runDate,
       run_time: form.value.runTime || undefined,
-      // Notes belong to the log — locked (and not sent) for future dates.
-      notes: canTogglePaddled.value ? form.value.notes.trim() || undefined : undefined,
+      // Notes belong to the log — the field only renders once "I paddled
+      // this" is on, so only send them then (stale text typed before an
+      // un-toggle must not ride along hidden).
+      notes: form.value.paddled ? form.value.notes.trim() || undefined : undefined,
       paddled: form.value.paddled || undefined,
       looking_for_crew: (!form.value.paddled && form.value.lookingForCrew) || undefined,
       max_crew: !form.value.paddled && form.value.lookingForCrew ? form.value.maxCrew : undefined,
@@ -998,7 +1000,9 @@ async function submit() {
     name: form.value.name.trim(),
     run_date: form.value.runDate,
     run_time: form.value.runTime || undefined,
-    notes: form.value.notes.trim() || undefined,
+    // Same rule as create: notes render only while paddled is on, so a
+    // hidden stale value is never sent (omitted = no change on PATCH).
+    notes: form.value.paddled ? form.value.notes.trim() || undefined : undefined,
     paddled: form.value.paddled || undefined,
     // Always explicit on PATCH: an omitted key means "no change" server-side,
     // so hiding/unchecking crew must actively send false to clear a stale flag.
