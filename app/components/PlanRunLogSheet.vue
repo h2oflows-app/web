@@ -500,7 +500,7 @@
                       <USwitch v-model="form.paddled" />
                     </div>
 
-                    <div v-if="form.paddled">
+                    <div v-if="form.paddled || editHadNotes">
                       <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">
                         Notes <span class="text-neutral-400">(optional, markdown supported)</span>
                       </label>
@@ -511,6 +511,23 @@
                         class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500/40"
                       />
                     </div>
+                  </div>
+
+                  <!-- Legacy escape hatch: a PLANNED run that already carries
+                       notes (pre-W-fix3 data — notes are log-only now) must
+                       stay editable/clearable after the card's inline editor
+                       was removed. Rendered outside the canTogglePaddled gate
+                       so a future-dated planned run's notes are reachable
+                       too; new planned runs never get this field. -->
+                  <div v-if="!canTogglePaddled && editHadNotes">
+                    <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">
+                      Notes <span class="text-neutral-400">(optional, markdown supported)</span>
+                    </label>
+                    <textarea
+                      v-model="form.notes"
+                      rows="3"
+                      class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                    />
                   </div>
 
                   <!-- Runs-are-visible notice (web#354 W1 copy change —
@@ -770,6 +787,10 @@ async function loadMyRuns() {
 // ── Edit mode: fetch the existing (planned) run ─────────────────────────
 const editRun = ref<PlanRunDetail | null>(null)
 const editLoaded = ref(false)
+// Legacy escape hatch (see the template's second Notes block): edit mode on
+// a run that ALREADY has notes keeps them editable/clearable even though
+// notes are otherwise log-only (paddled-gated) since W-fix3.
+const editHadNotes = computed(() => mode.value === 'edit' && !!editRun.value?.notes?.trim())
 
 async function loadEditRun(id: string) {
   editLoaded.value = false
@@ -1080,7 +1101,12 @@ async function submit() {
     run_time: form.value.runTime || undefined,
     // Same rule as create: notes render only while paddled is on, so a
     // hidden stale value is never sent (omitted = no change on PATCH).
-    notes: form.value.paddled ? form.value.notes.trim() || undefined : undefined,
+    // Exception: legacy planned-run notes (editHadNotes) are visible and
+    // must stay saveable/clearable — sent explicitly (''+trim clears, since
+    // the api's COALESCE patch treats "" as a real value, nil as no-change).
+    notes: form.value.paddled
+      ? form.value.notes.trim() || undefined
+      : editHadNotes.value ? form.value.notes.trim() : undefined,
     paddled: form.value.paddled || undefined,
     // Always explicit on PATCH: an omitted key means "no change" server-side,
     // so hiding/unchecking crew must actively send false to clear a stale flag.
