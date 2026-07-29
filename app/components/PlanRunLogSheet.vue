@@ -129,12 +129,12 @@
 
                   <!-- Name — edit mode (web#354 W6). Editable regardless of
                        run_date (unlike the structural fields below it, which
-                       lock 24h post-paddle) — the api groups name with notes
+                       always editable) — the api groups name with notes
                        as user-descriptive text, not trip logistics
                        (updatePlanRunBody doc comment, plan_runs.go). This
                        sheet's edit mode only ever targets a PLANNED
                        (unpaddled) run though (see usePlanRunLogSheet.ts doc
-                       comment) — the post-paddle 24h name+notes lock window
+                       comment) — name+notes stay editable on paddled runs
                        is handled on the run detail page instead
                        (PlanRunDetailCard), never reachable from here. -->
                   <div v-if="mode === 'edit'">

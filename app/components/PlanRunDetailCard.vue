@@ -5,7 +5,7 @@
       <div class="flex items-start justify-between gap-3 flex-wrap">
         <div class="min-w-0">
           <!-- Name (web#354 A4/W6) — the calendar run's OWN name, editable
-               inline by the owner under the same 24h post-paddle lock window
+               inline by the owner indefinitely (24h lock removed 2026-07-29)
                as Notes below (nameEditable is a plain alias of
                notesEditable — the api groups name with notes as
                user-descriptive text, not trip logistics, updatePlanRunBody
@@ -122,10 +122,6 @@
           class="text-xs text-primary-600 dark:text-primary-400 hover:underline"
           @click="startEditNotes"
         >Edit</button>
-        <span v-else-if="isOwner && notesLocked" class="inline-flex items-center gap-1 text-xs text-neutral-400">
-          <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          Locked
-        </span>
       </div>
 
       <template v-if="editingNotes">
@@ -143,9 +139,6 @@
       <div v-else-if="run.notes" class="plan-run-prose" v-html="renderedNotes" />
       <p v-else class="text-sm text-neutral-400">No notes yet.</p>
 
-      <p v-if="isOwner && run.paddled && notesLocked" class="text-xs text-neutral-400">
-        Notes lock 24 hours after a run is marked paddled.
-      </p>
     </div>
 
     <!-- Owner actions -->
@@ -257,16 +250,13 @@ const isOwner = computed(() => props.run.is_owner)
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 const renderedNotes = computed(() => md.render(props.run.notes || ''))
 
-// ── Notes edit (24h post-paddle lock, mirrors old my/reports lock UX) ────
+// ── Notes edit — the reports-era 24h post-paddle clock was removed
+// (user, 2026-07-29; api PR #170): name/notes stay editable indefinitely.
 const editingNotes = ref(false)
 const notesDraft = ref('')
 const savingNotes = ref(false)
 
-const notesLocked = computed(() => {
-  if (!props.run.paddled) return false
-  if (!props.run.paddled_at) return true
-  return Date.now() - new Date(props.run.paddled_at).getTime() > 24 * 60 * 60 * 1000
-})
+const notesLocked = computed(() => false)
 const notesEditable = computed(() => !notesLocked.value)
 
 function startEditNotes() {
@@ -283,7 +273,7 @@ async function saveNotes() {
   emit('refresh')
 }
 
-// ── Name edit (web#354 A4/W6) — SAME 24h post-paddle lock window as Notes
+// ── Name edit (web#354 A4/W6) — same editability as Notes (24h lock removed)
 // above (the api groups name with notes as the one pair still writable once
 // locked, updatePlanRunBody doc comment), so this reuses notesEditable
 // directly rather than re-deriving an identical rule under a second name.
