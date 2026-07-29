@@ -5,7 +5,7 @@
       <div class="flex items-start justify-between gap-3 flex-wrap">
         <div class="min-w-0">
           <!-- Name (web#354 A4/W6) — the calendar run's OWN name, editable
-               inline by the owner under the same 24h post-paddle lock window
+               inline by the owner indefinitely (24h lock removed 2026-07-29)
                as Notes below (nameEditable is a plain alias of
                notesEditable — the api groups name with notes as
                user-descriptive text, not trip logistics, updatePlanRunBody
@@ -41,6 +41,23 @@
           <p v-if="run.reach_name && run.reach_name !== run.name" class="text-xs text-neutral-400 mt-0.5 truncate">{{ run.reach_name }}</p>
         </div>
         <div class="flex items-center gap-3 shrink-0">
+          <!-- Invite (owner only) — web#354 W-fix2: entry point moved here
+               from the event page's PlanItinerary rows (invites are
+               run-scoped, run_invites keyed to run_id only; having the
+               button live on the event page made invites read as
+               event-scoped). Same InviteSheet the removed itinerary button
+               opened. -->
+          <!-- No inviting to a run that already happened and was logged —
+               the crew who ran it belongs in the log instead (display comes
+               with the invite-sync WEB-3 wave; server guard in API-2). -->
+          <button
+            v-if="isOwner && !run.paddled"
+            class="inline-flex items-center gap-1.5 rounded-lg bg-primary-50 dark:bg-primary-950/50 hover:bg-primary-100 dark:hover:bg-primary-950 px-3 py-1.5 text-sm font-medium text-primary-600 dark:text-primary-400 transition-colors"
+            @click="inviteOpen = true"
+          >
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+            Invite
+          </button>
           <button
             class="inline-flex items-center gap-1.5 rounded-lg bg-primary-50 dark:bg-primary-950/50 hover:bg-primary-100 dark:hover:bg-primary-950 px-3 py-1.5 text-sm font-medium text-primary-600 dark:text-primary-400 transition-colors"
             @click="shareOpen = true"
@@ -105,10 +122,6 @@
           class="text-xs text-primary-600 dark:text-primary-400 hover:underline"
           @click="startEditNotes"
         >Edit</button>
-        <span v-else-if="isOwner && notesLocked" class="inline-flex items-center gap-1 text-xs text-neutral-400">
-          <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          Locked
-        </span>
       </div>
 
       <template v-if="editingNotes">
@@ -126,9 +139,6 @@
       <div v-else-if="run.notes" class="plan-run-prose" v-html="renderedNotes" />
       <p v-else class="text-sm text-neutral-400">No notes yet.</p>
 
-      <p v-if="isOwner && run.paddled && notesLocked" class="text-xs text-neutral-400">
-        Notes lock 24 hours after a run is marked paddled.
-      </p>
     </div>
 
     <!-- Owner actions -->
@@ -153,6 +163,15 @@
       :paddled="run.paddled"
       :open="shareOpen"
       @close="shareOpen = false"
+    />
+
+    <!-- Invite (owner only, unlogged runs only) — run-scoped (web#354 A2). -->
+    <InviteSheet
+      v-if="isOwner && !run.paddled"
+      :run-id="run.id"
+      :open="inviteOpen"
+      @update:open="inviteOpen = $event"
+      @sent="emit('refresh')"
     />
 
     <!-- Flag -->
@@ -231,16 +250,13 @@ const isOwner = computed(() => props.run.is_owner)
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 const renderedNotes = computed(() => md.render(props.run.notes || ''))
 
-// ── Notes edit (24h post-paddle lock, mirrors old my/reports lock UX) ────
+// ── Notes edit — the reports-era 24h post-paddle clock was removed
+// (user, 2026-07-29; api PR #170): name/notes stay editable indefinitely.
 const editingNotes = ref(false)
 const notesDraft = ref('')
 const savingNotes = ref(false)
 
-const notesLocked = computed(() => {
-  if (!props.run.paddled) return false
-  if (!props.run.paddled_at) return true
-  return Date.now() - new Date(props.run.paddled_at).getTime() > 24 * 60 * 60 * 1000
-})
+const notesLocked = computed(() => false)
 const notesEditable = computed(() => !notesLocked.value)
 
 function startEditNotes() {
@@ -257,7 +273,7 @@ async function saveNotes() {
   emit('refresh')
 }
 
-// ── Name edit (web#354 A4/W6) — SAME 24h post-paddle lock window as Notes
+// ── Name edit (web#354 A4/W6) — same editability as Notes (24h lock removed)
 // above (the api groups name with notes as the one pair still writable once
 // locked, updatePlanRunBody doc comment), so this reuses notesEditable
 // directly rather than re-deriving an identical rule under a second name.
@@ -286,6 +302,9 @@ async function saveName() {
 
 // ── Share ──────────────────────────────────────────────────────────────
 const shareOpen = ref(false)
+
+// ── Invite (owner only) — web#354 W-fix2 ─────────────────────────────────
+const inviteOpen = ref(false)
 
 // ── Flag (non-owners) ─────────────────────────────────────────────────
 const flagOpen = ref(false)

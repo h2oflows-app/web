@@ -129,12 +129,12 @@
 
                   <!-- Name — edit mode (web#354 W6). Editable regardless of
                        run_date (unlike the structural fields below it, which
-                       lock 24h post-paddle) — the api groups name with notes
+                       always editable) — the api groups name with notes
                        as user-descriptive text, not trip logistics
                        (updatePlanRunBody doc comment, plan_runs.go). This
                        sheet's edit mode only ever targets a PLANNED
                        (unpaddled) run though (see usePlanRunLogSheet.ts doc
-                       comment) — the post-paddle 24h name+notes lock window
+                       comment) — name+notes stay editable on paddled runs
                        is handled on the run detail page instead
                        (PlanRunDetailCard), never reachable from here. -->
                   <div v-if="mode === 'edit'">
@@ -422,17 +422,26 @@
                     </div>
                   </div>
 
-                  <!-- Log section: paddled + notes. Shown ONLY when the run
-                       date is today or past (unlocked); future dates hide it
-                       entirely — future days are plans, nothing to log yet
-                       (product feedback 2026-07-25, replaces the old
-                       disabled-with-hint treatment). Works identically in
-                       CREATE mode for a picked run on a past date (web#354
-                       W5) — toggling "I paddled this" here creates the run
-                       already-logged in one save, no separate log-mine step
-                       needed; the api only 422s a STRICTLY future run_date
-                       (insertPlanRun's `rd.After(today)` check), so today and
-                       any past date both save straight through. -->
+                  <!-- Log section: paddled toggle, then (once on) notes.
+                       Shown ONLY when the run date is today or past
+                       (unlocked); future dates hide it entirely — future
+                       days are plans, nothing to log yet (product feedback
+                       2026-07-25, replaces the old disabled-with-hint
+                       treatment). Works identically in CREATE mode for a
+                       picked run on a past date (web#354 W5) — toggling "I
+                       paddled this" here creates the run already-logged in
+                       one save, no separate log-mine step needed; the api
+                       only 422s a STRICTLY future run_date (insertPlanRun's
+                       `rd.After(today)` check), so today and any past date
+                       both save straight through.
+
+                       Notes gated on form.paddled (web#354 W-fix3, product
+                       feedback): the toggle alone is always visible once the
+                       date allows logging, but the notes textarea (a
+                       log-only field) only renders after the toggle is
+                       switched on — keeps the form simpler-looking at first
+                       glance instead of showing an empty notes box for a run
+                       that hasn't been marked paddled yet. -->
                   <div v-if="canTogglePaddled" class="space-y-3">
                     <p class="text-[11px] font-medium text-neutral-400 uppercase tracking-wide">Log</p>
 
@@ -444,7 +453,7 @@
                       <USwitch v-model="form.paddled" />
                     </div>
 
-                    <div>
+                    <div v-if="form.paddled">
                       <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">
                         Notes <span class="text-neutral-400">(optional, markdown supported)</span>
                       </label>
@@ -951,8 +960,10 @@ async function submit() {
       user_reach_id: selectedRunId.value,
       run_date: form.value.runDate,
       run_time: form.value.runTime || undefined,
-      // Notes belong to the log — locked (and not sent) for future dates.
-      notes: canTogglePaddled.value ? form.value.notes.trim() || undefined : undefined,
+      // Notes belong to the log — the field only renders once "I paddled
+      // this" is on, so only send them then (stale text typed before an
+      // un-toggle must not ride along hidden).
+      notes: form.value.paddled ? form.value.notes.trim() || undefined : undefined,
       paddled: form.value.paddled || undefined,
       looking_for_crew: (!form.value.paddled && form.value.lookingForCrew) || undefined,
       max_crew: !form.value.paddled && form.value.lookingForCrew ? form.value.maxCrew : undefined,
@@ -989,7 +1000,9 @@ async function submit() {
     name: form.value.name.trim(),
     run_date: form.value.runDate,
     run_time: form.value.runTime || undefined,
-    notes: form.value.notes.trim() || undefined,
+    // Same rule as create: notes render only while paddled is on, so a
+    // hidden stale value is never sent (omitted = no change on PATCH).
+    notes: form.value.paddled ? form.value.notes.trim() || undefined : undefined,
     paddled: form.value.paddled || undefined,
     // Always explicit on PATCH: an omitted key means "no change" server-side,
     // so hiding/unchecking crew must actively send false to clear a stale flag.
