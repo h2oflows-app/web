@@ -57,6 +57,22 @@
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
             Share
           </button>
+          <!-- Remove from my calendar (non-owner, invite-sync WEB-3 item 2) —
+               attendee-facing counterpart to the owner's Delete button
+               below. Only for a live relationship (accepted or still-invited
+               my_rsvp) — a declined/requested viewer has nothing left to
+               remove. Same destructive-hover icon-button treatment as Flag
+               just below it. -->
+          <button
+            v-if="!isOwner && canLeave"
+            class="p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-400 hover:text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+            title="Remove from my calendar"
+            @click="leaveOpen = true"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="16" x2="15" y2="16"/>
+            </svg>
+          </button>
           <button
             v-if="!isOwner && isAuthenticated && !flagDone"
             class="p-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-400 hover:text-red-500 hover:border-red-300 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
@@ -93,6 +109,18 @@
           <svg v-if="run.paddled" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12c2-4 4-6 6-6s4 6 6 6 4-6 6-6"/></svg>
           {{ run.paddled ? 'Logged' : 'Planned' }}
         </span>
+      </div>
+
+      <!-- Crew who's coming / who ran it (invite-sync API-2/WEB-3
+           Amendments, "Crew who ran it belongs in the log") — ACCEPTED
+           handles only, for every viewer (owner included, in principle),
+           but hidden for the owner here since the owner-only roster card
+           below already shows the same accepted names plus pending/declined
+           state — showing both would just be the same handles twice on one
+           page. -->
+      <div v-if="!isOwner && crewMembersLine" class="flex items-center gap-1.5 pt-1 text-xs text-neutral-500 dark:text-neutral-400">
+        <svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span class="truncate"><span class="font-medium text-neutral-600 dark:text-neutral-300">{{ run.paddled ? 'Crew who ran it' : 'Crew' }}:</span> {{ crewMembersLine }}</span>
       </div>
 
       <div v-if="run.meetup_spot" class="flex items-center gap-2 pt-1">
@@ -134,6 +162,19 @@
             :disabled="resendingId === m.member_id"
             @click="onResendInvite(m)"
           >{{ resendingId === m.member_id ? 'Resending…' : 'Resend' }}</button>
+          <!-- Re-invite (WEB-4 leftover, invite-sync R4) — a declined
+               invite-origin row: the api resurrects it on a plain repeat
+               invite call (flips back to invited + fresh token), so this is
+               the whole re-invite. Join-request declines (origin=request)
+               don't get this — re-inviting isn't a coherent action for
+               someone who asked to join and was turned down. -->
+          <button
+            v-if="m.status === 'declined' && m.origin === 'invite'"
+            type="button"
+            class="shrink-0 text-[11px] font-medium text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50"
+            :disabled="reinvitingId === m.member_id"
+            @click="onReinvite(m)"
+          >{{ reinvitingId === m.member_id ? 'Inviting…' : 'Re-invite' }}</button>
           <span class="shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full" :class="crewChipClass(m)">{{ crewChipLabel(m) }}</span>
         </div>
       </div>
@@ -222,6 +263,19 @@
         </div>
       </template>
     </UModal>
+
+    <!-- Remove-from-calendar confirm (non-owner, invite-sync WEB-3 item 2) -->
+    <UModal v-model:open="leaveOpen" title="Remove from your calendar?">
+      <template #body>
+        <p class="text-sm text-neutral-600 dark:text-neutral-400">Remove this run from your calendar? The organizer will be notified that you can't make it.</p>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton variant="ghost" color="neutral" :disabled="leaving" @click="leaveOpen = false">Cancel</UButton>
+          <UButton color="error" :loading="leaving" @click="confirmLeave">Remove</UButton>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
@@ -233,7 +287,7 @@ import { colorKeyToBadgeClass, flowBandLabel } from '~/utils/flowBand'
 import { usePlans } from '~/composables/usePlans'
 import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
 import type { PlanRunDetail } from '~/utils/planRun'
-import type { CrewListResponse, CrewRequest } from '~/utils/plan'
+import { reinviteTargetFor, type CrewListResponse, type CrewRequest } from '~/utils/plan'
 
 const props = defineProps<{
   run: PlanRunDetail
@@ -242,10 +296,11 @@ const props = defineProps<{
 const emit = defineEmits<{
   refresh: []
   deleted: []
+  left: []
 }>()
 
 const { isAuthenticated, getToken } = useAuth()
-const { resendInvite } = usePlans()
+const { resendInvite, reinviteCrew, leaveRun } = usePlans()
 const planRunLogSheet = usePlanRunLogSheet()
 const { apiBase } = useRuntimeConfig().public
 
@@ -255,6 +310,11 @@ const { apiBase } = useRuntimeConfig().public
 // viewer is this run's own owner, restoring the pre-354 owner-only
 // affordances below (crew roster, delete).
 const isOwner = computed(() => props.run.is_owner)
+
+// Crew "who's coming"/"who ran it" line (invite-sync API-2/WEB-3 Amendments)
+// — plain "@a · @b" join, empty string (falsy) when crew_members is empty so
+// the header row's v-if just checks truthiness.
+const crewMembersLine = computed(() => props.run.crew_members.map(m => `@${m.handle}`).join(' · '))
 
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 const renderedNotes = computed(() => md.render(props.run.notes || ''))
@@ -273,6 +333,7 @@ const renderedNotes = computed(() => md.render(props.run.notes || ''))
 const crew = ref<CrewRequest[]>([])
 const crewLoaded = ref(false)
 const resendingId = ref<string | null>(null)
+const reinvitingId = ref<string | null>(null)
 
 async function loadCrew() {
   if (!isOwner.value) { crewLoaded.value = true; return }
@@ -321,6 +382,19 @@ async function onResendInvite(m: CrewRequest) {
   resendingId.value = m.member_id
   await resendInvite(props.run.id, m.invite_email) // toasts success/error itself
   resendingId.value = null
+  await loadCrew()
+}
+
+// Re-invite a declined invite-origin row (WEB-4 leftover) — see
+// reinviteTargetFor's doc comment (utils/plan.ts) for the handle-vs-email
+// resolution; reinviteCrew (usePlans) posts it back through InviteToRun,
+// which resurrects the row server-side.
+async function onReinvite(m: CrewRequest) {
+  const target = reinviteTargetFor(m)
+  if (!target || reinvitingId.value) return
+  reinvitingId.value = m.member_id
+  await reinviteCrew(props.run.id, target) // toasts success/error itself
+  reinvitingId.value = null
   await loadCrew()
 }
 
@@ -396,6 +470,24 @@ async function confirmDelete() {
   } finally {
     deleting.value = false
   }
+}
+
+// ── Remove from my calendar (non-owner, invite-sync WEB-3 item 2) ───────
+// "Leave" this run — attendee-facing counterpart to Delete above. Gated on a
+// still-live relationship (accepted or still-invited); a declined/requested
+// my_rsvp has nothing left to remove.
+const canLeave = computed(() => props.run.my_rsvp === 'accepted' || props.run.my_rsvp === 'invited')
+const leaveOpen = ref(false)
+const leaving = ref(false)
+
+async function confirmLeave() {
+  if (leaving.value) return
+  leaving.value = true
+  const ok = await leaveRun(props.run.id, props.run.run_date) // toasts success/error itself
+  leaving.value = false
+  if (!ok) return
+  leaveOpen.value = false
+  emit('left')
 }
 </script>
 
