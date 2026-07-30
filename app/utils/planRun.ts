@@ -80,6 +80,15 @@ export interface PlanRunDetail {
   my_rsvp?: PlanRunRsvpStatus | null
   // The plan_members row id backing my_rsvp — target for accept/decline.
   my_member_id?: string | null
+  // Invite-sync API-2/WEB-3 (INVITE_SYNC_PLAN.md Amendments, "Crew who ran
+  // it belongs in the log"): ACCEPTED crew handles only (never emails —
+  // accept requires an account), visible to EVERY viewer who can see the
+  // run at all (planned = who's coming; logged = who ran it) — no
+  // owner-only gate, unlike `crew` roster data elsewhere on this card.
+  // Always a non-nil, possibly-empty array (renderPlanRun sets the zero
+  // value explicitly) — render "Crew: …" with a plain length check, no
+  // null guard needed.
+  crew_members: { handle: string }[]
 }
 
 // PlanRunDetailPlan REMOVED (web#354 A1): GET /plan-runs/{id}'s response no

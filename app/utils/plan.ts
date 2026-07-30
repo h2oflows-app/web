@@ -67,3 +67,19 @@ export interface CrewListResponse {
   members: CrewRequest[]
   meter: PlanCrewMeterInfo
 }
+
+// Re-invite target resolution (WEB-4 leftover, invite-sync R4) — a declined
+// invite-origin row's identifier for a repeat POST /plan-runs/{id}/invite
+// call. The api resurrects the declined run_invites row (flips back to
+// invited + fresh token) on either shape rather than erroring on the
+// still-occupied unique slot (invites.go InviteToRun, both branches).
+// invite_email is only ever populated for an email-mode invite; `handle` is
+// the RunCrewList COALESCE(up.handle, ri.invite_handle, '') the api already
+// applies, so an empty handle here always means an email-origin row — check
+// invite_email first. Shared by PlanRunDetailCard's owner roster and
+// InviteSheet's "Already on this run" list so the two don't drift.
+export function reinviteTargetFor(m: CrewRequest): { handle: string } | { email: string } | null {
+  if (m.invite_email) return { email: m.invite_email }
+  if (m.handle) return { handle: m.handle }
+  return null
+}

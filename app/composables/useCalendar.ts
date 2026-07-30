@@ -31,6 +31,16 @@ export interface CalendarRun {
   // contract note) — same lighter-payload caveat as `notes` above; renders
   // only when present.
   meetup_spot?: string
+  // Invite-sync WEB-3: "owner" | "crew" — GET /me/calendar (calendar.go
+  // calRun) always sends this (a host's own run vs. one they hold an
+  // ACCEPTED run_invites row on). Optional here anyway because not every
+  // CalendarRun literal in this codebase comes off that endpoint —
+  // PlanItinerary's toCalendarRun() (event-page itinerary, host-gated via
+  // its own explicit `can-edit` prop) and usePlans' optimistic-insert
+  // placeholders don't set it, and `undefined !== 'crew'` degrades safely
+  // to "not a crew row" for both. Drives PlanRunItem's owner-action
+  // suppression + Remove affordance for role==='crew' rows.
+  role?: 'owner' | 'crew'
 }
 
 export interface CalendarDay {
