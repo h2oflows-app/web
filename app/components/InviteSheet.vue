@@ -55,7 +55,20 @@
                 <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Already on this run</label>
                 <div class="rounded-lg border border-neutral-100 dark:border-neutral-800 divide-y divide-neutral-100 dark:divide-neutral-800 max-h-28 overflow-y-auto">
                   <div v-for="m in existingCrew" :key="m.member_id" class="flex items-center justify-between gap-2 px-3 py-1.5 text-sm">
-                    <span class="min-w-0 flex-1 truncate text-neutral-700 dark:text-neutral-300">@{{ m.handle || 'paddler' }}</span>
+                    <span class="min-w-0 flex-1 truncate text-neutral-700 dark:text-neutral-300">{{ m.handle ? `@${m.handle}` : m.invite_email || 'paddler' }}</span>
+                    <!-- Re-invite (WEB-4 leftover, invite-sync R4) — a
+                         declined invite-origin row: same resurrect-on-repeat-
+                         invite the API already does, no separate endpoint.
+                         Join-request declines (origin=request) don't get
+                         this — nothing to "re-invite", they asked and were
+                         turned down. -->
+                    <button
+                      v-if="m.status === 'declined' && m.origin === 'invite'"
+                      type="button"
+                      class="shrink-0 text-[11px] font-medium text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50"
+                      :disabled="reinvitingId === m.member_id"
+                      @click="onReinvite(m)"
+                    >{{ reinvitingId === m.member_id ? 'Inviting…' : 'Re-invite' }}</button>
                     <span class="shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full" :class="crewStatusClass(m.status)">{{ crewStatusLabel(m.status) }}</span>
                   </div>
                 </div>
@@ -163,7 +176,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { CrewListResponse, CrewRequest } from '~/utils/plan'
+import { reinviteTargetFor, type CrewListResponse, type CrewRequest } from '~/utils/plan'
 import { usePlans } from '~/composables/usePlans'
 
 // InviteSheet — run-scoped (web#354 W2; was plan-scoped with a run-selector
@@ -349,7 +362,7 @@ async function loadCrew() {
 const pendingInvites = computed(() => crew.value.filter(m => m.origin === 'invite' && m.status === 'invited'))
 const existingCrew = computed(() => crew.value.filter(m => !(m.origin === 'invite' && m.status === 'invited')))
 
-const { resendInvite } = usePlans()
+const { resendInvite, reinviteCrew } = usePlans()
 const pendingResendingId = ref<string | null>(null)
 
 async function resendPending(m: CrewRequest) {
@@ -357,6 +370,20 @@ async function resendPending(m: CrewRequest) {
   pendingResendingId.value = m.member_id
   await resendInvite(props.runId, m.invite_email)
   pendingResendingId.value = null
+  await loadCrew()
+}
+
+// Re-invite a declined invite-origin row (WEB-4 leftover, invite-sync R4) —
+// see reinviteTargetFor's doc comment (utils/plan.ts). Mirrors
+// PlanRunDetailCard's identical onReinvite.
+const reinvitingId = ref<string | null>(null)
+
+async function onReinvite(m: CrewRequest) {
+  const target = reinviteTargetFor(m)
+  if (!target || reinvitingId.value) return
+  reinvitingId.value = m.member_id
+  await reinviteCrew(props.runId, target)
+  reinvitingId.value = null
   await loadCrew()
 }
 
