@@ -4,43 +4,35 @@
     <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 px-5 py-4 space-y-3">
       <div class="flex items-start justify-between gap-3 flex-wrap">
         <div class="min-w-0">
-          <!-- Name (web#354 A4/W6) — the calendar run's OWN name, editable
-               inline by the owner indefinitely (24h lock removed 2026-07-29)
-               as Notes below (nameEditable is a plain alias of
-               notesEditable — the api groups name with notes as
-               user-descriptive text, not trip logistics, updatePlanRunBody
-               doc comment). Unpaddled runs stay freely editable here too
-               (notesEditable is true whenever !run.paddled), same as Notes
-               already was pre-W6. -->
-          <div v-if="editingName" class="flex items-center gap-2">
-            <input
-              v-model="nameDraft"
-              type="text"
-              class="min-w-0 flex-1 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-2.5 py-1 text-lg font-bold text-neutral-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/40"
-              @keyup.enter="saveName"
-              @keyup.escape="editingName = false"
-            />
-            <button type="button" class="shrink-0 text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:underline" :disabled="savingName" @click="editingName = false">Cancel</button>
-            <button type="button" class="shrink-0 text-xs font-medium text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50" :disabled="savingName || !nameDraft.trim()" @click="saveName">{{ savingName ? 'Saving…' : 'Save' }}</button>
-          </div>
-          <div v-else class="flex items-center gap-1.5">
-            <h1 class="text-lg font-bold text-neutral-900 dark:text-white truncate">{{ run.name }}</h1>
-            <button
-              v-if="isOwner && nameEditable"
-              type="button"
-              class="shrink-0 p-1 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-              title="Edit name"
-              @click="startEditName"
-            >
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-            </button>
-          </div>
+          <!-- Name (web#354 A4/W6) — the calendar run's OWN name. Display-only
+               here now (fix/run-detail-crew-edit): the inline pencil editor
+               was removed once the unified PlanRunLogSheet gained a
+               same-page Edit entry point (below) covering both planned and
+               paddled runs — one editing surface instead of two drifting
+               ones (product feedback 2026-07-29, "run details + edit modal
+               ... should really share the same unified sheet"). -->
+          <h1 class="text-lg font-bold text-neutral-900 dark:text-white truncate">{{ run.name }}</h1>
           <!-- Attached library run's own name (web#354 A4/W6) — secondary
                only, and only when it differs from the calendar run's own
                name (avoid "Foxton — Foxton" dupes). -->
           <p v-if="run.reach_name && run.reach_name !== run.name" class="text-xs text-neutral-400 mt-0.5 truncate">{{ run.reach_name }}</p>
         </div>
         <div class="flex items-center gap-3 shrink-0">
+          <!-- Edit (owner only) — single editing surface (fix/run-detail-
+               crew-edit): opens the unified PlanRunLogSheet in edit mode,
+               same sheet the calendar's "+ New"/day-sheet/PlanRunItem use.
+               Shown regardless of paddled — the sheet's own edit-mode
+               branches to a reduced Name+Notes-only form once it sees
+               editRun.paddled (api locks structural fields on a paddled run,
+               plan_runs.go UpdateRun's curPaddled branch). -->
+          <button
+            v-if="isOwner"
+            class="inline-flex items-center gap-1.5 rounded-lg bg-primary-50 dark:bg-primary-950/50 hover:bg-primary-100 dark:hover:bg-primary-950 px-3 py-1.5 text-sm font-medium text-primary-600 dark:text-primary-400 transition-colors"
+            @click="planRunLogSheet.openEdit(run.id)"
+          >
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+            Edit
+          </button>
           <!-- Invite (owner only) — web#354 W-fix2: entry point moved here
                from the event page's PlanItinerary rows (invites are
                run-scoped, run_invites keyed to run_id only; having the
@@ -112,33 +104,47 @@
       </div>
     </div>
 
-    <!-- Notes -->
-    <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 px-5 py-4 space-y-3">
-      <div class="flex items-center justify-between gap-3">
-        <h2 class="text-xs font-semibold uppercase tracking-wide text-neutral-400">Notes</h2>
-        <button
-          v-if="isOwner && !editingNotes && notesEditable"
-          type="button"
-          class="text-xs text-primary-600 dark:text-primary-400 hover:underline"
-          @click="startEditNotes"
-        >Edit</button>
-      </div>
+    <!-- Crew (owner only) — visible roster on the run detail page itself
+         (product feedback 2026-07-29: "I still can't see who was invited on
+         the run"). GET /plan-runs/{id}/crew (invites.go RunCrewList,
+         host-only) returns accepted crew, pending join requests, AND
+         still-pending EMAIL/handle invites — same endpoint InviteSheet's
+         "Already on this run"/"Pending invites" panes already read, just
+         surfaced here too so the owner doesn't have to open Invite to check
+         status. Gated on crewLoaded (fetch-done), not row count, so it never
+         flashes an empty/nag state during the async window. -->
+    <div v-if="showCrewSection" class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 px-5 py-4 space-y-3">
+      <h2 class="text-xs font-semibold uppercase tracking-wide text-neutral-400">Crew</h2>
 
-      <template v-if="editingNotes">
-        <textarea
-          v-model="notesDraft"
-          rows="5"
-          placeholder="How was it? Conditions, hazards, lines…"
-          class="w-full rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500/40"
-        />
-        <div class="flex justify-end gap-2">
-          <UButton variant="ghost" color="neutral" size="sm" :disabled="savingNotes" @click="editingNotes = false">Cancel</UButton>
-          <UButton color="primary" size="sm" :loading="savingNotes" @click="saveNotes">Save</UButton>
+      <div v-if="!crewLoaded" class="text-sm text-neutral-400">Loading…</div>
+      <!-- Paddled runs only ever reach this empty branch transiently (before
+           crewLoaded) — showCrewSection hides the whole card once loaded if
+           a logged run has no rows, so this copy only ever renders for an
+           unpaddled run. -->
+      <p v-else-if="!crew.length" class="text-sm text-neutral-400">No crew yet — invite someone</p>
+      <div v-else class="divide-y divide-neutral-100 dark:divide-neutral-800 -mx-1">
+        <div v-for="m in crew" :key="m.member_id" class="flex items-center gap-3 px-1 py-2.5">
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">{{ m.handle ? `@${m.handle}` : m.invite_email }}</p>
+          </div>
+          <button
+            v-if="m.invite_email && m.status === 'invited'"
+            type="button"
+            class="shrink-0 text-[11px] font-medium text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50"
+            :disabled="resendingId === m.member_id"
+            @click="onResendInvite(m)"
+          >{{ resendingId === m.member_id ? 'Resending…' : 'Resend' }}</button>
+          <span class="shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full" :class="crewChipClass(m)">{{ crewChipLabel(m) }}</span>
         </div>
-      </template>
-      <div v-else-if="run.notes" class="plan-run-prose" v-html="renderedNotes" />
-      <p v-else class="text-sm text-neutral-400">No notes yet.</p>
+      </div>
+    </div>
 
+    <!-- Notes — display-only (see the Name comment above; editing moved to
+         the unified sheet's Edit button). -->
+    <div class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 px-5 py-4 space-y-3">
+      <h2 class="text-xs font-semibold uppercase tracking-wide text-neutral-400">Notes</h2>
+      <div v-if="run.notes" class="plan-run-prose" v-html="renderedNotes" />
+      <p v-else class="text-sm text-neutral-400">No notes yet.</p>
     </div>
 
     <!-- Owner actions -->
@@ -171,7 +177,7 @@
       :run-id="run.id"
       :open="inviteOpen"
       @update:open="inviteOpen = $event"
-      @sent="emit('refresh')"
+      @sent="onInviteSent"
     />
 
     <!-- Flag -->
@@ -221,11 +227,13 @@
 
 <script setup lang="ts">
 import MarkdownIt from 'markdown-it'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { fmtDate, fmtTime } from '~/utils/calendarDate'
 import { colorKeyToBadgeClass, flowBandLabel } from '~/utils/flowBand'
 import { usePlans } from '~/composables/usePlans'
+import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
 import type { PlanRunDetail } from '~/utils/planRun'
+import type { CrewListResponse, CrewRequest } from '~/utils/plan'
 
 const props = defineProps<{
   run: PlanRunDetail
@@ -237,67 +245,88 @@ const emit = defineEmits<{
 }>()
 
 const { isAuthenticated, getToken } = useAuth()
-const { patchRun } = usePlans()
+const { resendInvite } = usePlans()
+const planRunLogSheet = usePlanRunLogSheet()
 const { apiBase } = useRuntimeConfig().public
 
 // web#354 A2 added `is_owner` directly onto GET /plan-runs/{id}'s response
 // (plans.go/plan_runs.go's planRunSummary) — the run has no `plan` wrapper
 // (standalone, decoupled), but the api now tells us straight up whether the
 // viewer is this run's own owner, restoring the pre-354 owner-only
-// affordances below (edit notes, delete).
+// affordances below (crew roster, delete).
 const isOwner = computed(() => props.run.is_owner)
 
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 const renderedNotes = computed(() => md.render(props.run.notes || ''))
 
-// ── Notes edit — the reports-era 24h post-paddle clock was removed
-// (user, 2026-07-29; api PR #170): name/notes stay editable indefinitely.
-const editingNotes = ref(false)
-const notesDraft = ref('')
-const savingNotes = ref(false)
+// ── Name + Notes — display-only now (fix/run-detail-crew-edit). The 24h
+// post-paddle clock was already removed (user, 2026-07-29; api PR #170) —
+// name/notes stay editable indefinitely, but editing itself moved entirely
+// to the unified PlanRunLogSheet (Edit button above), one surface instead of
+// this card's own inline pencil/Edit affordances plus the sheet.
 
-const notesLocked = computed(() => false)
-const notesEditable = computed(() => !notesLocked.value)
+// ── Crew (owner only) — product feedback 2026-07-29: "I still can't see
+// who was invited on the run." GET /plan-runs/{id}/crew is host-only
+// (invites.go RunCrewList 403s a non-owner), so this never fetches unless
+// isOwner. Mirrors InviteSheet.vue's own loadCrew — same endpoint, same
+// CrewListResponse shape.
+const crew = ref<CrewRequest[]>([])
+const crewLoaded = ref(false)
+const resendingId = ref<string | null>(null)
 
-function startEditNotes() {
-  notesDraft.value = props.run.notes ?? ''
-  editingNotes.value = true
+async function loadCrew() {
+  if (!isOwner.value) { crewLoaded.value = true; return }
+  crewLoaded.value = false
+  const token = await getToken()
+  const headers: Record<string, string> = {}
+  if (token) headers.Authorization = `Bearer ${token}`
+  const res = await fetch(`${apiBase}/api/v1/plan-runs/${props.run.id}/crew`, { headers }).catch(() => null)
+  const data: CrewListResponse | null = res?.ok ? await res.json().catch(() => null) : null
+  crew.value = data?.members ?? []
+  crewLoaded.value = true
 }
 
-async function saveNotes() {
-  savingNotes.value = true
-  const ok = await patchRun(props.run.id, { notes: notesDraft.value })
-  savingNotes.value = false
-  if (!ok) return
-  editingNotes.value = false
+// Runs once on mount and again if the card is ever reused against a
+// different run id (route param change without remount).
+watch(() => props.run.id, () => { loadCrew() }, { immediate: true })
+
+// fetch-done gated (CLAUDE.md convention): while crewLoaded is false we show
+// a loading row rather than guessing empty, so a slow fetch never flashes
+// the "No crew yet" nag. Once loaded: unpaddled runs always show (rows, or
+// the invite nudge); a paddled run only shows the card at all if it actually
+// has rows — a solo logged run needs no empty-crew nag.
+const showCrewSection = computed(() => {
+  if (!isOwner.value) return false
+  if (!crewLoaded.value) return true
+  return props.run.paddled ? crew.value.length > 0 : true
+})
+
+function crewChipLabel(m: CrewRequest): string {
+  if (m.status === 'accepted') return 'Accepted'
+  if (m.status === 'declined') return 'Declined'
+  return m.origin === 'invite' ? 'Invited' : 'Requested'
+}
+
+// Same three-color scheme InviteSheet.vue's crewStatusClass already uses for
+// this run's crew rows — reused verbatim, just split the "pending" amber
+// bucket into Invited vs Requested by origin instead of one catch-all label.
+function crewChipClass(m: CrewRequest): string {
+  if (m.status === 'accepted') return 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400'
+  if (m.status === 'declined') return 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400'
+  return 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400'
+}
+
+async function onResendInvite(m: CrewRequest) {
+  if (!m.invite_email || resendingId.value) return
+  resendingId.value = m.member_id
+  await resendInvite(props.run.id, m.invite_email) // toasts success/error itself
+  resendingId.value = null
+  await loadCrew()
+}
+
+function onInviteSent() {
   emit('refresh')
-}
-
-// ── Name edit (web#354 A4/W6) — same editability as Notes (24h lock removed)
-// above (the api groups name with notes as the one pair still writable once
-// locked, updatePlanRunBody doc comment), so this reuses notesEditable
-// directly rather than re-deriving an identical rule under a second name.
-// Unpaddled runs stay freely editable (notesEditable is true whenever
-// !run.paddled) — same behavior Notes already had.
-const nameEditable = notesEditable
-const editingName = ref(false)
-const nameDraft = ref('')
-const savingName = ref(false)
-
-function startEditName() {
-  nameDraft.value = props.run.name
-  editingName.value = true
-}
-
-async function saveName() {
-  const trimmed = nameDraft.value.trim()
-  if (!trimmed) return // match the create/edit sheet's disabled-save pattern — block an empty name client-side too
-  savingName.value = true
-  const ok = await patchRun(props.run.id, { name: trimmed })
-  savingName.value = false
-  if (!ok) return
-  editingName.value = false
-  emit('refresh')
+  loadCrew()
 }
 
 // ── Share ──────────────────────────────────────────────────────────────

@@ -90,6 +90,9 @@ Prereq sequencing: build API-1 off main AFTER api#168 (A4 run-name) merges — b
 
 ## Amendments (user, 2026-07-29)
 
+- **RSVP copy-steer (API-2 scope, approved).** Mail clients' native RSVP buttons (shown because METHOD:REQUEST) send an iTIP REPLY to invites@h2oflows.app which nothing reads — one-way. Every REQUEST-bearing email must make OUR Accept button visually primary with the line: "RSVP in your mail app only updates your calendar — tap Accept to join the crew."
+- **Inbound RSVP processing (FUTURE wave, post-pilot, spec alongside notif-prefs web#338).** MX for the invites@ domain → Resend Inbound (or similar) webhook → parse METHOD:REPLY, match UID {run_id}@h2oflows.app + attendee email to the run_invites row, map PARTSTAT ACCEPTED/DECLINED → accept/decline. Closes the loop so a mail-client "Yes" becomes a real accept.
+
 - **No inviting to logged runs.** UI gate shipped in web#362 (Invite button hidden when `run.paddled`). **API-2 addition**: `InviteToRun` (and resend) reject paddled runs with 422 "run already logged" — server-side enforcement, not just UI.
 - **Crew who ran it belongs in the log.** **API-2 addition**: `renderPlanRun` response gains `crew_members: [{handle}]` — ACCEPTED crew handles only (never emails), for all runs (planned = who's coming; logged = who ran it), visible to whoever can see the run. **WEB-3 addition**: run detail renders the crew list — logged runs show it in the log section ("Crew: @a, @b"); planned runs near the crew meter.
 - **All run rows link to the detail page** (shipped web#362) — planned runs' rows previously opened the edit sheet only, leaving no path to the Invite button for exactly the runs you invite people to; Edit stays as the explicit button.
