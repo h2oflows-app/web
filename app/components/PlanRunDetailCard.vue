@@ -169,7 +169,7 @@
                don't get this — re-inviting isn't a coherent action for
                someone who asked to join and was turned down. -->
           <button
-            v-if="m.status === 'declined' && m.origin === 'invite'"
+            v-if="m.status === 'declined' && m.origin === 'invite' && !run.paddled"
             type="button"
             class="shrink-0 text-[11px] font-medium text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50"
             :disabled="reinvitingId === m.member_id"
@@ -476,7 +476,10 @@ async function confirmDelete() {
 // "Leave" this run — attendee-facing counterpart to Delete above. Gated on a
 // still-live relationship (accepted or still-invited); a declined/requested
 // my_rsvp has nothing left to remove.
-const canLeave = computed(() => props.run.my_rsvp === 'accepted' || props.run.my_rsvp === 'invited')
+// accepted ONLY (review 2026-07-30): a not-yet-answered invitee already has
+// Accept/Dismiss via InviteAcceptCard — a second "Remove from my calendar"
+// action there was redundant and mis-worded (nothing on their calendar yet).
+const canLeave = computed(() => props.run.my_rsvp === 'accepted')
 const leaveOpen = ref(false)
 const leaving = ref(false)
 

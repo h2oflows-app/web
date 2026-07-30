@@ -73,13 +73,17 @@ export interface CrewListResponse {
 // call. The api resurrects the declined run_invites row (flips back to
 // invited + fresh token) on either shape rather than erroring on the
 // still-occupied unique slot (invites.go InviteToRun, both branches).
-// invite_email is only ever populated for an email-mode invite; `handle` is
-// the RunCrewList COALESCE(up.handle, ri.invite_handle, '') the api already
-// applies, so an empty handle here always means an email-origin row — check
-// invite_email first. Shared by PlanRunDetailCard's owner roster and
-// InviteSheet's "Already on this run" list so the two don't drift.
+// HANDLE-FIRST is load-bearing (review 2026-07-30): an email invitee who
+// ACCEPTED then left keeps BOTH invite_email and a bound member_owner_id
+// (so RunCrewList resolves a handle) — only the api's handle-branch
+// resurrect (keyed on member_owner_id) can revive that bound row; the email
+// branch requires member_owner_id IS NULL and would silently INSERT a
+// duplicate whose accept link then 409s forever. A present handle always
+// means the row is bound; a genuinely-unbound email invite has handle ''
+// and falls through to {email}, which resurrects fine. Shared by
+// PlanRunDetailCard's owner roster and InviteSheet's list so they don't drift.
 export function reinviteTargetFor(m: CrewRequest): { handle: string } | { email: string } | null {
-  if (m.invite_email) return { email: m.invite_email }
   if (m.handle) return { handle: m.handle }
+  if (m.invite_email) return { email: m.invite_email }
   return null
 }
