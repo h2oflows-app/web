@@ -15,7 +15,7 @@
            the plan name" branch; there is no plan/event context on an
            invite anymore, invites.go MyInvites). -->
       <p class="text-sm font-medium truncate">
-        @{{ invite.run.host_handle }} invited you to run {{ invite.run.name }} on {{ fmtDate(invite.run.run_date) }}
+        {{ displayLabel(invite.run.host_display_name, invite.run.host_handle) }} invited you to run {{ invite.run.name }} on {{ fmtDate(invite.run.run_date) }}
       </p>
       <p v-if="subtitleText || extraCount > 0" class="text-xs text-white/80 truncate">
         {{ subtitleText }}
@@ -44,6 +44,7 @@
 import { computed, ref } from 'vue'
 import { useInvites, isPendingInvite } from '~/composables/useInvites'
 import { fmtDate } from '~/utils/calendarDate'
+import { displayLabel } from '~/utils/displayLabel'
 
 // Local, matching PlanRunLogSheet.vue's identical one-liner (not a shared
 // util — there is no riverLine.ts module in this codebase, just the same

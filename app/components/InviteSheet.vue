@@ -55,7 +55,7 @@
                 <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Already on this run</label>
                 <div class="rounded-lg border border-neutral-100 dark:border-neutral-800 divide-y divide-neutral-100 dark:divide-neutral-800 max-h-28 overflow-y-auto">
                   <div v-for="m in existingCrew" :key="m.member_id" class="flex items-center justify-between gap-2 px-3 py-1.5 text-sm">
-                    <span class="min-w-0 flex-1 truncate text-neutral-700 dark:text-neutral-300">{{ m.handle ? `@${m.handle}` : m.invite_email || 'paddler' }}</span>
+                    <span class="min-w-0 flex-1 truncate text-neutral-700 dark:text-neutral-300">{{ displayLabel(m.display_name, m.handle) || m.invite_email || 'paddler' }}</span>
                     <!-- Re-invite (WEB-4 leftover, invite-sync R4) — a
                          declined invite-origin row: same resurrect-on-repeat-
                          invite the API already does, no separate endpoint.
@@ -93,7 +93,7 @@
                 <label class="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1">Pending invites</label>
                 <div class="rounded-lg border border-neutral-100 dark:border-neutral-800 divide-y divide-neutral-100 dark:divide-neutral-800 max-h-28 overflow-y-auto">
                   <div v-for="m in pendingInvites" :key="m.member_id" class="flex items-center justify-between gap-2 px-3 py-1.5 text-sm">
-                    <span class="min-w-0 flex-1 truncate text-neutral-700 dark:text-neutral-300">{{ m.handle ? `@${m.handle}` : m.invite_email }}</span>
+                    <span class="min-w-0 flex-1 truncate text-neutral-700 dark:text-neutral-300">{{ displayLabel(m.display_name, m.handle) || m.invite_email }}</span>
                     <button
                       v-if="m.invite_email"
                       type="button"
@@ -214,6 +214,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { reinviteTargetFor, type CrewListResponse, type CrewRequest } from '~/utils/plan'
+import { displayLabel } from '~/utils/displayLabel'
 import { usePlans } from '~/composables/usePlans'
 
 // InviteSheet — run-scoped (web#354 W2; was plan-scoped with a run-selector
@@ -437,7 +438,7 @@ const removeCrewOpen = computed({
 const removeTargetLabel = computed(() => {
   const m = removeTarget.value
   if (!m) return ''
-  return m.handle ? `@${m.handle}` : m.invite_email || 'this paddler'
+  return displayLabel(m.display_name, m.handle) || m.invite_email || 'this paddler'
 })
 
 async function confirmRemoveCrew() {

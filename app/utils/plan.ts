@@ -56,6 +56,11 @@ export interface CrewRequest {
   message?: string | null
   created_at: string
   handle: string
+  // Display-names feature (invites.go RunCrewList / plan_runs.go): the
+  // member's optional display name, alongside their handle above. Render via
+  // utils/displayLabel.ts's displayLabel(), never inline `@${handle}` —
+  // absent/empty means no display name set.
+  display_name?: string | null
   // Owner-only: set only on a still-pending EMAIL invite row (origin=invite,
   // status=invited) — invites.go RunCrewList's "host feedback gap fix"
   // (web#354 A2 review). A handle-based pending invite has `handle` instead

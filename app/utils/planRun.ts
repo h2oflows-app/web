@@ -88,7 +88,10 @@ export interface PlanRunDetail {
   // Always a non-nil, possibly-empty array (renderPlanRun sets the zero
   // value explicitly) — render "Crew: …" with a plain length check, no
   // null guard needed.
-  crew_members: { handle: string }[]
+  // display_name (display-names feature) mirrors host_display_name below,
+  // per crew member — render both via utils/displayLabel.ts's displayLabel()
+  // rather than inline `@${handle}`.
+  crew_members: { handle: string; display_name?: string | null }[]
   // This run's OWNER's handle (prod-testing follow-up to Invite Sync API-1/
   // 2) — same field name/contract as inviteRunSummary.HostHandle
   // (composables/useInvites.ts): always present (not optional, '' zero
@@ -96,6 +99,10 @@ export interface PlanRunDetail {
   // never sees), so a non-owner viewer can render "Organizer @host" without
   // a second lookup. Populated by renderPlanRun (plan_runs.go).
   host_handle: string
+  // Display-names feature: the owner's optional display name, alongside
+  // host_handle above. Omitempty (absent, not '') when unset — pair with
+  // host_handle via displayLabel() rather than rendering either alone.
+  host_display_name?: string | null
 }
 
 // PlanRunDetailPlan REMOVED (web#354 A1): GET /plan-runs/{id}'s response no
