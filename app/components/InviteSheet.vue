@@ -69,6 +69,16 @@
                       :disabled="reinvitingId === m.member_id"
                       @click="onReinvite(m)"
                     >{{ reinvitingId === m.member_id ? 'Inviting…' : 'Re-invite' }}</button>
+                    <!-- Remove/uninvite (owner action, prod-testing follow-up)
+                         — an accepted row only here (a still-pending invite
+                         lives in "Pending invites" below); declined/requested
+                         rows have nothing left to remove. -->
+                    <button
+                      v-if="m.status === 'accepted'"
+                      type="button"
+                      class="shrink-0 text-[11px] font-medium text-neutral-400 hover:text-red-500 transition-colors disabled:opacity-50"
+                      @click="removeTarget = m"
+                    >Remove</button>
                     <span class="shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full" :class="crewStatusClass(m.status)">{{ crewStatusLabel(m.status) }}</span>
                   </div>
                 </div>
@@ -91,7 +101,15 @@
                       :disabled="pendingResendingId === m.member_id"
                       @click="resendPending(m)"
                     >{{ pendingResendingId === m.member_id ? 'Resending…' : 'Resend' }}</button>
-                    <span v-else class="shrink-0 text-[11px] text-neutral-400">Invited</span>
+                    <!-- Remove/uninvite (owner action, prod-testing follow-up)
+                         — every row here is status==='invited' by
+                         pendingInvites' own filter (see the computed below),
+                         so no extra status check needed. -->
+                    <button
+                      type="button"
+                      class="shrink-0 text-[11px] font-medium text-neutral-400 hover:text-red-500 transition-colors disabled:opacity-50"
+                      @click="removeTarget = m"
+                    >Remove</button>
                   </div>
                 </div>
               </div>
@@ -172,6 +190,25 @@
       </div>
     </Transition>
   </Teleport>
+
+  <!-- Remove/uninvite crew confirm (owner action, prod-testing follow-up) —
+       a plain UModal, same as the equivalent confirm on PlanRunDetailCard's
+       roster: it teleports itself to <body> independently of this sheet's
+       own hand-rolled Teleport above, so nesting it here (rather than
+       hand-rolling a second backdrop) is safe and matches the app-wide
+       destructive-confirm convention. removeTarget carries the specific row
+       being confirmed (multi-row list, unlike a single fixed action). -->
+  <UModal v-model:open="removeCrewOpen" title="Remove from this run?">
+    <template #body>
+      <p class="text-sm text-neutral-600 dark:text-neutral-400">Remove {{ removeTargetLabel }} from this run? They'll be notified.</p>
+    </template>
+    <template #footer>
+      <div class="flex justify-end gap-2">
+        <UButton variant="ghost" color="neutral" :disabled="removingCrew" @click="removeTarget = null">Cancel</UButton>
+        <UButton color="error" :loading="removingCrew" @click="confirmRemoveCrew">Remove</UButton>
+      </div>
+    </template>
+  </UModal>
 </template>
 
 <script setup lang="ts">
@@ -362,7 +399,7 @@ async function loadCrew() {
 const pendingInvites = computed(() => crew.value.filter(m => m.origin === 'invite' && m.status === 'invited'))
 const existingCrew = computed(() => crew.value.filter(m => !(m.origin === 'invite' && m.status === 'invited')))
 
-const { resendInvite, reinviteCrew } = usePlans()
+const { resendInvite, reinviteCrew, uninviteCrew } = usePlans()
 const pendingResendingId = ref<string | null>(null)
 
 async function resendPending(m: CrewRequest) {
@@ -384,6 +421,32 @@ async function onReinvite(m: CrewRequest) {
   reinvitingId.value = m.member_id
   await reinviteCrew(props.runId, target)
   reinvitingId.value = null
+  await loadCrew()
+}
+
+// Remove/uninvite (owner action, prod-testing follow-up) — mirrors
+// PlanRunDetailCard's identical removeTarget/confirmRemoveCrew pair (see
+// its doc comment); uninviteCrew (usePlans) posts the shared decline
+// endpoint both files target.
+const removeTarget = ref<CrewRequest | null>(null)
+const removingCrew = ref(false)
+const removeCrewOpen = computed({
+  get: () => !!removeTarget.value,
+  set: (v: boolean) => { if (!v) removeTarget.value = null },
+})
+const removeTargetLabel = computed(() => {
+  const m = removeTarget.value
+  if (!m) return ''
+  return m.handle ? `@${m.handle}` : m.invite_email || 'this paddler'
+})
+
+async function confirmRemoveCrew() {
+  if (!removeTarget.value || removingCrew.value) return
+  removingCrew.value = true
+  const ok = await uninviteCrew(props.runId, removeTarget.value.member_id)
+  removingCrew.value = false
+  if (!ok) return
+  removeTarget.value = null
   await loadCrew()
 }
 
