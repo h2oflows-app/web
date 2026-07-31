@@ -37,7 +37,7 @@
     >{{ run.paddled ? 'Logged' : 'Planned' }}</span>
 
     <button
-      v-if="canEdit && canMarkPaddled"
+      v-if="canEditRow && canMarkPaddled"
       type="button"
       class="shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white transition-colors"
       :disabled="marking"
@@ -45,11 +45,34 @@
     >{{ marking ? '…' : 'Mark paddled' }}</button>
 
     <button
-      v-else-if="canEdit && !run.paddled"
+      v-else-if="canEditRow && !run.paddled"
       type="button"
       class="shrink-0 text-[11px] font-medium text-primary-600 dark:text-primary-400 hover:underline"
       @click="onEdit"
     >Edit</button>
+
+    <!-- Crew row (invite-sync WEB-3 item 3) — role==='crew' means this
+         viewer is accepted crew on someone else's run, not the owner: no
+         Edit/Mark-paddled (those PATCH the run itself, owner_id-scoped
+         server-side anyway), just a way to take themselves off it. -->
+    <button
+      v-else-if="isCrewRow"
+      type="button"
+      class="shrink-0 text-[11px] font-medium text-neutral-400 hover:text-red-500 transition-colors"
+      @click="removeOpen = true"
+    >Remove</button>
+
+    <UModal v-model:open="removeOpen" title="Remove from your calendar?">
+      <template #body>
+        <p class="text-sm text-neutral-600 dark:text-neutral-400">Remove this run from your calendar? The organizer will be notified that you can't make it.</p>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton variant="ghost" color="neutral" :disabled="removing" @click="removeOpen = false">Cancel</UButton>
+          <UButton color="error" :loading="removing" @click="confirmRemove">Remove</UButton>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
@@ -87,12 +110,22 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ updated: [] }>()
 
 const { bandSolid } = useFlowBandPalette()
-const { markPaddled } = usePlans()
+const { markPaddled, leaveRun } = usePlans()
 const planRunLogSheet = usePlanRunLogSheet()
 
 const marking = ref(false)
 
 const canMarkPaddled = computed(() => !props.run.paddled && isPastOrToday(props.date))
+
+// Invite-sync WEB-3 item 3 — role==='crew' rows never get owner actions
+// (Edit/Mark-paddled), regardless of the canEdit prop: the prop's own doc
+// comment scopes it to "host's run rendered to a non-host viewer" (e.g.
+// PlanItinerary's isHost-gated pass-through), a separate axis from "is this
+// viewer accepted crew on someone else's run" — role only ever arrives set
+// on /me/calendar rows (see useCalendar's CalendarRun.role doc comment), so
+// this check is a no-op (undefined !== 'crew') for every other caller.
+const isCrewRow = computed(() => props.run.role === 'crew')
+const canEditRow = computed(() => props.canEdit && !isCrewRow.value)
 
 const dotStyle = computed(() => {
   const color = props.run.flow_color ? colorKeyToHex(props.run.flow_color) : bandSolid(props.run.flow_band ?? null)
@@ -111,5 +144,24 @@ async function onMarkPaddled() {
 
 function onEdit() {
   planRunLogSheet.openEdit(props.run.id)
+}
+
+// ── Remove from my calendar (crew row, invite-sync WEB-3 item 3) ────────
+const removeOpen = ref(false)
+const removing = ref(false)
+
+async function confirmRemove() {
+  if (removing.value) return
+  removing.value = true
+  // leaveRun (usePlans) already optimistic-removes this row from its
+  // useCalendar day bucket and refreshes the store — every caller of this
+  // component (CalendarDaySheet/CalendarRunsSection/CalendarListView) reads
+  // that same module-level state, so the row disappearing here needs no
+  // extra plumbing beyond the `updated` emit for parity with mark-paddled.
+  const ok = await leaveRun(props.run.id, props.date) // toasts success/error itself
+  removing.value = false
+  if (!ok) return
+  removeOpen.value = false
+  emit('updated')
 }
 </script>

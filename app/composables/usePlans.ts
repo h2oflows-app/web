@@ -315,5 +315,53 @@ export function usePlans() {
     return true
   }
 
-  return { createPlan, patchPlan, deletePlan, createRun, patchRun, markPaddled, deleteRun, joinPlanRun, resendInvite }
+  // Leave a run (attendee-facing "remove from my calendar" — invite-sync
+  // WEB-3 item 1) — POST /plan-runs/{id}/leave (invites.go LeaveRun): flips
+  // the caller's OWN invited/accepted/requested run_invites row to
+  // declined; idempotent (a repeat call still 200s "ok"), 404 when the run
+  // is gone or the caller was never a member. Optimistically drops the run
+  // from its calendar day bucket when `date` is known (day-sheet/month-list/
+  // list-view rows always have it from their own render loop; the run
+  // detail page passes run.run_date) — then a real refresh() of both the
+  // calendar store and the /me/invites feed, so a still-pending invite
+  // banner for this run clears too.
+  async function leaveRun(runId: string, date?: string): Promise<boolean> {
+    const headers = await authHeaders()
+    const res = await fetch(`${apiBase}/api/v1/plan-runs/${runId}/leave`, {
+      method: 'POST', headers, body: JSON.stringify({}),
+    }).catch(() => null)
+    if (!res?.ok) {
+      const msg = await apiErrorMessage(res)
+      toast.add({ title: 'Could not remove run', description: msg, color: 'error' })
+      return false
+    }
+    if (date) calendar.removeRunOptimistic(date, runId)
+    await calendar.refresh()
+    await useInvites().refresh()
+    toast.add({ title: 'Removed from your calendar.', color: 'success' })
+    return true
+  }
+
+  // Re-invite a previously declined crew row (WEB-4 leftover, invite-sync
+  // R4: run_invites' per-run unique constraints — run_invites_owner_uk /
+  // run_invites_email_uk — carry no status filter, so a declined row
+  // occupies its slot forever). The api resurrects it (flips back to
+  // invited + fresh token) on a plain repeat POST /plan-runs/{id}/invite —
+  // same endpoint InviteSheet's own send() already posts to — keyed the
+  // same way the original invite was (see utils/plan.ts reinviteTargetFor).
+  async function reinviteCrew(runId: string, target: { handle: string } | { email: string }): Promise<boolean> {
+    const headers = await authHeaders()
+    const res = await fetch(`${apiBase}/api/v1/plan-runs/${runId}/invite`, {
+      method: 'POST', headers, body: JSON.stringify(target),
+    }).catch(() => null)
+    if (!res?.ok) {
+      const msg = await apiErrorMessage(res)
+      toast.add({ title: 'Could not re-invite', description: msg, color: 'error' })
+      return false
+    }
+    toast.add({ title: 'Invite resent', color: 'success' })
+    return true
+  }
+
+  return { createPlan, patchPlan, deletePlan, createRun, patchRun, markPaddled, deleteRun, joinPlanRun, resendInvite, leaveRun, reinviteCrew }
 }

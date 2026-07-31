@@ -48,7 +48,7 @@
         @resolved="refresh"
       />
 
-      <PlanRunDetailCard :run="run" @refresh="refresh" @deleted="onDeleted" />
+      <PlanRunDetailCard :run="run" @refresh="refresh" @deleted="onDeleted" @left="onLeft" />
     </main>
   </div>
 </template>
@@ -149,6 +149,13 @@ const { savedCount: logSheetSavedCount } = usePlanRunLogSheet()
 watch(logSheetSavedCount, () => { refresh() })
 
 async function onDeleted() {
+  await navigateTo('/calendar')
+}
+
+// Invite-sync WEB-3 item 2 — the run is still live (only the caller's own
+// membership changed), but there's nothing left for THIS viewer to look at
+// once they've removed themselves, so same exit as delete.
+async function onLeft() {
   await navigateTo('/calendar')
 }
 </script>
