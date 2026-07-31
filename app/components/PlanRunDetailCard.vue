@@ -119,10 +119,13 @@
            Invite-sync API-2/WEB-3 Amendments ("Crew who ran it belongs in
            the log") is why the crew half keeps the paddled-dependent label —
            ACCEPTED handles only, visible to every non-owner viewer. -->
-      <div v-if="!isOwner" class="flex items-center gap-1.5 pt-1 text-xs text-neutral-500 dark:text-neutral-400">
+      <!-- host_handle can be '' (owner with no profile row yet — lazy
+           profile creation, no FK) — skip the Organizer segment then
+           instead of rendering a dangling "@". -->
+      <div v-if="!isOwner && (run.host_handle || crewMembersLine)" class="flex items-center gap-1.5 pt-1 text-xs text-neutral-500 dark:text-neutral-400">
         <svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span class="truncate">
-          <span class="font-medium text-neutral-600 dark:text-neutral-300">Organizer</span> @{{ run.host_handle }}<template v-if="crewMembersLine"> · <span class="font-medium text-neutral-600 dark:text-neutral-300">{{ run.paddled ? 'Crew who ran it' : 'Crew' }}:</span> {{ crewMembersLine }}</template>
+          <template v-if="run.host_handle"><span class="font-medium text-neutral-600 dark:text-neutral-300">Organizer</span> @{{ run.host_handle }}</template><template v-if="crewMembersLine"><template v-if="run.host_handle"> · </template><span class="font-medium text-neutral-600 dark:text-neutral-300">{{ run.paddled ? 'Crew who ran it' : 'Crew' }}:</span> {{ crewMembersLine }}</template>
         </span>
       </div>
 
