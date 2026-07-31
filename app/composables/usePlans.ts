@@ -363,5 +363,29 @@ export function usePlans() {
     return true
   }
 
-  return { createPlan, patchPlan, deletePlan, createRun, patchRun, markPaddled, deleteRun, joinPlanRun, resendInvite, leaveRun, reinviteCrew }
+  // Remove/uninvite a crew member (owner action, prod-testing follow-up) —
+  // POST /plan-runs/{id}/crew/{memberId}/decline (invites.go RunCrewDecline,
+  // host-only): flips ANY row — accepted OR still-invited — to declined and
+  // emails the removed person a calendar CANCEL (isUninvite branch). Same
+  // endpoint PlanCrewPanel's join-request decline already posts to; this is
+  // just the owner-initiated "uninvite" for an already-accepted or
+  // still-pending row (a declined/requested row has nothing left to
+  // remove, so callers gate the button on status accepted/invited before
+  // ever reaching here). Shared by PlanRunDetailCard's roster and
+  // InviteSheet's list so they don't drift.
+  async function uninviteCrew(runId: string, memberId: string): Promise<boolean> {
+    const headers = await authHeaders()
+    const res = await fetch(`${apiBase}/api/v1/plan-runs/${runId}/crew/${memberId}/decline`, {
+      method: 'POST', headers,
+    }).catch(() => null)
+    if (!res?.ok) {
+      const msg = await apiErrorMessage(res)
+      toast.add({ title: 'Could not remove', description: msg, color: 'error' })
+      return false
+    }
+    toast.add({ title: 'Removed from crew', color: 'success' })
+    return true
+  }
+
+  return { createPlan, patchPlan, deletePlan, createRun, patchRun, markPaddled, deleteRun, joinPlanRun, resendInvite, leaveRun, reinviteCrew, uninviteCrew }
 }

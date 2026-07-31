@@ -111,16 +111,22 @@
         </span>
       </div>
 
-      <!-- Crew who's coming / who ran it (invite-sync API-2/WEB-3
-           Amendments, "Crew who ran it belongs in the log") — ACCEPTED
-           handles only, for every viewer (owner included, in principle),
-           but hidden for the owner here since the owner-only roster card
-           below already shows the same accepted names plus pending/declined
-           state — showing both would just be the same handles twice on one
-           page. -->
-      <div v-if="!isOwner && crewMembersLine" class="flex items-center gap-1.5 pt-1 text-xs text-neutral-500 dark:text-neutral-400">
+      <!-- Organizer + crew (non-owner only, prod-testing follow-up) — the
+           owner-only roster card below already shows the accepted names
+           plus pending/declined state, so this line stays owner-hidden same
+           as before; it just now ALSO always names the organizer (host_handle
+           is always present on this endpoint's response), not just crew.
+           Invite-sync API-2/WEB-3 Amendments ("Crew who ran it belongs in
+           the log") is why the crew half keeps the paddled-dependent label —
+           ACCEPTED handles only, visible to every non-owner viewer. -->
+      <!-- host_handle can be '' (owner with no profile row yet — lazy
+           profile creation, no FK) — skip the Organizer segment then
+           instead of rendering a dangling "@". -->
+      <div v-if="!isOwner && (run.host_handle || crewMembersLine)" class="flex items-center gap-1.5 pt-1 text-xs text-neutral-500 dark:text-neutral-400">
         <svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        <span class="truncate"><span class="font-medium text-neutral-600 dark:text-neutral-300">{{ run.paddled ? 'Crew who ran it' : 'Crew' }}:</span> {{ crewMembersLine }}</span>
+        <span class="truncate">
+          <template v-if="run.host_handle"><span class="font-medium text-neutral-600 dark:text-neutral-300">Organizer</span> @{{ run.host_handle }}</template><template v-if="crewMembersLine"><template v-if="run.host_handle"> · </template><span class="font-medium text-neutral-600 dark:text-neutral-300">{{ run.paddled ? 'Crew who ran it' : 'Crew' }}:</span> {{ crewMembersLine }}</template>
+        </span>
       </div>
 
       <div v-if="run.meetup_spot" class="flex items-center gap-2 pt-1">
@@ -175,6 +181,20 @@
             :disabled="reinvitingId === m.member_id"
             @click="onReinvite(m)"
           >{{ reinvitingId === m.member_id ? 'Inviting…' : 'Re-invite' }}</button>
+          <!-- Remove/uninvite (owner action, prod-testing follow-up) — an
+               accepted OR still-invited row: POST .../crew/{id}/decline
+               (RunCrewDecline) flips it to declined and, for an uninvite
+               (as opposed to a join-request decline), emails the removed
+               person a CANCEL. Declined/requested rows have nothing left to
+               remove (declined already has Re-invite above; requested is
+               handled by the separate Accept/Decline crew-request flow, not
+               this roster). -->
+          <button
+            v-if="m.status === 'accepted' || m.status === 'invited'"
+            type="button"
+            class="shrink-0 text-[11px] font-medium text-neutral-400 hover:text-red-500 transition-colors disabled:opacity-50"
+            @click="removeTarget = m"
+          >Remove</button>
           <span class="shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full" :class="crewChipClass(m)">{{ crewChipLabel(m) }}</span>
         </div>
       </div>
@@ -276,6 +296,23 @@
         </div>
       </template>
     </UModal>
+
+    <!-- Remove/uninvite crew confirm (owner action, prod-testing follow-up)
+         — removeTarget carries the specific roster row so the confirm text
+         can name who's being removed; open state derives from it rather
+         than a separate boolean (multi-row list, unlike Delete/Leave above
+         which each only ever confirm ONE thing). -->
+    <UModal v-model:open="removeCrewOpen" title="Remove from this run?">
+      <template #body>
+        <p class="text-sm text-neutral-600 dark:text-neutral-400">Remove {{ removeTargetLabel }} from this run? They'll be notified.</p>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <UButton variant="ghost" color="neutral" :disabled="removingCrew" @click="removeTarget = null">Cancel</UButton>
+          <UButton color="error" :loading="removingCrew" @click="confirmRemoveCrew">Remove</UButton>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
@@ -300,7 +337,7 @@ const emit = defineEmits<{
 }>()
 
 const { isAuthenticated, getToken } = useAuth()
-const { resendInvite, reinviteCrew, leaveRun } = usePlans()
+const { resendInvite, reinviteCrew, leaveRun, uninviteCrew } = usePlans()
 const planRunLogSheet = usePlanRunLogSheet()
 const { apiBase } = useRuntimeConfig().public
 
@@ -395,6 +432,32 @@ async function onReinvite(m: CrewRequest) {
   reinvitingId.value = m.member_id
   await reinviteCrew(props.run.id, target) // toasts success/error itself
   reinvitingId.value = null
+  await loadCrew()
+}
+
+// Remove/uninvite (owner action, prod-testing follow-up) — removeTarget
+// carries the row being confirmed; removeCrewOpen derives from it so
+// clearing it (Cancel, backdrop-dismiss, or post-confirm) both closes the
+// modal and drops the pending row in one assignment.
+const removeTarget = ref<CrewRequest | null>(null)
+const removingCrew = ref(false)
+const removeCrewOpen = computed({
+  get: () => !!removeTarget.value,
+  set: (v: boolean) => { if (!v) removeTarget.value = null },
+})
+const removeTargetLabel = computed(() => {
+  const m = removeTarget.value
+  if (!m) return ''
+  return m.handle ? `@${m.handle}` : m.invite_email || 'this paddler'
+})
+
+async function confirmRemoveCrew() {
+  if (!removeTarget.value || removingCrew.value) return
+  removingCrew.value = true
+  const ok = await uninviteCrew(props.run.id, removeTarget.value.member_id) // toasts success/error itself
+  removingCrew.value = false
+  if (!ok) return
+  removeTarget.value = null
   await loadCrew()
 }
 

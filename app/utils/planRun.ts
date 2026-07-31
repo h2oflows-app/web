@@ -89,6 +89,13 @@ export interface PlanRunDetail {
   // value explicitly) — render "Crew: …" with a plain length check, no
   // null guard needed.
   crew_members: { handle: string }[]
+  // This run's OWNER's handle (prod-testing follow-up to Invite Sync API-1/
+  // 2) — same field name/contract as inviteRunSummary.HostHandle
+  // (composables/useInvites.ts): always present (not optional, '' zero
+  // value only for non-GetRun callers of planRunSummary, which this type
+  // never sees), so a non-owner viewer can render "Organizer @host" without
+  // a second lookup. Populated by renderPlanRun (plan_runs.go).
+  host_handle: string
 }
 
 // PlanRunDetailPlan REMOVED (web#354 A1): GET /plan-runs/{id}'s response no

@@ -105,27 +105,39 @@ export function useInvites() {
     invites.value = invites.value.map(i => (i.id === id ? { ...i, ...patch } : i))
   }
 
-  // token: the ?invite=<token> from the email link, forwarded in the POST
-  // body — API's AcceptInvite (invites.go) accepts it as a fallback match
-  // for the "signed up with a different email than the invite" case, where
-  // the invite's run_invites row isn't bound to (or discoverable via
-  // /me/invites' email match for) this account yet.
-  async function accept(id: string, token?: string): Promise<boolean> {
-    const prev = invites.value
-    patchInvite(id, { status: 'accepted' })
-    recomputeUnread()
-
+  // Low-level POST /invites/{id}/accept — extracted (uninvite-autoaccept-
+  // organizer follow-up) so a caller that needs different side-effects than
+  // accept() below (toast wording, navigation, refresh timing) can still
+  // issue the EXACT SAME request instead of hand-rolling a second copy.
+  // plan-runs/[id].vue's auto-accept-on-landing (?accept=1 email links) is
+  // the motivating case: accept()'s own toast/navigateTo assume a manual
+  // click from a list context, neither of which fits landing already ON the
+  // run page. token: the ?invite=<token> from the email link, forwarded in
+  // the POST body — API's AcceptInvite (invites.go) accepts it as a
+  // fallback match for the "signed up with a different email than the
+  // invite" case, where the invite's run_invites row isn't bound to (or
+  // discoverable via /me/invites' email match for) this account yet.
+  async function acceptRequest(id: string, token?: string): Promise<{ ok: boolean; status: number; body: any }> {
     const headers = await authHeaders()
     const res = await fetch(`${apiBase}/api/v1/invites/${id}/accept`, {
       method: 'POST',
       headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify(token ? { token } : {}),
     }).catch(() => null)
-    if (!res?.ok) {
+    const body = await res?.json().catch(() => null)
+    return { ok: !!res?.ok, status: res?.status ?? 0, body }
+  }
+
+  async function accept(id: string, token?: string): Promise<boolean> {
+    const prev = invites.value
+    patchInvite(id, { status: 'accepted' })
+    recomputeUnread()
+
+    const { ok, status, body } = await acceptRequest(id, token)
+    if (!ok) {
       invites.value = prev
       recomputeUnread()
-      const msg = await res?.json().catch(() => null)
-      toast.add({ title: 'Could not accept invite', description: res?.status === 409 ? msg?.error ?? 'Already a member' : msg?.error, color: 'error' })
+      toast.add({ title: 'Could not accept invite', description: status === 409 ? body?.error ?? 'Already a member' : body?.error, color: 'error' })
       return false
     }
 
@@ -143,7 +155,6 @@ export function useInvites() {
     // (not slug) — GetRun's slug-resolution branch only fires when the slug
     // is globally unique across ALL owners (plan_runs.go), which a run's own
     // per-owner-unique slug doesn't guarantee; the id is always safe.
-    const body = await res.json().catch(() => null)
     if (body?.run_id) {
       await navigateTo(`/plan-runs/${body.run_id}`)
     }
@@ -173,5 +184,5 @@ export function useInvites() {
   // gives soonest-first with no extra sort needed here.
   const firstPending = computed(() => invites.value.find(isPendingInvite) ?? null)
 
-  return { invites, loaded, unreadCount, firstPending, refresh, accept, dismiss }
+  return { invites, loaded, unreadCount, firstPending, refresh, accept, acceptRequest, dismiss }
 }

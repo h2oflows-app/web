@@ -56,13 +56,16 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
+import { useInvites } from '~/composables/useInvites'
 import type { PlanRunDetail } from '~/utils/planRun'
 
 definePageMeta({ ssr: false })
 
 const route = useRoute()
+const router = useRouter()
 const config = useRuntimeConfig()
 const { isAuthenticated, getToken } = useAuth()
+const toast = useToast()
 
 // web#354 A1: GET /plan-runs/{param} no longer wraps a `plan` alongside
 // `run` — the run is standalone (decoupled from any specific event), so the
@@ -89,6 +92,96 @@ onMounted(() => { authReady.value = true })
 
 const data = ref<PlanRunResponse | null>(null)
 const pending = ref(false)
+const run = computed(() => data.value?.run ?? null)
+
+// ── Auto-accept on email landing (prod-testing follow-up) ────────────────
+// The invite email's Accept link now carries `?accept=1` (invites.go's
+// acceptURL, both the plain and ?invite=<token> variants) so landing on the
+// run page from that link accepts immediately instead of requiring a
+// second manual tap on InviteAcceptCard below — product feedback after prod
+// testing was that people clicked "Accept" in the email and assumed that
+// alone was enough. acceptRequest is useInvites' own accept()'s underlying
+// fetch, extracted specifically so this flow can drive its own toast/URL/
+// refetch sequence instead of accept()'s (list-context toast + navigateTo,
+// neither of which fits landing already ON the run page).
+const { acceptRequest, refresh: refreshInvitesList } = useInvites()
+
+// Guards a single AUTOMATIC POST attempt per page visit — set right before
+// firing, on success OR failure, so a 409 (crew full, etc.) falls back to
+// the normal manual banner/card rather than silently retrying on every
+// later refresh() (e.g. the logSheetSavedCount watch below). Deliberately
+// separate from checking `my_rsvp` itself: an anon viewer's pre-auth-settle
+// load() has no my_member_id yet (see inviteToken's own doc comment on the
+// api's `me` LATERAL only matching a real ownerID/email) and must NOT count
+// as an attempt — the post-auth re-fetch (same watch below, isAuthenticated
+// flips) needs to still try for real once it resolves. That's what makes
+// this a "guard against double-fire", not a one-shot "ran once" flag: cheap
+// re-checks are fine, only the actual POST is guarded.
+const autoAcceptAttempted = ref(false)
+
+// True only while the auto-accept POST itself is in flight — distinct from
+// autoAcceptAttempted (which stays true forever once set). Referenced by
+// showInviteAccept below so InviteAcceptCard's own Accept/Dismiss buttons
+// stay hidden during that window: without this, data.value's synchronous
+// update (my_rsvp is still 'invited' until the refresh() after a successful
+// accept) can flash the manual card for the split second before the network
+// round trip resolves, and a fast tap on its Accept button would race a
+// second accept call against this one. Automatically un-hides the card on a
+// failed attempt — exactly the "fall back to the normal banner/card" path.
+const autoAccepting = ref(false)
+
+async function stripAcceptParams() {
+  const q = { ...route.query }
+  delete q.accept
+  delete q.invite
+  await router.replace({ query: q })
+}
+
+async function maybeAutoAccept() {
+  if (route.query.accept !== '1') return // NEVER auto-accept without this — a bare run-page visit must never silently accept
+  // Snapshot into a local const (not repeated run.value accesses) so
+  // TypeScript's narrowing of my_member_id below reliably survives to the
+  // acceptRequest call further down.
+  const r = run.value
+  if (!r) return
+
+  // Already accepted (a repeat visit on the same email link, or this same
+  // load() firing again after a successful accept below re-triggers it via
+  // refresh()) — nothing to do, just drop the param so reloading/sharing the
+  // URL doesn't re-trigger anything. Checked before the attempted-guard so
+  // it always fires, even on a page visit that never itself attempted.
+  if (r.my_rsvp === 'accepted') {
+    await stripAcceptParams()
+    return
+  }
+
+  if (autoAcceptAttempted.value) return
+  // Not yet resolvable for this viewer — either a genuinely different invite
+  // state, or (anon path) the pre-auth-settle load that has no
+  // my_member_id yet. Fall through to the normal banner/card; if this was
+  // the anon case, the auth-settle watch's authed re-fetch calls load()
+  // again once isAuthenticated flips, re-running this same check with the
+  // now-resolved my_rsvp/my_member_id.
+  if (r.my_rsvp !== 'invited' || !r.my_member_id) return
+
+  autoAcceptAttempted.value = true
+  autoAccepting.value = true
+  const { ok, status, body } = await acceptRequest(r.my_member_id, inviteToken.value ?? undefined)
+  autoAccepting.value = false
+
+  if (!ok) {
+    // Fall back to showing the normal banner/card (my_rsvp is still
+    // 'invited' — nothing here changes that) with the api's own error
+    // message, same classification useInvites' accept() uses.
+    toast.add({ title: 'Could not accept invite', description: status === 409 ? (body?.error ?? 'Already a member') : body?.error, color: 'error' })
+    return
+  }
+
+  toast.add({ title: "You're on the crew", color: 'success' })
+  await stripAcceptParams() // before refresh() so the re-entrant load() below sees a clean query and takes the my_rsvp==='accepted' short-circuit above
+  await refresh() // my_rsvp flips to 'accepted' → showInviteAccept goes false, InviteAcceptCard/banner disappears
+  await refreshInvitesList() // keeps NotificationBell's unread badge from showing a stale pending invite we just silently resolved
+}
 
 // Monotonic request counter — the token-landing watch below can dispatch two
 // loads in quick succession (an anon-token fetch before the session
@@ -116,6 +209,7 @@ async function load() {
   if (seq !== requestSeq) return // a newer load() superseded this one
   data.value = json
   pending.value = false
+  await maybeAutoAccept() // no-op unless ?accept=1 is present — see its own doc comment
 }
 
 watch([authReady, isAuthenticated], () => {
@@ -124,14 +218,13 @@ watch([authReady, isAuthenticated], () => {
   else pending.value = false // standard gate handles the render, nothing to fetch
 }, { immediate: true })
 
-const run = computed(() => data.value?.run ?? null)
-
 // Show the invite-accept surface for: an anon viewer riding the token
 // carve-out (InviteAcceptCard itself only ever shows the sign-in prompt in
 // this case — see its own doc comment for why), or an authed viewer with a
 // still-pending invite bound to their account.
 const showInviteAccept = computed(() => {
   if (!run.value) return false
+  if (autoAccepting.value) return false // in-flight auto-accept — see its own doc comment
   if (!isAuthenticated.value) return !!inviteToken.value
   return run.value.my_rsvp === 'invited'
 })
