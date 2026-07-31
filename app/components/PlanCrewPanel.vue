@@ -9,7 +9,7 @@
         <div v-else class="divide-y divide-neutral-100 dark:divide-neutral-800 -mx-1">
           <div v-for="m in members" :key="m.member_id" class="flex items-center gap-3 px-1 py-2.5">
             <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">@{{ m.handle || 'paddler' }}</p>
+              <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">{{ displayLabel(m.display_name, m.handle) || m.invite_email || '@paddler' }}</p>
               <p v-if="m.message" class="text-xs text-neutral-400 truncate mt-0.5">“{{ m.message }}”</p>
             </div>
 
@@ -45,6 +45,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { CrewListResponse, CrewRequest } from '~/utils/plan'
+import { displayLabel } from '~/utils/displayLabel'
 
 // #246 W5: re-pointed to run scope — crew is per-run now (mig 000144). Opens
 // against a single plan_run's roster, not the whole plan's.

@@ -125,7 +125,7 @@
       <div v-if="!isOwner && (run.host_handle || crewMembersLine)" class="flex items-center gap-1.5 pt-1 text-xs text-neutral-500 dark:text-neutral-400">
         <svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span class="truncate">
-          <template v-if="run.host_handle"><span class="font-medium text-neutral-600 dark:text-neutral-300">Organizer</span> @{{ run.host_handle }}</template><template v-if="crewMembersLine"><template v-if="run.host_handle"> · </template><span class="font-medium text-neutral-600 dark:text-neutral-300">{{ run.paddled ? 'Crew who ran it' : 'Crew' }}:</span> {{ crewMembersLine }}</template>
+          <template v-if="run.host_handle"><span class="font-medium text-neutral-600 dark:text-neutral-300">Organizer</span> {{ displayLabel(run.host_display_name, run.host_handle) }}</template><template v-if="crewMembersLine"><template v-if="run.host_handle"> · </template><span class="font-medium text-neutral-600 dark:text-neutral-300">{{ run.paddled ? 'Crew who ran it' : 'Crew' }}:</span> {{ crewMembersLine }}</template>
         </span>
       </div>
 
@@ -159,7 +159,7 @@
       <div v-else class="divide-y divide-neutral-100 dark:divide-neutral-800 -mx-1">
         <div v-for="m in crew" :key="m.member_id" class="flex items-center gap-3 px-1 py-2.5">
           <div class="min-w-0 flex-1">
-            <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">{{ m.handle ? `@${m.handle}` : m.invite_email }}</p>
+            <p class="text-sm font-medium text-neutral-800 dark:text-neutral-100 truncate">{{ displayLabel(m.display_name, m.handle) || m.invite_email }}</p>
           </div>
           <button
             v-if="m.invite_email && m.status === 'invited'"
@@ -325,6 +325,7 @@ import { usePlans } from '~/composables/usePlans'
 import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
 import type { PlanRunDetail } from '~/utils/planRun'
 import { reinviteTargetFor, type CrewListResponse, type CrewRequest } from '~/utils/plan'
+import { displayLabel } from '~/utils/displayLabel'
 
 const props = defineProps<{
   run: PlanRunDetail
@@ -349,9 +350,11 @@ const { apiBase } = useRuntimeConfig().public
 const isOwner = computed(() => props.run.is_owner)
 
 // Crew "who's coming"/"who ran it" line (invite-sync API-2/WEB-3 Amendments)
-// — plain "@a · @b" join, empty string (falsy) when crew_members is empty so
-// the header row's v-if just checks truthiness.
-const crewMembersLine = computed(() => props.run.crew_members.map(m => `@${m.handle}`).join(' · '))
+// — plain "@a · @b" join (display-names feature: each name via
+// displayLabel(), handle always present on this endpoint's crew_members so
+// it never falls back to ''), empty string (falsy) when crew_members is
+// empty so the header row's v-if just checks truthiness.
+const crewMembersLine = computed(() => props.run.crew_members.map(m => displayLabel(m.display_name, m.handle)).join(' · '))
 
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
 const renderedNotes = computed(() => md.render(props.run.notes || ''))
@@ -448,7 +451,7 @@ const removeCrewOpen = computed({
 const removeTargetLabel = computed(() => {
   const m = removeTarget.value
   if (!m) return ''
-  return m.handle ? `@${m.handle}` : m.invite_email || 'this paddler'
+  return displayLabel(m.display_name, m.handle) || m.invite_email || 'this paddler'
 })
 
 async function confirmRemoveCrew() {

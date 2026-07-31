@@ -42,6 +42,11 @@ export interface InviteRunSummary {
   flow_color?: string | null
   crew: PlanCrewMeterInfo
   host_handle: string
+  // Display-names feature: the host's optional display name, alongside
+  // host_handle above. Omitempty when unset — pair via
+  // utils/displayLabel.ts's displayLabel() rather than rendering host_handle
+  // alone.
+  host_display_name?: string | null
 }
 
 export interface Invite {

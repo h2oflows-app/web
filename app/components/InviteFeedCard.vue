@@ -17,7 +17,7 @@
       <!-- web#354 W4: one card = one run now (invites.go MyInvites is flat)
            — no more inner per-run row loop. -->
       <p class="text-sm text-neutral-700 dark:text-neutral-300">
-        <strong class="text-neutral-900 dark:text-white">@{{ invite.run.host_handle }}</strong>
+        <strong class="text-neutral-900 dark:text-white">{{ displayLabel(invite.run.host_display_name, invite.run.host_handle) }}</strong>
         invited you to run <strong class="text-neutral-900 dark:text-white">{{ invite.run.name }}</strong>
       </p>
       <p class="text-xs text-neutral-400">
@@ -76,6 +76,7 @@ import { computed } from 'vue'
 import type { Invite } from '~/composables/useInvites'
 import { fmtDate, fmtTime } from '~/utils/calendarDate'
 import { flowBandLabel, colorKeyToBadgeClass } from '~/utils/flowBand'
+import { displayLabel } from '~/utils/displayLabel'
 
 const props = defineProps<{
   invite: Invite

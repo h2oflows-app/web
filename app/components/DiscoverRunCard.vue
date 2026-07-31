@@ -7,7 +7,7 @@
              only, and only when it differs from the calendar run's own name
              (avoid "Foxton — Foxton" dupes). -->
         <p v-if="run.reach_name && run.reach_name !== run.name" class="text-xs text-neutral-400 truncate">{{ run.reach_name }}</p>
-        <p class="text-xs text-neutral-400">Hosted by <span class="font-medium text-neutral-600 dark:text-neutral-300">@{{ run.host_handle }}</span></p>
+        <p class="text-xs text-neutral-400">Hosted by <span class="font-medium text-neutral-600 dark:text-neutral-300">{{ displayLabel(run.host_display_name, run.host_handle) }}</span></p>
       </div>
       <span class="shrink-0 text-xs text-neutral-500 dark:text-neutral-400 text-right">
         {{ fmtDate(run.run_date) }}<template v-if="run.run_time"><br>{{ fmtTime(run.run_time) }}</template>
@@ -51,6 +51,7 @@ import { classRange } from '~/utils/classRating'
 import { flowBandLabel, colorKeyToBadgeClass } from '~/utils/flowBand'
 import { usePlans } from '~/composables/usePlans'
 import { useMyProfile } from '~/composables/useMyProfile'
+import { displayLabel } from '~/utils/displayLabel'
 
 // DiscoverRunCard — regrouped from DiscoverPlanCard (web#354 W4; discover.go
 // ListPlans doc comment): one card = one crew-seeking calendar_run now, not

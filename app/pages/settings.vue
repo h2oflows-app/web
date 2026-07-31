@@ -40,6 +40,27 @@
             <p v-if="profileError" class="text-xs text-red-500 dark:text-red-400 mt-1">{{ profileError }}</p>
             <p v-if="profileSaved" class="text-xs text-green-600 dark:text-green-400 mt-1">Saved!</p>
           </div>
+
+          <div>
+            <label class="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">Display name</label>
+            <div class="flex gap-2">
+              <input
+                v-model="displayNameInput"
+                type="text"
+                placeholder="Ian K"
+                maxlength="60"
+                class="flex-1 min-w-0 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+              />
+              <button
+                :disabled="displayNameSaving || displayNameInput === displayName"
+                class="shrink-0 rounded-lg bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-1.5 text-sm font-medium text-white transition-colors"
+                @click="saveDisplayName"
+              >{{ displayNameSaving ? 'Saving…' : 'Save' }}</button>
+            </div>
+            <p class="text-xs text-neutral-400 dark:text-neutral-500 mt-1">Your name as shown alongside your @handle on runs and invites. Optional — leave blank to show just your handle.</p>
+            <p v-if="displayNameError" class="text-xs text-red-500 dark:text-red-400 mt-1">{{ displayNameError }}</p>
+            <p v-if="displayNameSaved" class="text-xs text-green-600 dark:text-green-400 mt-1">Saved!</p>
+          </div>
         </template>
       </section>
 
@@ -184,6 +205,14 @@ const handle      = ref('')
 const handleInput = ref('')
 const email       = ref('')
 
+// Display name (display-names feature) — separate save action/state from
+// the handle field above, same load-once/save-independently pattern.
+const displayNameSaving = ref(false)
+const displayNameSaved  = ref(false)
+const displayNameError  = ref('')
+const displayName      = ref('')
+const displayNameInput = ref('')
+
 async function loadProfile() {
   profileLoading.value = true
   try {
@@ -196,6 +225,8 @@ async function loadProfile() {
       handle.value      = data.handle ?? ''
       handleInput.value = data.handle ?? ''
       email.value       = data.email  ?? ''
+      displayName.value      = data.display_name ?? ''
+      displayNameInput.value = data.display_name ?? ''
     }
   } finally {
     profileLoading.value = false
@@ -228,6 +259,42 @@ async function saveHandle() {
     profileError.value = 'Network error'
   } finally {
     profileSaving.value = false
+  }
+}
+
+// PATCH { display_name } — trimmed client-side to match what we display back
+// (server also trims + caps at 60), '' sent explicitly clears it to NULL. A
+// display_name-only patch from a user with no handle yet 422s server-side
+// ("claim a handle before setting a display name"); surfaced verbatim below
+// rather than pre-guarded here, since the api owns that validation.
+async function saveDisplayName() {
+  displayNameError.value = ''
+  displayNameSaved.value = false
+  displayNameSaving.value = true
+  try {
+    const token = await getToken()
+    const trimmed = displayNameInput.value.trim()
+    const res = await fetch(`${config.public.apiBase}/api/v1/me/profile`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ display_name: trimmed }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      displayNameError.value = data.error ?? 'Save failed'
+      return
+    }
+    displayName.value = trimmed
+    displayNameInput.value = trimmed
+    displayNameSaved.value = true
+    setTimeout(() => { displayNameSaved.value = false }, 2500)
+  } catch {
+    displayNameError.value = 'Network error'
+  } finally {
+    displayNameSaving.value = false
   }
 }
 
