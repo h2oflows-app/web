@@ -558,6 +558,21 @@ async function confirmLeave() {
   leaveOpen.value = false
   emit('left')
 }
+
+// Exposed so plan-runs/[id].vue can open THIS same confirm from its own
+// ?leave=1 intent handler (the update email's "Not going" button,
+// notifications.go notifyRunMaterialChange) — deliberately bypasses
+// canLeave's `my_rsvp === 'accepted'`-only gate (that gate only controls
+// this card's own visible button, restricted to accepted crew per the
+// 2026-07-30 review — a still-pending invitee already has Accept/Dismiss).
+// A ?leave=1 visitor may be either invited or accepted (the page's own
+// caller checks that), and either way wants the exact same destructive
+// confirm + leaveRun() call, never a bare auto-executed GET (see the
+// page's own doc comment on why this must stay confirm-gated).
+function openLeaveConfirm() {
+  leaveOpen.value = true
+}
+defineExpose({ openLeaveConfirm })
 </script>
 
 <style scoped>

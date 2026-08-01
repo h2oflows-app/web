@@ -48,13 +48,13 @@
         @resolved="refresh"
       />
 
-      <PlanRunDetailCard :run="run" @refresh="refresh" @deleted="onDeleted" @left="onLeft" />
+      <PlanRunDetailCard ref="detailCardRef" :run="run" @refresh="refresh" @deleted="onDeleted" @left="onLeft" />
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
 import { useInvites } from '~/composables/useInvites'
 import type { PlanRunDetail } from '~/utils/planRun'
@@ -93,6 +93,10 @@ onMounted(() => { authReady.value = true })
 const data = ref<PlanRunResponse | null>(null)
 const pending = ref(false)
 const run = computed(() => data.value?.run ?? null)
+
+// Template ref onto PlanRunDetailCard's exposed openLeaveConfirm() — see
+// maybeHandleLeaveIntent below, which drives it from ?leave=1.
+const detailCardRef = ref<{ openLeaveConfirm: () => void } | null>(null)
 
 // ── Auto-accept on email landing (prod-testing follow-up) ────────────────
 // The invite email's Accept link now carries `?accept=1` (invites.go's
@@ -183,6 +187,83 @@ async function maybeAutoAccept() {
   await refreshInvitesList() // keeps NotificationBell's unread badge from showing a stale pending invite we just silently resolved
 }
 
+// ── "Not going" intent from the update email (?leave=1) ──────────────────
+// notifyRunMaterialChange's "Not going" button (api notifications.go) links
+// here with ?leave=1 — added alongside PARTSTAT preservation (api's
+// AttendeePartStat): once an already-accepted recipient's ATTENDEE line
+// stops resetting to NEEDS-ACTION;RSVP=TRUE on every update, their mail
+// client no longer offers its own native Decline UI on the update, so this
+// is the one remaining one-tap way to bail straight from the email.
+//
+// Modeled on maybeAutoAccept above, but with the one difference that
+// matters most: this must NEVER auto-execute the leave. Accepting is
+// reversible/idempotent-ish (re-invite exists); declining drops someone off
+// the crew and emails the organizer (notifyOrganizerDeclined) — and mail
+// scanners (Outlook SafeLinks and similar) prefetch every link in an email
+// on delivery, well before a human ever opens it. A bare GET-triggered
+// auto-decline would silently boot people who never clicked anything. So
+// ?leave=1 only ever OPENS the same confirm modal the in-app "Remove from
+// my calendar" button opens (PlanRunDetailCard's leaveOpen, driven here via
+// its exposed openLeaveConfirm — detailCardRef) — the actual POST
+// /plan-runs/{id}/leave call only ever fires from that modal's own Remove
+// button, same as every other visitor to this confirm.
+async function stripLeaveParam() {
+  const q = { ...route.query }
+  delete q.leave
+  await router.replace({ query: q })
+}
+
+// Once-per-visit guard, same shape/reasoning as autoAcceptAttempted above —
+// without it, every reactive re-load (refresh() after an unrelated edit,
+// the logSheetSavedCount watch, etc.) would reopen the confirm modal a
+// second time even after the visitor already dismissed or acted on it.
+const leaveIntentHandled = ref(false)
+
+async function maybeHandleLeaveIntent() {
+  if (route.query.leave !== '1') return // never act without this explicit intent param
+  if (leaveIntentHandled.value) return
+
+  if (!isAuthenticated.value) {
+    // Same redirect construction as the top-level anon gate in the
+    // template above (`/login?redirect=${encodeURIComponent(route.fullPath)}`)
+    // — route.fullPath already carries ?leave=1, and confirm.vue's
+    // redirectTarget() only ever honors a same-origin path (starts with
+    // '/', not '//'), so this can't be turned into an open redirect. Once
+    // signed in they land back on this exact URL, the auth watch re-fires
+    // load(), and this function runs again — now authenticated.
+    leaveIntentHandled.value = true
+    await navigateTo(`/login?redirect=${encodeURIComponent(route.fullPath)}`)
+    return
+  }
+
+  const r = run.value
+  if (!r) return // not loaded yet — re-invoked once load() resolves and calls this again
+
+  leaveIntentHandled.value = true
+
+  // Owner, or never a member (my_rsvp absent/declined/requested) — nothing
+  // to leave. Strip the param silently rather than opening a confirm for
+  // something that doesn't apply to this viewer.
+  const isMember = !r.is_owner && (r.my_rsvp === 'invited' || r.my_rsvp === 'accepted')
+  if (!isMember) {
+    await stripLeaveParam()
+    return
+  }
+
+  // Open the existing confirm — never call the leave endpoint directly.
+  // nextTick: this is often the FIRST load() to resolve, the same tick that
+  // flips the `v-else="!run"` template gate from "Run not found"/spinner to
+  // <main>, which is what actually mounts PlanRunDetailCard (and populates
+  // detailCardRef) — without waiting a tick, the ref can still be null here.
+  await nextTick()
+  detailCardRef.value?.openLeaveConfirm()
+}
+
+// After a successful leave (PlanRunDetailCard's own confirmLeave ->
+// emit('left')), onLeft below navigates away entirely, so there's no
+// "strip the param and stay" case to handle here for the success path —
+// the param goes away with the whole page.
+
 // Monotonic request counter — the token-landing watch below can dispatch two
 // loads in quick succession (an anon-token fetch before the session
 // hydrates, then an authed re-fetch once it does; see useAuth's getToken doc
@@ -210,6 +291,7 @@ async function load() {
   data.value = json
   pending.value = false
   await maybeAutoAccept() // no-op unless ?accept=1 is present — see its own doc comment
+  await maybeHandleLeaveIntent() // no-op unless ?leave=1 is present — see its own doc comment
 }
 
 watch([authReady, isAuthenticated], () => {
