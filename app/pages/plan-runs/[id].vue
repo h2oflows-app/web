@@ -257,6 +257,15 @@ async function maybeHandleLeaveIntent() {
   // detailCardRef) — without waiting a tick, the ref can still be null here.
   await nextTick()
   detailCardRef.value?.openLeaveConfirm()
+  // Strip ?leave=1 now that the confirm is open (it's driven by the card's
+  // leaveOpen ref, not the URL, so removing the param doesn't close it). The
+  // in-session leaveIntentHandled guard already blocks re-open on SPA
+  // refresh/watch re-loads, but the param must not linger in the address
+  // bar: a hard reload or a reopened tab is a fresh page instance with a
+  // fresh guard, which would otherwise re-pop this destructive confirm
+  // unprompted after the user dismissed it. Mirrors maybeAutoAccept, which
+  // strips ?accept=1 the moment it acts.
+  await stripLeaveParam()
 }
 
 // After a successful leave (PlanRunDetailCard's own confirmLeave ->
