@@ -1,7 +1,9 @@
 <template>
   <div class="w-full" @click.stop>
-    <!-- Non-compact: visible time selector row (matches GaugeSparkline) -->
-    <div v-if="!compact" class="flex justify-start mb-1.5 -mt-0.5">
+    <!-- Non-compact: visible time selector row (matches GaugeSparkline,
+         including its pointer-events-auto — see that component for why the
+         control row has to opt back in to clicks). -->
+    <div v-if="!compact" class="flex justify-start mb-1.5 -mt-0.5 pointer-events-auto">
       <div class="flex text-xs rounded overflow-hidden border border-neutral-200 dark:border-neutral-700">
         <button
           class="px-1.5 py-0.5 transition-colors"

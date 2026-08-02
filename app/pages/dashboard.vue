@@ -326,7 +326,7 @@
                     v-swipe-remove="() => swipeRemoveUserReach(r)"
                     :vm="userReachToRunRowVM(r, { lastReadingLabel: reachLastUpdated(r) })"
                     view-mode="list"
-                    name-as-link
+                    name-prominent
                     remove-label="Remove from dashboard"
                     @open="openUserReach(r)"
                     @remove="removeUserReach(r)"
@@ -338,7 +338,7 @@
                     :key="r.id"
                     :vm="userReachToRunRowVM(r, { lastReadingLabel: reachLastUpdated(r) })"
                     :view-mode="viewMode"
-                    name-as-link
+                    name-prominent
                     show-owner-right
                     remove-label="Remove from dashboard"
                     @open="openUserReach(r)"
@@ -483,7 +483,7 @@
                       v-swipe-remove="() => swipeRemoveUserReach(r)"
                       :vm="userReachToRunRowVM(r, { lastReadingLabel: reachLastUpdated(r) })"
                       view-mode="list"
-                      name-as-link
+                      name-prominent
                       :show-river="!showRivers"
                       remove-label="Remove from dashboard"
                       @open="openUserReach(r)"
@@ -497,7 +497,7 @@
                       :key="r.id"
                       :vm="userReachToRunRowVM(r, { lastReadingLabel: reachLastUpdated(r) })"
                       :view-mode="viewMode"
-                      name-as-link
+                      name-prominent
                       show-owner-right
                       :show-river="!showRivers"
                       remove-label="Remove from dashboard"

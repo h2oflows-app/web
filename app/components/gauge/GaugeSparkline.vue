@@ -1,7 +1,14 @@
 <template>
   <div class="w-full" @click.stop>
-    <!-- Window toggle + poll status — hidden in compact mode -->
-    <div v-if="!compact" class="flex items-center justify-between mb-1.5 -mt-0.5">
+    <!-- Window toggle + poll status — hidden in compact mode.
+         pointer-events-auto is load-bearing: card consumers (RunRow) wrap the
+         whole sparkline in pointer-events-none so a click anywhere on the
+         chart falls through to the card's own open handler. Without this the
+         range buttons and the refresh control are unclickable too — the click
+         passes straight through and opens the card instead of changing the
+         window. Re-enabling events on just this control row keeps the chart
+         itself click-through while making the controls actually work. -->
+    <div v-if="!compact" class="flex items-center justify-between mb-1.5 -mt-0.5 pointer-events-auto">
       <div class="flex text-xs rounded overflow-hidden border border-neutral-200 dark:border-neutral-700">
         <button
           class="px-1.5 py-0.5 transition-colors"
