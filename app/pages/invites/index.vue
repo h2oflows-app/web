@@ -1,9 +1,6 @@
 <template>
   <div class="min-h-screen bg-neutral-50 dark:bg-neutral-950">
-    <AppHeader>
-      <span class="text-neutral-300 dark:text-neutral-700 shrink-0">/</span>
-      <span class="text-sm font-medium text-neutral-700 dark:text-neutral-200">Invites</span>
-    </AppHeader>
+    <AppHeader />
 
     <!-- Auth loading -->
     <div v-if="!authReady" class="max-w-3xl mx-auto px-4 py-20 flex justify-center">

@@ -1,14 +1,7 @@
 <template>
   <div class="min-h-screen bg-neutral-50 dark:bg-neutral-950">
 
-    <AppHeader>
-      <template v-if="run">
-        <span class="text-neutral-300 dark:text-neutral-700 shrink-0">/</span>
-        <NuxtLink :to="`/explore/${handle}`" class="text-sm font-medium text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors">@{{ handle }}</NuxtLink>
-        <span class="text-neutral-300 dark:text-neutral-700 shrink-0">/</span>
-        <span class="text-sm font-medium truncate text-neutral-700 dark:text-neutral-200">{{ run.name }}</span>
-      </template>
-    </AppHeader>
+    <AppHeader />
 
     <div v-if="pending" class="max-w-3xl mx-auto px-3 py-12 text-center text-neutral-400">
       Loading…
@@ -65,6 +58,12 @@
           <div class="min-w-0">
             <div v-if="run.river_name" class="text-xs font-medium text-primary-500 uppercase tracking-wide mb-1">{{ run.river_name }}</div>
             <h1 class="text-2xl font-bold leading-tight text-neutral-900 dark:text-white">{{ run.name }}</h1>
+            <!-- #347: sole surviving "go to this channel" affordance now that
+                 the breadcrumb's @{{handle}} link is gone. RunAuthorBadge
+                 below (in the toolbar row) is plain text and only renders
+                 for !isOwnRun/is_special — not a substitute, since the
+                 breadcrumb always linked here regardless of ownership. -->
+            <NuxtLink :to="`/explore/${handle}`" class="text-xs text-neutral-400 dark:text-neutral-500 hover:text-primary-500 dark:hover:text-primary-400 hover:underline transition-colors">@{{ handle }}</NuxtLink>
             <div v-if="run.river_state_abbr || run.river_basin" class="text-sm text-neutral-500 mt-0.5">
               {{ [run.river_state_abbr, run.river_basin].filter(Boolean).join(' · ') }}
             </div>

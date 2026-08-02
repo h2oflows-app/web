@@ -3,10 +3,7 @@
     <!-- Backdrop: close any open membership dropdown -->
     <div v-if="openPickerSlug !== null" class="fixed inset-0 z-30" @click.stop="openPickerSlug = null" />
 
-    <AppHeader>
-      <span class="text-neutral-300 dark:text-neutral-700 shrink-0">/</span>
-      <span class="text-sm font-medium text-neutral-700 dark:text-neutral-200">My Runs</span>
-    </AppHeader>
+    <AppHeader />
 
     <!-- Auth loading -->
     <div v-if="!authReady" class="max-w-3xl mx-auto px-4 py-20 flex justify-center">
