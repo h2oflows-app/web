@@ -201,16 +201,22 @@ export function useRunSave() {
         store.slug = returnedSlug
       }
 
-      // ── Step 2: centerline (only if geometry was re-pinned) ───────────────
-      if (store.geometryDirty && store.previewCenterline) {
-        await fetch(`${apiBase}/api/v1/me/runs/${returnedSlug}/centerline`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ geojson: store.previewCenterline }),
-        }).catch(() => { /* non-fatal */ })
-      }
-
-      // ── Step 3: flow ranges (always) ─────────────────────────────────────
+      // Centerline is no longer posted from here. The PATCH above sends
+      // put_in/take_out/up_comid/down_comid together (see the geometryDirty
+      // block), and the API now re-fetches and re-trims the centerline
+      // server-side whenever those move — so this POST became redundant.
+      //
+      // It was also actively harmful: it overwrote the server's fresh trim
+      // with store.previewCenterline, which can be STALE. The preview only
+      // refetches when the up/down COMID pair changes identity; pickTakeOut
+      // has a manual fallback for a move within the same NHD segment, but
+      // pickPutIn has none. Re-pinning a put-in inside one segment therefore
+      // left the old preview in the store, and this request wrote it back
+      // over the correct line — silently reintroducing the stale-flow-line
+      // bug the server fix closes. Dropping it makes the server the single
+      // authority for centerline geometry.
+      //
+      // ── Step 2: flow ranges (always) ─────────────────────────────────────
       const fbRes = await fetch(`${apiBase}/api/v1/me/runs/${returnedSlug}/flow-ranges`, {
         method: 'PUT',
         headers,
@@ -218,7 +224,7 @@ export function useRunSave() {
       })
       if (!fbRes.ok) throw new Error(`Flow ranges save failed: ${fbRes.status}`)
 
-      // ── Step 4: gauge (only if changed) ──────────────────────────────────
+      // ── Step 3: gauge (only if changed) ──────────────────────────────────
       if (store.gaugeDirty) {
         if (store.customGaugeId) {
           // Custom gauge path: PUT { custom_gauge_id }
@@ -250,7 +256,7 @@ export function useRunSave() {
         }
       }
 
-      // ── Step 5: run features (rapids + access points, issue #312) ────────
+      // ── Step 4: run features (rapids + access points, issue #312) ────────
       if (store.featuresDirty) {
         const { rapids, access } = store.featuresToPayload()
         const rapidsRes = await fetch(`${apiBase}/api/v1/me/runs/${returnedSlug}/rapids`, {
