@@ -12,13 +12,7 @@
     <div class="flex flex-col min-w-0 flex-1">
       <div class="flex items-center gap-1 min-w-0">
         <OwnerIcon placement="left" :author-handle="vm.authorHandle" :slug="vm.slug" :run-id="vm.runId" />
-        <NuxtLink
-          v-if="nameAsLink"
-          :to="detailTo"
-          :class="listNameClass"
-          @click.stop
-        >{{ vm.label }}</NuxtLink>
-        <span v-else :class="listNameClass">{{ vm.label }}</span>
+        <span :class="listNameClass">{{ vm.label }}</span>
         <span
           v-if="showRiver && vm.riverName"
           class="hidden sm:inline text-[11px] text-neutral-400 dark:text-neutral-500 shrink-0 truncate"
@@ -76,13 +70,7 @@
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-1.5 min-w-0">
           <OwnerIcon placement="left" :author-handle="vm.authorHandle" :slug="vm.slug" :run-id="vm.runId" />
-          <NuxtLink
-            v-if="nameAsLink"
-            :to="detailTo"
-            :class="cardNameClass"
-            @click.stop
-          >{{ vm.label }}</NuxtLink>
-          <span v-else :class="cardNameClass">{{ vm.label }}</span>
+          <span :class="cardNameClass">{{ vm.label }}</span>
           <OwnerIcon v-if="showOwnerRight" placement="right" :author-handle="vm.authorHandle" :slug="vm.slug" :run-id="vm.runId" />
         </div>
         <div v-if="showRiver && vm.riverName" class="mt-0.5">
@@ -124,9 +112,14 @@ const props = withDefaults(defineProps<{
   // 'run' rows carry their own cfs + sparkline; 'gauge-subrow' rows sit under a
   // gauge header (no independent reading) and always render list-style.
   variant?: 'run' | 'gauge-subrow'
-  // Name is a link to the detail page (dashboard's own runs); otherwise a plain
-  // span and the whole row click navigates.
-  nameAsLink?: boolean
+  // Render the name with the prominent treatment used for a dashboard's own
+  // runs (heavier weight / stronger colour) rather than the quieter look used
+  // for rows nested under a group header. Styling only — the name is never its
+  // own click target: clicking anywhere on the row, name included, emits
+  // `open`, so a dashboard row opens the gauge modal instead of navigating
+  // away. The detail page stays reachable from the modal, and in list density
+  // from the explicit View (showView) affordance.
+  nameProminent?: boolean
   showView?: boolean
   showEdit?: boolean
   showOwnerRight?: boolean
@@ -140,7 +133,7 @@ const props = withDefaults(defineProps<{
   removeLabel?: string
 }>(), {
   variant: 'run',
-  nameAsLink: false,
+  nameProminent: false,
   showView: false,
   showEdit: false,
   showOwnerRight: false,
@@ -204,18 +197,16 @@ const cfsText = computed(() =>
 const detailTo = computed(() => `/runs/${props.vm.authorHandle ?? 'h2oflows'}/${props.vm.slug}`)
 const editTo = computed(() => `/my/runs/${props.vm.slug}`)
 
+// Prominent names keep their heavier weight but no longer carry a
+// hover-to-primary colour shift: that read as "this text is its own link",
+// which is exactly the behaviour being removed — the name is part of the row's
+// single click target now, and the row/card already has its own hover state.
 const listNameClass = computed(() => [
   'min-w-0 text-[15px] text-neutral-700 dark:text-neutral-300 truncate',
-  props.nameAsLink ? 'font-medium hover:text-primary-600 dark:hover:text-primary-400 transition-colors' : '',
+  props.nameProminent ? 'font-medium' : '',
 ])
 
-// Linked names (dashboard's own runs) inherit the default text color + get a
-// hover affordance, exactly as before; plain span names (group rows) keep their
-// explicit neutral color. Preserves both families' original card-name look.
 const cardNameClass = computed(() => [
-  'min-w-0 text-base font-semibold truncate',
-  props.nameAsLink
-    ? 'hover:text-primary-600 dark:hover:text-primary-400 transition-colors'
-    : 'text-neutral-800 dark:text-neutral-100',
+  'min-w-0 text-base font-semibold truncate text-neutral-800 dark:text-neutral-100',
 ])
 </script>
