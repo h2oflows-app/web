@@ -118,9 +118,16 @@ interface ShareItem {
   // and rely on the batch endpoint response for gauge names. Both forms render.
   l?: string
 }
+// #375 (v3+): the sharer's basin override for one river represented in `items`.
+// Absent entirely on v1/v2 tokens — always read via `payload.overrides ?? []`.
+interface ShareBasinOverride {
+  river_id: string
+  basin_key: string
+}
 interface SharePayload {
   v: number
   items: ShareItem[]
+  overrides?: ShareBasinOverride[]
 }
 
 const route = useRoute()
@@ -226,6 +233,7 @@ function padBase64(s: string): string {
 // Token formats:
 //   v1: base64url(JSON)             — payload {v:1, items:[...]}
 //   v2: "z" + base64url(gzip(JSON)) — payload {v:2, items:[...]}
+//   v3: "z" + base64url(gzip(JSON)) — payload {v:3, items:[...], overrides?:[...]} (#375)
 async function decodeToken(raw: string): Promise<SharePayload | null> {
   try {
     if (raw.startsWith('z')) {
@@ -235,8 +243,8 @@ async function decodeToken(raw: string): Promise<SharePayload | null> {
       const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))
       const json = await new Response(stream).text()
       const parsed = JSON.parse(json) as SharePayload
-      if ((parsed.v === 1 || parsed.v === 2) && Array.isArray(parsed.items)) return parsed
-      console.warn('share: v2 token parsed but shape rejected', parsed)
+      if ((parsed.v === 1 || parsed.v === 2 || parsed.v === 3) && Array.isArray(parsed.items)) return parsed
+      console.warn('share: gzip token parsed but shape rejected', parsed)
       return null
     }
     // Legacy v1: plain base64url JSON
@@ -271,15 +279,23 @@ async function importAll() {
   if (!token) { importing.value = false; return }
 
   try {
-    await Promise.all(
-      payload.value.items.map(item =>
-        fetch(`${apiBase}/api/v1/watchlist`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ gauge_id: item.id, reach_slug: item.rs }),
-        })
-      )
+    const itemRequests = payload.value.items.map(item =>
+      fetch(`${apiBase}/api/v1/watchlist`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gauge_id: item.id, reach_slug: item.rs }),
+      })
     )
+    // #375: replay the sharer's basin overrides (v3+ tokens only — v1/v2
+    // payloads have no `overrides` key, so this is a no-op for older links).
+    const overrideRequests = (payload.value.overrides ?? []).map(o =>
+      fetch(`${apiBase}/api/v1/me/rivers/${o.river_id}/basin-override`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ basin_key: o.basin_key }),
+      })
+    )
+    await Promise.all([...itemRequests, ...overrideRequests])
     imported.value = true
   } catch {
     importError.value = 'Something went wrong. Please try again.'

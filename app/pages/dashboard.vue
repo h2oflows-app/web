@@ -848,6 +848,7 @@
     <ShareDashboardModal
       :open="shareOpen"
       :gauges="store.gauges"
+      :river-basin-overrides="riverBasinOverrides"
       @close="shareOpen = false"
     />
   </div>

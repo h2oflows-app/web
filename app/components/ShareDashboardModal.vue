@@ -65,6 +65,11 @@ import type { WatchedGauge } from '~/stores/watchlist'
 const props = defineProps<{
   open: boolean
   gauges: WatchedGauge[]
+  // river_id → basin_key. Caller's full override map (dashboard.vue already
+  // loads this for the inline editor) — we filter it down to just the rivers
+  // represented in `gauges` below, so we never leak the sharer's whole
+  // override table into the link.
+  riverBasinOverrides?: Map<string, string>
 }>()
 defineEmits<{ close: [] }>()
 
@@ -80,14 +85,32 @@ function itemLabel(g: WatchedGauge): string {
 // Payload deliberately excludes labels — recipient fetches gauge metadata
 // (including names) from /api/v1/gauges/batch on the share page. Including
 // labels here bloats the URL beyond Netlify's 414 limit for large watchlists.
-const payload = computed(() => ({
-  v: 2,
-  items: props.gauges.map(g => ({
+//
+// v3 (#375): also carries the sharer's basin overrides for rivers actually
+// represented among `gauges` — so a recipient who imports the dashboard gets
+// the same basin grouping, not just the same gauges. Deliberately NOT the
+// sharer's whole override table (that would leak overrides for rivers the
+// recipient has no other context for). Older v1/v2 links have no `overrides`
+// key at all; the share page treats that as "no overrides to replay" and
+// imports items exactly as before — see decodeToken there.
+const payload = computed(() => {
+  const items = props.gauges.map(g => ({
     t: 'g' as const,
     id: g.id,
     rs: g.contextReachSlug ?? null,
-  })),
-}))
+  }))
+  const riverIds = new Set(
+    props.gauges.map(g => g.contextReachRiverId).filter((id): id is string => !!id)
+  )
+  const overrides = [...(props.riverBasinOverrides ?? new Map())]
+    .filter(([riverId]) => riverIds.has(riverId))
+    .map(([riverId, basinKey]) => ({ river_id: riverId, basin_key: basinKey }))
+  return {
+    v: 3,
+    items,
+    ...(overrides.length ? { overrides } : {}),
+  }
+})
 
 // Token = "z" + base64url(gzip(JSON)) — gzip cuts payload size ~3x for
 // repetitive JSON (UUIDs share structure). Older v1 tokens remain decodable
