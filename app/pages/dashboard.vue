@@ -2,26 +2,48 @@
   <div class="min-h-screen bg-neutral-50 dark:bg-neutral-950">
     <AppHeader />
 
-    <!-- Unified sticky header: mobile controls row + tab bar + controls bar,
-         one block anchored at AppHeader bottom (AppHeader is h-[50px], z-30;
-         this whole block sits at top-[50px], z-20, per feedback_sticky_zindex_stacking). -->
+    <!-- Unified sticky header: tab bar (desktop) + one consolidated controls bar,
+         anchored at AppHeader bottom (AppHeader is h-[50px], z-30; this whole
+         block sits at top-[50px], z-20, per feedback_sticky_zindex_stacking).
+         #382: mobile used to stack TWO bars here (a dashboard-picker+Runs/Gauges
+         row, then this controls bar, each with its own backdrop-blur — hence its
+         own stacking context and a z-10 escape hatch to keep the picker's
+         dropdown from painting under the toolbar below it). Merged into one bar:
+         the picker/toggle row is now the first (w-full, sm:hidden) child of the
+         controls bar's flex-wrap row, so mobile still reads picker-then-controls
+         but there's only one background/border/stacking context — no hatch needed. -->
     <div
       v-if="isAuthenticated && db.loaded.value"
       class="sticky top-[50px] z-20"
     >
-      <!-- Mobile-only dashboard controls row — dashboard switcher + Runs/Gauges
-           toggle. Relocated from AppHeader (was injected via slots) per #322
-           follow-up: owner wants these below the navbar, not in it. Desktop
-           gets the equivalent controls from DashboardTabBar (below, hidden
-           below sm) and the labeled Runs/Gauges switch inline in the controls
-           bar (hidden sm:flex), so this row is hidden at sm and up to match. -->
+      <DashboardTabBar
+        v-if="db.dashboards.value.length"
+        :dashboards="db.dashboards.value"
+        :active-dashboard-id="db.activeDashboardId.value"
+        @select="onSelectDashboard"
+        @new="newDashboardOpen = true"
+        @delete="onDeleteDashboard"
+        @rename="(slug, name) => db.rename(slug, name)"
+        @share="shareOpen = true"
+      />
+
+      <!-- Controls bar — single consolidated bar (#382, was two stacked bars on
+           mobile). flex-wrap lets content spill onto extra lines on narrow phones
+           when it doesn't fit (e.g. all 4 grouping badges active widens the Group
+           button) rather than clipping or overflowing — acceptable per #382
+           discussion. gap-y > gap-x gives wrapped lines a bit more breathing
+           room; dormant at desktop widths, which never wrap in practice. -->
+      <div class="bg-neutral-50/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
+      <div class="max-w-5xl mx-auto px-4 py-2 flex flex-wrap items-center gap-x-1 gap-y-1.5">
+      <!-- Mobile-only: dashboard picker + Runs/Gauges toggle, folded into this bar
+           per #382 (previously its own sticky bar above this one). w-full forces
+           it onto its own first line of the flex-wrap row; hidden at sm: and up,
+           where DashboardTabBar (above) + the labeled Runs/Gauges switch (below,
+           hidden sm:flex) cover the same ground. -->
       <div
         v-if="db.dashboards.value.length || hasAnyContent"
-        class="sm:hidden relative z-10 flex items-center gap-2 px-4 py-1.5 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800"
-      ><!-- relative z-10: backdrop-blur gives this row (and the toolbar below)
-           their own stacking contexts, so the switcher dropdown's z-40 is
-           trapped in here — without lifting the whole row, the later toolbar
-           sibling paints over the open menu. -->
+        class="w-full sm:hidden flex items-center gap-2"
+      >
         <div class="min-w-0 flex-1">
           <DashboardSwitcher
             v-if="db.dashboards.value.length"
@@ -34,7 +56,7 @@
         </div>
 
         <!-- Content switch (Runs / Gauges) — mobile, icon-only.
-             Desktop keeps the labeled switch inline in the controls bar below. -->
+             Desktop keeps the labeled switch inline further down this same bar. -->
         <div
           v-if="hasAnyContent"
           class="shrink-0 flex items-center gap-0.5 p-0.5 rounded-lg bg-neutral-100 dark:bg-neutral-800"
@@ -70,21 +92,6 @@
           </button>
         </div>
       </div>
-
-      <DashboardTabBar
-        v-if="db.dashboards.value.length"
-        :dashboards="db.dashboards.value"
-        :active-dashboard-id="db.activeDashboardId.value"
-        @select="onSelectDashboard"
-        @new="newDashboardOpen = true"
-        @delete="onDeleteDashboard"
-        @rename="(slug, name) => db.rename(slug, name)"
-        @share="shareOpen = true"
-      />
-
-      <!-- Controls bar -->
-      <div class="bg-neutral-50/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
-      <div class="max-w-5xl mx-auto px-4 py-2 flex items-center gap-1">
       <!-- Left items wrap their own overflow so Add gauge stays pinned right -->
       <div class="flex items-center gap-1 min-w-0 overflow-x-auto flex-1 scrollbar-none [&::-webkit-scrollbar]:hidden">
         <template v-if="hasAnyContent">
