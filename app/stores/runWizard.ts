@@ -42,6 +42,14 @@ export const useRunWizardStore = defineStore('runWizard', () => {
   // River metadata
   const riverName = ref('')
   const gnisId = ref('')
+  // Resolved river identity (edit mode only — populated from the run's GET
+  // payload; never known before a run's river is resolved server-side, so a
+  // brand-new run in create mode has none of these). riverBasin/riverStateAbbr
+  // are the NLDI-derived defaults, read-only context for the basin-override
+  // modal; riverId gates whether "Override Basin" can show at all.
+  const riverId = ref<string | null>(null)
+  const riverBasin = ref<string | null>(null)
+  const riverStateAbbr = ref<string | null>(null)
 
   // Centerline GeoJSON (fetched by map after both COMIDs set)
   const previewCenterline = ref<object | null>(null)
@@ -348,6 +356,9 @@ export const useRunWizardStore = defineStore('runWizard', () => {
     downComID.value = null
     riverName.value = ''
     gnisId.value = ''
+    riverId.value = null
+    riverBasin.value = null
+    riverStateAbbr.value = null
     previewCenterline.value = null
     name.value = ''
     longName.value = ''
@@ -386,7 +397,7 @@ export const useRunWizardStore = defineStore('runWizard', () => {
     mode, step,
     putIn, takeOut,
     upComID, downComID,
-    riverName, gnisId,
+    riverName, gnisId, riverId, riverBasin, riverStateAbbr,
     previewCenterline,
     name, longName, classMin, classMax, flowBands, notes,
     savedSlug, savedAuthorAs,

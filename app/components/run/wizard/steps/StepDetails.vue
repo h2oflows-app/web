@@ -46,13 +46,30 @@
 
     <!-- River name (editable — prefilled from NLDI lookup) -->
     <UFormField label="River">
-      <UInput
-        v-model="store.riverName"
-        placeholder="e.g. South Platte River"
-        size="lg"
-        class="w-full"
-      />
+      <div class="flex items-center gap-2">
+        <UInput
+          v-model="store.riverName"
+          placeholder="e.g. South Platte River"
+          size="lg"
+          class="flex-1"
+        />
+        <button
+          v-if="store.riverId"
+          type="button"
+          class="shrink-0 text-xs font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors whitespace-nowrap"
+          @click="basinOverrideOpen = true"
+        >Override Basin</button>
+      </div>
     </UFormField>
+
+    <BasinOverrideModal
+      v-model:open="basinOverrideOpen"
+      :river-id="store.riverId"
+      :river-name="store.riverName"
+      :state-abbr="store.riverStateAbbr"
+      :default-basin="store.riverBasin"
+      :author-as="overrideAuthorAs"
+    />
 
     <!-- Gauge row -->
     <div
@@ -269,6 +286,23 @@ const {
 
 const showNotes = ref(false)
 const advancedPanelRef = ref<{ slugAvailability: Ref<string> } | null>(null)
+
+// ── Basin override (edit mode only — see BasinOverrideModal) ────────────────
+const { isMine } = useMyProfile()
+const basinOverrideOpen = ref(false)
+// Reuse the SAME authorAs resolution the edit form already uses (RunWizard.vue's
+// "editing @handle run as member" sentinel banner: store.authorHandle is set from
+// the run's author_handle on edit-load; isMine() comes from useMyProfile). Editing
+// my own run → null (no ?as=, matches today's behavior exactly). Editing a special
+// user's run via role membership → their handle, so the override reads/writes land
+// on that account, not the admin's personal one. Not used in create mode — the
+// "Override Basin" link only ever shows once store.riverId is resolved, which only
+// happens on edit-load.
+const overrideAuthorAs = computed(() => (
+  store.mode === 'edit' && store.authorHandle && !isMine(store.authorHandle)
+    ? store.authorHandle
+    : null
+))
 
 // ── Create-as picker (issue #314) — special (org) accounts the user may author as ──
 interface AuthorableAccount { owner_id: string; handle: string; display_name: string }
