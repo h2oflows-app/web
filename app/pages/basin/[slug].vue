@@ -13,7 +13,7 @@
         </button>
         <div>
           <h1 class="text-2xl font-bold text-neutral-900 dark:text-white">
-            {{ displayName ? `${displayName} Basin` : slug }}
+            {{ displayName ? basinLabel(displayName) : slug }}
           </h1>
           <p class="text-sm text-neutral-500 mt-0.5">
             {{ fetchDone ? `${mapData.length} run${mapData.length === 1 ? '' : 's'}` : 'Loading…' }}
@@ -110,7 +110,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from '#app'
 import { useWatchlistStore } from '~/stores/watchlist'
-import { cleanBasinName, slugifyBasin } from '~/utils/basin'
+import { basinLabel, cleanBasinName, slugifyBasin } from '~/utils/basin'
 import { classColor, classRange } from '~/utils/classRating'
 import { flowBandLabel } from '~/utils/flowBand'
 import type { BasinReach, BasinNetwork } from '~/components/basin/BasinMap.vue'

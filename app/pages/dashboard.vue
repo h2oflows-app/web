@@ -299,7 +299,7 @@
                   >
                     <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
                   </svg>
-                  <h2 class="text-sm font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide">{{ sub.name }} Basin</h2>
+                  <h2 class="text-sm font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide">{{ basinLabel(sub.name) }}</h2>
                 </button>
                 <span class="inline-flex items-center rounded-full bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 text-xs font-medium text-neutral-500 dark:text-neutral-400 shrink-0">{{ sub.reachCount }}</span>
                 <!-- Map-pin link to full basin page -->
@@ -677,7 +677,7 @@
                   >
                     <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
                   </svg>
-                  <h2 class="text-sm font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide">{{ sub.name }} Basin</h2>
+                  <h2 class="text-sm font-bold text-neutral-700 dark:text-neutral-200 uppercase tracking-wide">{{ basinLabel(sub.name) }}</h2>
                 </button>
                 <span class="inline-flex items-center rounded-full bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 text-xs font-medium text-neutral-500 dark:text-neutral-400 shrink-0">{{ sub.gaugeCount }}</span>
                 <NuxtLink
@@ -811,7 +811,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useWatchlistStore, type WatchedGauge } from '~/stores/watchlist'
-import { cleanBasinName, slugifyBasin } from '~/utils/basin'
+import { basinLabel, cleanBasinName, slugifyBasin } from '~/utils/basin'
 import { userReachToRunRowVM } from '~/utils/runRow'
 import { featureToWatchedGauge } from '~/composables/useWatchlistSync'
 import { vSwipeRemove } from '~/directives/swipeRemove'

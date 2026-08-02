@@ -166,7 +166,7 @@ const treeData = computed<TreeNode>(() => {
       })),
     }))
 
-  const rootName = props.basinName ? `${props.basinName} Basin` : 'Basin'
+  const rootName = basinLabel(props.basinName)
   return { name: rootName, children: rivers }
 })
 

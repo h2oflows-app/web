@@ -18,6 +18,10 @@
           </div>
         </div>
 
+        <!-- No "don't type Basin" hint needed: display sites go through
+             basinLabel(), which appends the word only when it isn't already
+             there — so "South Platte" and "South Platte Basin" both render as
+             "South Platte Basin". -->
         <UFormField label="Basin">
           <UInput
             v-model="basinInput"
