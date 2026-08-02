@@ -222,10 +222,28 @@ function gaugeSourceUrl(g: GaugeProp): string | null {
 
 // ── Derived lists ─────────────────────────────────────────────────────────────
 
-// Normalised list items for the sidebar
+// Normalised list items for the sidebar.
+//
+// put_in/take_out-typed rows are deliberately EXCLUDED (#344): they are
+// frozen legacy KML-import artifacts, not user data. The API rejects any
+// attempt to create/edit/delete a put_in/take_out access row
+// (user_reaches.go SetAccessPoints), so unlike the genuinely user-placed
+// types (camp/parking/boat_ramp/intermediate/shuttle_drop, web#312) these
+// can never be corrected through the app. Several runs carry a handful of
+// them — Foxton has 5 put_in + 4 take_out rows, alternate named accesses
+// along one corridor, up to 6.9 km from the actual line ends — and rendering
+// them all made the run look like it had scattered, wrong endpoints. The
+// run's own put_in/take_out coords are the single source of truth (they are
+// what the centerline is trimmed to, and what the editor draws), so the
+// fallback dots below become the only endpoint markers.
+//
+// This filter is the single choke point: it also keeps the strays out of the
+// sidebar list, the selection lookup, and — importantly — fitBounds (they
+// were dragging the viewport wide open to frame markers kilometres away).
 const accessFeatures = computed(() =>
   props.access
     .filter(a => a.lng != null && a.lat != null)
+    .filter(a => a.type !== 'put_in' && a.type !== 'take_out')
     .map(a => ({
       id:    a.id,
       type:  a.type,
@@ -330,12 +348,13 @@ const gaugeFeatures = computed<GaugeProp[]>(() =>
   allGauges.value.filter(g => g.lng != null && g.lat != null)
 )
 
+// The run's own endpoints are now the ONLY put-in/take-out markers (#344 —
+// see accessFeatures above), so these are no longer a "fallback" suppressed
+// by an access row; they render whenever coords exist.
 const showPutInDot = computed(() =>
-  !accessFeatures.value.some(a => a.type === 'put_in') &&
   props.putInLat != null && props.putInLng != null
 )
 const showTakeOutDot = computed(() =>
-  !accessFeatures.value.some(a => a.type === 'take_out') &&
   props.takeOutLat != null && props.takeOutLng != null
 )
 
@@ -597,19 +616,30 @@ function addLayers() {
     markerEls.set(a.id, el)
   }
 
-  // Fallback put-in / take-out dots from start_point / end_point
+  // Put-in / take-out markers, from the run's own endpoint coords — the
+  // authoritative pair the centerline is trimmed to (#344). Rendered as full
+  // pins rather than the small dots these used to be: they're no longer a
+  // degraded fallback shown only when an access row was missing, they ARE
+  // the endpoints now, so they keep the same pin language (colour + icon via
+  // the shared accessColor/accessIcon helpers) that put-in/take-out access
+  // rows used to render with. Titles drop the old "(approx.)" qualifier for
+  // the same reason.
   if (showPutInDot.value) {
-    const el = makeDotEl('#22c55e')
-    el.title = 'Put-in (approx.)'
-    const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+    const el = makePinEl(accessColor('put_in'), accessIconUrl('put_in'), accessIcon('put_in'), 'run-put-in')
+    el.title = accessTypeLabel('put_in')
+    el.addEventListener('mouseenter', () => showTooltip(el, el.title, [props.putInLng!, props.putInLat!]))
+    el.addEventListener('mouseleave', () => tooltip.remove())
+    const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
       .setLngLat([props.putInLng!, props.putInLat!])
       .addTo(map!)
     allMarkers.push(marker)
   }
   if (showTakeOutDot.value) {
-    const el = makeDotEl('#ef4444')
-    el.title = 'Take-out (approx.)'
-    const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+    const el = makePinEl(accessColor('take_out'), accessIconUrl('take_out'), accessIcon('take_out'), 'run-take-out')
+    el.title = accessTypeLabel('take_out')
+    el.addEventListener('mouseenter', () => showTooltip(el, el.title, [props.takeOutLng!, props.takeOutLat!]))
+    el.addEventListener('mouseleave', () => tooltip.remove())
+    const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
       .setLngLat([props.takeOutLng!, props.takeOutLat!])
       .addTo(map!)
     allMarkers.push(marker)
@@ -748,12 +778,6 @@ function makeHazardPinEl(id: string): HTMLElement {
     <path d="M16 3 L30 28 L2 28 Z" fill="#dc2626" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
     <text x="16" y="24" text-anchor="middle" font-size="14" font-weight="900" font-family="system-ui,sans-serif" fill="white">!</text>
   </svg>`
-  return el
-}
-
-function makeDotEl(color: string): HTMLElement {
-  const el = document.createElement('div')
-  el.style.cssText = `width:12px;height:12px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4);pointer-events:none`
   return el
 }
 
