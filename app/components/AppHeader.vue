@@ -40,6 +40,26 @@
         <span class="hidden sm:inline text-xs font-medium">Explore</span>
       </NuxtLink>
 
+      <!-- Discover shortcut (#367) — Discover shipped to MobileTabBar only
+           (#336), leaving desktop with NO entry point to it at all. Same
+           magnifying-glass icon as the mobile bar for continuity, and
+           deliberately ungated like Dashboard/Explore above: the auth
+           boundary lives inside pages/discover/index.vue, which renders its
+           own "Sign in to browse Discover" prompt. -->
+      <NuxtLink
+        to="/discover"
+        class="shrink-0 hidden sm:flex items-center gap-1 p-1.5 rounded-md transition-colors"
+        :class="route.path.startsWith('/discover')
+          ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/50'
+          : 'text-neutral-500 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-neutral-50 dark:hover:bg-neutral-900'"
+        title="Discover crew"
+      >
+        <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <span class="hidden sm:inline text-xs font-medium">Discover</span>
+      </NuxtLink>
+
       <!-- AI Ask button — left side (icon always visible, text desktop only) -->
       <button
         class="shrink-0 flex items-center gap-1 p-1.5 rounded-md text-neutral-500 dark:text-neutral-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors"

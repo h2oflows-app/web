@@ -130,8 +130,18 @@ async function load() {
     // buildChart filters to hours.value for the displayed range.
     const fetchHours = Math.max(hours.value, 48)
     const since = new Date(Date.now() - fetchHours * 3_600_000).toISOString()
+    // Scale the row cap to the window (#345). The api serves readings
+    // `ORDER BY timestamp DESC LIMIT $n`, so a flat limit truncates from the
+    // NEWEST end and silently overrides `since`: at a 15-minute cadence,
+    // limit=500 is only ~5 days of data no matter how far back `since` asks,
+    // which is why 1m rendered as about a week. Tiers mirror
+    // GaugeSparkline.vue's existing fix (>= rather than === so the
+    // Math.max(_, 48) floor and any future range values still land in the
+    // right tier); 3000 covers the busiest observed gauge (~2990 readings /
+    // 33 days) with margin and stays under the api's own 5000 cap.
+    const limit = fetchHours >= 720 ? 3000 : fetchHours >= 168 ? 1500 : 500
     if (props.noRanges) {
-      const rdRes = await fetch(`${apiBase}/api/v1/gauges/${props.gaugeId}/readings?since=${since}&limit=500`)
+      const rdRes = await fetch(`${apiBase}/api/v1/gauges/${props.gaugeId}/readings?since=${since}&limit=${limit}`)
       if (rdRes.ok) readings.value = await rdRes.json()
       flowBands.value = null
     } else {
@@ -147,7 +157,7 @@ async function load() {
         if (token) frHeaders.Authorization = `Bearer ${token}`
       }
       const [rdRes, frRes] = await Promise.all([
-        fetch(`${apiBase}/api/v1/gauges/${props.gaugeId}/readings?since=${since}&limit=500`),
+        fetch(`${apiBase}/api/v1/gauges/${props.gaugeId}/readings?since=${since}&limit=${limit}`),
         fetch(flowRangesUrl, { headers: frHeaders }),
       ])
       if (rdRes.ok) readings.value = await rdRes.json()
