@@ -113,6 +113,9 @@ async function loadEditRun(slug: string) {
     store.name = data.name ?? ''
     store.riverName = data.river_name ?? ''
     store.gnisId = data.gnis_id ?? ''
+    store.riverId = data.river_id ?? null
+    store.riverBasin = data.river_basin ?? null
+    store.riverStateAbbr = data.river_state_abbr ?? null
     store.classMin = data.class_min ?? null
     store.classMax = data.class_max ?? null
     store.notes = data.note ?? ''

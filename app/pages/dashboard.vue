@@ -359,52 +359,6 @@
                       <path d="M4 22c3-6 6-9 8-9s5 9 8 9 5-9 8-9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
                     </svg>
                     <span class="text-sm font-semibold text-primary-600 dark:text-primary-400 shrink-0">{{ river.name }}</span>
-                    <!-- Inline basin-reassignment editor (only when basin grouping is on) -->
-                    <template v-if="river.riverId && groupByBasin">
-                      <template v-if="editingRiverId === river.riverId">
-                        <input
-                          v-model="editingRiverBasinName"
-                          type="text"
-                          maxlength="80"
-                          placeholder="Basin name"
-                          class="text-xs bg-white dark:bg-neutral-800 border border-primary-400 rounded px-1.5 py-0.5 w-28 shrink-0"
-                          @keydown.enter="saveRiverBasinOverride(river)"
-                          @keydown.esc="cancelRiverBasinEdit"
-                        />
-                        <button
-                          class="shrink-0 p-0.5 rounded text-primary-500 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 transition-colors"
-                          title="Save basin"
-                          @click="saveRiverBasinOverride(river)"
-                        >
-                          <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                        </button>
-                        <button
-                          v-if="riverBasinOverrides.has(river.riverId)"
-                          class="shrink-0 p-0.5 rounded text-neutral-400 hover:text-amber-500 dark:text-neutral-500 dark:hover:text-amber-400 transition-colors"
-                          title="Reset to default basin"
-                          @click="deleteRiverBasinOverride(river)"
-                        >
-                          <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M4 10a6 6 0 1 0 1.5-3.9"/><path d="M4 6v4h4"/>
-                          </svg>
-                        </button>
-                        <button
-                          class="shrink-0 p-0.5 rounded text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 transition-colors"
-                          title="Cancel"
-                          @click="cancelRiverBasinEdit"
-                        >
-                          <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
-                        </button>
-                      </template>
-                      <button
-                        v-else
-                        class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-neutral-500 dark:hover:text-neutral-400 transition-colors"
-                        title="Move river to a different basin"
-                        @click="startRiverBasinEdit(river)"
-                      >
-                        <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zm-2.207 2.207L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
-                      </button>
-                    </template>
                     <div class="flex-1 h-px bg-neutral-200 dark:bg-neutral-700" />
                   </div>
                   <!-- Cards wrapper — subtle left indent when river grouping active -->
@@ -1345,51 +1299,6 @@ const riverNameBasinOverrides = computed(() => {
   }
   return m
 })
-
-// Inline river-basin editor state
-const editingRiverId        = ref<string | null>(null)
-const editingRiverBasinName = ref('')
-
-function startRiverBasinEdit(river: RiverGroup) {
-  if (!river.riverId) return
-  editingRiverId.value        = river.riverId
-  editingRiverBasinName.value = riverBasinOverrides.value.get(river.riverId) ?? ''
-}
-
-function cancelRiverBasinEdit() {
-  editingRiverId.value        = null
-  editingRiverBasinName.value = ''
-}
-
-async function saveRiverBasinOverride(river: RiverGroup) {
-  if (!river.riverId) return
-  const name = editingRiverBasinName.value.trim()
-  if (!name) { cancelRiverBasinEdit(); return }
-  const token = await getToken()
-  if (!token) return
-  const res = await fetch(`${apiBase}/api/v1/me/rivers/${river.riverId}/basin-override`, {
-    method: 'PUT',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ basin_key: name }),
-  }).catch(() => null)
-  if (!res?.ok) return
-  riverBasinOverrides.value = new Map([...riverBasinOverrides.value, [river.riverId, name]])
-  cancelRiverBasinEdit()
-}
-
-async function deleteRiverBasinOverride(river: RiverGroup) {
-  if (!river.riverId) return
-  const token = await getToken()
-  if (!token) return
-  await fetch(`${apiBase}/api/v1/me/rivers/${river.riverId}/basin-override`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
-  }).catch(() => null)
-  const next = new Map(riverBasinOverrides.value)
-  next.delete(river.riverId)
-  riverBasinOverrides.value = next
-  cancelRiverBasinEdit()
-}
 
 // ── Reach-primary grouping: state → basin → river → reaches ─────────────────
 
