@@ -1,11 +1,12 @@
 <template>
   <div class="min-h-screen bg-neutral-50 dark:bg-neutral-950">
-    <AppHeader>
-      <span class="text-neutral-300 dark:text-neutral-700 shrink-0">/</span>
-      <span class="text-sm font-medium text-neutral-700 dark:text-neutral-200">Settings</span>
-    </AppHeader>
+    <AppHeader />
 
     <main class="max-w-xl mx-auto px-4 py-8 pb-24 space-y-8">
+
+      <!-- #347: page previously had no in-body title at all — "Settings" only
+           ever rendered via the now-removed AppHeader breadcrumb slot. -->
+      <h1 class="text-xl font-bold text-neutral-900 dark:text-white">Settings</h1>
 
       <!-- Profile -->
       <section class="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-5 space-y-4">

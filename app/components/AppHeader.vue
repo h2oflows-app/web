@@ -1,4 +1,13 @@
 <template>
+  <!--
+    z-index scale (app-wide convention, see feedback_sticky_zindex_stacking) —
+    keep any new overlay in this file on one of these levels, don't invent a new one:
+      z-10  in-content overlays (e.g. a backdrop-blur row trapping its own dropdown)
+      z-20  page-level sticky toolbars (e.g. dashboard.vue's controls bar)
+      z-30  app chrome — AppHeader (sticky, here) + MobileTabBar (fixed)
+      z-40  dropdowns anchored inside the header (avatar menu below; any future one)
+      z-50+ modals/overlays teleported to <body> (Ask modal, CreateChooserSheet)
+  -->
   <header class="sticky top-0 z-30 shrink-0 border-b border-neutral-200 dark:border-neutral-800 bg-white/90 dark:bg-neutral-950/90 backdrop-blur-sm">
     <div class="max-w-5xl mx-auto px-4 h-[50px] flex items-center gap-2">
 
@@ -22,7 +31,7 @@
         <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="4" rx="1"/><rect x="14" y="10" width="7" height="11" rx="1"/><rect x="3" y="13" width="7" height="8" rx="1"/>
         </svg>
-        <span class="hidden sm:inline text-xs font-medium">Dashboard</span>
+        <span class="hidden lg:inline text-xs font-medium">Dashboard</span>
       </NuxtLink>
 
       <!-- Explore shortcut (replaces Map + Rivers) -->
@@ -37,7 +46,7 @@
         <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M4 14c3-6 6-9 8-9s5 9 8 9 5-9 8-9"/>
         </svg>
-        <span class="hidden sm:inline text-xs font-medium">Explore</span>
+        <span class="hidden lg:inline text-xs font-medium">Explore</span>
       </NuxtLink>
 
       <!-- Discover shortcut (#367) — Discover shipped to MobileTabBar only
@@ -57,10 +66,54 @@
         <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
-        <span class="hidden sm:inline text-xs font-medium">Discover</span>
+        <span class="hidden lg:inline text-xs font-medium">Discover</span>
       </NuxtLink>
 
-      <!-- AI Ask button — left side (icon always visible, text desktop only) -->
+      <!-- Calendar shortcut (#347) — desktop nav parity with MobileTabBar's
+           Calendar tab; same calendar glyph as MobileTabBar and the (removed)
+           avatar-dropdown "My Calendar" item this replaces. -->
+      <NuxtLink
+        to="/calendar"
+        class="shrink-0 hidden sm:flex items-center gap-1 p-1.5 rounded-md transition-colors"
+        :class="route.path.startsWith('/calendar')
+          ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/50'
+          : 'text-neutral-500 dark:text-neutral-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-neutral-50 dark:hover:bg-neutral-900'"
+        title="Calendar"
+      >
+        <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        <span class="hidden lg:inline text-xs font-medium">Calendar</span>
+      </NuxtLink>
+
+      <!-- + New — primary create CTA, desktop only (mobile already has the FAB
+           in MobileTabBar). Reuses MobileTabBar's exact create flow verbatim
+           (useCreateMenu().open() -> AppCreateOverlay's CreateChooserSheet) —
+           no second create path. Filled/primary so it reads as the CTA,
+           distinct from the plain nav links beside it. -->
+      <button
+        class="shrink-0 hidden sm:flex items-center gap-1 pl-2 pr-2.5 py-1.5 rounded-md bg-primary-600 hover:bg-primary-700 text-white transition-colors"
+        title="Create"
+        @click="openCreateMenu()"
+      >
+        <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>
+        </svg>
+        <span class="text-xs font-semibold">New</span>
+      </button>
+
+      <!-- Spacer — pushes actions/Ask/Notifications/Avatar to the right edge.
+           #347: breadcrumbs (the old default slot here) are removed entirely,
+           not relocated — see AppHeader's removed `<slot />`; the ~9 pages
+           that used to inject them now render a plain `<AppHeader />`. -->
+      <div class="flex-1 min-w-0" />
+
+      <!-- Page-level action buttons -->
+      <slot name="actions" />
+
+      <!-- AI Ask button — right side, immediately before NotificationBell
+           (#347: moved off the left cluster). Icon always visible, text
+           label desktop-only; unchanged askOpen/modal wiring. -->
       <button
         class="shrink-0 flex items-center gap-1 p-1.5 rounded-md text-neutral-500 dark:text-neutral-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors"
         title="Ask AI anything"
@@ -72,30 +125,8 @@
         <span class="hidden sm:inline text-xs font-medium">Ask</span>
       </button>
 
-      <!-- Breadcrumb / page-level content injected by each page -->
-      <div class="flex items-center gap-2 min-w-0 flex-1">
-        <slot />
-      </div>
-
-      <!-- Page-level action buttons -->
-      <slot name="actions" />
-
       <!-- Notifications — always visible (desktop + mobile) -->
       <NotificationBell />
-
-      <!-- Hamburger — mobile only -->
-      <button
-        class="sm:hidden shrink-0 p-1.5 rounded-md text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-        aria-label="Open menu"
-        @click="menuOpen = !menuOpen"
-      >
-        <svg v-if="!menuOpen" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-        </svg>
-        <svg v-else class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-        </svg>
-      </button>
 
       <!-- User avatar — far right -->
       <!-- No ClientOnly needed: server always renders unauthenticated (gray), client
@@ -117,18 +148,12 @@
             v-if="userMenuOpen"
             class="absolute right-0 top-full mt-1 w-52 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg py-1 z-40"
           >
+            <!-- "My Calendar" dropdown item removed (#347) — Calendar is now
+                 top-level in the desktop nav above and in MobileTabBar, so a
+                 third entry point here was redundant. CalendarMenuHeader
+                 (below) is kept: it's a profile/season-stats summary, not a
+                 calendar link (see AppHeader.vue history / #347 report). -->
             <CalendarMenuHeader v-if="isAuthenticated" :open="userMenuOpen" />
-            <NuxtLink
-              v-if="isAuthenticated"
-              to="/calendar"
-              class="w-full text-left px-3 py-1.5 text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors flex items-center gap-2"
-              @click="userMenuOpen = false"
-            >
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-              My Calendar
-            </NuxtLink>
             <NuxtLink
               v-if="isAuthenticated"
               to="/my/runs"
@@ -204,66 +229,6 @@
         </div>
     </div>
 
-    <!-- Mobile menu dropdown -->
-    <div v-if="menuOpen" class="sm:hidden border-t border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-950 px-4 py-3 flex flex-col gap-1">
-      <!-- Dashboard + Map — mobile -->
-      <NuxtLink
-        to="/dashboard"
-        class="text-left px-3 py-2 rounded-md text-sm flex items-center gap-2 transition-colors"
-        :class="route.path === '/dashboard'
-          ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/50'
-          : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-900'"
-        @click="menuOpen = false"
-      >
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="4" rx="1"/><rect x="14" y="10" width="7" height="11" rx="1"/><rect x="3" y="13" width="7" height="8" rx="1"/>
-        </svg>
-        Dashboard
-      </NuxtLink>
-      <NuxtLink
-        to="/explore"
-        class="text-left px-3 py-2 rounded-md text-sm flex items-center gap-2 transition-colors"
-        :class="route.path.startsWith('/explore')
-          ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-950/50'
-          : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-900'"
-        @click="menuOpen = false"
-      >
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 14c3-6 6-9 8-9s5 9 8 9 5-9 8-9"/>
-        </svg>
-        Explore
-      </NuxtLink>
-      <div class="border-t border-neutral-100 dark:border-neutral-800 mt-1 pt-2 flex flex-col gap-1">
-        <!-- Ask — mobile -->
-        <button
-          class="w-full text-left px-3 py-2 rounded-md text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors flex items-center gap-2"
-          @click="menuOpen = false; askOpen = true"
-        >
-          <svg class="w-4 h-4 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
-          </svg>
-          Ask AI
-        </button>
-      </div>
-      <div class="border-t border-neutral-100 dark:border-neutral-800 mt-1 pt-2">
-        <button
-          v-if="isAuthenticated"
-          class="w-full text-left px-3 py-2 rounded-md text-sm text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors flex items-center gap-2"
-          @click="handleSignOut"
-        >
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-          </svg>
-          Sign out
-        </button>
-        <NuxtLink
-          v-else
-          to="/login"
-          class="block px-3 py-2 rounded-md text-sm font-medium text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950 transition-colors"
-          @click="menuOpen = false"
-        >Sign in</NuxtLink>
-      </div>
-    </div>
   </header>
 
   <!-- Global Ask modal (Teleport so it's above everything) -->
@@ -356,12 +321,15 @@ onMounted(() => { if (isAuthenticated.value) loadAdminRoles() })
 watch(isAuthenticated, (v) => { if (v) loadAdminRoles() })
 const router = useRouter()
 const route = useRoute()
-const menuOpen = ref(false)
 const userMenuOpen = ref(false)
 const { apiBase } = useRuntimeConfig().public
+// "+ New" (#347) — identical create flow to MobileTabBar's FAB (onAdd calls
+// the same open()); AppCreateOverlay.vue (mounted globally in app.vue) owns
+// the resulting CreateChooserSheet. Do not add a second create path.
+const { open: openCreateMenu } = useCreateMenu()
 
 // Close menus on route change
-watch(() => route.path, () => { menuOpen.value = false; userMenuOpen.value = false })
+watch(() => route.path, () => { userMenuOpen.value = false })
 
 function onDocClick(e: MouseEvent) {
   if (userMenuOpen.value && !(e.target as HTMLElement).closest('[data-user-menu]')) {
@@ -372,7 +340,6 @@ onMounted(() => document.addEventListener('click', onDocClick))
 onUnmounted(() => document.removeEventListener('click', onDocClick))
 
 async function handleSignOut() {
-  menuOpen.value = false
   await signOut()
   router.push('/')
 }

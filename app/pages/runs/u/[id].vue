@@ -1,12 +1,7 @@
 <template>
   <div class="min-h-screen bg-neutral-50 dark:bg-neutral-950">
 
-    <AppHeader>
-      <template v-if="run">
-        <span class="text-neutral-300 dark:text-neutral-700 shrink-0">/</span>
-        <span class="text-sm font-medium truncate text-neutral-700 dark:text-neutral-200">{{ run.name }}</span>
-      </template>
-    </AppHeader>
+    <AppHeader />
 
     <div v-if="pending" class="max-w-3xl mx-auto px-3 py-12 text-center text-neutral-400">
       Loading…
