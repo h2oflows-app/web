@@ -7,8 +7,10 @@
   # Override per deploy context below for branch previews pointing at the same API.
   NUXT_PUBLIC_API_BASE = "https://api.h2oflows.app"
   # Nuxt 4.5.1+ requires node ^22.19.0 || ^24.11.0 || >=26.0.0 — node 20 is no
-  # longer supported and fails the Netlify build (local dev is already on 22).
-  NODE_VERSION         = "22"
+  # longer supported and failed the build here. Keep this in lockstep with
+  # .nvmrc: the node 20 failure happened precisely because a local build could
+  # pass on a version CI never ran.
+  NODE_VERSION         = "26"
 
 # Deploy previews + branch deploys run against the STAGING API and a SEPARATE
 # staging Supabase project — they must never touch production. Fill the staging
