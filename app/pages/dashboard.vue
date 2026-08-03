@@ -901,11 +901,23 @@ interface UserReachSummary {
   // zero-value, serialized as 0, which is a bogus real longitude) — never read
   // this field without checking !is_reference first. See userReachLng().
   put_in_lng: number | null
+  // Elevation (mig 000150) — the primary upstream→downstream sort basis,
+  // replacing put_in_lng's west=upstream heuristic (direction-agnostic, so it
+  // also works for north/south rivers). Nullable: NULL until a run's put-in/
+  // take-out has been resolved against USGS EPQS. Same is_reference caveat as
+  // put_in_lng — GET /me/referenced-runs does NOT select put_in_elevation_ft,
+  // so referenced rows fall back to gauge_elevation_ft. See userReachElevation().
+  put_in_elevation_ft: number | null
+  take_out_elevation_ft: number | null
+  gradient_fpm: number | null
   current_cfs: number | null; flow_band: string | null
   flow_status: 'runnable' | 'caution' | 'flood' | 'unknown'
   last_reading_at: string | null; gauge_id: string | null
   gauge_external_id: string | null; gauge_source: string | null; gauge_name: string | null
   gauge_lat: number | null; gauge_lng: number | null
+  // Gauge's own elevation (gauges.elevation_ft) — the referenced-run fallback
+  // for put_in_elevation_ft, parallel to how gauge_lng backs up put_in_lng.
+  gauge_elevation_ft: number | null
   custom_gauge_id: string | null; custom_gauge_slug: string | null; custom_gauge_name: string | null
   author_handle: string | null
   // True when this row is another user's public run added by reference (read-only).
@@ -1026,6 +1038,7 @@ function synthGaugeForReach(r: UserReachSummary): WatchedGauge {
     stateAbbr: r.state_abbr,
     lat: r.gauge_lat ?? null,
     lng: r.gauge_lng ?? null,
+    elevationFt: r.gauge_elevation_ft ?? null,
     currentCfs: r.current_cfs,
     flowStatus: r.flow_status,
     flowBandLabel: r.flow_band,
@@ -1438,6 +1451,13 @@ interface DisplaySection {
   subSections: DisplaySubSection[]
 }
 
+// Elevation (mig 000150) is direction-agnostic (higher = further upstream,
+// regardless of which way the river runs), replacing put_in_lng/lng's
+// west=upstream heuristic — wrong for north/south-flowing rivers. Longitude
+// stays as the fallback tier for partial data: only used for a given pair
+// when EITHER side lacks elevation, never mixed with an elevation-based
+// verdict for the same comparison (see sortUserReaches below for the same
+// pattern with the reasoning spelled out).
 function sortReaches(reaches: WatchedGauge[]): WatchedGauge[] {
   return [...reaches].sort((a, b) => {
     const ao = a.contextReachRiverOrder
@@ -1445,6 +1465,9 @@ function sortReaches(reaches: WatchedGauge[]): WatchedGauge[] {
     if (ao != null && bo != null) return ao - bo
     if (ao != null) return -1
     if (bo != null) return 1
+    const ae = a.elevationFt
+    const be = b.elevationFt
+    if (ae != null && be != null) return be - ae
     const al = a.contextReachCenterLng ?? a.lng
     const bl = b.contextReachCenterLng ?? b.lng
     if (al == null && bl == null) return 0
@@ -1454,19 +1477,43 @@ function sortReaches(reaches: WatchedGauge[]): WatchedGauge[] {
   })
 }
 
+// Elevation sort key for a user's own run: put_in_elevation_ft (mig 000150 —
+// the run's own put-in elevation, direction-agnostic unlike the old
+// put_in_lng "west = upstream" heuristic). Referenced runs don't carry
+// put_in_elevation_ft from the API (same reason they don't carry put_in_lng
+// — see userReachLng below), so they fall back to the gauge's own elevation.
+function userReachElevation(ur: UserReachSummary): number | null {
+  if (!ur.is_reference && ur.put_in_elevation_ft != null) return ur.put_in_elevation_ft
+  return ur.gauge_elevation_ft ?? null
+}
+
 // Sort key for a user's own run: put_in_lng (the run's own start coordinate —
 // same "west = upstream for CO rivers" convention as sortReaches' lng fallback).
 // Referenced runs don't carry put_in_lng from the API, so they fall back to the
 // gauge's own coordinate — same tier sortReaches uses when contextReachCenterLng
 // is unavailable. No river_order equivalent exists for user_reaches (that column
 // only ever lived on the retired curated `reaches` table), so this is lng-only.
+// Kept as the fallback tier for sortUserReaches below now that elevation is the
+// primary basis.
 function userReachLng(ur: UserReachSummary): number | null {
   if (!ur.is_reference && ur.put_in_lng != null) return ur.put_in_lng
   return ur.gauge_lng ?? null
 }
 
+// Upstream → downstream by elevation (mig 000150, replacing web#386's
+// put_in_lng heuristic), DESC: higher elevation = further upstream,
+// direction-agnostic so it also fixes north/south-flowing rivers the old
+// west=upstream assumption got backwards. Falls back to the longitude
+// comparison ONLY when elevation is null on either side of a given pair —
+// deliberately not "elevation wins whenever either side has it", so a run
+// with elevation data is never blanket-prioritized ahead of one without;
+// partial data degrades gracefully to the fully-tested lng comparator
+// (including ITS OWN null handling) instead of adding a new tier.
 function sortUserReaches(urs: UserReachSummary[]): UserReachSummary[] {
   return [...urs].sort((a, b) => {
+    const ae = userReachElevation(a)
+    const be = userReachElevation(b)
+    if (ae != null && be != null) return be - ae
     const al = userReachLng(a)
     const bl = userReachLng(b)
     if (al == null && bl == null) return 0
@@ -1702,8 +1749,11 @@ const gaugeEntries = computed<GaugeEntry[]>(() => {
   return entries
 })
 
-// Upstream → downstream: min contextReachRiverOrder, then centerLng/lng — same
-// basis as sortReaches. Custom gauges (no reach geometry) sort to the end.
+// Upstream → downstream: min contextReachRiverOrder, then elevationFt DESC
+// (mig 000150 — direction-agnostic, replacing the old lng-only basis), then
+// centerLng/lng as the final fallback for whichever pair still lacks
+// elevation on either side — same tiering as sortReaches/sortUserReaches.
+// Custom gauges (no reach geometry) sort to the end.
 function sortGaugeEntries(entries: GaugeEntry[]): GaugeEntry[] {
   return [...entries].sort((a, b) => {
     if (a.isCustom && !b.isCustom) return 1
@@ -1714,6 +1764,9 @@ function sortGaugeEntries(entries: GaugeEntry[]): GaugeEntry[] {
     if (ao != null && bo != null) return ao - bo
     if (ao != null) return -1
     if (bo != null) return 1
+    const ae = a.gauge?.elevationFt ?? null
+    const be = b.gauge?.elevationFt ?? null
+    if (ae != null && be != null) return be - ae
     const al = a.gauge?.contextReachCenterLng ?? a.gauge?.lng ?? null
     const bl = b.gauge?.contextReachCenterLng ?? b.gauge?.lng ?? null
     if (al == null && bl == null) return 0

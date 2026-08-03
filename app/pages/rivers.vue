@@ -243,6 +243,7 @@ function openGaugeModal(reach: ReachListItem) {
     stateAbbr: null,
     lat: null,
     lng: null,
+    elevationFt: null,
     currentCfs: reach.current_cfs ?? null,
     flowStatus: reach.flow_status ?? 'unknown',
     flowBandLabel: reach.flow_label ?? null,
