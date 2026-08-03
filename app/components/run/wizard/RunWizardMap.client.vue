@@ -223,9 +223,13 @@ function makeFeaturePinEl(f: RunFeature): HTMLElement {
   }
 
   // Name label above rapid / surf-wave pins (haloed so it reads over any basemap).
-  if ((f.type === 'rapid' || f.type === 'surf') && f.name.trim()) {
+  // Falls back to the type label for a blank name — same display-only
+  // convention as the feature list (FeatureMode.vue): the store no longer
+  // bakes a default into the feature's actual name on confirm (#398), so an
+  // unnamed pin needs this fallback to still read as something on the map.
+  if (f.type === 'rapid' || f.type === 'surf') {
     const label = document.createElement('div')
-    label.textContent = f.name.trim()
+    label.textContent = f.name.trim() || featureTypeMeta(f.type).label
     label.style.cssText =
       'position:absolute;bottom:38px;left:50%;transform:translateX(-50%);white-space:nowrap;' +
       "font:700 10px Inter,ui-sans-serif,system-ui,sans-serif;color:#14395e;pointer-events:none;" +
