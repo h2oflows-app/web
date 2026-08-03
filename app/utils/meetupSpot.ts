@@ -45,15 +45,20 @@ export interface MeetupSuggestion {
 
 // Wire shapes — mirrors api's userReachRapid / userReachAccessPoint
 // (internal/handlers/user_reaches.go) for the fields this uses.
+// line_position (#388): fractional 0-1 position along the run's centerline,
+// ASC = upstream->downstream. Each array already arrives sorted by it, but
+// sorted-within-type isn't sorted-across-types -- see suggestionsFromRunDetail.
 interface WireRapid {
   id: string
   name: string
   is_surf_wave?: boolean
+  line_position?: number | null
 }
 interface WireAccessPoint {
   id: string
   access_type: string
   name?: string | null
+  line_position?: number | null
 }
 interface WireRunDetail {
   rapids?: WireRapid[]
@@ -68,20 +73,42 @@ const MEETUP_ELIGIBLE_ACCESS_TYPES = new Set(['camp', 'parking', 'boat_ramp', 'i
 export function suggestionsFromRunDetail(data: WireRunDetail): MeetupSuggestion[] {
   // Every run has a put-in and take-out on its flow line — offer them first
   // (product request 2026-07-25). Text-only picks: no feature ref is sent.
+  // They're also the line's true 0/1 extremes, so "first" here already
+  // agrees with the upstream->downstream order applied to everything below.
   const endpoints: MeetupSuggestion[] = [
     { type: 'endpoint', id: 'put-in', name: 'River Put-In' },
     { type: 'endpoint', id: 'take-out', name: 'River Take-Out' },
   ]
 
-  const rapids = (data.rapids ?? [])
+  type Positioned = { linePosition: number; suggestion: MeetupSuggestion }
+
+  const rapids: Positioned[] = (data.rapids ?? [])
     .filter(r => !!r.name)
-    .map((r): MeetupSuggestion => ({ type: 'rapid', id: r.id, name: r.name, isSurfWave: !!r.is_surf_wave }))
+    .map(r => ({
+      linePosition: r.line_position ?? Infinity,
+      suggestion: { type: 'rapid', id: r.id, name: r.name, isSurfWave: !!r.is_surf_wave } as MeetupSuggestion,
+    }))
 
-  const access = (data.access_points ?? [])
+  const access: Positioned[] = (data.access_points ?? [])
     .filter(a => !!a.name && MEETUP_ELIGIBLE_ACCESS_TYPES.has(a.access_type))
-    .map((a): MeetupSuggestion => ({ type: 'access', id: a.id, name: a.name as string, accessType: a.access_type }))
+    .map(a => ({
+      linePosition: a.line_position ?? Infinity,
+      suggestion: { type: 'access', id: a.id, name: a.name as string, accessType: a.access_type } as MeetupSuggestion,
+    }))
 
-  return [...endpoints, ...rapids, ...access]
+  // #388: rapids and access_points each arrive from the api pre-sorted
+  // upstream->downstream WITHIN their own type, but concatenating them (as
+  // this used to do) doesn't interleave ACROSS types — a rapid at
+  // line_position 0.3 must sort before an access point at 0.6. A single
+  // stable sort over the merged set does that correctly (both inputs are
+  // already internally sorted, so this amounts to a merge-by-position).
+  // Missing positions (no centerline, or a feature placed with no coords)
+  // sort last rather than colliding at 0.
+  const features = [...rapids, ...access]
+    .sort((a, b) => a.linePosition - b.linePosition)
+    .map(p => p.suggestion)
+
+  return [...endpoints, ...features]
 }
 
 // Maps a suggestion onto the existing run-feature palette (runFeatureTypes.ts)

@@ -150,6 +150,12 @@ interface RapidFeature {
   hazard_type?: string | null
   lng: number | null
   lat: number | null
+  // line_position (#388): fractional 0-1 position along the run's
+  // centerline, ASC = upstream->downstream. Used to interleave rapids and
+  // access into one combined order (allFeatures/GPX export below) — the
+  // props arrive individually sorted by it, but sorted-within-type isn't
+  // sorted-across-types.
+  line_position?: number | null
 }
 
 interface AccessFeature {
@@ -159,6 +165,7 @@ interface AccessFeature {
   notes: string | null
   lng: number | null
   lat: number | null
+  line_position?: number | null
 }
 
 interface GaugeProp {
@@ -251,6 +258,7 @@ const accessFeatures = computed(() =>
       notes: a.notes ?? '',
       lng:   a.lng!,
       lat:   a.lat!,
+      linePos: a.line_position ?? null,
     }))
 )
 
@@ -265,6 +273,7 @@ const rapidFeatures = computed(() =>
       classLabel: r.class_rating != null ? `${formatClass(r.class_rating)}` : null,
       lng:        r.lng!,
       lat:        r.lat!,
+      linePos:    r.line_position ?? null,
     }))
 )
 
@@ -278,6 +287,7 @@ const hazardFeatures = computed(() =>
       hazardType:  r.hazard_type ?? null,
       lng:         r.lng!,
       lat:         r.lat!,
+      linePos:     r.line_position ?? null,
     }))
 )
 
@@ -285,7 +295,17 @@ function stripRapidClass(name: string): string {
   return name.replace(/\s*\((?:class\s+)?[IVX]+[+]?\)\s*$/i, '').trim() || name
 }
 
-const allFeatures = computed(() => [...accessFeatures.value, ...rapidFeatures.value, ...hazardFeatures.value])
+// #388: merges already individually-sorted feature lists (each arrives from
+// the api pre-sorted upstream->downstream WITHIN its own type) into one
+// combined upstream->downstream ordering by line_position. Sorted-within-type
+// isn't sorted-across-types — a rapid at 0.3 must come before an access
+// point at 0.6 — so this is effectively a merge-by-position. Items with no
+// position (no centerline, or placed with no coords) sort last.
+function mergeByLinePosition<T extends { linePos: number | null }>(...lists: T[][]): T[] {
+  return lists.flat().sort((a, b) => (a.linePos ?? Infinity) - (b.linePos ?? Infinity))
+}
+
+const allFeatures = computed(() => mergeByLinePosition(accessFeatures.value, rapidFeatures.value, hazardFeatures.value))
 
 const selectedFeature = computed(() => {
   if (!selectedId.value) return null
@@ -959,20 +979,25 @@ function exportGpx() {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
-  // Waypoints — access points + rapids
+  // Waypoints — access points + rapids, interleaved upstream->downstream by
+  // line_position (#388) rather than "every access point, then every rapid"
+  // — a paddler scanning the waypoint list wants them in the order they'll
+  // actually reach them on the water. (Hazards aren't included in GPX
+  // export — pre-existing scope, unchanged here.)
   const waypoints: string[] = []
-  for (const a of accessFeatures.value) {
-    waypoints.push(`  <wpt lat="${a.lat}" lon="${a.lng}">
-    <name>${esc(a.label)}</name>
-    <type>${esc(a.type)}</type>${a.notes ? `\n    <desc>${esc(a.notes)}</desc>` : ''}
+  for (const f of mergeByLinePosition(accessFeatures.value, rapidFeatures.value)) {
+    if ('isSurf' in f) {
+      const cls = f.classLabel ? ` (Class ${f.classLabel})` : ''
+      waypoints.push(`  <wpt lat="${f.lat}" lon="${f.lng}">
+    <name>${esc(f.label)}${cls}</name>
+    <type>${f.isSurf ? 'wave' : 'rapid'}</type>${f.desc ? `\n    <desc>${esc(f.desc)}</desc>` : ''}
   </wpt>`)
-  }
-  for (const r of rapidFeatures.value) {
-    const cls = r.classLabel ? ` (Class ${r.classLabel})` : ''
-    waypoints.push(`  <wpt lat="${r.lat}" lon="${r.lng}">
-    <name>${esc(r.label)}${cls}</name>
-    <type>${r.isSurf ? 'wave' : 'rapid'}</type>${r.desc ? `\n    <desc>${esc(r.desc)}</desc>` : ''}
+    } else {
+      waypoints.push(`  <wpt lat="${f.lat}" lon="${f.lng}">
+    <name>${esc(f.label)}</name>
+    <type>${esc(f.type)}</type>${f.notes ? `\n    <desc>${esc(f.notes)}</desc>` : ''}
   </wpt>`)
+    }
   }
 
   // Track — centerline
