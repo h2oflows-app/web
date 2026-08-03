@@ -458,11 +458,17 @@ interface RunRapid {
   id: string; name: string; description: string | null
   class_rating: number | null; is_surf_wave: boolean; is_permanent_hazard: boolean
   hazard_type: string | null; lng: number | null; lat: number | null
+  // line_position (#388): fractional 0-1 position along the run's centerline,
+  // ASC = upstream->downstream. Array already arrives sorted by it — only
+  // needed here for merging with access_points into one combined ordering
+  // (see RunMap's GPX export).
+  line_position?: number | null
 }
 
 interface RunAccessPoint {
   id: string; access_type: string; name: string | null
   notes: string | null; lng: number | null; lat: number | null
+  line_position?: number | null
 }
 
 interface PublicRunDetail {
@@ -722,6 +728,7 @@ const mapRapids = computed(() => {
     lng:               r.lng,
     lat:               r.lat,
     type:              r.is_surf_wave ? 'wave' : 'rapid',
+    line_position:     r.line_position,
   }))
 })
 
@@ -734,6 +741,7 @@ const mapAccess = computed(() => {
     notes:       a.notes,
     lng:         a.lng,
     lat:         a.lat,
+    line_position: a.line_position,
   }))
 })
 
