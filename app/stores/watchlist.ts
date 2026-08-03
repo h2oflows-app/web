@@ -47,6 +47,12 @@ export interface WatchedGauge {
   // Gauge location — populated from the batch API on dashboard load
   lat: number | null
   lng: number | null
+  // Gauge elevation in feet (gauges.elevation_ft, mig 000150's dashboard-facing
+  // exposure of it) — the primary upstream→downstream sort basis for gauge
+  // entries, replacing the lng-only "west = upstream" heuristic. Populated from
+  // the same batch API as lat/lng; direction-agnostic, so null on custom gauges
+  // and on any USGS gauge missing alt_va.
+  elevationFt: number | null
   // Latest reading — refreshed by the dashboard poller
   currentCfs: number | null
   // Flow status resolved against the context reach's flow ranges.

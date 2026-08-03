@@ -481,6 +481,11 @@ interface PublicRunDetail {
   put_in_lat:       number
   take_out_lng:     number
   take_out_lat:     number
+  // Per-run elevation (mig 000150) — not yet displayed here (gradient_fpm above
+  // is the whitewater-relevant derived stat); typed for completeness with what
+  // GET /user-runs/{runId} now returns.
+  put_in_elevation_ft:   number | null
+  take_out_elevation_ft: number | null
   gauge_id:         string | null
   gauge_name:       string | null
   current_cfs:      number | null
