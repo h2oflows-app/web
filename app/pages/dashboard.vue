@@ -2,26 +2,48 @@
   <div class="min-h-screen bg-neutral-50 dark:bg-neutral-950">
     <AppHeader />
 
-    <!-- Unified sticky header: mobile controls row + tab bar + controls bar,
-         one block anchored at AppHeader bottom (AppHeader is h-[50px], z-30;
-         this whole block sits at top-[50px], z-20, per feedback_sticky_zindex_stacking). -->
+    <!-- Unified sticky header: tab bar (desktop) + one consolidated controls bar,
+         anchored at AppHeader bottom (AppHeader is h-[50px], z-30; this whole
+         block sits at top-[50px], z-20, per feedback_sticky_zindex_stacking).
+         #382: mobile used to stack TWO bars here (a dashboard-picker+Runs/Gauges
+         row, then this controls bar, each with its own backdrop-blur — hence its
+         own stacking context and a z-10 escape hatch to keep the picker's
+         dropdown from painting under the toolbar below it). Merged into one bar:
+         the picker/toggle row is now the first (w-full, sm:hidden) child of the
+         controls bar's flex-wrap row, so mobile still reads picker-then-controls
+         but there's only one background/border/stacking context — no hatch needed. -->
     <div
       v-if="isAuthenticated && db.loaded.value"
       class="sticky top-[50px] z-20"
     >
-      <!-- Mobile-only dashboard controls row — dashboard switcher + Runs/Gauges
-           toggle. Relocated from AppHeader (was injected via slots) per #322
-           follow-up: owner wants these below the navbar, not in it. Desktop
-           gets the equivalent controls from DashboardTabBar (below, hidden
-           below sm) and the labeled Runs/Gauges switch inline in the controls
-           bar (hidden sm:flex), so this row is hidden at sm and up to match. -->
+      <DashboardTabBar
+        v-if="db.dashboards.value.length"
+        :dashboards="db.dashboards.value"
+        :active-dashboard-id="db.activeDashboardId.value"
+        @select="onSelectDashboard"
+        @new="newDashboardOpen = true"
+        @delete="onDeleteDashboard"
+        @rename="(slug, name) => db.rename(slug, name)"
+        @share="shareOpen = true"
+      />
+
+      <!-- Controls bar — single consolidated bar (#382, was two stacked bars on
+           mobile). flex-wrap lets content spill onto extra lines on narrow phones
+           when it doesn't fit (e.g. all 4 grouping badges active widens the Group
+           button) rather than clipping or overflowing — acceptable per #382
+           discussion. gap-y > gap-x gives wrapped lines a bit more breathing
+           room; dormant at desktop widths, which never wrap in practice. -->
+      <div class="bg-neutral-50/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
+      <div class="max-w-5xl mx-auto px-4 py-2 flex flex-wrap items-center gap-x-1 gap-y-1.5">
+      <!-- Mobile-only: dashboard picker + Runs/Gauges toggle, folded into this bar
+           per #382 (previously its own sticky bar above this one). w-full forces
+           it onto its own first line of the flex-wrap row; hidden at sm: and up,
+           where DashboardTabBar (above) + the labeled Runs/Gauges switch (below,
+           hidden sm:flex) cover the same ground. -->
       <div
         v-if="db.dashboards.value.length || hasAnyContent"
-        class="sm:hidden relative z-10 flex items-center gap-2 px-4 py-1.5 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800"
-      ><!-- relative z-10: backdrop-blur gives this row (and the toolbar below)
-           their own stacking contexts, so the switcher dropdown's z-40 is
-           trapped in here — without lifting the whole row, the later toolbar
-           sibling paints over the open menu. -->
+        class="w-full sm:hidden flex items-center gap-2"
+      >
         <div class="min-w-0 flex-1">
           <DashboardSwitcher
             v-if="db.dashboards.value.length"
@@ -34,7 +56,7 @@
         </div>
 
         <!-- Content switch (Runs / Gauges) — mobile, icon-only.
-             Desktop keeps the labeled switch inline in the controls bar below. -->
+             Desktop keeps the labeled switch inline further down this same bar. -->
         <div
           v-if="hasAnyContent"
           class="shrink-0 flex items-center gap-0.5 p-0.5 rounded-lg bg-neutral-100 dark:bg-neutral-800"
@@ -70,21 +92,6 @@
           </button>
         </div>
       </div>
-
-      <DashboardTabBar
-        v-if="db.dashboards.value.length"
-        :dashboards="db.dashboards.value"
-        :active-dashboard-id="db.activeDashboardId.value"
-        @select="onSelectDashboard"
-        @new="newDashboardOpen = true"
-        @delete="onDeleteDashboard"
-        @rename="(slug, name) => db.rename(slug, name)"
-        @share="shareOpen = true"
-      />
-
-      <!-- Controls bar -->
-      <div class="bg-neutral-50/95 dark:bg-neutral-950/95 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
-      <div class="max-w-5xl mx-auto px-4 py-2 flex items-center gap-1">
       <!-- Left items wrap their own overflow so Add gauge stays pinned right -->
       <div class="flex items-center gap-1 min-w-0 overflow-x-auto flex-1 scrollbar-none [&::-webkit-scrollbar]:hidden">
         <template v-if="hasAnyContent">
@@ -317,37 +324,11 @@
               </div>
 
               <template v-if="!sub.name || !collapsedSections.has(sub.key)">
-              <!-- Flat mode: all user runs in one group when no grouping (state/basin/river) is active -->
-              <div v-if="flatAllUserReaches.length > 0" class="mb-2">
-                <div v-if="viewMode === 'list'" class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden">
-                  <RunRow
-                    v-for="r in flatAllUserReaches"
-                    :key="r.id"
-                    v-swipe-remove="() => swipeRemoveUserReach(r)"
-                    :vm="userReachToRunRowVM(r, { lastReadingLabel: reachLastUpdated(r) })"
-                    view-mode="list"
-                    name-prominent
-                    remove-label="Remove from dashboard"
-                    @open="openUserReach(r)"
-                    @remove="removeUserReach(r)"
-                  />
-                </div>
-                <div v-else :class="cardGridClass">
-                  <RunRow
-                    v-for="r in flatAllUserReaches"
-                    :key="r.id"
-                    :vm="userReachToRunRowVM(r, { lastReadingLabel: reachLastUpdated(r) })"
-                    :view-mode="viewMode"
-                    name-prominent
-                    show-owner-right
-                    remove-label="Remove from dashboard"
-                    @open="openUserReach(r)"
-                    @remove="removeUserReach(r)"
-                  />
-                </div>
-              </div>
-              <!-- Reaches grouped by river (hidden when flat mode active) -->
-              <div v-else-if="sub.rivers.some(r => riverHasVisibleContent(r))" class="mb-2">
+              <!-- Reaches grouped by river — always the structural unit (river headers are
+                   the only thing showRivers toggles; see the comment at the river divider
+                   below). #377: previously a "flat mode" branch here bypassed this entirely
+                   and flattened every river together whenever no grouping option was on. -->
+              <div v-if="sub.rivers.some(r => riverHasVisibleContent(r))" class="mb-2">
                 <template v-for="river in sub.rivers" :key="river.name">
                 <div v-if="riverHasVisibleContent(river)" class="first:mt-0 relative" :class="showRivers ? 'mt-4' : 'mt-1.5'">
                   <!-- Flow-line gradient: visible only when river grouping active; faint primary strip down the left edge of cards, fades downstream -->
@@ -915,6 +896,11 @@ const isDefaultDashboard = computed(() =>
 interface UserReachSummary {
   id: string; slug: string; name: string; long_name: string | null; river_name: string | null
   river_id: string | null; state_abbr: string | null; basin_group: string | null
+  // Put-in longitude (ST_X of the run's own put-in point) — GET /me/reaches always
+  // populates this; GET /me/referenced-runs does NOT select it (leaves the Go
+  // zero-value, serialized as 0, which is a bogus real longitude) — never read
+  // this field without checking !is_reference first. See userReachLng().
+  put_in_lng: number | null
   current_cfs: number | null; flow_band: string | null
   flow_status: 'runnable' | 'caution' | 'flood' | 'unknown'
   last_reading_at: string | null; gauge_id: string | null
@@ -1020,7 +1006,9 @@ function synthGaugeForReach(r: UserReachSummary): WatchedGauge {
     contextReachFullName: r.long_name,
     contextReachRiverName: r.river_name,
     contextReachBasinGroup: r.basin_group,
-    contextReachCenterLng: null,
+    // Referenced runs don't carry put_in_lng (see UserReachSummary) — fall back to null
+    // rather than the bogus 0 the API leaves in that field for that endpoint.
+    contextReachCenterLng: !r.is_reference ? (r.put_in_lng ?? null) : null,
     contextReachRiverOrder: null,
     contextReachAuthorHandle: r.author_handle,
     contextReachPermitRequired: false,
@@ -1407,7 +1395,7 @@ const byStateTree = computed<StateGroup[]>(() => {
               riverId: userReaches.find(r => r.river_id)?.river_id
                 ?? gaugeReaches.find(g => g.contextReachRiverId)?.contextReachRiverId
                 ?? null,
-              userReaches,
+              userReaches: sortUserReaches(userReaches),
               reaches: [...gaugeReaches].sort((a, b) => {
                 // river_order (stored, admin-set) preferred; fall back to center longitude
                 const ao = a.contextReachRiverOrder
@@ -1466,6 +1454,28 @@ function sortReaches(reaches: WatchedGauge[]): WatchedGauge[] {
   })
 }
 
+// Sort key for a user's own run: put_in_lng (the run's own start coordinate —
+// same "west = upstream for CO rivers" convention as sortReaches' lng fallback).
+// Referenced runs don't carry put_in_lng from the API, so they fall back to the
+// gauge's own coordinate — same tier sortReaches uses when contextReachCenterLng
+// is unavailable. No river_order equivalent exists for user_reaches (that column
+// only ever lived on the retired curated `reaches` table), so this is lng-only.
+function userReachLng(ur: UserReachSummary): number | null {
+  if (!ur.is_reference && ur.put_in_lng != null) return ur.put_in_lng
+  return ur.gauge_lng ?? null
+}
+
+function sortUserReaches(urs: UserReachSummary[]): UserReachSummary[] {
+  return [...urs].sort((a, b) => {
+    const al = userReachLng(a)
+    const bl = userReachLng(b)
+    if (al == null && bl == null) return 0
+    if (al == null) return 1
+    if (bl == null) return -1
+    return al - bl
+  })
+}
+
 function mergeRivers(allRivers: RiverGroup[]): RiverGroup[] {
   const map = new Map<string, RiverGroup>()
   for (const r of allRivers) {
@@ -1474,7 +1484,10 @@ function mergeRivers(allRivers: RiverGroup[]): RiverGroup[] {
     m.reaches.push(...r.reaches)
     m.userReaches.push(...r.userReaches)
   }
-  for (const m of map.values()) m.reaches = sortReaches(m.reaches)
+  for (const m of map.values()) {
+    m.reaches = sortReaches(m.reaches)
+    m.userReaches = sortUserReaches(m.userReaches)
+  }
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
 }
 
@@ -2108,13 +2121,9 @@ function splitReachGroupsAll(
   return { gaugeGroups, ungrouped }
 }
 
-// Returns river.userReaches NOT absorbed into a gauge group, for flat rendering.
-// All user reaches in one flat list — active when no grouping option is on.
-const flatAllUserReaches = computed<UserReachSummary[]>(() => {
-  if (groupByState.value || groupByBasin.value || showRivers.value) return []
-  return byStateTree.value.flatMap(s => s.basins.flatMap(b => b.rivers.flatMap(r => r.userReaches)))
-})
-
+// Returns river.userReaches NOT absorbed into a gauge group, for per-river rendering.
+// river.userReaches is already sorted upstream→downstream (sortUserReaches, applied
+// in byStateTree/mergeRivers), and filter() preserves that order.
 function ungroupedUserReaches(river: RiverGroup): UserReachSummary[] {
   if (!groupByGauge.value) return river.userReaches
   const grouped = new Set(
