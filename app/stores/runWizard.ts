@@ -255,13 +255,16 @@ export const useRunWizardStore = defineStore('runWizard', () => {
     featuresDirty.value = true
   }
 
-  // "Add feature" / "Save feature": empty name defaults to the type label; back to list.
+  // "Add feature" / "Save feature": name stays exactly as typed — blank is a
+  // valid, unnamed state. Back to list. Blank names get a display-only
+  // fallback to the type label in the list/map views; persistence-time
+  // defaulting (rapids need a non-blank, deduped name; access allows NULL)
+  // happens once, in featuresToPayload(), at save time. This used to default
+  // here too, which baked the same literal type label ("Rapid") into every
+  // unnamed feature the moment it was confirmed — harmless for one, but a
+  // guaranteed collision the moment a second same-type feature was also left
+  // unnamed (#398: a whitewater park's several unnamed play waves).
   function confirmFeature() {
-    const id = editingFeatureId.value
-    if (id) {
-      const f = features.value.find(x => x.id === id)
-      if (f && !f.name.trim()) f.name = featureDefaultLabel(f.type)
-    }
     draftFeatureId.value = null
     editingFeatureId.value = null
     featureMode.value = 'list'
@@ -320,13 +323,46 @@ export const useRunWizardStore = defineStore('runWizard', () => {
     featuresDirty.value = false
   }
 
-  // Serialize for the bulk-replace PUTs. Splits by target table; empty names
-  // default to the type label; palette 'access' → DB access_type 'intermediate'.
+  // Serialize for the bulk-replace PUTs. Splits by target table.
+  //
+  // rapids/surf/hazard → `rapids` table: name is NOT NULL in the DB, so a
+  // blank name must default to *something* — but a plain default isn't
+  // enough: several unnamed rapids in one run (e.g. a whitewater park's
+  // unnamed play waves) would all send the literal string "Rapid" and
+  // collide on the DB's per-run unique name index (#398). Disambiguate with
+  // a counter ("Rapid", "Rapid 2", …) against every name already in use on
+  // this run, typed or auto-assigned, so multiple unnamed features of the
+  // same type always save cleanly.
+  //
+  // camp/parking/boat_ramp/access/shuttle_drop → `access` table: name IS
+  // nullable in the DB, so a blank name is sent as-is — the API NULLIFs it,
+  // and Postgres's unique index treats NULL as distinct from NULL, so any
+  // number of unnamed access points of the same type coexist with no name
+  // at all (no disambiguation needed). Palette 'access' → DB access_type
+  // 'intermediate'.
   function featuresToPayload() {
+    const usedRapidNames = new Set(
+      features.value
+        .filter(f => f.type === 'rapid' || f.type === 'surf' || f.type === 'hazard')
+        .map(f => f.name.trim())
+        .filter(Boolean),
+    )
+    function dedupedRapidName(type: RunFeatureType): string {
+      const base = featureDefaultLabel(type)
+      let candidate = base
+      let n = 2
+      while (usedRapidNames.has(candidate)) {
+        candidate = `${base} ${n}`
+        n++
+      }
+      usedRapidNames.add(candidate)
+      return candidate
+    }
+
     const rapids = features.value
       .filter(f => f.type === 'rapid' || f.type === 'surf' || f.type === 'hazard')
       .map(f => ({
-        name: f.name.trim() || featureDefaultLabel(f.type),
+        name: f.name.trim() || dedupedRapidName(f.type),
         description: f.description.trim() || null,
         class_rating: f.type === 'rapid' ? f.classRating : null,
         is_surf_wave: f.type === 'surf',
@@ -339,7 +375,7 @@ export const useRunWizardStore = defineStore('runWizard', () => {
       .filter(f => f.type === 'camp' || f.type === 'parking' || f.type === 'boat_ramp' || f.type === 'access' || f.type === 'shuttle_drop')
       .map(f => ({
         access_type: f.type === 'access' ? 'intermediate' : f.type,
-        name: f.name.trim() || featureDefaultLabel(f.type),
+        name: f.name.trim(),
         notes: f.description.trim() || null,
         lng: f.lng,
         lat: f.lat,
