@@ -62,33 +62,17 @@
     </div>
   </div>
 
-  <!-- ─── CARD densities (compact / comfortable / full) ──────────────────── -->
+  <!-- ─── CARD densities (comfortable / full) ──────────────────── -->
   <div
     v-else
     class="rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden cursor-pointer transition-all duration-200 hover:border-neutral-300 dark:hover:border-neutral-600"
     @click="$emit('open', leadGauge, 'gauge')"
   >
     <!-- Gauge header section -->
-    <div v-if="!hideGaugeHeader" :class="density === 'compact' ? 'p-2.5' : density === 'comfortable' ? 'p-3' : 'p-4'">
-
-      <!-- Compact: simple horizontal row -->
-      <template v-if="density === 'compact'">
-        <div class="flex items-center gap-1.5 mb-2">
-          <svg class="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Gauge">
-            <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M12 12 16 8"/><path d="M3 12a9 9 0 0 1 18 0"/>
-          </svg>
-          <span class="min-w-0 text-xs font-medium text-neutral-600 dark:text-neutral-400 truncate">{{ gaugeName }}</span>
-        </div>
-        <div class="flex items-baseline gap-2 mb-2">
-          <span class="text-xl font-bold tabular-nums leading-none text-neutral-900 dark:text-white">
-            {{ currentCfs != null ? Math.round(currentCfs).toLocaleString() : '—' }}
-          </span>
-          <span class="text-xs text-neutral-500">cfs</span>
-        </div>
-      </template>
+    <div v-if="!hideGaugeHeader" :class="density === 'comfortable' ? 'p-3' : 'p-4'">
 
       <!-- Full: header row + full-width sparkline below -->
-      <template v-else-if="density === 'full'">
+      <template v-if="density === 'full'">
         <div class="flex items-center gap-2 mb-2">
           <svg class="w-4 h-4 text-neutral-400 dark:text-neutral-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Gauge">
             <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M12 12 16 8"/><path d="M3 12a9 9 0 0 1 18 0"/>

@@ -102,7 +102,11 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import type { ReachListItem } from '~/components/reach/RunBrowseRow.vue'
+// components/reach/ does not exist — the component lives under components/run/.
+// A type-only import so it never broke at runtime; instead ReachListItem
+// silently resolved to `any`, which is what produced the implicit-any and the
+// unchecked object literal further down this file.
+import type { ReachListItem } from '~/components/run/RunBrowseRow.vue'
 import type { WatchedGauge } from '~/stores/watchlist'
 
 definePageMeta({ ssr: false })
@@ -225,9 +229,16 @@ function openGaugeModal(reach: ReachListItem) {
       ? `${reach.put_in_name} to ${reach.take_out_name}`
       : null,
     contextReachRiverName: reach.river_name ?? null,
+    contextReachRiverId: null,
     contextReachBasinGroup: reach.basin ?? null,
     contextReachCenterLng: null,
+    contextReachRiverSequence: null,
+    contextReachElevationFt: null,
     contextReachRiverOrder: null,
+    // Deliberately null rather than reach.author_handle: this is a minimal
+    // stand-in object for the modal, and every other context field here is
+    // already null. Populating one of them would change what renders.
+    contextReachAuthorHandle: null,
     contextReachPermitRequired: false,
     contextReachMultiDayDays: 0,
     reachId: null,
@@ -244,10 +255,13 @@ function openGaugeModal(reach: ReachListItem) {
     lat: null,
     lng: null,
     elevationFt: null,
+    riverSequence: null,
     currentCfs: reach.current_cfs ?? null,
     flowStatus: reach.flow_status ?? 'unknown',
     flowBandLabel: reach.flow_label ?? null,
     lastReadingAt: null,
+    pollHealth: null,
+    lastPollSuccessAt: null,
     watchState: 'saved',
     activeSince: null,
   }

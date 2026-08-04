@@ -483,6 +483,17 @@ interface PublicRunDetail {
   current_cfs: number | null; flow_band: string | null; flow_status: string | null
   note: string | null; is_special: boolean; author_handle: string | null
   forked_from_slug: string | null; forked_from_name: string | null
+  // Fork provenance (mig 000101). The API does serve these — getPublicByID
+  // selects ur.original_author_handle / ur.original_forked_at
+  // (api internal/handlers/user_reaches.go:1265-1266) with no omitempty, so
+  // both keys are always present, null on a non-forked run. The local type
+  // was simply stale; nothing server-side is missing.
+  //
+  // `| null` on the handle is load-bearing, not defensive: mig 000106
+  // backfilled rows with original_forked_at set and the handle NULL.
+  // original_author_owner_id is a column but is NOT in the JSON — don't add it.
+  original_author_handle: string | null
+  original_forked_at: string | null
   flow_bands?: { base_label: string; base_color: string; thresholds: Array<{ value: number; label: string; color: string }> }
   rapids: RunRapid[]; access_points: RunAccessPoint[]
   upvote_count: number; user_upvoted: boolean; centerline: object | null

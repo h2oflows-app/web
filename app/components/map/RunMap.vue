@@ -301,7 +301,12 @@ function stripRapidClass(name: string): string {
 // isn't sorted-across-types — a rapid at 0.3 must come before an access
 // point at 0.6 — so this is effectively a merge-by-position. Items with no
 // position (no centerline, or placed with no coords) sort last.
-function mergeByLinePosition<T extends { linePos: number | null }>(...lists: T[][]): T[] {
+// The generic is over the LISTS, not the elements. Binding a single T to the
+// element type forced access/rapid/hazard — which have different fields — into
+// one collapsed type, so reading a rapid's classLabel or desc off the merged
+// array was a type error even though the value is there at runtime.
+// T[number][number] is the union of the element types instead.
+function mergeByLinePosition<T extends readonly { linePos: number | null }[][]>(...lists: T): T[number][number][] {
   return lists.flat().sort((a, b) => (a.linePos ?? Infinity) - (b.linePos ?? Infinity))
 }
 
