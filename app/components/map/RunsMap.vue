@@ -81,6 +81,13 @@ export interface ReachListItem {
   // when both are null).
   put_in_lng:          number | null
   put_in_elevation_ft: number | null
+  // Topological position (mig 000151, web#392) — the exact upstream→downstream
+  // key; the two above are proxies kept as fallbacks. The explore sidebar has
+  // read this since #405 without it being declared here: it imports
+  // ReachListItem from THIS file, while the identically-named interface in
+  // RunBrowseRow.vue is a separate declaration that did get the field. Nothing
+  // flagged the mismatch until vue-tsc was added.
+  river_sequence:      number | null
 }
 
 const props = defineProps<{
