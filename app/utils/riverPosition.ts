@@ -15,6 +15,20 @@
  */
 export interface RiverPosition {
   /**
+   * Index in the river's NHDPlus flowline order (mig 000151, web#392).
+   *
+   * The only key here that is not a proxy. Elevation and longitude both
+   * *correlate* with flow direction and each fails predictably — elevation on
+   * flat rivers (the Green through Canyonlands, the Menominee), longitude on
+   * anything not flowing west→east. This is the network topology itself, so
+   * it is right regardless of gradient or bearing.
+   *
+   * NULL when the river has not been sequenced yet, or when the run sits off
+   * the sequenced mainstem (a tributary, or a put-in snapped to the far side
+   * of a confluence).
+   */
+  sequence: number | null
+  /**
    * Put-in elevation in feet (mig 000150). Higher = further upstream.
    * Direction-agnostic, which is why it supersedes longitude: the old
    * "west = upstream" heuristic (web#386) was backwards for north/south-
@@ -31,16 +45,25 @@ export interface RiverPosition {
 /**
  * Compares two runs upstream → downstream.
  *
- * Elevation DESC first, longitude ASC as the fallback. The fallback applies
- * ONLY when elevation is null on either side of a given comparison — this is
- * deliberately not "whoever has elevation wins", so a run with elevation data
- * is never blanket-prioritized ahead of one without it. Partial data degrades
- * to the longitude comparison (including its own null handling) rather than
- * introducing a third tier that neither key justifies.
+ * Topological sequence ASC first, then elevation DESC, then longitude ASC.
  *
- * Runs missing both keys sort last, in their original relative order.
+ * Each tier applies ONLY when both sides have that key. This is deliberately
+ * not "whoever has the better key wins": a run carrying a sequence is never
+ * blanket-prioritized ahead of one without, because that would hoist every
+ * sequenced run above an unsequenced neighbour regardless of where the two
+ * actually sit on the river. Partial data instead degrades to the next tier
+ * (with its own null handling) rather than inventing an ordering.
+ *
+ * That matters in practice: a river can be partly sequenced. On the Colorado,
+ * Cataract Canyon's put-in snapped to the Green side of the confluence and
+ * Poudre tributary runs sit off the mainstem, so those keep a null sequence
+ * while their neighbours have one — and comparing them by elevation is
+ * exactly right.
+ *
+ * Runs missing every key sort last, in their original relative order.
  */
 export function compareRiverPosition(a: RiverPosition, b: RiverPosition): number {
+  if (a.sequence != null && b.sequence != null) return a.sequence - b.sequence
   if (a.elevationFt != null && b.elevationFt != null) return b.elevationFt - a.elevationFt
   if (a.lng == null && b.lng == null) return 0
   if (a.lng == null) return 1

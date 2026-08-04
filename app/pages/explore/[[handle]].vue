@@ -542,6 +542,7 @@ watch(handle, () => { sortMode.value = 'river' })
 // and /my/runs so the surfaces can't disagree about the same data (#403).
 function sortReachesByRiverPosition(reaches: ReachListItem[]): ReachListItem[] {
   return sortByRiverPosition(reaches, r => ({
+    sequence: r.river_sequence ?? null,
     elevationFt: r.put_in_elevation_ft,
     lng: r.put_in_lng,
   }))

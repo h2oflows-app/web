@@ -282,6 +282,7 @@ export function featureToWatchedGauge(
     lng:                    coords?.[0] ?? null,
     lat:                    coords?.[1] ?? null,
     elevationFt:            p.elevation_ft ?? null,
+    riverSequence:          p.river_sequence ?? null,
     currentCfs:             p.current_cfs ?? null,
     flowStatus:             p.flow_status ?? 'unknown',
     flowBandLabel:          p.flow_band_label ?? null,

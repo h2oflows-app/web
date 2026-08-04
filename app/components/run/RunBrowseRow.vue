@@ -86,6 +86,14 @@ export interface ReachListItem {
   gauge_status: string | null
   is_special?: boolean
   author_handle?: string | null
+  // Upstream→downstream sort keys, in tier order (utils/riverPosition.ts).
+  // The explore sidebar has read these since #397 but the interface never
+  // declared them — the repo has no vue-tsc, so nothing flagged it.
+  // river_sequence is the exact topological key (mig 000151, web#392); the
+  // other two are proxies kept as fallbacks for unsequenced rivers.
+  river_sequence?: number | null
+  put_in_elevation_ft?: number | null
+  put_in_lng?: number | null
 }
 
 const { bandBadgeClass } = useFlowBandPalette()
