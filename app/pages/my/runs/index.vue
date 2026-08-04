@@ -269,6 +269,12 @@ interface MyRun {
   river_name: string | null
   state_abbr: string | null
   basin_group: string | null
+  // Upstream → downstream sort keys. /me/runs has served both since
+  // mig 000150 / api#183; this interface just never declared them, so they
+  // were dropped at the type boundary and the page couldn't order its
+  // groups (#403).
+  put_in_elevation_ft: number | null
+  put_in_lng: number | null
   class_min: number | null
   class_max: number | null
   current_cfs: number | null
@@ -393,7 +399,16 @@ const groupedRuns = computed((): RunGroup[] => {
   }
   return [...grouped.entries()]
     .sort(([a], [b]) => a === 'No River' ? 1 : b === 'No River' ? -1 : a.localeCompare(b))
-    .map(([name, runs]) => ({ name, runs }))
+    // Groups sort alphabetically; runs INSIDE a group sort upstream →
+    // downstream, matching the dashboard and explore sidebar (#403). Without
+    // this the rows kept whatever order /me/runs returned.
+    .map(([name, runs]) => ({
+      name,
+      runs: sortByRiverPosition(runs, r => ({
+        elevationFt: r.put_in_elevation_ft,
+        lng: r.put_in_lng,
+      })),
+    }))
 })
 
 // ── Collapsible river groups ───────────────────────────────────────────────────
