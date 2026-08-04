@@ -1076,6 +1076,10 @@ function synthGaugeForReach(r: UserReachSummary): WatchedGauge {
     // discard it to dodge the bogus 0 that endpoint used to leave here.
     contextReachCenterLng: r.put_in_lng ?? null,
     riverSequence: r.river_sequence ?? null,
+    // Context-slot copies so synthetic rows and API-sourced gauge rows expose
+    // the run's position through the SAME fields (see sortReaches).
+    contextReachRiverSequence: r.river_sequence ?? null,
+    contextReachElevationFt: r.put_in_elevation_ft ?? null,
     contextReachRiverOrder: null,
     contextReachAuthorHandle: r.author_handle,
     contextReachPermitRequired: false,
@@ -1576,9 +1580,15 @@ function sortReaches(reaches: WatchedGauge[]): WatchedGauge[] {
     if (ao != null && bo != null) return ao - bo
     if (ao != null) return -1
     if (bo != null) return 1
+    // Context-reach keys FIRST. A gauge row standing in for a run must sort by
+    // that run's position: runs sharing a gauge have identical gauge sequence
+    // and altitude, so using the gauge's values makes them tie and fall back to
+    // insertion order — which is how Browns preceded Milk Run and Fractions
+    // preceded Pine Creek. The gauge's own values remain the fallback for rows
+    // with no context reach (a standalone gauge).
     return compareRiverPosition(
-      { sequence: a.riverSequence ?? null, elevationFt: a.elevationFt, lng: a.contextReachCenterLng ?? a.lng },
-      { sequence: b.riverSequence ?? null, elevationFt: b.elevationFt, lng: b.contextReachCenterLng ?? b.lng },
+      { sequence: a.contextReachRiverSequence ?? a.riverSequence ?? null, elevationFt: a.contextReachElevationFt ?? a.elevationFt, lng: a.contextReachCenterLng ?? a.lng },
+      { sequence: b.contextReachRiverSequence ?? b.riverSequence ?? null, elevationFt: b.contextReachElevationFt ?? b.elevationFt, lng: b.contextReachCenterLng ?? b.lng },
     )
   })
 }
@@ -1863,8 +1873,8 @@ function sortGaugeEntries(entries: GaugeEntry[]): GaugeEntry[] {
     if (ao != null) return -1
     if (bo != null) return 1
     return compareRiverPosition(
-      { sequence: a.gauge?.riverSequence ?? null, elevationFt: a.gauge?.elevationFt ?? null, lng: a.gauge?.contextReachCenterLng ?? a.gauge?.lng ?? null },
-      { sequence: b.gauge?.riverSequence ?? null, elevationFt: b.gauge?.elevationFt ?? null, lng: b.gauge?.contextReachCenterLng ?? b.gauge?.lng ?? null },
+      { sequence: a.gauge?.contextReachRiverSequence ?? a.gauge?.riverSequence ?? null, elevationFt: a.gauge?.contextReachElevationFt ?? a.gauge?.elevationFt ?? null, lng: a.gauge?.contextReachCenterLng ?? a.gauge?.lng ?? null },
+      { sequence: b.gauge?.contextReachRiverSequence ?? b.gauge?.riverSequence ?? null, elevationFt: b.gauge?.contextReachElevationFt ?? b.gauge?.elevationFt ?? null, lng: b.gauge?.contextReachCenterLng ?? b.gauge?.lng ?? null },
     )
   })
 }

@@ -27,6 +27,12 @@ export interface WatchedGauge {
   contextReachRiverId: string | null    // UUID of the river record
   contextReachBasinGroup: string | null  // e.g. "Arkansas" — from KML metadata or auto-derived
   contextReachCenterLng: number | null   // centroid of the reach centerline — fallback for upstream→downstream sort
+  // The CONTEXT REACH's own sort keys. A gauge row that represents a specific
+  // run must sort by that run's position, not the gauge's: several runs share
+  // one gauge, so the gauge's sequence/altitude are identical across them and
+  // they tie, collapsing to insertion order. Same defect as #397/#401.
+  contextReachRiverSequence: number | null
+  contextReachElevationFt: number | null
   contextReachRiverOrder: number | null  // admin-set upstream→downstream index; preferred sort key
   contextReachAuthorHandle: string | null  // owner of the context run — for /runs/{handle}/{slug}
   contextReachPermitRequired: boolean
@@ -242,6 +248,8 @@ export const useWatchlistStore = defineStore('watchlist', {
       gauge.contextReachRiverId   = fresh.contextReachRiverId ?? null
       gauge.contextReachBasinGroup     = fresh.contextReachBasinGroup ?? null
       gauge.contextReachCenterLng      = fresh.contextReachCenterLng ?? null
+      gauge.contextReachRiverSequence  = fresh.contextReachRiverSequence ?? null
+      gauge.contextReachElevationFt    = fresh.contextReachElevationFt ?? null
       gauge.contextReachRiverOrder     = fresh.contextReachRiverOrder ?? null
       gauge.contextReachAuthorHandle   = fresh.contextReachAuthorHandle ?? null
       gauge.contextReachPermitRequired = fresh.contextReachPermitRequired ?? false
