@@ -71,6 +71,16 @@ export interface ReachListItem {
   gauge_id:     string | null
   upvote_count: number
   user_upvoted: boolean
+  // River-position sort basis (mig 000150), same convention as
+  // dashboard.vue's UserReachSummary — elevation is direction-agnostic
+  // upstream/downstream signal, longitude is the fallback for reaches
+  // still missing an elevation lookup. Both null when the backing
+  // source doesn't supply them (e.g. the curated /reaches/map/all
+  // default source, untouched by issue #397 — see explore page's
+  // filteredSidebarGroups, which degrades gracefully to existing order
+  // when both are null).
+  put_in_lng:          number | null
+  put_in_elevation_ft: number | null
 }
 
 const props = defineProps<{
@@ -342,6 +352,8 @@ interface ReachFeature {
     is_special?: boolean
     upvote_count?: number
     user_upvoted?: boolean
+    put_in_lng?: number | null
+    put_in_elevation_ft?: number | null
   }
 }
 
@@ -362,6 +374,8 @@ function emitAllReaches() {
     gauge_id:      f.properties.gauge_id ?? null,
     upvote_count:  f.properties.upvote_count ?? 0,
     user_upvoted:  f.properties.user_upvoted ?? false,
+    put_in_lng:          f.properties.put_in_lng ?? null,
+    put_in_elevation_ft: f.properties.put_in_elevation_ft ?? null,
   })))
 }
 
@@ -446,6 +460,8 @@ function filterVisible() {
     gauge_id:      f.properties.gauge_id ?? null,
     upvote_count:  f.properties.upvote_count ?? 0,
     user_upvoted:  f.properties.user_upvoted ?? false,
+    put_in_lng:          f.properties.put_in_lng ?? null,
+    put_in_elevation_ft: f.properties.put_in_elevation_ft ?? null,
   })))
 }
 
