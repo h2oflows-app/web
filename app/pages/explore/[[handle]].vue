@@ -537,25 +537,14 @@ const sortMode = ref<'river' | 'upvotes'>('river')
 // Reset sort mode when handle changes
 watch(handle, () => { sortMode.value = 'river' })
 
-// Upstream → downstream within a river group (issue #397). Elevation
-// (mig 000150) is direction-agnostic (higher = further upstream); longitude
-// is the fallback ONLY when elevation is null on either side of a given
-// comparison — never "has-elevation wins", so a reach with elevation data
-// is never blanket-prioritized ahead of one without. Same rule, same tier
-// order as dashboard.vue's sortUserReaches/sortReaches (kept identical so
-// the two surfaces never disagree on ordering for the same data).
+// Upstream → downstream within a river group (issue #397). Tier rules and
+// their reasoning live in utils/riverPosition.ts, shared with the dashboard
+// and /my/runs so the surfaces can't disagree about the same data (#403).
 function sortReachesByRiverPosition(reaches: ReachListItem[]): ReachListItem[] {
-  return [...reaches].sort((a, b) => {
-    const ae = a.put_in_elevation_ft
-    const be = b.put_in_elevation_ft
-    if (ae != null && be != null) return be - ae
-    const al = a.put_in_lng
-    const bl = b.put_in_lng
-    if (al == null && bl == null) return 0
-    if (al == null) return 1
-    if (bl == null) return -1
-    return al - bl
-  })
+  return sortByRiverPosition(reaches, r => ({
+    elevationFt: r.put_in_elevation_ft,
+    lng: r.put_in_lng,
+  }))
 }
 
 const filteredSidebarGroups = computed((): ReachGroup[] => {
