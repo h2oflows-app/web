@@ -53,6 +53,10 @@ export interface WatchedGauge {
   // the same batch API as lat/lng; direction-agnostic, so null on custom gauges
   // and on any USGS gauge missing alt_va.
   elevationFt: number | null
+  // Gauge's own position in the river's flowline order (mig 000151, web#392).
+  // Gauges need this more than runs do: DWR gauges carry NO elevation at all,
+  // so gauge-only groups had nothing but longitude to sort on.
+  riverSequence: number | null
   // Latest reading — refreshed by the dashboard poller
   currentCfs: number | null
   // Flow status resolved against the context reach's flow ranges.

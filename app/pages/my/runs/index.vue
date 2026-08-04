@@ -275,6 +275,9 @@ interface MyRun {
   // groups (#403).
   put_in_elevation_ft: number | null
   put_in_lng: number | null
+  // Topological position (mig 000151, web#392) — the exact key; the two above
+  // are proxies kept as fallbacks for unsequenced rivers.
+  river_sequence: number | null
   class_min: number | null
   class_max: number | null
   current_cfs: number | null
@@ -405,6 +408,7 @@ const groupedRuns = computed((): RunGroup[] => {
     .map(([name, runs]) => ({
       name,
       runs: sortByRiverPosition(runs, r => ({
+        sequence: r.river_sequence ?? null,
         elevationFt: r.put_in_elevation_ft,
         lng: r.put_in_lng,
       })),

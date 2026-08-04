@@ -957,6 +957,11 @@ interface UserReachSummary {
   // too since api#188; before that they fell back to the shared gauge's
   // altitude and TIED with each other. See userReachElevation().
   put_in_elevation_ft: number | null
+  // Index in the river's NHDPlus flowline order (mig 000151, web#392). The
+  // exact upstream→downstream key — elevation and longitude are proxies that
+  // fail on flat rivers and on rivers not flowing west→east respectively.
+  // NULL for unsequenced rivers and for runs off the sequenced mainstem.
+  river_sequence: number | null
   take_out_elevation_ft: number | null
   gradient_fpm: number | null
   current_cfs: number | null; flow_band: string | null
@@ -1070,6 +1075,7 @@ function synthGaugeForReach(r: UserReachSummary): WatchedGauge {
     // Referenced runs carry put_in_lng since api#188, so this no longer has to
     // discard it to dodge the bogus 0 that endpoint used to leave here.
     contextReachCenterLng: r.put_in_lng ?? null,
+    riverSequence: r.river_sequence ?? null,
     contextReachRiverOrder: null,
     contextReachAuthorHandle: r.author_handle,
     contextReachPermitRequired: false,
@@ -1571,8 +1577,8 @@ function sortReaches(reaches: WatchedGauge[]): WatchedGauge[] {
     if (ao != null) return -1
     if (bo != null) return 1
     return compareRiverPosition(
-      { elevationFt: a.elevationFt, lng: a.contextReachCenterLng ?? a.lng },
-      { elevationFt: b.elevationFt, lng: b.contextReachCenterLng ?? b.lng },
+      { sequence: a.riverSequence ?? null, elevationFt: a.elevationFt, lng: a.contextReachCenterLng ?? a.lng },
+      { sequence: b.riverSequence ?? null, elevationFt: b.elevationFt, lng: b.contextReachCenterLng ?? b.lng },
     )
   })
 }
@@ -1611,6 +1617,7 @@ function userReachLng(ur: UserReachSummary): number | null {
 // rules live in utils/riverPosition.ts (shared with explore and /my/runs).
 function sortUserReaches(urs: UserReachSummary[]): UserReachSummary[] {
   return sortByRiverPosition(urs, ur => ({
+    sequence: ur.river_sequence ?? null,
     elevationFt: userReachElevation(ur),
     lng: userReachLng(ur),
   }))
@@ -1856,8 +1863,8 @@ function sortGaugeEntries(entries: GaugeEntry[]): GaugeEntry[] {
     if (ao != null) return -1
     if (bo != null) return 1
     return compareRiverPosition(
-      { elevationFt: a.gauge?.elevationFt ?? null, lng: a.gauge?.contextReachCenterLng ?? a.gauge?.lng ?? null },
-      { elevationFt: b.gauge?.elevationFt ?? null, lng: b.gauge?.contextReachCenterLng ?? b.gauge?.lng ?? null },
+      { sequence: a.gauge?.riverSequence ?? null, elevationFt: a.gauge?.elevationFt ?? null, lng: a.gauge?.contextReachCenterLng ?? a.gauge?.lng ?? null },
+      { sequence: b.gauge?.riverSequence ?? null, elevationFt: b.gauge?.elevationFt ?? null, lng: b.gauge?.contextReachCenterLng ?? b.gauge?.lng ?? null },
     )
   })
 }
