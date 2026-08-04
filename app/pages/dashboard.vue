@@ -1591,27 +1591,34 @@ function sortReaches(reaches: WatchedGauge[]): WatchedGauge[] {
   })
 }
 
-// Elevation sort key for a user's own run: put_in_elevation_ft (mig 000150 —
-// the run's own put-in elevation, direction-agnostic unlike the old
-// put_in_lng "west = upstream" heuristic). Referenced runs don't carry
-// put_in_elevation_ft from the API (same reason they don't carry put_in_lng
-// — see userReachLng below), so they fall back to the gauge's own elevation.
+// Elevation sort key: put_in_elevation_ft (mig 000150 — the run's own put-in
+// elevation, direction-agnostic unlike the old put_in_lng "west = upstream"
+// heuristic), falling back to the gauge's elevation only when the run has none.
+//
+// This used to force referenced runs onto the gauge fallback, because
+// /me/referenced-runs didn't serve put_in_elevation_ft. That produced ties:
+// several runs commonly share one gauge, so they all sorted by the identical
+// gauge altitude and their order became arbitrary — Pine Creek, The Numbers
+// and Fractions all sit on "Arkansas River Below Granite" (8544 ft), which is
+// exactly how Fractions surfaced above Pine Creek. The endpoint now serves the
+// run's own elevation, so the is_reference special case is gone: whoever owns
+// the run, its own put-in is what places it on the river.
 function userReachElevation(ur: UserReachSummary): number | null {
-  if (!ur.is_reference && ur.put_in_elevation_ft != null) return ur.put_in_elevation_ft
-  return ur.gauge_elevation_ft ?? null
+  return ur.put_in_elevation_ft ?? ur.gauge_elevation_ft ?? null
 }
 
-// Sort key for a user's own run: put_in_lng (the run's own start coordinate —
-// same "west = upstream for CO rivers" convention as sortReaches' lng fallback).
-// Referenced runs don't carry put_in_lng from the API, so they fall back to the
-// gauge's own coordinate — same tier sortReaches uses when contextReachCenterLng
-// is unavailable. No river_order equivalent exists for user_reaches (that column
-// only ever lived on the retired curated `reaches` table), so this is lng-only.
-// Kept as the fallback tier for sortUserReaches below now that elevation is the
-// primary basis.
+// Fallback sort key: put_in_lng (the run's own start coordinate — same
+// "west = upstream for CO rivers" convention as sortReaches' lng fallback),
+// falling back to the gauge's coordinate only when the run has none.
+//
+// Referenced runs used to be forced onto the gauge fallback here for the same
+// reason as userReachElevation above — the endpoint didn't serve put_in_lng.
+// It does now, and user_reaches.put_in is NOT NULL, so ST_X always yields a
+// real coordinate and the old 0-means-prime-meridian hazard can't arise.
+// No river_order equivalent exists for user_reaches (that column only ever
+// lived on the retired curated `reaches` table), so this stays lng-only.
 function userReachLng(ur: UserReachSummary): number | null {
-  if (!ur.is_reference && ur.put_in_lng != null) return ur.put_in_lng
-  return ur.gauge_lng ?? null
+  return ur.put_in_lng ?? ur.gauge_lng ?? null
 }
 
 // Upstream → downstream by elevation (mig 000150, replacing web#386's
