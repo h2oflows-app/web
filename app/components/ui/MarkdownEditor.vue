@@ -107,7 +107,10 @@
 <script setup lang="ts">
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
-import { Markdown } from 'tiptap-markdown'
+// MarkdownStorage is tiptap-markdown's own storage type. Without it,
+// editor.storage.markdown resolves to a foreign global augmentation from a
+// package this component doesn't use, which has no getMarkdown.
+import { Markdown, type MarkdownStorage } from 'tiptap-markdown'
 
 const props = withDefaults(defineProps<{
   modelValue: string
@@ -143,7 +146,13 @@ const editor = useEditor({
     attributes: { class: 'outline-none' },
   },
   onUpdate({ editor }) {
-    emit('update:modelValue', editor.storage.markdown.getMarkdown())
+    // Double cast is required, not laziness: a global augmentation from an
+    // unrelated package types editor.storage.markdown as its own
+    // MarkdownExtensionStorage, which has no overlap with tiptap-markdown's
+    // MarkdownStorage. The runtime object is tiptap-markdown's — the Markdown
+    // extension imported above is what registers it — so the declaration is
+    // what's wrong here, and the cast restores the true type.
+    emit('update:modelValue', (editor.storage.markdown as unknown as MarkdownStorage).getMarkdown())
   },
 })
 

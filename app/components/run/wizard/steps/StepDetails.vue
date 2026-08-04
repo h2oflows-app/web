@@ -262,7 +262,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, type Ref } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRunWizardStore } from '~/stores/runWizard'
 import { classColor, classRange } from '~/utils/classRating'
 import { featureListPin } from '~/utils/featureIcons'
@@ -285,7 +285,9 @@ const {
 } = useCreateRunValidation()
 
 const showNotes = ref(false)
-const advancedPanelRef = ref<{ slugAvailability: Ref<string> } | null>(null)
+// Typed as the UNWRAPPED value, matching what defineExpose actually hands
+// back. Annotating it as Ref<string> is what invited the `.value` bug above.
+const advancedPanelRef = ref<{ slugAvailability: 'unknown' | 'checking' | 'available' | 'taken' | 'invalid' } | null>(null)
 
 // ── Basin override (edit mode only — see BasinOverrideModal) ────────────────
 const { isMine } = useMyProfile()
@@ -390,7 +392,12 @@ async function handleCreate() {
   if (store.mode === 'edit') {
     // Edit mode — no dupe/name checks; unchanged
     const result = await saveEdit({
-      slugAvailability: advancedPanelRef.value?.slugAvailability.value,
+      // NOT .slugAvailability.value — defineExpose unwraps refs, so the
+      // exposed property is already the string. The extra .value read yielded
+      // undefined every time, which silently disabled the "taken"/"invalid"
+      // guard in useRunSave.saveEdit: a bad slug reached the API and came back
+      // as a generic 400/409 instead of the intended inline block.
+      slugAvailability: advancedPanelRef.value?.slugAvailability,
     })
     if (result) {
       store.goSaved()

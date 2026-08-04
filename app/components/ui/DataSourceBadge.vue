@@ -1,5 +1,9 @@
 <template>
-  <UTooltip :text="tooltipText" :ui="{ width: 'max-w-xs' }">
+  <!-- No :ui width slot — UTooltip's ui accepts content/arrow/text/kbds/
+       kbdsSize only, and extra keys are never spread into tv(), so `width`
+       was inert rather than merely unstyled. Use `content` if a width is
+       ever wanted here. -->
+  <UTooltip :text="tooltipText">
     <span
       class="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-medium cursor-default select-none"
       :class="badgeClass"
