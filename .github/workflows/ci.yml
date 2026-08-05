@@ -37,8 +37,14 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      # Catches what vue-tsc cannot: template compilation, unresolved imports
-      # at bundle time, and Nitro/prerender failures. Netlify runs this too,
-      # but only after merge for the production deploy.
-      - name: Build
-        run: npm run generate
+      # Deliberately NO build step here. `nuxt generate` prerenders `/`, which
+      # instantiates the Supabase client and 500s without
+      # NUXT_PUBLIC_SUPABASE_URL / _KEY — so building in Actions would mean
+      # mirroring those secrets purely to reproduce a check Netlify already
+      # runs on every PR (netlify/h2oflows/deploy-preview), with the real
+      # environment. Placeholder credentials would be worse than no check:
+      # they prerender successfully against a Supabase that isn't ours.
+      #
+      # So: Actions owns typecheck, Netlify owns build. If the preview deploy
+      # ever stops running on PRs, add the build back here with real secrets
+      # rather than leaving the gap.
