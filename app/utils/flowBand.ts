@@ -4,6 +4,10 @@ export type FlowBand = 'low' | 'running' | 'high'
 
 export type FlowStatus = 'runnable' | 'caution' | 'flood' | 'unknown' | string
 
+// Lookup keyed by band. The three canonical bands always resolve; a custom band
+// label (run-defined threshold labels) is looked up dynamically and may not.
+export type BandTable<V> = Readonly<Record<FlowBand, V>> & { readonly [band: string]: V | undefined }
+
 // ── New flexible band types (Umbrella J) ─────────────────────────────────────
 
 export interface FlowBandThreshold {
@@ -145,7 +149,7 @@ export function bandForCfs(cfs: number, bands: FlowBands): { label: string; colo
 
 // ── Display labels ──────────────────────────────────────────────────────────
 
-const LABEL: Record<string, string> = {
+const LABEL: BandTable<string> = {
   low:     'Too Low',
   running: 'Running',
   high:    'High',
@@ -163,7 +167,7 @@ export function flowBandLabel(band?: string | null, status?: string | null): str
 
 // ── Badge pill classes (bg + text) ─────────────────────────────────────────
 
-const BADGE: Record<string, string> = {
+const BADGE: BandTable<string> = {
   low:     'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400',
   running: 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400',
   high:    'bg-sky-100 dark:bg-sky-950/50 text-sky-700 dark:text-sky-400',
@@ -181,7 +185,7 @@ export function flowBandBadgeClass(band?: string | null, status?: string | null)
 
 // ── CFS number text color ──────────────────────────────────────────────────
 
-const CFS_TEXT: Record<string, string> = {
+const CFS_TEXT: BandTable<string> = {
   low:     'text-red-500',
   running: 'text-emerald-500',
   high:    'text-sky-500',
@@ -199,7 +203,7 @@ export function flowBandCfsClass(band?: string | null, status?: string | null): 
 
 // ── Solid hex colors (for SVG strokes / legend swatches) ───────────────────
 
-const SOLID: Record<string, string> = {
+const SOLID: BandTable<string> = {
   low:     '#ef4444', // red-500
   running: '#34d399', // emerald-400
   high:    '#38bdf8', // sky-400
@@ -218,7 +222,15 @@ export function flowBandSolidColor(band?: string | null, status?: string | null)
 // ── Palette-aware solid hex colors (keyed by Tailwind primary name) ─────────
 // running = primary brand color; low = warm danger; high = cool flood
 
-export const PALETTE_FLOW_SOLID: Record<string, { low: string; running: string; high: string }> = {
+// Every THEMES primary must appear here; `blue` doubles as the fallback for an
+// unrecognised primary, so a dynamic lookup stays optional while these do not.
+export type FlowPrimaryName =
+  | 'blue' | 'sky' | 'teal' | 'emerald' | 'indigo' | 'orange' | 'fuchsia' | 'rose'
+  | 'lime' | 'green' | 'cyan' | 'purple' | 'yellow' | 'red' | 'pink'
+
+export type PrimaryTable<V> = Readonly<Record<FlowPrimaryName, V>> & { readonly [primary: string]: V | undefined }
+
+export const PALETTE_FLOW_SOLID: PrimaryTable<BandTable<string>> = {
   //        low (red family)    running (green family)   high (blue family)
   blue:    { low: '#ef4444',   running: '#34d399',      high: '#818cf8' },  // red-500, emerald-400, indigo-400
   sky:     { low: '#f43f5e',   running: '#34d399',      high: '#6366f1' },  // rose-500, emerald-400, indigo-500
@@ -240,7 +252,7 @@ export const PALETTE_FLOW_SOLID: Record<string, { low: string; running: string; 
 
 // ── Badge pill classes per palette (pre-declared so Tailwind includes them) ─
 
-export const PALETTE_BADGE_CLASS: Record<string, { low: string; running: string; high: string }> = {
+export const PALETTE_BADGE_CLASS: PrimaryTable<BandTable<string>> = {
   blue:    { low: 'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400',         running: 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400', high: 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400' },
   sky:     { low: 'bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400',     running: 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400', high: 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400' },
   teal:    { low: 'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400',         running: 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400', high: 'bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400' },
@@ -262,12 +274,12 @@ export const PALETTE_BADGE_CLASS: Record<string, { low: string; running: string;
 export function flowBandPaletteBadgeClass(band?: string | null, status?: string | null, primary?: string | null): string {
   const table = PALETTE_BADGE_CLASS[primary ?? 'blue'] ?? PALETTE_BADGE_CLASS.blue
   const b = band ?? (status === 'caution' ? 'low' : status === 'runnable' ? 'running' : status === 'flood' ? 'high' : null)
-  return b ? (table[b as keyof typeof table] ?? '') : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+  return b ? (table[b] ?? '') : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
 }
 
 // ── Translucent fills (chart bands) ────────────────────────────────────────
 
-export const FLOW_BAND_FILL: Record<string, string> = {
+export const FLOW_BAND_FILL: BandTable<string> = {
   low:     'rgba(239,68,68,0.22)',   // red
   running: 'rgba(52,211,153,0.28)',  // emerald-400
   high:    'rgba(56,189,248,0.25)',  // sky-400

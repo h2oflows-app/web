@@ -114,7 +114,8 @@ function detectPhase(
   const sorted = [...today].sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   )
-  const current = sorted[sorted.length - 1].cfs
+  // sorted is a copy of `today`, whose length was checked above (>= 2).
+  const current = sorted[sorted.length - 1]!.cfs
 
   // Near peak: within 10% of yesterday's peak.
   if (Math.abs(current - yPeakCfs) / yPeakCfs < 0.10) return 'near_peak'
@@ -127,7 +128,7 @@ function detectPhase(
   const recent = sorted.filter(r => new Date(r.timestamp).getTime() >= twoHoursAgo)
   if (recent.length < 2) return 'stable'
 
-  const oldest = recent[0].cfs
+  const oldest = recent[0]!.cfs // recent.length >= 2, checked directly above
   const delta  = current - oldest
 
   // Require at least a 2% change to call it rising/falling.

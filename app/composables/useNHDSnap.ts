@@ -1,6 +1,11 @@
 import { ref, computed, watch } from 'vue'
 
-interface NHDFC { type: string; features: any[] }
+// `type: string` (rather than the literal) is what made these fail to satisfy
+// maplibre's GeoJSONSourceSpecification wherever they were handed to setData —
+// a widened `string` is not assignable to `'FeatureCollection'`. Aliasing the
+// real GeoJSON type fixes every consumer at once instead of casting at each
+// setSource call.
+type NHDFC = GeoJSON.FeatureCollection
 interface AnchorSnap { comid: string; name: string }
 interface PendingGauge { externalId: string; source: string; name: string; lat: number; lng: number }
 

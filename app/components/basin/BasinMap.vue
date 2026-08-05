@@ -33,7 +33,12 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import maplibregl from 'maplibre-gl'
+import type { LayerSpecification } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+
+// maplibre-gl re-exports the style-spec types but not `DataDrivenPropertyValueSpecification`
+// itself, so derive the paint slot we need from the line-layer member of LayerSpecification.
+type LineColorSpec = NonNullable<NonNullable<Extract<LayerSpecification, { type: 'line' }>['paint']>['line-color']>
 
 export interface BasinReach {
   slug: string
@@ -53,11 +58,11 @@ export interface BasinReach {
 }
 
 export interface BasinNetwork {
-  tributaries: { type: string; features: any[] }
-  gauges:      { type: string; features: any[] }
+  tributaries: GeoJSON.FeatureCollection
+  gauges:      GeoJSON.FeatureCollection
 }
 
-const EMPTY_FC = { type: 'FeatureCollection', features: [] }
+const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
 
 const props = defineProps<{
   reaches:           BasinReach[]
@@ -98,7 +103,7 @@ function setBasemap(value: 'street' | 'topo' | 'satellite') {
   map.setLayoutProperty('esri-tiles',   'visibility', value === 'satellite' ? 'visible' : 'none')
 }
 
-function classColorExpr(): any {
+function classColorExpr(): LineColorSpec {
   return ['step', ['coalesce', ['get', 'class_max'], 0],
     '#6b7280',        // gray  (no class)
     0.5, '#16a34a',   // green (I–II)
@@ -189,7 +194,7 @@ function fitToReaches() {
 }
 
 function buildGaugesFC(): GeoJSON.FeatureCollection {
-  const features = (props.network?.gauges?.features ?? []).map((f: any) => {
+  const features = (props.network?.gauges?.features ?? []).map((f) => {
     const id: string = f.properties?.identifier ?? ''
     // NLDI identifier is "USGS-09058000"; strip prefix to match watchlist externalId
     const externalId = id.replace(/^[A-Z]+-/, '')

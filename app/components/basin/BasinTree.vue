@@ -103,7 +103,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
-import { hierarchy, tree } from 'd3-hierarchy'
+import { hierarchy, tree, type HierarchyPointNode, type HierarchyPointLink } from 'd3-hierarchy'
 import { linkHorizontal } from 'd3-shape'
 import type { BasinReach } from './BasinMap.vue'
 
@@ -189,6 +189,15 @@ interface LayoutNode {
   sy:     number
 }
 
+// d3-hierarchy ships no declarations, so the node shape its layout hands to our
+// callbacks is spelled out here — mirrors d3's own HierarchyPointNode/link.
+// Aliases for d3's own types rather than hand-rolled shims. The shims were
+// structurally close but not identical (d3 types children as `this[]`, and its
+// callbacks carry a `this` annotation), which made every callback below fail to
+// match once @types/d3-hierarchy was actually installed.
+type D3PointNode = HierarchyPointNode<TreeNode>
+type D3Link = HierarchyPointLink<TreeNode>
+
 // ── Computed layout ───────────────────────────────────────────────────────────
 
 const layout = computed(() => {
@@ -196,34 +205,35 @@ const layout = computed(() => {
   if (root.leaves().length === 0) return { nodes: [], links: [], width: 400, height: 200 }
 
   const treeLayout = tree<TreeNode>().nodeSize([H_NODE_H, H_LEVEL_W])
-  treeLayout(root)
+  // Use the RETURN value. treeLayout mutates root in place, so discarding it
+  // worked at runtime, but the discarded value is the only one d3 types as
+  // carrying x/y — every callback below was reading coordinates off a node
+  // type that does not declare them.
+  const positioned = treeLayout(root)
 
   let minX = Infinity, maxX = -Infinity
-  root.each(n => {
-    minX = Math.min(minX, (n as any).x)
-    maxX = Math.max(maxX, (n as any).x)
+  positioned.each((n: D3PointNode) => {
+    minX = Math.min(minX, n.x)
+    maxX = Math.max(maxX, n.x)
   })
 
   const svgH   = maxX - minX + H_NODE_H + PAD * 2
-  const svgW   = H_ROOT_PAD + (root.height + 1) * H_LEVEL_W + H_LABEL_W + PAD * 2
+  const svgW   = H_ROOT_PAD + (positioned.height + 1) * H_LEVEL_W + H_LABEL_W + PAD * 2
   const shiftY = -minX + PAD
   const offX   = PAD + H_ROOT_PAD
 
-  const linkGen = linkHorizontal<any, any>()
-    .x((d: any) => d.y + offX)
-    .y((d: any) => d.x + shiftY)
+  const linkGen: (l: D3Link) => string | null = linkHorizontal<D3Link, D3PointNode>()
+    .x((d: D3PointNode) => d.y + offX)
+    .y((d: D3PointNode) => d.x + shiftY)
 
-  const links = root.links().map(l => linkGen(l) ?? '')
+  const links = positioned.links().map((l: D3Link) => linkGen(l) ?? '')
 
-  const nodes: LayoutNode[] = root.descendants().map(n => {
-    const d = n as any
-    return {
-      id: n.data.slug ?? n.data.name, depth: n.depth,
-      isLeaf: !n.children, slug: n.data.slug,
-      name: n.data.name, label: n.data.label,
-      sx: d.y + offX, sy: d.x + shiftY,
-    }
-  })
+  const nodes: LayoutNode[] = positioned.descendants().map((n: D3PointNode) => ({
+    id: n.data.slug ?? n.data.name, depth: n.depth,
+    isLeaf: !n.children, slug: n.data.slug,
+    name: n.data.name, label: n.data.label,
+    sx: n.y + offX, sy: n.x + shiftY,
+  }))
 
   return { nodes, links, width: svgW, height: svgH }
 })

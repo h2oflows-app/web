@@ -195,7 +195,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useWatchlistStore, type WatchedGauge } from '~/stores/watchlist'
+import { useWatchlistStore } from '~/stores/watchlist'
 
 const waveRef = ref<SVGSVGElement | null>(null)
 const promptRef = ref<{ $el: HTMLElement } | null>(null)
@@ -274,20 +274,7 @@ async function addGaugeById(gaugeId: string) {
     if (!f) return
     const p = f.properties
     const coords = f.geometry?.coordinates as [number, number] | undefined
-    addAndSync({
-      id: p.id, externalId: p.external_id, source: p.source,
-      name: p.name ?? null, featured: p.featured ?? false,
-      reachId: p.reach_id ?? null, reachName: p.reach_name ?? null,
-      reachNames: p.reach_names ?? [], reachSlug: p.reach_slug ?? null,
-      reachSlugs: p.reach_slugs ?? [], reachRelationship: p.reach_relationship ?? null,
-      pollTier: p.poll_tier, watershedName: p.watershed_name ?? null,
-      basinName: p.basin_name ?? null, riverName: p.river_name ?? null,
-      stateAbbr: p.state_abbr ?? null,
-      lng: coords?.[0] ?? null, lat: coords?.[1] ?? null,
-      elevationFt: p.elevation_ft ?? null,
-      currentCfs: p.current_cfs ?? null, flowStatus: p.flow_status ?? 'unknown',
-      flowBandLabel: p.flow_band_label ?? null, lastReadingAt: p.last_reading_at ?? null,
-    } satisfies Omit<WatchedGauge, 'watchState' | 'activeSince'>)
+    addAndSync(featureToWatchedGauge(p, coords))
   } catch { /* non-fatal */ }
 }
 

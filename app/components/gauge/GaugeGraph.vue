@@ -166,8 +166,9 @@ async function load() {
   } finally {
     loading.value = false
     // Emit the freshest reading so consumers (e.g. modal) can sync their displayed CFS
-    if (readings.value.length > 0) {
-      const latestCfs = readings.value[0].cfs
+    const latest = readings.value[0]
+    if (latest) {
+      const latestCfs = latest.cfs
       emit('latestCfs', latestCfs)
       if (flowBands.value) {
         const band = bandForCfs(latestCfs, flowBands.value)
@@ -199,7 +200,8 @@ function buildChart() {
 
   const bands = flowBands.value
   // Use freshest reading from the fetched data — not the potentially stale prop.
-  const currentCfs = readings.value.length > 0 ? readings.value[0].cfs : (props.currentCfs ?? null)
+  const latest = readings.value[0]
+  const currentCfs = latest ? latest.cfs : (props.currentCfs ?? null)
 
   const opts: uPlot.Options = {
     width:  container.value!.clientWidth,
@@ -239,11 +241,15 @@ function buildChart() {
         if (!el) return
         const idx = u.cursor.idx
         if (idx == null) { el.style.display = 'none'; return }
-        const val = u.data[1][idx]
-        if (val == null) { el.style.display = 'none'; return }
-        const x = u.valToPos(u.data[0][idx], 'x')
+        // uPlot types data[1] and every element as possibly absent: series gaps
+        // are real nulls, and idx is only guaranteed in range while the chart
+        // holds the data we built it with. Hide rather than render NaN.
+        const val = u.data[1]?.[idx]
+        const tsSec = u.data[0][idx]
+        if (val == null || tsSec == null) { el.style.display = 'none'; return }
+        const x = u.valToPos(tsSec, 'x')
         const y = u.valToPos(val, 'y')
-        const ts = new Date(u.data[0][idx] * 1000)
+        const ts = new Date(tsSec * 1000)
         const timeStr = ts.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
         const dateStr = ts.toLocaleDateString([], { month: 'short', day: 'numeric' })
         el.textContent = `${Math.round(val).toLocaleString()} cfs · ${dateStr} ${timeStr}`
@@ -374,8 +380,8 @@ const bandRegions = computed(() => {
     from:  null,
     to:    sorted[0]?.value ?? null,
   }]
-  for (let i = 0; i < sorted.length; i++) {
-    out.push({ label: sorted[i].label, color: sorted[i].color, from: sorted[i].value, to: sorted[i + 1]?.value ?? null })
+  for (const [i, t] of sorted.entries()) {
+    out.push({ label: t.label, color: t.color, from: t.value, to: sorted[i + 1]?.value ?? null })
   }
   return out
 })

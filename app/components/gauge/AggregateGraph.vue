@@ -32,11 +32,12 @@ async function buildChart() {
         const rows: { cfs: number; timestamp: string }[] = await res.json()
         // uPlot wants ascending timestamps
         rows.reverse()
+        // Keep each timestamp paired with its reading — parallel xs/ys arrays
+        // lose the guarantee that index i exists in both.
         return {
           label: g.reachName ?? g.name ?? g.externalId,
           color: COLORS[i % COLORS.length],
-          xs: rows.map(r => Math.floor(new Date(r.timestamp).getTime() / 1000)),
-          ys: rows.map(r => r.cfs),
+          points: rows.map(r => ({ t: Math.floor(new Date(r.timestamp).getTime() / 1000), cfs: r.cfs })),
         }
       } catch {
         return null
@@ -44,18 +45,19 @@ async function buildChart() {
     })
   )
 
-  const valid = series.filter(Boolean) as NonNullable<typeof series[0]>[]
+  const valid = series.filter(s => s !== null)
   if (valid.length === 0) return
 
   // Align all series onto a shared time axis (union of all timestamps, fill with null)
-  const allXs = Array.from(new Set(valid.flatMap(s => s!.xs))).sort((a, b) => a - b)
+  const allXs = Array.from(new Set(valid.flatMap(s => s.points.map(p => p.t)))).sort((a, b) => a - b)
   const xsMap = new Map(allXs.map((x, i) => [x, i]))
 
   const data: uPlot.AlignedData = [
     new Float64Array(allXs),
     ...valid.map(s => {
       const arr = new Float64Array(allXs.length).fill(NaN)
-      s!.xs.forEach((x, i) => { arr[xsMap.get(x)!] = s!.ys[i] })
+      // allXs is the union of every series' timestamps, so each p.t is a key.
+      for (const p of s.points) arr[xsMap.get(p.t)!] = p.cfs
       return arr
     }),
   ]
@@ -71,7 +73,7 @@ async function buildChart() {
     series: [
       {},
       ...valid.map((s, i) => ({
-        label: s!.label,
+        label: s.label,
         stroke: COLORS[i % COLORS.length],
         width: 2,
         spanGaps: false,

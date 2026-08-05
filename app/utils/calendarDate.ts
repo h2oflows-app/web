@@ -29,8 +29,8 @@ export function ymd(date: Date): YMD {
 // Parse a YYYY-MM-DD string into a local Date (local midnight), per the
 // binding construction rule.
 export function parseYMD(s: YMD): Date {
-  const [y, m, d] = s.split('-').map(Number)
-  return new Date(y, (m ?? 1) - 1, d ?? 1)
+  const [y, m, d] = s.split('-')
+  return new Date(Number(y), Number(m ?? 1) - 1, Number(d ?? 1))
 }
 
 export interface MonthCell {
@@ -67,6 +67,16 @@ export function monthMatrix(year: number, month: number): MonthCell[] {
   }
 
   return cells
+}
+
+// First..last date of the month GRID (not the month) — wider than the month
+// itself because of the leading/trailing adjacent-month cells. Derived from
+// monthMatrix so the fetched range can never drift from what's rendered.
+export function monthGridRange(year: number, month: number): { from: YMD; to: YMD } {
+  const cells = monthMatrix(year, month)
+  // A grid always holds the whole month (>= 28 cells) padded to full weeks,
+  // so both ends exist.
+  return { from: cells[0]!.ymd, to: cells[cells.length - 1]!.ymd }
 }
 
 export function fmtDate(date: YMD, opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }): string {

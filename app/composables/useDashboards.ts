@@ -30,13 +30,14 @@ export function useDashboards() {
     if (!res?.ok) return
     const data = await res.json()
     dashboards.value = data.dashboards ?? []
-    if (dashboards.value.length) {
+    const first = dashboards.value[0]
+    if (first) {
       // Restore last-selected dashboard; fall back to first if it no longer exists.
       const saved = import.meta.client ? localStorage.getItem(ACTIVE_DB_KEY) : null
       if (saved && dashboards.value.some(d => d.id === saved)) {
         activeDashboardId.value = saved
       } else {
-        activeDashboardId.value = dashboards.value[0].id
+        activeDashboardId.value = first.id
       }
     }
     loaded.value = true

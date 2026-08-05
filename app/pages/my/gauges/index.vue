@@ -200,7 +200,7 @@ const authReady = ref(false)
 const tabs = [
   { key: 'monitored', label: 'Monitored' },
   { key: 'custom',    label: 'Custom' },
-]
+] as const
 const activeTab = ref<'monitored' | 'custom'>('monitored')
 
 // ── Monitored gauges ─────────────────────────────────────────────────────────

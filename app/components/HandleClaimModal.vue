@@ -94,7 +94,8 @@ async function loadSuggestions(token: string) {
     if (res.ok) {
       const data = await res.json()
       suggestions.value = data.suggestions ?? []
-      if (suggestions.value.length > 0) picked.value = suggestions.value[0]
+      const first = suggestions.value[0]
+      if (first !== undefined) picked.value = first
     }
   } catch { /* non-fatal */ }
 }

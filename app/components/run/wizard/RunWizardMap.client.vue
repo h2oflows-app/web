@@ -1118,7 +1118,7 @@ function onKeyDown(e: KeyboardEvent) {
 onMounted(async () => {
   window.addEventListener('keydown', onKeyDown)
   await nextTick()
-  await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+  await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())))
   initMap()
 })
 

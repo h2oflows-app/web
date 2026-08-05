@@ -1071,6 +1071,9 @@ function synthGaugeForReach(r: UserReachSummary): WatchedGauge {
     contextReachCommonName: r.name,
     contextReachFullName: r.long_name,
     contextReachRiverName: r.river_name,
+    // No river UUID on the summary payload; null keeps the shape identical to
+    // API-sourced rows (which get it from context_reach_river_id).
+    contextReachRiverId: null,
     contextReachBasinGroup: r.basin_group,
     // Referenced runs carry put_in_lng since api#188, so this no longer has to
     // discard it to dodge the bogus 0 that endpoint used to leave here.
@@ -1440,7 +1443,7 @@ function resolveBasinForGauge(rawBasin: string | null | undefined, state: string
     const nameKey = `${state}|${riverName}`
     if (riverNameBasinOverrides.value.has(nameKey)) return riverNameBasinOverrides.value.get(nameKey)!
   }
-  return cleanBasinName(rawBasin) ?? 'Other'
+  return cleanBasinName(rawBasin ?? null) ?? 'Other'
 }
 
 // Resolve basin for a user run: check riverBasinOverrides by river_id first.
