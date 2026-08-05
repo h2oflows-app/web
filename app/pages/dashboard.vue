@@ -392,104 +392,96 @@
                   </div>
                   <!-- Cards wrapper — subtle left indent when river grouping active -->
                   <div :class="showRivers ? 'pl-3' : ''">
-                  <template v-if="groupByGauge">
-                    <template v-for="split in [splitReachGroupsAll(river.reaches, river.userReaches)]" :key="'split'">
-                      <div v-if="split.gaugeGroups.length > 0" :class="viewMode === 'list' ? 'space-y-1.5' : cardGridClass">
-                        <GaugeRunGroup
-                          v-for="group in split.gaugeGroups"
-                          :key="group.lead.id"
-                          :lead-gauge="group.lead"
-                          :reach-items="group.all"
-                          :density="viewMode"
-                          :hide-river-name="showRivers"
-                          @open="(g, mode) => openGauge(g, mode)"
-                          @remove-item="(g) => handleGaugeItemRemove(g, group)"
-                          @remove-group="removeExtGaugeGroup(group)"
+                  <!--
+                    One ordered sequence per river (#408), not three fixed blocks.
+                    Gauge groups, standalone gauges and loose runs are interleaved
+                    upstream→downstream by riverRenderables; previously each was
+                    its own block in template order, which is why Buena Vista
+                    Whitewater Park rendered below Royal Gorge.
+
+                    List mode: each renderable is its own bordered card, stacked.
+                    Adjacent runs/gauges are coalesced so a contiguous stretch
+                    stays ONE card rather than one per row.
+
+                    Card modes: a single grid, each renderable exactly one cell —
+                    so coalescing is off and the multi-column layout is preserved
+                    across kinds.
+                  -->
+                  <div v-if="viewMode === 'list'" class="space-y-1.5">
+                    <template v-for="item in riverRenderables(river, true)" :key="item.key">
+                      <GaugeRunGroup
+                        v-if="item.kind === 'group'"
+                        :lead-gauge="item.group.lead"
+                        :reach-items="item.group.all"
+                        density="list"
+                        :hide-river-name="showRivers"
+                        @open="(g, mode) => openGauge(g, mode)"
+                        @remove-item="(g) => handleGaugeItemRemove(g, item.group)"
+                        @remove-group="removeExtGaugeGroup(item.group)"
+                      />
+                      <DashboardRunGroup
+                        v-else-if="item.kind === 'gauges'"
+                        :reaches="item.gauges"
+                        density="list"
+                        :show-river-name="!showRivers"
+                        @open="(g, mode) => openGauge(g, mode)"
+                        @remove="handleRemove"
+                      />
+                      <div v-else class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden">
+                        <RunRow
+                          v-for="r in item.runs"
+                          :key="r.id"
+                          v-swipe-remove="() => swipeRemoveUserReach(r)"
+                          :vm="userReachToRunRowVM(r, { lastReadingLabel: reachLastUpdated(r) })"
+                          view-mode="list"
+                          name-prominent
+                          :show-river="!showRivers"
+                          remove-label="Remove from dashboard"
+                          @open="openUserReach(r)"
+                          @remove="removeUserReach(r)"
                         />
                       </div>
-                      <!-- Ungrouped: list = one card; card modes = individual cards in grid -->
-                      <template v-if="split.ungrouped.length > 0">
-                        <DashboardRunGroup
-                          v-if="viewMode === 'list'"
-                          :reaches="split.ungrouped"
-                          density="list"
-                          :show-river-name="!showRivers"
-                          :class="split.gaugeGroups.length > 0 ? 'mt-1.5' : ''"
-                          @open="(g, mode) => openGauge(g, mode)"
-                          @remove="handleRemove"
-                        />
-                        <div v-else :class="[cardGridClass, split.gaugeGroups.length > 0 ? 'mt-1.5' : '']">
-                          <DashboardRunGroup
-                            v-for="reach in split.ungrouped"
-                            :key="`${reach.id}::${reach.contextReachSlug}`"
-                            :reaches="[reach]"
-                            :density="viewMode"
-                            :show-river-name="!showRivers"
-                            @open="(g, mode) => openGauge(g, mode)"
-                            @remove="handleRemove"
-                          />
-                        </div>
-                      </template>
                     </template>
-                  </template>
-                  <template v-else>
-                    <!-- List: all reaches in one grouped card (skip if empty — empty container shows as phantom hr) -->
-                    <DashboardRunGroup
-                      v-if="viewMode === 'list' && river.reaches.length > 0"
-                      :reaches="river.reaches"
-                      density="list"
-                      :show-river-name="!showRivers"
-                      @open="(g, mode) => openGauge(g, mode)"
-                      @remove="handleRemove"
-                    />
-                    <!-- Card modes: each reach = own card in grid -->
-                    <div v-else-if="viewMode !== 'list' && river.reaches.length > 0" :class="cardGridClass">
+                  </div>
+                  <div v-else :class="cardGridClass">
+                    <template v-for="item in riverRenderables(river, false)" :key="item.key">
+                      <GaugeRunGroup
+                        v-if="item.kind === 'group'"
+                        :lead-gauge="item.group.lead"
+                        :reach-items="item.group.all"
+                        :density="viewMode"
+                        :hide-river-name="showRivers"
+                        @open="(g, mode) => openGauge(g, mode)"
+                        @remove-item="(g) => handleGaugeItemRemove(g, item.group)"
+                        @remove-group="removeExtGaugeGroup(item.group)"
+                      />
                       <DashboardRunGroup
-                        v-for="reach in river.reaches"
-                        :key="`${reach.id}::${reach.contextReachSlug}`"
-                        :reaches="[reach]"
+                        v-else-if="item.kind === 'gauges'"
+                        :reaches="item.gauges"
                         :density="viewMode"
                         :show-river-name="!showRivers"
                         @open="(g, mode) => openGauge(g, mode)"
                         @remove="handleRemove"
                       />
-                    </div>
-                  </template>
-                <!-- User reaches inline — flat for non-gauge-grouped items -->
-                <template v-for="visibleUrs in [ungroupedUserReaches(river)]" :key="'urs'">
-                <template v-if="visibleUrs.length > 0">
-                  <!-- List (compact) view -->
-                  <div v-if="viewMode === 'list'" class="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden mt-1.5">
-                    <RunRow
-                      v-for="r in visibleUrs"
-                      :key="r.id"
-                      v-swipe-remove="() => swipeRemoveUserReach(r)"
-                      :vm="userReachToRunRowVM(r, { lastReadingLabel: reachLastUpdated(r) })"
-                      view-mode="list"
-                      name-prominent
-                      :show-river="!showRivers"
-                      remove-label="Remove from dashboard"
-                      @open="openUserReach(r)"
-                      @remove="removeUserReach(r)"
-                    />
+                      <!-- template wrapper, not v-else on RunRow itself: Vue 3
+                           forbids v-else alongside v-for on one element. Renders
+                           nothing, so each RunRow is still a direct grid cell. -->
+                      <template v-else>
+                        <RunRow
+                          v-for="r in item.runs"
+                          :key="r.id"
+                          :vm="userReachToRunRowVM(r, { lastReadingLabel: reachLastUpdated(r) })"
+                          :view-mode="viewMode"
+                          name-prominent
+                          show-owner-right
+                          :show-river="!showRivers"
+                          remove-label="Remove from dashboard"
+                          @open="openUserReach(r)"
+                          @remove="removeUserReach(r)"
+                        />
+                      </template>
+                    </template>
                   </div>
-                  <!-- Comfortable / full card view -->
-                  <div v-else :class="[cardGridClass, 'mt-1.5']">
-                    <RunRow
-                      v-for="r in visibleUrs"
-                      :key="r.id"
-                      :vm="userReachToRunRowVM(r, { lastReadingLabel: reachLastUpdated(r) })"
-                      :view-mode="viewMode"
-                      name-prominent
-                      show-owner-right
-                      :show-river="!showRivers"
-                      remove-label="Remove from dashboard"
-                      @open="openUserReach(r)"
-                      @remove="removeUserReach(r)"
-                    />
-                  </div>
-                </template><!-- end visibleUrs -->
-                </template><!-- end v-for visibleUrs -->
                 </div><!-- end cards wrapper indent -->
                 </div><!-- end riverHasVisibleContent -->
                 </template><!-- end v-for river -->
@@ -1063,7 +1055,10 @@ function openUserReachGaugeTab(r: UserReachSummary) {
 // GaugeDetailModal reads in reach mode are populated.
 function synthGaugeForReach(r: UserReachSummary): WatchedGauge {
   return {
-    id: r.gauge_id!,
+    // Callers that GROUP by gauge filter out gauge-less runs first, but
+    // riverRenderables also uses this purely as a sort key, where a run with no
+    // gauge is perfectly valid — hence the fallback rather than a `!`.
+    id: r.gauge_id ?? '',
     externalId: r.gauge_external_id ?? '',
     source: r.gauge_source ?? '',
     name: r.gauge_name ?? null,
@@ -2278,6 +2273,83 @@ function splitReachGroupsAll(
     // single ur with no wg pair → stays in the flat userReaches block
   }
   return { gaugeGroups, ungrouped }
+}
+
+// One river's contents in upstream→downstream order, whatever kind they are
+// (#408).
+//
+// Runs sorted correctly WITHIN a gauge group after api#192/web#407, but three
+// things above that were still unordered:
+//
+//   1. the groups themselves — splitReachGroupsAll builds them by iterating a
+//      Set, so their order was whichever gauge id was encountered first. It
+//      looked right on the Arkansas only because river.userReaches happens to
+//      arrive sorted; a standalone watchlist gauge on a downstream gauge would
+//      have seeded that Set ahead of every upstream group.
+//   2. standalone gauges, rendered as a block after all groups.
+//   3. loose runs, rendered as a block after that — which is why Buena Vista
+//      Whitewater Park (seq 42) sat below Royal Gorge (seq 144).
+//
+// The fix is to stop rendering three fixed blocks and produce one ordered list.
+// Every kind reduces to a WatchedGauge for sorting — synthGaugeForReach already
+// does that for runs, and a group is represented by its own upstream-most
+// member — so all three sort through sortReaches, the SAME comparator that
+// orders rows inside a group. That is deliberate: this is the fourth place the
+// question "which of these is further upstream" gets asked, after #403/#405
+// unified the first three, and it would be the wrong moment to invent a fifth
+// convention.
+//
+// coalesce merges adjacent same-kind items into one renderable. List mode wants
+// it, so a contiguous stretch of loose runs stays a single bordered card rather
+// than becoming one card per row. Card modes do not, because every renderable
+// is a single cell in one shared grid.
+type RiverRenderable =
+  | { kind: 'group'; key: string; group: ExtGaugeGroup }
+  | { kind: 'gauges'; key: string; gauges: WatchedGauge[] }
+  | { kind: 'runs'; key: string; runs: UserReachSummary[] }
+
+function riverRenderables(river: RiverGroup, coalesce: boolean): RiverRenderable[] {
+  const items: { rep: WatchedGauge; item: RiverRenderable }[] = []
+
+  if (groupByGauge.value) {
+    const split = splitReachGroupsAll(river.reaches, river.userReaches)
+    for (const g of split.gaugeGroups) {
+      // A group sits where its upstream-most member sits.
+      items.push({ rep: sortReaches(g.all)[0]!, item: { kind: 'group', key: `g:${g.lead.id}`, group: g } })
+    }
+    for (const wg of split.ungrouped) {
+      items.push({ rep: wg, item: { kind: 'gauges', key: `w:${wg.id}::${wg.contextReachSlug}`, gauges: [wg] } })
+    }
+  } else {
+    for (const wg of river.reaches) {
+      items.push({ rep: wg, item: { kind: 'gauges', key: `w:${wg.id}::${wg.contextReachSlug}`, gauges: [wg] } })
+    }
+  }
+  for (const ur of ungroupedUserReaches(river)) {
+    items.push({ rep: synthGaugeForReach(ur), item: { kind: 'runs', key: `r:${ur.id}`, runs: [ur] } })
+  }
+
+  // Sort the representatives through sortReaches and read the resulting
+  // positions back by object identity — it returns the same objects, so this
+  // reuses every tier (including contextReachRiverOrder) without restating any.
+  const rank = new Map<WatchedGauge, number>()
+  sortReaches(items.map(i => i.rep)).forEach((rep, i) => rank.set(rep, i))
+  items.sort((a, b) => (rank.get(a.rep) ?? 0) - (rank.get(b.rep) ?? 0))
+
+  const out: RiverRenderable[] = []
+  for (const { item } of items) {
+    const prev = out[out.length - 1]
+    if (coalesce && item.kind === 'runs' && prev?.kind === 'runs') {
+      prev.runs.push(...item.runs)
+      continue
+    }
+    if (coalesce && item.kind === 'gauges' && prev?.kind === 'gauges') {
+      prev.gauges.push(...item.gauges)
+      continue
+    }
+    out.push(item)
+  }
+  return out
 }
 
 // Returns river.userReaches NOT absorbed into a gauge group, for per-river rendering.
