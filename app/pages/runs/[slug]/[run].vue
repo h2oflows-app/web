@@ -544,7 +544,9 @@ const reportsExpanded  = ref(false)
 const visibleReports   = computed(() => reportsExpanded.value ? reports.value : reports.value.slice(0, reportsPageSize))
 
 function extractPreview(content: string): string {
-  return content.split(/\n\n+/)[0].trim()
+  // String.split always yields at least one element, so the default is unreachable.
+  const [firstPara = ''] = content.split(/\n\n+/)
+  return firstPara.trim()
     .replace(/#{1,6}\s+/g, '').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1')
 }
 
@@ -678,8 +680,10 @@ const flowBandDisplay = computed((): FlowBandEntry[] => {
   const fb = run.value?.flow_bands
   if (!fb?.thresholds?.length) return []
   const sorted = [...fb.thresholds].sort((a, b) => a.value - b.value)
+  const lowest = sorted[0]
+  if (!lowest) return []   // unreachable: thresholds.length checked above
   return [
-    { label: fb.base_label, color: fb.base_color, min: null, max: sorted[0].value },
+    { label: fb.base_label, color: fb.base_color, min: null, max: lowest.value },
     ...sorted.map((t, i) => ({
       label: t.label,
       color: t.color,

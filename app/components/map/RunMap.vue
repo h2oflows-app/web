@@ -132,6 +132,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import maplibregl from 'maplibre-gl'
+import type { LayerSpecification } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useWatchlistStore } from '~/stores/watchlist'
 import { useRouter } from '#app'
@@ -518,8 +519,13 @@ function addLayers() {
     type: 'geojson',
     data: { type: 'FeatureCollection', features: [] },
   })
-  // Difficulty color expression — mirrors reachLineColor() and DashboardMap
-  const difficultyExpr = ['step', ['coalesce', ['get', 'class_max'], 0],
+  // Difficulty color expression — mirrors reachLineColor() and DashboardMap.
+  // maplibre-gl re-exports the style-spec types but not
+  // `DataDrivenPropertyValueSpecification`, so the paint slot is derived from
+  // the line-layer member of LayerSpecification; without the annotation the
+  // literal widens to `(string | number | ...)[]` and stops matching the spec.
+  const difficultyExpr: NonNullable<NonNullable<Extract<LayerSpecification, { type: 'line' }>['paint']>['line-color']>
+    = ['step', ['coalesce', ['get', 'class_max'], 0],
     '#6b7280',        // 0 = gray (no class)
     0.5, '#16a34a',   // I-II = green
     3.0, '#3b82f6',   // III = blue

@@ -148,9 +148,10 @@ export function useCalendar() {
 
   function insertRunOptimistic(date: string, run: CalendarRun) {
     const idx = days.value.findIndex(d => d.date === date)
-    if (idx >= 0) {
+    const day = days.value[idx]
+    if (day) {
       const next = [...days.value]
-      next[idx] = { ...next[idx], runs: [...next[idx].runs, run] }
+      next[idx] = { ...day, runs: [...day.runs, run] }
       days.value = next
     } else {
       days.value = [...days.value, { date, runs: [run], needs_confirm: false }]
@@ -160,9 +161,10 @@ export function useCalendar() {
 
   function removeRunOptimistic(date: string, runId: string) {
     const idx = days.value.findIndex(d => d.date === date)
-    if (idx < 0) return
+    const day = days.value[idx]
+    if (!day) return
     const next = [...days.value]
-    next[idx] = { ...next[idx], runs: next[idx].runs.filter(r => r.id !== runId) }
+    next[idx] = { ...day, runs: day.runs.filter(r => r.id !== runId) }
     days.value = next
   }
 
@@ -171,11 +173,12 @@ export function useCalendar() {
   // revert on 422/403), without waiting on a full range refetch.
   function patchRunOptimistic(date: string, runId: string, patch: Partial<CalendarRun>) {
     const idx = days.value.findIndex(d => d.date === date)
-    if (idx < 0) return
+    const day = days.value[idx]
+    if (!day) return
     const next = [...days.value]
     next[idx] = {
-      ...next[idx],
-      runs: next[idx].runs.map(r => (r.id === runId ? { ...r, ...patch } : r)),
+      ...day,
+      runs: day.runs.map(r => (r.id === runId ? { ...r, ...patch } : r)),
     }
     days.value = next
   }

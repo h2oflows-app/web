@@ -571,8 +571,9 @@ const visibleReports = computed(() =>
 )
 
 function extractPreview(content: string): string {
-  const firstPara = content.split(/\n\n+/)[0].trim()
-  return firstPara
+  // String.split always yields at least one element, so the default is unreachable.
+  const [firstPara = ''] = content.split(/\n\n+/)
+  return firstPara.trim()
     .replace(/#{1,6}\s+/g, '')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/\*([^*]+)\*/g, '$1')

@@ -93,7 +93,7 @@ definePageMeta({ ssr: false })
 import { ref, computed, watch, onMounted } from 'vue'
 import { useCalendar, useCalendarFocusDate } from '~/composables/useCalendar'
 import { usePlanRunLogSheet } from '~/composables/usePlanRunLogSheet'
-import { parseYMD, monthMatrix } from '~/utils/calendarDate'
+import { parseYMD, monthGridRange } from '~/utils/calendarDate'
 import type { CalendarView } from '~/components/CalendarViewToggle.vue'
 
 const { isAuthenticated } = useAuth()
@@ -166,9 +166,7 @@ async function loadMonth(force = false) {
   // Fetch the full 6-week grid span (not just this month's days) so
   // leading/trailing adjacent-month cells get dot data and the day sheet
   // works when tapping them.
-  const cells = monthMatrix(year.value, month.value)
-  const from = cells[0].ymd
-  const to = cells[cells.length - 1].ymd
+  const { from, to } = monthGridRange(year.value, month.value)
   await loadRange(from, to, `${year.value}-${String(month.value).padStart(2, '0')}`, force)
 }
 

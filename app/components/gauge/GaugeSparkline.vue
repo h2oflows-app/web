@@ -119,12 +119,16 @@ async function fetchReadings() {
     const res = await fetch(`${apiBase}/api/v1/gauges/${props.gaugeId}/readings?since=${since}&limit=${limit}`)
     if (res.ok) {
       readings.value = ([...(await res.json())]).reverse()
-      if (readings.value.length > 0) {
-        const latestCfs = readings.value[readings.value.length - 1].cfs
+      const newest = readings.value[readings.value.length - 1]
+      if (newest) {
+        const latestCfs = newest.cfs
         emit('latestCfs', latestCfs)
         if (flowBands.value) {
+          // bandForCfs returns null when the range set has no thresholds —
+          // report that as unknown (matching GaugeGraph) instead of throwing
+          // out of the whole fetch.
           const band = bandForCfs(latestCfs, flowBands.value)
-          emit('liveFlowBand', { flowBandLabel: band.label, flowStatus: flowStatusForColorKey(band.color) })
+          emit('liveFlowBand', { flowBandLabel: band?.label ?? null, flowStatus: flowStatusForColorKey(band?.color) })
         } else {
           emit('liveFlowBand', { flowBandLabel: null, flowStatus: 'unknown' })
         }
@@ -183,8 +187,8 @@ function toPath(pts: { x: number; y: number }[]): string {
 const linePath = computed(() => toPath(points.value))
 const areaPath = computed(() => {
   const pts = points.value
-  if (!pts.length) return ''
   const last = pts[pts.length - 1]
+  if (!last) return ''
   return `${toPath(pts)} L${last.x.toFixed(1)},40 L0,40 Z`
 })
 

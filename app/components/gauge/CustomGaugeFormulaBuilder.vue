@@ -156,8 +156,8 @@ function removeAt(i: number) {
 }
 
 function toggleSign(i: number) {
-  const next = [...props.modelValue]
-  next[i] = { ...next[i], sign: next[i].sign === 1 ? -1 : 1 }
+  const next = props.modelValue.map((inp, idx): FormulaInput =>
+    idx === i ? { ...inp, sign: inp.sign === 1 ? -1 : 1 } : inp)
   emit('update:modelValue', next)
 }
 

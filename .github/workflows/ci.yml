@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # `nuxi prepare` first (the typecheck script does it) — vue-tsc needs the
+      # generated .nuxt/ types for auto-imports, component props and route
+      # names, and without them every auto-imported symbol reports as missing.
+      #
+      # This gate exists because TypeScript is the only thing checking the web
+      # side of an API contract. The Go API has cmd/sqlcheck for its SQL, and
+      # api#189 showed what happens without an equivalent: a query kept
+      # selecting a column a migration had dropped and two endpoints returned
+      # 500 in production for weeks. The client half of that same class —
+      # reading a field the API stopped sending, or a component prop that was
+      # renamed — surfaces here and nowhere else.
+      #
+      # Zero errors as of web#415. Keep it at zero: this is only useful as a
+      # gate while it is clean, and a burn-down that was allowed to regrow
+      # would just be noise everyone learns to ignore.
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Deliberately NO build step here. `nuxt generate` prerenders `/`, which
+      # instantiates the Supabase client and 500s without
+      # NUXT_PUBLIC_SUPABASE_URL / _KEY — so building in Actions would mean
+      # mirroring those secrets purely to reproduce a check Netlify already
+      # runs on every PR (netlify/h2oflows/deploy-preview), with the real
+      # environment. Placeholder credentials would be worse than no check:
+      # they prerender successfully against a Supabase that isn't ours.
+      #
+      # So: Actions owns typecheck, Netlify owns build. If the preview deploy
+      # ever stops running on PRs, add the build back here with real secrets
+      # rather than leaving the gap.

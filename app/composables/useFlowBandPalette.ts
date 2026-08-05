@@ -47,7 +47,7 @@ export function useFlowBandPalette() {
   function bandBadgeClass(band?: string | null, status?: string | null): string {
     const table = badgeClass.value
     const b = band ?? (status === 'caution' ? 'low' : status === 'runnable' ? 'running' : status === 'flood' ? 'high' : null)
-    return b ? (table[b as keyof typeof table] ?? '') : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+    return b ? (table[b] ?? '') : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
   }
 
   function bandFill(band?: string | null, status?: string | null): string {

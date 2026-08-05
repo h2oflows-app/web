@@ -44,7 +44,7 @@
         <span class="font-medium text-neutral-700 dark:text-neutral-200 whitespace-nowrap">@{{ resolvedHandle }}</span>
         <UButton
           v-if="runId && isAuthenticated"
-          size="2xs"
+          size="xs"
           color="primary"
           variant="soft"
           :loading="forking"

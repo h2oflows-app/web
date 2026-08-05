@@ -110,6 +110,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRunWizardStore } from '~/stores/runWizard'
 import { bandForCfs, flowBandSolidColor, flowStatusForColorKey } from '~/utils/flowBand'
+import type { WatchedGauge } from '~/stores/watchlist'
 
 const emit = defineEmits<{ continue: []; skip: [] }>()
 
@@ -118,11 +119,19 @@ const { apiBase } = useRuntimeConfig().public
 
 // ── Resolution state ──────────────────────────────────────────────────────────
 
+// GaugeSparkline's flow-status prop is the strict four-value union; flowBand's
+// exported FlowStatus widens to `string`, so narrow at this boundary instead.
+type FlowStatus = WatchedGauge['flowStatus']
+
+function toFlowStatus(s: string): FlowStatus {
+  return s === 'runnable' || s === 'caution' || s === 'flood' ? s : 'unknown'
+}
+
 interface Resolved {
   uuid: string
   cfs: number
   bandLabel: string | null
-  flowStatus: string
+  flowStatus: FlowStatus
 }
 
 const selectedResolved = ref<Resolved | null>(null)
@@ -150,13 +159,13 @@ async function resolveGauge(externalId: string, source: string): Promise<Resolve
     if (currentCfs == null) return null
 
     let bandLabel: string | null = null
-    let flowStatus = 'unknown'
+    let flowStatus: FlowStatus = 'unknown'
 
     if (store.flowBands) {
       const band = bandForCfs(currentCfs, store.flowBands)
       if (band) {
         bandLabel = band.label
-        flowStatus = flowStatusForColorKey(band.color)
+        flowStatus = toFlowStatus(flowStatusForColorKey(band.color))
       }
     }
 

@@ -109,7 +109,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from '#app'
-import { useWatchlistStore } from '~/stores/watchlist'
+import { useWatchlistStore, type WatchedGauge } from '~/stores/watchlist'
 import { basinLabel, cleanBasinName, slugifyBasin } from '~/utils/basin'
 import { classColor, classRange } from '~/utils/classRating'
 import { flowBandLabel } from '~/utils/flowBand'
@@ -142,7 +142,7 @@ function onTreeSelect(s: string) {
   basinMapRef.value?.flyToReach(s)
 }
 
-function gaugeBasinSlug(g: ReturnType<typeof store.gauges>[number]): string | null {
+function gaugeBasinSlug(g: WatchedGauge): string | null {
   const name = cleanBasinName(g.contextReachBasinGroup)
     ?? cleanBasinName(g.watershedName)
     ?? cleanBasinName(g.basinName)
@@ -266,8 +266,9 @@ onMounted(async () => {
     return g ? slugifyBasin(g) === slug : false
   })
   userReachSlugs.value = inBasin.map(r => r.slug)
-  if (inBasin.length > 0 && !userBasinName.value) {
-    userBasinName.value = cleanBasinName(inBasin[0].basin_group) ?? null
+  const firstInBasin = inBasin[0]
+  if (firstInBasin && !userBasinName.value) {
+    userBasinName.value = cleanBasinName(firstInBasin.basin_group) ?? null
   }
 })
 </script>

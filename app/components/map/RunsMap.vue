@@ -56,7 +56,12 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import maplibregl from 'maplibre-gl'
+import type { LayerSpecification } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+
+// maplibre-gl re-exports the style-spec types but not `DataDrivenPropertyValueSpecification`
+// itself, so derive the paint slot we need from the line-layer member of LayerSpecification.
+type LineColorSpec = NonNullable<NonNullable<Extract<LayerSpecification, { type: 'line' }>['paint']>['line-color']>
 
 export interface ReachListItem {
   id:           string | null
@@ -208,13 +213,17 @@ function saveMapPos() {
 // Icons: I-II circle, II+ blue square (previewing III), III blue square,
 //        III+ black diamond (previewing IV), IV black diamond, V double diamond
 // Lines: green <3.0, blue 3.0–3.9, black 4.0–4.9, red 5.0+
+// Named separately so difficultyFor's fallback is a value the compiler can see
+// is present — it is the same object as the last DIFFICULTY entry.
+const DIFFICULTY_TOP = { maxClass: 99, color: '#1f2937', imageId: 'diff-5', label: 'Class V' }
+
 const DIFFICULTY = [
   { maxClass: 2.4, color: '#16a34a', imageId: 'diff-1-2', label: 'Class I–II'  },
   { maxClass: 2.9, color: '#16a34a', imageId: 'diff-3',   label: 'Class II+'   }, // green line, blue square
   { maxClass: 3.4, color: '#3b82f6', imageId: 'diff-3',   label: 'Class III'   },
   { maxClass: 3.9, color: '#3b82f6', imageId: 'diff-4',   label: 'Class III+'  }, // blue line, black diamond
   { maxClass: 4.9, color: '#1f2937', imageId: 'diff-4',   label: 'Class IV'    },
-  { maxClass: 99,  color: '#1f2937', imageId: 'diff-5',   label: 'Class V'     },
+  DIFFICULTY_TOP,
 ]
 
 const DIFFICULTY_LEGEND = [
@@ -226,7 +235,7 @@ const DIFFICULTY_LEGEND = [
 
 function difficultyFor(classMax: number | null) {
   const c = classMax ?? 0
-  return DIFFICULTY.find(d => c <= d.maxClass) ?? DIFFICULTY[DIFFICULTY.length - 1]
+  return DIFFICULTY.find(d => c <= d.maxClass) ?? DIFFICULTY_TOP
 }
 
 // ── SVG helpers ───────────────────────────────────────────────────────────────
@@ -347,9 +356,15 @@ onUnmounted(() => {
 
 // ── Data loading ──────────────────────────────────────────────────────────────
 
+// Centerlines arrive as either shape depending on the source geometry column;
+// discriminated so `coordinates` narrows without a cast.
+type ReachGeometry =
+  | { type: 'LineString';      coordinates: [number, number][]   }
+  | { type: 'MultiLineString'; coordinates: [number, number][][] }
+
 interface ReachFeature {
   type: 'Feature'
-  geometry: { type: string; coordinates: any }
+  geometry: ReachGeometry
   properties: {
     id: string; name: string; slug: string
     class_max: number | null; flow_status: string; current_cfs: number | null
@@ -359,16 +374,21 @@ interface ReachFeature {
     is_special?: boolean
     upvote_count?: number
     user_upvoted?: boolean
+    // Sort-basis fields: optional because only some map sources emit them
+    // (/users/{handle}/runs/map/all sends the two below; no map endpoint
+    // sends river_sequence yet — see ReachListItem's note).
     put_in_lng?: number | null
     put_in_elevation_ft?: number | null
+    river_sequence?: number | null
   }
 }
 
 // All features from the server — loaded once at startup.
 let allServerFeatures: ReachFeature[] = []
 
-function emitAllReaches() {
-  emit('all-reaches-updated', allServerFeatures.map(f => ({
+/** Feature properties → the sidebar row shape both emits publish. */
+function toListItem(f: ReachFeature): ReachListItem {
+  return {
     id:            f.properties.id ?? null,
     slug:          f.properties.slug,
     name:          displayName(f.properties),
@@ -383,7 +403,12 @@ function emitAllReaches() {
     user_upvoted:  f.properties.user_upvoted ?? false,
     put_in_lng:          f.properties.put_in_lng ?? null,
     put_in_elevation_ft: f.properties.put_in_elevation_ft ?? null,
-  })))
+    river_sequence:      f.properties.river_sequence ?? null,
+  }
+}
+
+function emitAllReaches() {
+  emit('all-reaches-updated', allServerFeatures.map(toListItem))
 }
 
 /** One-time load of the full cached dataset from the server. */
@@ -446,7 +471,7 @@ function filterVisible() {
     if (!f.geometry?.coordinates) return false
     const coords: [number, number][] = f.geometry.type === 'LineString'
       ? f.geometry.coordinates
-      : (f.geometry.coordinates as [number, number][][]).flat()
+      : f.geometry.coordinates.flat()
     return coords.some(([lng, lat]) =>
       lng >= b.getWest() && lng <= b.getEast() &&
       lat >= b.getSouth() && lat <= b.getNorth()
@@ -454,22 +479,7 @@ function filterVisible() {
   })
 
   updateLayers(visible)
-  emit('reaches-updated', visible.map(f => ({
-    id:            f.properties.id ?? null,
-    slug:          f.properties.slug,
-    name:          displayName(f.properties),
-    common_name:   f.properties.common_name ?? null,
-    class_max:     f.properties.class_max,
-    flow_status:   f.properties.flow_status ?? 'unknown',
-    current_cfs:   f.properties.current_cfs ?? null,
-    author_handle: f.properties.author_handle ?? null,
-    river_name:    f.properties.river_name ?? null,
-    gauge_id:      f.properties.gauge_id ?? null,
-    upvote_count:  f.properties.upvote_count ?? 0,
-    user_upvoted:  f.properties.user_upvoted ?? false,
-    put_in_lng:          f.properties.put_in_lng ?? null,
-    put_in_elevation_ft: f.properties.put_in_elevation_ft ?? null,
-  })))
+  emit('reaches-updated', visible.map(toListItem))
 }
 
 function displayName(p: ReachFeature['properties']): string {
@@ -482,15 +492,16 @@ function midpoint(f: ReachFeature): [number, number] | null {
   if (!f.geometry?.coordinates) return null
   const coords: [number, number][] = f.geometry.type === 'LineString'
     ? f.geometry.coordinates
-    : (f.geometry.coordinates as [number, number][][]).flat()
+    : f.geometry.coordinates.flat()
   if (coords.length < 2) return null
-  return coords[Math.floor(coords.length / 2)]
+  // length >= 2, so floor(length / 2) is in [1, length - 1] — always in range.
+  return coords[Math.floor(coords.length / 2)]!
 }
 
 function updateLayers(features: ReachFeature[]) {
   if (!map) return
 
-  const lineFC = { type: 'FeatureCollection' as const, features: features as any[] }
+  const lineFC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features }
 
   const markerFeatures = features.flatMap(f => {
     const mid = midpoint(f)
@@ -557,7 +568,8 @@ function updateLayers(features: ReachFeature[]) {
         return true
       })
       if (unique.length <= 1) {
-        const p = (unique[0] ?? e.features[0]).properties as any
+        // e.features is non-empty — guarded at the top of the handler.
+        const p = (unique[0] ?? e.features[0]!).properties
         if (!p.slug) return
         emit('reach-click', { slug: p.slug, id: p.id ?? null, name: p.name ?? p.common_name ?? null, authorHandle: p.author_handle ?? null })
         return
@@ -599,7 +611,8 @@ function updateLayers(features: ReachFeature[]) {
 
     const updateReachTooltip = (e: maplibregl.MapLayerMouseEvent) => {
       if (!map || !e.features?.length) return
-      const p = e.features[0].properties as any
+      // Non-empty per the guard above.
+      const p = e.features[0]!.properties
       const allAtPoint = map.queryRenderedFeatures(e.point, { layers: ['reach-lines-hit'] })
       const seen = new Set<string>()
       const unique = allAtPoint.filter(f => {
@@ -698,14 +711,14 @@ watch(() => props.hoveredSlug, slug => {
 
 // Color all runs (curated + user) by difficulty class (V13).
 // null class_max → neutral gray; coalesce to -1 sentinel so step fires correctly.
-function difficultyColorExpr(): maplibregl.ExpressionSpecification {
+function difficultyColorExpr(): LineColorSpec {
   return ['step', ['coalesce', ['get', 'class_max'], -1],
     '#9ca3af',        // null/unknown → neutral gray
     0.01, '#16a34a',  // class I-II → green
     3.0,  '#3b82f6',  // class III → blue
     4.0,  '#1f2937',  // class IV → dark
     5.0,  '#dc2626',  // class V → red
-  ] as any
+  ]
 }
 </script>
 

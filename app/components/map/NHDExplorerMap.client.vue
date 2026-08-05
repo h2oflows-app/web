@@ -57,10 +57,9 @@ import { ref, watch, watchEffect, onMounted, onUnmounted, nextTick } from 'vue'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
-export interface NHDFeatureCollection {
-  type: string
-  features: any[]
-}
+// NLDI flowline/gauge responses are plain GeoJSON FeatureCollections; the alias
+// only exists to keep the prop signatures readable.
+export type NHDFeatureCollection = GeoJSON.FeatureCollection
 
 export interface AuthoringPin {
   lat: number
@@ -86,7 +85,7 @@ const props = defineProps<{
   // Suppresses all auto-fit behaviour — user controls the viewport entirely.
   disableAutoFit?:     boolean
   // Preview centerline GeoJSON — shown as a dashed highlight without storing.
-  previewCenterline?:  object | null
+  previewCenterline?:  GeoJSON.Geometry | null
   // Gauge selection mode: clicking a gauge circle emits gauge-select instead of a popup.
   gaugeSelectMode?:    boolean
   // Map container height. Defaults to '480px'. Pass '100%' to fill a sized parent.
@@ -184,7 +183,7 @@ function updatePreview() {
   const src = map.getSource('nhd-preview') as maplibregl.GeoJSONSource | undefined
   if (!src) return
   src.setData(props.previewCenterline
-    ? { type: 'Feature', geometry: props.previewCenterline as GeoJSON.Geometry, properties: {} }
+    ? { type: 'Feature', geometry: props.previewCenterline, properties: {} }
     : empty())
 }
 
@@ -241,6 +240,12 @@ function fitToData() {
   // When both reach pins are known, fit to just the reach extent — flowlines can
   // extend hundreds of km and would zoom way out on initial edit-page load.
   const allCoords: [number, number][] = []
+  // GeoJSON positions are `number[]`; MapLibre wants a 2-tuple. A well-formed
+  // feed always has both components, so this only drops malformed positions
+  // that would have produced NaN bounds anyway.
+  const pushPos = ([lng, lat]: GeoJSON.Position) => {
+    if (lng !== undefined && lat !== undefined) allCoords.push([lng, lat])
+  }
   if (props.putInPin && props.takeOutPin) {
     allCoords.push([props.putInPin.lng,   props.putInPin.lat])
     allCoords.push([props.takeOutPin.lng, props.takeOutPin.lat])
@@ -250,8 +255,8 @@ function fitToData() {
       for (const f of fc.features) {
         const geom = f.geometry
         if (!geom) continue
-        if (geom.type === 'LineString') allCoords.push(...geom.coordinates)
-        else if (geom.type === 'MultiLineString') allCoords.push(...geom.coordinates.flat())
+        if (geom.type === 'LineString') geom.coordinates.forEach(pushPos)
+        else if (geom.type === 'MultiLineString') geom.coordinates.flat().forEach(pushPos)
       }
     }
     if (props.putInPin)   allCoords.push([props.putInPin.lng,   props.putInPin.lat])
@@ -548,7 +553,7 @@ onMounted(async () => {
   await nextTick()
   // Two rAF passes: first clears the .client.vue / ClientOnly render deferral,
   // second waits for the browser layout so the container has non-zero dimensions.
-  await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+  await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())))
   initMap()
 })
 

@@ -19,9 +19,9 @@ onMounted(async () => {
     const res = await fetch(`${apiBase}/api/v1/gauges/${props.gaugeId}/readings?limit=2`)
     if (!res.ok) return
     const data = await res.json() as { cfs: number; timestamp: string }[]
-    if (data.length < 2) return
-    // API returns newest-first
+    // API returns newest-first; a delta needs both readings present
     const [latest, prev] = data
+    if (!latest || !prev) return
     const delta = latest.cfs - prev.cfs
     if (Math.abs(delta) < 5) trend.value = 'flat'
     else trend.value = delta > 0 ? 'rising' : 'falling'
