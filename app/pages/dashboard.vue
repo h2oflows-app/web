@@ -1307,7 +1307,22 @@ async function backfillGaugesFromUserReaches() {
   if (!token) return
   // Combine own runs + referenced runs — both need to appear in store.gauges
   // so the map populates and group-by-gauge can group across all run sources.
-  const allRuns = [...userReaches.value, ...referencedReaches.value]
+  //
+  // activeUserReaches, NOT userReaches. `userReaches` is every run the caller
+  // owns (GET /me/reaches is not dashboard-scoped), so backfilling from it put
+  // a gauge row on the dashboard for runs that were never added to it — and
+  // store.gauges renders straight through, bypassing the dashboardReachSlugs
+  // filter that activeUserReaches applies.
+  //
+  // The visible symptom was a run that could not be removed: the remove handler
+  // cleared the store row and issued DELETE /watchlist/{slug}?kind=reach, which
+  // returned 204 having deleted nothing (there was no row), and the next
+  // refresh re-injected it from here.
+  //
+  // Referenced runs never had this problem because loadReferencedRuns is
+  // dashboard-scoped, so referencedReaches already contains only what belongs
+  // on this dashboard. This makes own runs behave the same way.
+  const allRuns = [...activeUserReaches.value, ...referencedReaches.value]
   const missing = allRuns.filter(r =>
     r.gauge_id &&
     !store.gauges.some(g => g.id === r.gauge_id && g.contextReachSlug === r.slug)
