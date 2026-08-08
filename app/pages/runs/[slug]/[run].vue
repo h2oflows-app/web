@@ -150,7 +150,18 @@
             <span v-else-if="flagDone" class="text-xs text-red-400 px-1">Flagged</span>
 
             <!-- Dashboard picker (auth) -->
-            <RunDashboardMembershipPicker v-if="isAuthenticated && run" :slug="run.slug" :reach-id="run.id" />
+            <!-- DashboardMembershipPicker, NOT RunDashboardMembershipPicker:
+                 components register by FILENAME only (pathPrefix: false), so
+                 the directory-prefixed tag matched nothing and rendered
+                 silently as empty. That is why this page appeared to have no
+                 add-to-dashboard control at all. -->
+            <DashboardMembershipPicker
+              v-if="isAuthenticated && run"
+              :slug="run.slug"
+              :reach-id="run.id"
+              :is-own-run="isOwnRun"
+              :gauge-id="run.gauge_id"
+            />
           </div>
         </div>
 
