@@ -55,6 +55,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
+import type { ReachListItemBase, FlowStatus } from '~/types/reachList'
 import maplibregl from 'maplibre-gl'
 import type { LayerSpecification } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -63,36 +64,14 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 // itself, so derive the paint slot we need from the line-layer member of LayerSpecification.
 type LineColorSpec = NonNullable<NonNullable<Extract<LayerSpecification, { type: 'line' }>['paint']>['line-color']>
 
-export interface ReachListItem {
+// Identity, flow and the three sort keys come from the shared base — see
+// types/reachList.ts for why they are no longer declared per-component. What
+// stays here is map/pin-specific: a stable feature id and the upvote state the
+// pins and sidebar both render.
+export interface ReachListItem extends ReachListItemBase {
   id:           string | null
-  slug:         string
-  name:         string
-  common_name:  string | null
-  class_max:    number | null
-  flow_status:  string
-  current_cfs:  number | null
-  author_handle: string | null
-  river_name:   string | null
-  gauge_id:     string | null
   upvote_count: number
   user_upvoted: boolean
-  // River-position sort basis (mig 000150), same convention as
-  // dashboard.vue's UserReachSummary — elevation is direction-agnostic
-  // upstream/downstream signal, longitude is the fallback for reaches
-  // still missing an elevation lookup. Both null when the backing
-  // source doesn't supply them (e.g. the curated /reaches/map/all
-  // default source, untouched by issue #397 — see explore page's
-  // filteredSidebarGroups, which degrades gracefully to existing order
-  // when both are null).
-  put_in_lng:          number | null
-  put_in_elevation_ft: number | null
-  // Topological position (mig 000151, web#392) — the exact upstream→downstream
-  // key; the two above are proxies kept as fallbacks. The explore sidebar has
-  // read this since #405 without it being declared here: it imports
-  // ReachListItem from THIS file, while the identically-named interface in
-  // RunBrowseRow.vue is a separate declaration that did get the field. Nothing
-  // flagged the mismatch until vue-tsc was added.
-  river_sequence:      number | null
 }
 
 const props = defineProps<{
@@ -367,7 +346,11 @@ interface ReachFeature {
   geometry: ReachGeometry
   properties: {
     id: string; name: string; slug: string
-    class_max: number | null; flow_status: string; current_cfs: number | null
+    // FlowStatus, not string: this interface is a hand-written description of
+    // the API's GeoJSON, and the flow-status CASE emits exactly those four
+    // values. Leaving it wide was how the map side and the row side ended up
+    // disagreeing about the same field.
+    class_max: number | null; flow_status: FlowStatus; current_cfs: number | null
     put_in_name: string | null; take_out_name: string | null; common_name: string | null
     river_name: string | null; gauge_id: string | null
     author_handle?: string | null
