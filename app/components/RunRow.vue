@@ -49,8 +49,11 @@
     <!-- Trailing: run rows hug the badge to the cfs value; gauge sub-rows show a
          fixed-width badge column (no cfs of their own) so trash icons align. -->
     <div v-if="variant === 'run'" class="flex items-center gap-1.5 shrink-0">
-      <span :class="['inline-flex items-center justify-center min-w-14 rounded-full px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold', hasBadge ? badgeClass : PLACEHOLDER_BADGE]">{{ hasBadge ? badgeLabel : '–' }}</span>
-      <span class="font-bold tabular-nums leading-none text-sm sm:text-base whitespace-nowrap" :style="{ color: colorHex }">{{ cfsText }}<span class="text-[10px] sm:text-xs font-normal text-neutral-400 dark:text-neutral-500"> cfs</span></span>
+      <span :class="['inline-flex items-center justify-center min-w-14 rounded-full px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold', hasBadge && hasGauge ? badgeClass : PLACEHOLDER_BADGE]">{{ !hasGauge ? 'No gauge' : hasBadge ? badgeLabel : '–' }}</span>
+      <!-- cfs is suppressed rather than shown as an em-dash: with no gauge there
+           is no reading to be missing, and "— cfs" beside "No gauge" says the
+           same thing twice. -->
+      <span v-if="hasGauge" class="font-bold tabular-nums leading-none text-sm sm:text-base whitespace-nowrap" :style="{ color: colorHex }">{{ cfsText }}<span class="text-[10px] sm:text-xs font-normal text-neutral-400 dark:text-neutral-500"> cfs</span></span>
     </div>
     <div v-else class="w-20 shrink-0 text-center">
       <span :class="['inline-flex items-center justify-center min-w-14 rounded-full px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold', hasBadge ? badgeClass : PLACEHOLDER_BADGE]">{{ hasBadge ? badgeLabel : '–' }}</span>
@@ -78,8 +81,12 @@
         </div>
       </div>
       <div class="shrink-0 flex items-center gap-1">
-        <span v-if="hasBadge" :class="['shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', badgeClass]">{{ badgeLabel }}</span>
-        <span class="font-bold tabular-nums leading-none text-3xl" :style="{ color: colorHex }">{{ cfsText }}<span class="text-xs font-normal text-neutral-500 dark:text-neutral-400 ml-0.5">cfs</span></span>
+        <!-- Card density hid the badge entirely when there was nothing to show,
+             leaving a bare em-dash at text-3xl as the only content. The neutral
+             pill now fills that slot instead. -->
+        <span v-if="!hasGauge" :class="['shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', PLACEHOLDER_BADGE]">No gauge</span>
+        <span v-else-if="hasBadge" :class="['shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold', badgeClass]">{{ badgeLabel }}</span>
+        <span v-if="hasGauge" class="font-bold tabular-nums leading-none text-3xl" :style="{ color: colorHex }">{{ cfsText }}<span class="text-xs font-normal text-neutral-500 dark:text-neutral-400 ml-0.5">cfs</span></span>
         <TrashButton :label="removeLabel" @click="$emit('remove')" />
       </div>
     </div>
@@ -147,6 +154,22 @@ defineEmits<{ open: []; remove: [] }>()
 // Gate-false placeholder pill (list density). Distinct from colorKeyToBadgeClass('')
 // (the resolved-but-bandless gray) — this is the neutral "no data" slot.
 const PLACEHOLDER_BADGE = 'bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500'
+
+// A run with no gauge of any kind (#417). 18 of 135 live runs, and many are
+// permanently ungauged by nature — Oh-be-Joyful, Needle Creek, Dream Canyon.
+// There is no gauge to attach and there never will be, so this is a property of
+// the creek rather than a defect in the record.
+//
+// That is why it reads as a neutral label and NOT a warning icon: nothing is
+// wrong and there is no action to take, and an unactionable caution sitting
+// permanently on an eighth of the dashboard is noise that devalues the warnings
+// that do matter. It also deliberately says "No gauge" rather than "Ungauged" —
+// the first is a statement about this record, which is true whether the creek
+// has no gauge at all or simply hasn't had one attached yet.
+//
+// Without it the row is a bare em-dash with no badge and no sparkline, which
+// looks identical to a gauge that failed to load or hasn't fetched yet.
+const hasGauge = computed(() => !!(props.vm.gaugeId || props.vm.customGaugeSlug))
 
 const { bandForCfs } = useRunFlowBand()
 const { bandSolid, bandBadgeClass } = useFlowBandPalette()
