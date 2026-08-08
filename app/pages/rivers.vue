@@ -165,7 +165,19 @@ function buildTree(items: ReachListItem[]): BasinGroup[] {
     .map(([basin, riverMap]) => {
       const rivers = [...riverMap.entries()]
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([name, reaches]) => ({ name, reaches }))
+        // Runs WITHIN a river were never sorted here — they rendered in
+        // whatever order the API returned, which until api#411 was by the
+        // GAUGE's elevation and so tied for every run sharing a gauge. The API
+        // orders correctly now, but sorting explicitly on the shared comparator
+        // means this page no longer depends on that silently.
+        .map(([name, reaches]) => ({
+          name,
+          reaches: sortByRiverPosition(reaches, r => ({
+            sequence: r.river_sequence,
+            elevationFt: r.put_in_elevation_ft,
+            lng: r.put_in_lng,
+          })),
+        }))
       const reachCount = rivers.reduce((s, r) => s + r.reaches.length, 0)
       return { name: basin, reachCount, rivers }
     })

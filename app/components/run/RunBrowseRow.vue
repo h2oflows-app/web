@@ -62,38 +62,26 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import type { ReachListItemBase } from '~/types/reachList'
 import { classRange } from '~/utils/classRating'
 import { flowBandLabel } from '~/utils/flowBand'
 
-export interface ReachListItem {
-  slug: string
-  name: string
-  river_name: string | null
-  common_name: string | null
+// Identity, flow and the three sort keys come from the shared base — see
+// types/reachList.ts. What stays here is row-rendering specific: the endpoint
+// labels, basin/state grouping, and the gauge details this row displays but the
+// map pins have no use for.
+export interface ReachListItem extends ReachListItemBase {
   put_in_name: string | null
   take_out_name: string | null
   basin: string | null
   state_abbr: string | null
   class_min: number | null
-  class_max: number | null
-  current_cfs: number | null
   flow_label: string | null
-  flow_status: 'runnable' | 'caution' | 'flood' | 'unknown'
-  gauge_id: string | null
   gauge_external_id: string | null
   gauge_source: string | null
   gauge_name: string | null
   gauge_status: string | null
   is_special?: boolean
-  author_handle?: string | null
-  // Upstream→downstream sort keys, in tier order (utils/riverPosition.ts).
-  // The explore sidebar has read these since #397 but the interface never
-  // declared them — the repo has no vue-tsc, so nothing flagged it.
-  // river_sequence is the exact topological key (mig 000151, web#392); the
-  // other two are proxies kept as fallbacks for unsequenced rivers.
-  river_sequence?: number | null
-  put_in_elevation_ft?: number | null
-  put_in_lng?: number | null
 }
 
 const { bandBadgeClass } = useFlowBandPalette()
