@@ -81,7 +81,16 @@
             </button>
 
             <!-- Dashboard picker (auth only) -->
-            <RunDashboardMembershipPicker v-if="isAuthenticated && run" :slug="run.slug" :reach-id="run.id" />
+            <!-- See the sibling page: the Run-prefixed tag never resolved
+                 (pathPrefix: false registers by filename), so this rendered
+                 nothing. -->
+            <DashboardMembershipPicker
+              v-if="isAuthenticated && run"
+              :slug="run.slug"
+              :reach-id="run.id"
+              :is-own-run="isOwnRun"
+              :gauge-id="run.gauge_id"
+            />
 
             <!-- Fork (auth only) -->
             <button
