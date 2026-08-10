@@ -159,7 +159,7 @@
               v-if="isAuthenticated && run"
               :slug="run.slug"
               :reach-id="run.id"
-              :is-own-run="isOwnRun"
+              :is-own-run="isRunOwner"
               :gauge-id="run.gauge_id"
             />
           </div>
@@ -508,7 +508,11 @@ interface PublicRunDetail {
   flow_bands?: { base_label: string; base_color: string; thresholds: Array<{ value: number; label: string; color: string }> }
   rapids: RunRapid[]; access_points: RunAccessPoint[]
   upvote_count: number; user_upvoted: boolean; centerline: object | null
+  // is_own = "I may EDIT this" — true for house runs when you hold that
+  // account's role. is_owner is strict (owner_id === me). Use is_owner for
+  // anything deciding how a run is STORED; is_own is for edit affordances.
   is_own?: boolean
+  is_owner?: boolean
   deleted_at?: string | null
 }
 interface FlowRangeProposal {
@@ -588,6 +592,8 @@ async function loadCluster() {
 
 const upvoteCount  = computed(() => run.value?.upvote_count ?? 0)
 const isOwnRun     = computed(() => run.value?.is_own ?? false)
+// Strict ownership, for the dashboard picker only — see the type above.
+const isRunOwner   = computed(() => run.value?.is_owner ?? false)
 const userUpvoted  = ref(false)
 watch(() => run.value?.user_upvoted, v => { if (v != null) userUpvoted.value = v }, { immediate: true })
 

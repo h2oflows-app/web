@@ -88,7 +88,7 @@
               v-if="isAuthenticated && run"
               :slug="run.slug"
               :reach-id="run.id"
-              :is-own-run="isOwnRun"
+              :is-own-run="isRunOwner"
               :gauge-id="run.gauge_id"
             />
 
@@ -517,7 +517,10 @@ interface PublicRunDetail {
   upvote_count:     number
   user_upvoted:     boolean
   centerline:       object | null
+  // is_own = "I may EDIT this" (true for house runs if you hold that role);
+  // is_owner is strict. Storage decisions use is_owner — see the sibling page.
   is_own?:          boolean
+  is_owner?:        boolean
   deleted_at?:      string | null
 }
 
@@ -650,6 +653,7 @@ async function loadCluster() {
 
 const upvoteCount = computed(() => run.value?.upvote_count ?? 0)
 const isOwnRun    = computed(() => run.value?.is_own ?? false)
+const isRunOwner  = computed(() => run.value?.is_owner ?? false)
 const userUpvoted = ref(false)
 const upvoteLoading = ref(false)
 

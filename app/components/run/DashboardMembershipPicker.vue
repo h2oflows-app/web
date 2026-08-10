@@ -112,38 +112,50 @@ async function toggleDashboard(dashboardId: string) {
     const token = await getToken()
     if (!token) return
     const isReference = props.isOwnRun === false && !!props.reachId
+    // Every toast below is gated on res?.ok. It previously fired
+    // unconditionally after a `.catch(() => {})`, so a request that failed —
+    // or that the server accepted while doing something other than what was
+    // asked — still reported "Added to dashboard" and the row simply never
+    // appeared. A success message that cannot fail is worse than none.
+    let res: Response | null = null
     if (membershipIds.value.has(dashboardId)) {
       const db = encodeURIComponent(dashboardId)
       const kind = isReference ? 'reference' : 'reach'
       const key = isReference ? props.reachId! : props.slug
-      await fetch(`${apiBase}/api/v1/watchlist/${encodeURIComponent(key)}?kind=${kind}&dashboard_id=${db}`, {
+      res = await fetch(`${apiBase}/api/v1/watchlist/${encodeURIComponent(key)}?kind=${kind}&dashboard_id=${db}`, {
         method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {})
-      toast.add({ title: 'Removed from dashboard', color: 'neutral' })
+      }).catch(() => null)
+      toast.add(res?.ok
+        ? { title: 'Removed from dashboard', color: 'neutral' }
+        : { title: 'Could not remove from dashboard', color: 'error' })
     } else if (isReference) {
-      await fetch(`${apiBase}/api/v1/user-runs/${encodeURIComponent(props.reachId!)}/add-to-dashboard`, {
+      res = await fetch(`${apiBase}/api/v1/user-runs/${encodeURIComponent(props.reachId!)}/add-to-dashboard`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ dashboard_id: dashboardId }),
-      }).catch(() => {})
-      toast.add({ title: 'Added to dashboard', color: 'success' })
+      }).catch(() => null)
+      toast.add(res?.ok
+        ? { title: 'Added to dashboard', color: 'success' }
+        : { title: 'Could not add to dashboard', color: 'error' })
     } else {
-      await fetch(`${apiBase}/api/v1/watchlist`, {
+      res = await fetch(`${apiBase}/api/v1/watchlist`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         // gauge_id when the run has one, so it groups under that gauge on the
         // dashboard rather than rendering as a loose row (matches explore).
         body: JSON.stringify({ reach_slug: props.slug, gauge_id: props.gaugeId ?? null, dashboard_id: dashboardId }),
-      }).catch(() => {})
+      }).catch(() => null)
       // Clear per-dashboard hidden flag so re-added reach appears immediately
-      if (import.meta.client && props.reachId) {
+      if (res?.ok && import.meta.client && props.reachId) {
         const key = `h2oflow_hidden_reaches_${dashboardId}`
         try {
           const set = new Set<string>(JSON.parse(localStorage.getItem(key) ?? '[]'))
           if (set.delete(props.reachId)) localStorage.setItem(key, JSON.stringify([...set]))
         } catch {}
       }
-      toast.add({ title: 'Added to dashboard', color: 'success' })
+      toast.add(res?.ok
+        ? { title: 'Added to dashboard', color: 'success' }
+        : { title: 'Could not add to dashboard', color: 'error' })
     }
     await loadMembership()
   } finally {
