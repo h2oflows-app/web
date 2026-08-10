@@ -48,9 +48,26 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 
+/**
+ * isOwnRun decides HOW the run is added, and getting it wrong fails silently
+ * rather than erroring (#422):
+ *
+ *   own run   -> a watchlist row keyed by reach_slug
+ *   other's   -> a REFERENCE keyed by run id, via /user-runs/{id}/add-to-dashboard
+ *
+ * The dashboard loads those two through different paths (dashboardReachSlugs
+ * vs the dashboard-scoped referenced-runs endpoint), so posting a reach_slug
+ * row for a run you don't own writes a row nothing ever reads.
+ *
+ * gaugeId links the row to the run's gauge when it has one, matching how
+ * explore adds runs, so it groups under that gauge on the dashboard instead of
+ * rendering as a loose row.
+ */
 const props = defineProps<{
-  slug:     string
-  reachId?: string
+  slug:      string
+  reachId?:  string
+  isOwnRun?: boolean
+  gaugeId?:  string | null
 }>()
 
 const { apiBase } = useRuntimeConfig().public
@@ -75,7 +92,13 @@ async function loadMembership() {
     const data = await res.json()
     const ids = new Set<string>()
     for (const item of data.items ?? []) {
-      if (item.reach_slug === props.slug && item.dashboard_id) ids.add(item.dashboard_id)
+      if (!item.dashboard_id) continue
+      // Match on whichever key this run would have been stored under — a
+      // reach_slug row for your own run, a reference row for anyone else's.
+      const own = props.isOwnRun !== false && item.reach_slug === props.slug
+      const ref_ = props.isOwnRun === false && props.reachId
+        && item.referenced_user_reach_id === props.reachId
+      if (own || ref_) ids.add(item.dashboard_id)
     }
     membershipIds.value = ids
   } finally {
@@ -88,27 +111,51 @@ async function toggleDashboard(dashboardId: string) {
   try {
     const token = await getToken()
     if (!token) return
+    const isReference = props.isOwnRun === false && !!props.reachId
+    // Every toast below is gated on res?.ok. It previously fired
+    // unconditionally after a `.catch(() => {})`, so a request that failed —
+    // or that the server accepted while doing something other than what was
+    // asked — still reported "Added to dashboard" and the row simply never
+    // appeared. A success message that cannot fail is worse than none.
+    let res: Response | null = null
     if (membershipIds.value.has(dashboardId)) {
       const db = encodeURIComponent(dashboardId)
-      await fetch(`${apiBase}/api/v1/watchlist/${encodeURIComponent(props.slug)}?kind=reach&dashboard_id=${db}`, {
+      const kind = isReference ? 'reference' : 'reach'
+      const key = isReference ? props.reachId! : props.slug
+      res = await fetch(`${apiBase}/api/v1/watchlist/${encodeURIComponent(key)}?kind=${kind}&dashboard_id=${db}`, {
         method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {})
-      toast.add({ title: 'Removed from dashboard', color: 'neutral' })
-    } else {
-      await fetch(`${apiBase}/api/v1/watchlist`, {
+      }).catch(() => null)
+      toast.add(res?.ok
+        ? { title: 'Removed from dashboard', color: 'neutral' }
+        : { title: 'Could not remove from dashboard', color: 'error' })
+    } else if (isReference) {
+      res = await fetch(`${apiBase}/api/v1/user-runs/${encodeURIComponent(props.reachId!)}/add-to-dashboard`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reach_slug: props.slug, dashboard_id: dashboardId }),
-      }).catch(() => {})
+        body: JSON.stringify({ dashboard_id: dashboardId }),
+      }).catch(() => null)
+      toast.add(res?.ok
+        ? { title: 'Added to dashboard', color: 'success' }
+        : { title: 'Could not add to dashboard', color: 'error' })
+    } else {
+      res = await fetch(`${apiBase}/api/v1/watchlist`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        // gauge_id when the run has one, so it groups under that gauge on the
+        // dashboard rather than rendering as a loose row (matches explore).
+        body: JSON.stringify({ reach_slug: props.slug, gauge_id: props.gaugeId ?? null, dashboard_id: dashboardId }),
+      }).catch(() => null)
       // Clear per-dashboard hidden flag so re-added reach appears immediately
-      if (import.meta.client && props.reachId) {
+      if (res?.ok && import.meta.client && props.reachId) {
         const key = `h2oflow_hidden_reaches_${dashboardId}`
         try {
           const set = new Set<string>(JSON.parse(localStorage.getItem(key) ?? '[]'))
           if (set.delete(props.reachId)) localStorage.setItem(key, JSON.stringify([...set]))
         } catch {}
       }
-      toast.add({ title: 'Added to dashboard', color: 'success' })
+      toast.add(res?.ok
+        ? { title: 'Added to dashboard', color: 'success' }
+        : { title: 'Could not add to dashboard', color: 'error' })
     }
     await loadMembership()
   } finally {
