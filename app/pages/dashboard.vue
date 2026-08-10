@@ -437,6 +437,8 @@
                           name-prominent
                           :show-river="!showRivers"
                           remove-label="Remove from dashboard"
+                          show-view
+                          :show-edit="!r.is_reference"
                           @open="openUserReach(r)"
                           @remove="removeUserReach(r)"
                         />
@@ -476,6 +478,8 @@
                           show-owner-right
                           :show-river="!showRivers"
                           remove-label="Remove from dashboard"
+                          show-view
+                          :show-edit="!r.is_reference"
                           @open="openUserReach(r)"
                           @remove="removeUserReach(r)"
                         />
