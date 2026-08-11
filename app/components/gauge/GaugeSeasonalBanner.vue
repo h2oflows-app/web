@@ -1,8 +1,14 @@
 <template>
-  <div v-if="currentMonth" class="rounded-lg px-3 py-2 text-xs bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 space-y-2">
+  <div v-if="currentMonth" :class="rootClass">
+    <!-- Drawer variant: the inline "Seasonal context" strong is promoted to a section label -->
+    <span
+      v-if="variant === 'drawer'"
+      class="text-[9.5px] font-bold uppercase tracking-[0.11em] text-neutral-500 dark:text-neutral-400"
+    >Seasonal context</span>
+
     <div class="flex items-center justify-between gap-3">
-      <span>
-        <strong>Seasonal context</strong> —
+      <span :class="sentenceClass">
+        <template v-if="variant === 'card'"><strong>Seasonal context</strong> —</template>
         {{ monthName }} median {{ medianLabel }}
         <template v-if="percentileLabel"> · <strong>{{ percentileLabel }}</strong></template>
         <template v-if="currentMonth.count > 0"> · {{ currentMonth.count }}-yr record</template>
@@ -10,7 +16,7 @@
     </div>
 
     <!-- 12-month bar chart -->
-    <div class="flex items-end gap-px h-8">
+    <div :class="stripClass">
       <div
         v-for="m in months"
         :key="m.month"
@@ -29,50 +35,73 @@
     </div>
 
     <!-- Month labels: Jan, current month, Dec -->
-    <div class="flex justify-between text-[9px] text-indigo-400 dark:text-indigo-500 -mt-1">
+    <div :class="labelRowClass">
       <span>Jan</span>
-      <span class="font-semibold text-indigo-600 dark:text-indigo-300">{{ monthName }}</span>
+      <span :class="currentLabelClass">{{ monthName }}</span>
       <span>Dec</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed } from 'vue'
+import { useGaugeSeasonal } from '~/composables/useGaugeSeasonal'
 
-const props = defineProps<{
-  gaugeId: string
+const props = withDefaults(defineProps<{
+  gaugeId:     string
   currentCfs?: number | null
-}>()
-
-const { apiBase } = useRuntimeConfig().public
+  /** `card` = the standalone banner under the panel graph (unchanged).
+   *  `drawer` = chrome-less section inside the gauge sheet's Season & cycle drawer. */
+  variant?:    'card' | 'drawer'
+}>(), {
+  currentCfs: null,
+  variant:    'card',
+})
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-interface MonthStats {
-  month:    number
-  mean:     number | null
-  p10:      number | null
-  p25:      number | null
-  p50:      number | null
-  p75:      number | null
-  p90:      number | null
-  count:    number
-  coverage: number  // 0–1 relative to most-active month
+// One shared request per gauge id — the sheet's graph consumes the same composable.
+const { stats, currentMonth } = useGaugeSeasonal(() => props.gaugeId)
+
+const nowMonth  = new Date().getMonth() + 1 // 1-12
+const monthName = computed(() => MONTH_NAMES[nowMonth - 1])
+
+// ---- Variant chrome ---------------------------------------------------------
+
+const rootClass = computed(() =>
+  props.variant === 'drawer'
+    ? 'flex flex-col gap-2.5'
+    : 'rounded-lg px-3 py-2 text-xs bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 space-y-2'
+)
+
+const sentenceClass = computed((): string | undefined =>
+  props.variant === 'drawer' ? 'text-xs text-neutral-700 dark:text-neutral-200' : undefined
+)
+
+const stripClass = computed(() =>
+  props.variant === 'drawer'
+    ? 'flex items-end gap-0.5 h-16'
+    : 'flex items-end gap-px h-8'
+)
+
+const labelRowClass = computed(() =>
+  props.variant === 'drawer'
+    ? 'flex justify-between text-[9.5px] text-neutral-500 dark:text-neutral-400'
+    : 'flex justify-between text-[9px] text-indigo-400 dark:text-indigo-500 -mt-1'
+)
+
+const currentLabelClass = computed(() =>
+  props.variant === 'drawer'
+    ? 'font-bold text-indigo-600 dark:text-indigo-300'
+    : 'font-semibold text-indigo-600 dark:text-indigo-300'
+)
+
+// ---- Bars -------------------------------------------------------------------
+
+interface BarMonth {
+  month: number; heightPct: number; label: string
+  offline: boolean; dim: boolean; coverage: number
 }
-
-const stats = ref<MonthStats[]>([])
-const nowMonth = new Date().getMonth() + 1 // 1-12
-
-onMounted(async () => {
-  try {
-    const res = await fetch(`${apiBase}/api/v1/gauges/${props.gaugeId}/seasonal`)
-    if (res.ok) stats.value = await res.json()
-  } catch { /* non-fatal */ }
-})
-
-const currentMonth = computed(() => stats.value.find(s => s.month === nowMonth) ?? null)
-const monthName    = computed(() => MONTH_NAMES[nowMonth - 1])
 
 // Bar chart: scale each month's median relative to the max median across the year
 const months = computed((): BarMonth[] => {
@@ -91,11 +120,6 @@ const months = computed((): BarMonth[] => {
     }
   })
 })
-
-interface BarMonth {
-  month: number; heightPct: number; label: string
-  offline: boolean; dim: boolean; coverage: number
-}
 
 function barClass(m: BarMonth) {
   if (m.offline) return 'bg-neutral-200 dark:bg-neutral-700 text-neutral-400 dark:text-neutral-600'

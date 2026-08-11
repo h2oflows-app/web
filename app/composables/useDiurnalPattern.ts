@@ -25,6 +25,16 @@ export interface DiurnalPattern {
   troughCfs:         number | null
   swingPct:          number | null   // (peak − trough) / trough × 100
   forecast:          DiurnalForecast | null  // 4h look-ahead
+  /**
+   * Yesterday's hourly profile — index is the local hour (0–23), value is the
+   * mean cfs of that hour's readings, `null` where the hour has no reading.
+   * This is the exact bucketing `computeForecast` interpolates from, published
+   * so UI can draw the 24-hour strip without re-deriving (or inventing) it.
+   *
+   * Optional only so pre-existing partial `DiurnalPattern` literals elsewhere
+   * still typecheck; every pattern returned by `useDiurnalPattern` has it.
+   */
+  hourly?:           Array<number | null>
 }
 
 interface Reading {
@@ -40,6 +50,7 @@ const NULL_PATTERN: DiurnalPattern = {
   troughCfs:         null,
   swingPct:          null,
   forecast:          null,
+  hourly:            Array.from({ length: 24 }, () => null),
 }
 
 /**
@@ -85,8 +96,12 @@ export function useDiurnalPattern(readings: Reading[]): DiurnalPattern {
   // Pattern confirmed. Now determine today's phase.
   const phase = detectPhase(today, yPeak.cfs, yTrough.cfs)
 
+  // Yesterday's hourly curve — the template both the 4h look-ahead and the
+  // hour strip read from, so the two can never disagree.
+  const hourly = bucketHourlyMeans(yesterday)
+
   // 4-hour look-ahead: estimate CFS by interpolating yesterday's hourly curve.
-  const forecast = computeForecast(yesterday, 4)
+  const forecast = computeForecast(yesterday, 4, hourly)
 
   return {
     detected:          true,
@@ -96,6 +111,7 @@ export function useDiurnalPattern(readings: Reading[]): DiurnalPattern {
     troughCfs:         yTrough.cfs,
     swingPct:          Math.round(swing),
     forecast,
+    hourly,
   }
 }
 
@@ -138,28 +154,44 @@ function detectPhase(
 }
 
 /**
- * Estimate what CFS will be `hoursAhead` hours from now, using yesterday's
- * hourly profile as the template. Finds the reading from yesterday at the
- * same hour-of-day as the target time.
+ * Bucket readings by local hour-of-day and average each bucket.
+ * Returns a 24-slot array indexed by hour; `null` where no reading landed
+ * in that hour. No smoothing, no interpolation — empty hours stay empty.
  */
-function computeForecast(yesterday: Reading[], hoursAhead: number): DiurnalForecast | null {
-  if (yesterday.length < 8) return null
-
-  const targetTime = new Date(Date.now() + hoursAhead * 3_600_000)
-  const targetHour = targetTime.getHours()
-
-  // Bucket yesterday's readings by hour, take the average per bucket.
+function bucketHourlyMeans(readings: Reading[]): Array<number | null> {
   const buckets = new Map<number, number[]>()
-  for (const r of yesterday) {
+  for (const r of readings) {
     const h = new Date(r.timestamp).getHours()
     if (!buckets.has(h)) buckets.set(h, [])
     buckets.get(h)!.push(r.cfs)
   }
 
-  const hourAvg = buckets.get(targetHour)
-  if (!hourAvg || hourAvg.length === 0) return null
+  return Array.from({ length: 24 }, (_, h) => {
+    const vals = buckets.get(h)
+    if (!vals || vals.length === 0) return null
+    return vals.reduce((a, b) => a + b, 0) / vals.length
+  })
+}
 
-  const cfs = Math.round(hourAvg.reduce((a, b) => a + b, 0) / hourAvg.length)
+/**
+ * Estimate what CFS will be `hoursAhead` hours from now, using yesterday's
+ * hourly profile as the template. Finds the reading from yesterday at the
+ * same hour-of-day as the target time.
+ */
+function computeForecast(
+  yesterday: Reading[],
+  hoursAhead: number,
+  hourly: Array<number | null>,
+): DiurnalForecast | null {
+  if (yesterday.length < 8) return null
+
+  const targetTime = new Date(Date.now() + hoursAhead * 3_600_000)
+  const targetHour = targetTime.getHours()
+
+  const hourAvg = hourly[targetHour]
+  if (hourAvg == null) return null
+
+  const cfs = Math.round(hourAvg)
   const ampm = targetHour >= 12 ? 'pm' : 'am'
   const display = targetHour % 12 === 0 ? 12 : targetHour % 12
 

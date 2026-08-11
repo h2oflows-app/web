@@ -32,6 +32,39 @@
   }
 }
 
+/* Chart canvas tokens.
+ *
+ * uPlot paints to a canvas, which cannot read Tailwind classes — GaugeGraph
+ * resolves these with getComputedStyle() on its chart container at draw time,
+ * so the canvas follows the app color mode like everything else. Light values
+ * sit on :root, dark overrides under `.dark` (the class @nuxt/ui's color mode
+ * toggles on <html>); `.dark` wins on source order at equal specificity.
+ *
+ * Flow-band colors are deliberately NOT here: those come from
+ * useFlowBandPalette / colorKeyToHex so a palette change carries through.
+ *
+ * --chart-fill-* are the alpha stops of the sheet variant's single vertical
+ * gradient (top / 46% / bottom), per the #361 token table. */
+:root {
+  --chart-grid:         rgba(15, 23, 42, 0.05);  /* slate-900 @ 5% */
+  --chart-axis:         #9ca3af;                 /* gray-400   */
+  --chart-neutral-line: #6b7280;                 /* gray-500   */
+  --seasonal-line:      #6366f1;                 /* indigo-500 */
+  --chart-fill-top:     0.03;
+  --chart-fill-mid:     0.22;
+  --chart-fill-bottom:  0.70;
+}
+
+.dark {
+  --chart-grid:         rgba(255, 255, 255, 0.05);
+  --chart-axis:         rgba(255, 255, 255, 0.34);
+  --chart-neutral-line: #9ca3af;                 /* gray-400   */
+  --seasonal-line:      #a5b4fc;                 /* indigo-300 */
+  --chart-fill-top:     0.02;
+  --chart-fill-mid:     0.16;
+  --chart-fill-bottom:  0.55;
+}
+
 /* Font-scheme face registration.
  *
  * @nuxt/fonts emits @font-face only for families it sees referenced in CSS at
