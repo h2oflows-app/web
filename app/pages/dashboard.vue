@@ -438,7 +438,6 @@
                           :show-river="!showRivers"
                           remove-label="Remove from dashboard"
                           show-view
-                          :show-edit="!r.is_reference"
                           @open="openUserReach(r)"
                           @remove="removeUserReach(r)"
                         />
@@ -479,7 +478,6 @@
                           :show-river="!showRivers"
                           remove-label="Remove from dashboard"
                           show-view
-                          :show-edit="!r.is_reference"
                           @open="openUserReach(r)"
                           @remove="removeUserReach(r)"
                         />
