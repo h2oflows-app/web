@@ -52,6 +52,7 @@
         view-mode="list"
         variant="gauge-subrow"
         :show-river="false"
+        show-view
         :live-cfs-override="liveCfs"
         @open="$emit('open', item, 'reach')"
         @remove="$emit('remove-item', item)"
@@ -151,7 +152,6 @@
         variant="gauge-subrow"
         :show-river="false"
         show-view
-        :show-edit="!item.contextIsReference"
         show-owner-right
         :live-cfs-override="liveCfs"
         @open="$emit('open', item, 'reach')"

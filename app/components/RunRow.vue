@@ -17,9 +17,6 @@
           v-if="showRiver && vm.riverName"
           class="hidden sm:inline text-[11px] text-neutral-400 dark:text-neutral-500 shrink-0 truncate"
         >· {{ vm.riverName }}</span>
-        <NuxtLink v-if="showEdit" :to="editTo" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="Edit" title="Edit" @click.stop>
-          <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/></svg>
-        </NuxtLink>
         <NuxtLink v-if="showView" :to="detailTo" class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-colors" aria-label="View" title="View" @click.stop>
           <svg class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11"/></svg>
         </NuxtLink>
@@ -128,7 +125,6 @@ const props = withDefaults(defineProps<{
   // from the explicit View (showView) affordance.
   nameProminent?: boolean
   showView?: boolean
-  showEdit?: boolean
   showOwnerRight?: boolean
   showRiver?: boolean
   // Wire the sparkline's live cfs back into the badge/color (gauge groups do
@@ -142,7 +138,6 @@ const props = withDefaults(defineProps<{
   variant: 'run',
   nameProminent: false,
   showView: false,
-  showEdit: false,
   showOwnerRight: false,
   showRiver: true,
   liveFlow: false,
@@ -218,7 +213,6 @@ const cfsText = computed(() =>
 )
 
 const detailTo = computed(() => `/runs/${props.vm.authorHandle ?? 'h2oflows'}/${props.vm.slug}`)
-const editTo = computed(() => `/my/runs/${props.vm.slug}`)
 
 // Prominent names keep their heavier weight but no longer carry a
 // hover-to-primary colour shift: that read as "this text is its own link",
