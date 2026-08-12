@@ -1,115 +1,58 @@
 <template>
-  <div :class="rootClass">
-    <!-- Time window toggle — panel variant only, and hidden when parent controls hours externally -->
-    <div v-if="chartVariant === 'panel' && !props.controlledHours" class="flex justify-end">
-      <div class="flex text-xs rounded overflow-hidden border border-neutral-200 dark:border-neutral-700">
-        <button
-          v-for="[h, label] in ([[12,'12h'],[24,'1d'],[168,'1w'],[720,'1m']] as const)"
-          :key="h"
-          class="px-2 py-1 transition-colors"
-          :class="hours === h ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
-          @click="hours = h"
-        >{{ label }}</button>
-      </div>
-    </div>
+  <!-- Chart container — always mounted so the ref is never torn down mid-update.
+       Overlay states sit on top without removing the canvas from the DOM.
+       Sheet variant takes its height from the container (parent flex-grows it);
+       strip keeps an explicit pixel height. -->
+  <div
+    class="relative w-full overflow-hidden"
+    :class="chartVariant === 'sheet' ? 'h-full' : ''"
+    :style="chartBoxStyle"
+  >
+    <div ref="container" class="w-full h-full" />
 
-    <!-- Chart container — always mounted so the ref is never torn down mid-update.
-         Overlay states sit on top without removing the canvas from the DOM.
-         Sheet variant takes its height from the container (parent flex-grows it);
-         panel/strip keep an explicit pixel height. -->
-    <div
-      class="relative w-full overflow-hidden"
-      :class="chartVariant === 'sheet' ? 'h-full' : ''"
-      :style="chartBoxStyle"
-    >
-      <div ref="container" class="w-full h-full" />
-
-      <!-- Sheet overlays. DOM rather than canvas text so they inherit the app
-           font stack and theme tokens, positioned from the live y-scale and
-           re-synced by the uPlot draw hook on every redraw / resize. -->
-      <template v-if="chartVariant === 'sheet'">
-        <div
-          v-for="t in yTicks"
-          :key="`y-${t.value}`"
-          class="absolute left-3.5 -translate-y-1/2 text-[10px] font-medium tabular-nums pointer-events-none"
-          :style="{ top: `${t.top}px`, color: 'var(--chart-axis)' }"
-        >{{ t.label }}</div>
-
-        <div
-          v-for="l in lineOverlays"
-          :key="`ref-${l.label}-${l.value}`"
-          class="absolute -translate-y-full px-1 text-[10px] font-bold uppercase tracking-[0.09em] pointer-events-none"
-          :class="l.align === 'left' ? 'left-4 text-left' : 'right-4 text-right'"
-          :style="{ top: `${l.top}px`, color: l.color }"
-        >{{ l.label }} · <span class="tabular-nums">{{ l.valueText }}</span></div>
-
-        <div
-          v-if="baseOverlay"
-          class="absolute -translate-y-full px-1 text-[10px] font-bold uppercase tracking-[0.09em] pointer-events-none"
-          :class="baseOverlay.align === 'left' ? 'left-4 text-left' : 'right-4 text-right'"
-          :style="{ top: `${baseOverlay.top}px`, color: baseOverlay.color }"
-        >{{ baseOverlay.label }}</div>
-      </template>
-
-      <!-- Hover tooltip — present in every variant. Sits above the sheet shell's
-           header scrim (z-20) and x-axis strip (z-10), which would otherwise
-           swallow it over the peaks; still below the drawer (z-30). -->
+    <!-- Sheet overlays. DOM rather than canvas text so they inherit the app
+         font stack and theme tokens, positioned from the live y-scale and
+         re-synced by the uPlot draw hook on every redraw / resize. -->
+    <template v-if="chartVariant === 'sheet'">
       <div
-        ref="tooltipEl"
-        class="absolute pointer-events-none text-xs bg-neutral-900/90 text-white rounded px-1.5 py-0.5 whitespace-nowrap translate-x-2 -translate-y-full"
-        style="display:none; z-index:25"
-      />
-      <div
-        v-if="loading"
-        class="absolute inset-0 flex items-center justify-center text-neutral-400 text-sm bg-white/70 dark:bg-neutral-900/70"
-      >Loading…</div>
-      <div
-        v-else-if="windowedReadings.length === 0"
-        class="absolute inset-0 flex items-center justify-center text-neutral-400 text-sm"
-      >No readings in this window</div>
-    </div>
+        v-for="t in yTicks"
+        :key="`y-${t.value}`"
+        class="absolute left-3.5 -translate-y-1/2 text-[10px] font-medium tabular-nums pointer-events-none"
+        :style="{ top: `${t.top}px`, color: 'var(--chart-axis)' }"
+      >{{ t.label }}</div>
 
-    <!-- Flow range legend — panel variant only. The sheet renders threshold
-         captions over the plot instead, and emits `bandRegions` so a parent can
-         still surface the full numeric range list. -->
-    <div v-if="chartVariant === 'panel' && bandRegions.length > 0" class="space-y-1">
-      <div class="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-neutral-700 dark:text-neutral-300">
-        <span
-          v-for="region in bandRegions"
-          :key="region.label"
-          class="flex items-center gap-1.5"
-        >
-          <span class="inline-block w-2.5 h-2.5 rounded-sm flex-shrink-0" :style="{ background: colorKeyToHex(region.color) }" />
-          <span class="font-medium">{{ region.label }}</span>
-          <span class="text-neutral-500 dark:text-neutral-400">
-            {{ region.from != null ? region.from.toLocaleString() : '—' }}–{{ region.to != null ? region.to.toLocaleString() : '∞' }} cfs
-          </span>
-        </span>
-      </div>
-    </div>
-
-    <!-- Seasonal context + diurnal cycle — panel variant only (suppressed when parent hoists).
-         The sheet moves both into the shell's Season & cycle drawer. -->
-    <template v-if="chartVariant === 'panel'">
-      <GaugeSeasonalBanner :gauge-id="gaugeId" :current-cfs="currentCfs" />
       <div
-        v-if="diurnal.detected && !props.hideDiurnal"
-        class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300"
-      >
-        <span class="text-base">🌡</span>
-        <span>
-          <strong>Diurnal cycle</strong> —
-          {{ diurnalPhaseLabel }}
-          <template v-if="diurnal.estimatedPeakHour != null">
-            · Est. peak {{ formatHour(diurnal.estimatedPeakHour) }}
-            (~{{ diurnal.peakCfs?.toLocaleString() }} cfs)
-          </template>
-          <template v-if="diurnal.swingPct != null">
-            · {{ diurnal.swingPct }}% daily swing
-          </template>
-        </span>
-      </div>
+        v-for="l in lineOverlays"
+        :key="`ref-${l.label}-${l.value}`"
+        class="absolute -translate-y-full px-1 text-[10px] font-bold uppercase tracking-[0.09em] pointer-events-none"
+        :class="l.align === 'left' ? 'left-4 text-left' : 'right-4 text-right'"
+        :style="{ top: `${l.top}px`, color: l.color }"
+      >{{ l.label }} · <span class="tabular-nums">{{ l.valueText }}</span></div>
+
+      <div
+        v-if="baseOverlay"
+        class="absolute -translate-y-full px-1 text-[10px] font-bold uppercase tracking-[0.09em] pointer-events-none"
+        :class="baseOverlay.align === 'left' ? 'left-4 text-left' : 'right-4 text-right'"
+        :style="{ top: `${baseOverlay.top}px`, color: baseOverlay.color }"
+      >{{ baseOverlay.label }}</div>
     </template>
+
+    <!-- Hover tooltip — present in both variants. Sits above the sheet shell's
+         header scrim (z-20) and x-axis strip (z-10), which would otherwise
+         swallow it over the peaks; still below the drawer (z-30). -->
+    <div
+      ref="tooltipEl"
+      class="absolute pointer-events-none text-xs bg-neutral-900/90 text-white rounded px-1.5 py-0.5 whitespace-nowrap translate-x-2 -translate-y-full"
+      style="display:none; z-index:25"
+    />
+    <div
+      v-if="loading"
+      class="absolute inset-0 flex items-center justify-center text-neutral-400 text-sm bg-white/70 dark:bg-neutral-900/70"
+    >Loading…</div>
+    <div
+      v-else-if="windowedReadings.length === 0"
+      class="absolute inset-0 flex items-center justify-center text-neutral-400 text-sm"
+    >No readings in this window</div>
   </div>
 </template>
 
@@ -127,10 +70,14 @@ interface Reading {
   timestamp: string
 }
 
-/** panel = today's dashboard/run-page rendering (default, unchanged).
- *  sheet  = full-bleed modal chart: axes + captions as overlays, one gradient.
- *  strip  = bare mini area chart (custom-gauge input rows). */
-type ChartVariant = 'panel' | 'sheet' | 'strip'
+/** sheet = full-bleed modal chart: axes + captions as overlays, one gradient.
+ *  strip = bare mini area chart (custom-gauge input rows).
+ *
+ *  A third `panel` variant (inline chart with its own range toggle, band fills,
+ *  legend and banners) was retired in #428 once both modals moved to the sheet.
+ *  A future inline consumer should be built on the sheet primitives, not on a
+ *  revived panel. */
+type ChartVariant = 'sheet' | 'strip'
 
 interface ReferenceLine {
   value: number
@@ -167,10 +114,9 @@ const props = defineProps<{
   currentCfs?: number | null
   noRanges?: boolean
   color?: string          // override line color
-  height?: number         // chart height in px (panel default 200, strip default 96; ignored by sheet)
-  controlledHours?: 12 | 24 | 168 | 720  // parent-controlled time window; hides toggle
-  hideDiurnal?: boolean   // suppress inline diurnal banner (parent renders it above graph)
-  variant?: ChartVariant  // presentation mode; defaults to 'panel'
+  height?: number         // chart height in px (strip default 96; the sheet sizes from its container)
+  controlledHours?: 12 | 24 | 168 | 720  // parent-controlled time window
+  variant: ChartVariant   // presentation mode — required; there is no default rendering
   // Sheet variant: when non-null these replace the band-derived threshold lines
   // (e.g. seasonal p25/p50/p75 for a standalone gauge with no flow ranges).
   referenceLines?: ReferenceLine[] | null
@@ -219,25 +165,22 @@ const { bandLineHex, bandLabelHex } = useFlowBandPalette()
 
 // ---- Variant plumbing -------------------------------------------------------
 
-const chartVariant = computed<ChartVariant>(() => props.variant ?? 'panel')
-
-const rootClass = computed(() =>
-  chartVariant.value === 'panel' ? 'space-y-3'
-  : chartVariant.value === 'sheet' ? 'h-full'
-  : ''
-)
+const chartVariant = computed<ChartVariant>(() => props.variant)
 
 const chartBoxStyle = computed<CSSProperties>(() => {
   if (chartVariant.value === 'sheet') return {}
   return { height: `${fallbackHeight()}px` }
 })
 
+// 200 is the sheet's last resort only — what it draws at before the container it
+// sizes from has been laid out (or in the mobile modal, where clientHeight is
+// still 0 on the first pass).
 function fallbackHeight(): number {
   return props.height ?? (chartVariant.value === 'strip' ? 96 : 200)
 }
 
-// Sheet height comes from the container the parent flex-grows; everything else
-// keeps its declared pixel height.
+// Sheet height comes from the container the parent flex-grows; the strip keeps
+// its declared pixel height.
 function measuredHeight(): number {
   if (chartVariant.value !== 'sheet') return fallbackHeight()
   const h = container.value?.clientHeight ?? 0
@@ -390,9 +333,7 @@ function buildChart() {
   const latest = asc[asc.length - 1]
   const currentCfs = latest ? latest.cfs : (props.currentCfs ?? null)
 
-  const variant = chartVariant.value
-  const isSheet = variant === 'sheet'
-  const isStrip = variant === 'strip'
+  const isSheet = chartVariant.value === 'sheet'
   const stroke  = lineColor(bands, currentCfs)
 
   const series: uPlot.Series = isSheet
@@ -404,44 +345,24 @@ function buildChart() {
         points: { show: false },
         spanGaps: false,
       }
-    : isStrip
-      ? {
-          stroke,
-          width:  1.75,
-          cap:    'round',
-          fill:   u => verticalGradient(u, stroke, [[0, 0.03], [1, 0.34]]),
-          points: { show: false },
-          spanGaps: false,
-        }
-      : {
-          stroke,
-          width:  2,
-          fill:   stroke + '18',
-          spanGaps: false,
-        }
-
-  const axes: uPlot.Axis[] = isSheet || isStrip
-    ? []   // no gutters: the sheet paints its own axis labels over the plot
-    : [
-        {
-          stroke:  '#9ca3af',
-          ticks:   { stroke: '#374151' },
-          grid:    { stroke: '#1f2937', width: 1 },
-        },
-        {
-          stroke:  '#9ca3af',
-          ticks:   { stroke: '#374151' },
-          grid:    { stroke: '#1f2937', width: 1 },
-        },
-      ]
+    : {
+        stroke,
+        width:  1.75,
+        cap:    'round',
+        fill:   u => verticalGradient(u, stroke, [[0, 0.03], [1, 0.34]]),
+        points: { show: false },
+        spanGaps: false,
+      }
 
   const opts: uPlot.Options = {
     width:  container.value!.clientWidth,
     height: measuredHeight(),
-    padding: isSheet || isStrip ? [0, 0, 0, 0] : [8, 0, 0, 0],
+    padding: [0, 0, 0, 0],
     cursor: { show: true },
-    legend: { show: false },   // panel renders its own legend below
-    axes,
+    legend: { show: false },
+    // No gutters in either variant: the sheet paints its own axis labels over
+    // the plot, and the strip shows none at all.
+    axes: [],
     series: [{}, series],
     hooks: {
       // Behind the series line.
@@ -449,8 +370,6 @@ function buildChart() {
         if (isSheet) {
           drawSheetGrid(u)
           drawReferenceLines(u)
-        } else if (!isStrip) {
-          drawBands(u, bands)
         }
       }],
       // On top of the series line.
@@ -458,8 +377,6 @@ function buildChart() {
         if (isSheet) {
           drawEndDot(u, stroke)
           syncSheetOverlays(u, bands)
-        } else if (!isStrip) {
-          drawCurrentMarker(u, currentCfs)
         }
       }],
       // Hover tooltip
@@ -493,10 +410,8 @@ function buildChart() {
   // (b) stretches each custom-gauge input strip independently of the calculated
   // series above it, so a `+`/`−` input can visually lead or lag its own result.
   // origin/main pinned this per chart before both went through GaugeGraph.
-  if (isSheet || isStrip) {
-    const nowSec = Date.now() / 1000
-    opts.scales = { x: { time: true, range: [nowSec - hours.value * 3600, nowSec] } }
-  }
+  const nowSec = Date.now() / 1000
+  opts.scales = { x: { time: true, range: [nowSec - hours.value * 3600, nowSec] } }
 
   chart = new uPlot(opts, [xs, ys], container.value!)
 
@@ -616,7 +531,7 @@ function drawReferenceLines(u: uPlot) {
   ctx.restore()
 }
 
-// Solid dot + halo on the freshest reading, replacing the panel's dashed marker.
+// Solid dot + halo on the freshest reading — marks "now" on the sheet.
 function drawEndDot(u: uPlot, color: string) {
   const xVals = u.data[0]
   const yVals = u.data[1]
@@ -649,73 +564,11 @@ function drawEndDot(u: uPlot, color: string) {
   ctx.restore()
 }
 
-function drawBands(u: uPlot, bands: FlowBands | null) {
-  if (!bands) return
-  const { ctx, bbox } = u
-  const dpr = devicePixelRatio
-
-  // Build N+1 fill regions: base (below first threshold) + one per threshold.
-  const sorted = [...bands.thresholds].sort((a, b) => a.value - b.value)
-  type Region = { colorKey: string; yMin: number | null; yMax: number | null }
-  const regions: Region[] = [
-    { colorKey: bands.base_color, yMin: null, yMax: sorted[0]?.value ?? null },
-    ...sorted.map((t, i) => ({
-      colorKey: t.color,
-      yMin: t.value,
-      yMax: sorted[i + 1]?.value ?? null,
-    })),
-  ]
-
-  ctx.save()
-  ctx.beginPath()
-  ctx.rect(bbox.left, bbox.top, bbox.width, bbox.height)
-  ctx.clip()
-
-  for (const region of regions) {
-    const hex = colorKeyToHex(region.colorKey)
-    // top of chart = highest CFS = smallest Y in canvas coords
-    const yTop = region.yMax != null
-      ? u.valToPos(region.yMax, 'y', true) * dpr
-      : bbox.top
-    const yBot = region.yMin != null
-      ? u.valToPos(region.yMin, 'y', true) * dpr
-      : bbox.top + bbox.height
-    const h = Math.abs(yBot - yTop)
-    if (h <= 0) continue
-    ctx.fillStyle = hexToRgba(hex, 0.22)
-    ctx.fillRect(bbox.left, Math.min(yTop, yBot), bbox.width, h)
-  }
-
-  ctx.restore()
-}
-
-function drawCurrentMarker(u: uPlot, cfs: number | null) {
-  if (cfs == null) return
-  const { ctx, bbox } = u
-  const dpr = devicePixelRatio
-
-  const y = u.valToPos(cfs, 'y', true) * dpr
-  if (y < bbox.top || y > bbox.top + bbox.height) return
-
-  ctx.save()
-  ctx.beginPath()
-  ctx.setLineDash([4 * dpr, 3 * dpr])
-  ctx.strokeStyle = 'rgba(255,255,255,0.5)'
-  ctx.lineWidth = 1 * dpr
-  ctx.moveTo(bbox.left, y)
-  ctx.lineTo(bbox.left + bbox.width, y)
-  ctx.stroke()
-  ctx.restore()
-}
-
 // Determine the line color from current CFS and flow bands.
 // When props.color is set (e.g. gauge-only mode), always use that override.
 function lineColor(bands: FlowBands | null, cfs: number | null): string {
   if (props.color) return props.color
-  if (cfs == null || !bands) {
-    // Panel keeps its historical literal so existing consumers are untouched.
-    return chartVariant.value === 'panel' ? '#6b7280' : cssVar('--chart-neutral-line', '#6b7280')
-  }
+  if (cfs == null || !bands) return cssVar('--chart-neutral-line', '#6b7280')
   return colorKeyToHex(bandForCfs(cfs, bands)?.color ?? '')
 }
 
@@ -848,31 +701,11 @@ function syncSheetOverlays(u: uPlot, bands: FlowBands | null) {
     : null
 }
 
-// ---- Diurnal cycle ----------------------------------------------------------
-
-const diurnal = computed(() => useDiurnalPattern(activeReadings.value))
-
-const diurnalPhaseLabel = computed(() => {
-  switch (diurnal.value.phase) {
-    case 'rising':     return 'Rising'
-    case 'falling':    return 'Falling'
-    case 'near_peak':  return 'Near peak'
-    case 'near_trough': return 'Near trough'
-    default:           return 'Stable'
-  }
-})
-
-function formatHour(h: number): string {
-  const ampm = h >= 12 ? 'pm' : 'am'
-  const display = h % 12 === 0 ? 12 : h % 12
-  return `${display}${ampm}`
-}
-
 // ---- Flow range helpers -----------------------------------------------------
 
-// bandRegions returns base + thresholds ASC — the panel legend, and the payload
-// of the `bandRegions` emit so a sheet parent can list the full cfs ranges the
-// threshold captions no longer show.
+// bandRegions returns base + thresholds ASC — the payload of the `bandRegions`
+// emit, so a sheet parent can list the full cfs ranges the threshold captions
+// don't show.
 const bandRegions = computed<BandRegion[]>(() => {
   if (!flowBands.value) return []
   const sorted = [...flowBands.value.thresholds].sort((a, b) => a.value - b.value)
