@@ -194,7 +194,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import type { WatchedGauge } from '~/stores/watchlist'
-import { flowBandLabel } from '~/utils/flowBand'
+import { flowBandLabel, isGaugeStale, STALE_BADGE_CLASS } from '~/utils/flowBand'
 import { type DiurnalPattern } from '~/composables/useDiurnalPattern'
 import { useGaugeSeasonal } from '~/composables/useGaugeSeasonal'
 
@@ -322,8 +322,16 @@ const chipStatus = computed(() => liveBand.value?.flowStatus ?? props.gauge.flow
 const bandChipLabel = computed(() =>
   showBandChip.value ? flowBandLabel(chipBand.value, chipStatus.value) : null
 )
+
+// Stale gauges lose the band hue but keep the label (#430) — same rule RunRow
+// applies, so a run reads the same in the sheet as it does in the row that
+// opened it. The sheet's own header meta line carries the reading's age.
+const isStale = computed(() => isGaugeStale(props.gauge.pollHealth))
+
 const bandChipClass = computed(() =>
-  showBandChip.value ? bandBadgeClass(chipBand.value, chipStatus.value) : null
+  showBandChip.value
+    ? (isStale.value ? STALE_BADGE_CLASS : bandBadgeClass(chipBand.value, chipStatus.value))
+    : null
 )
 
 const lastReadingRelative = computed(() => {

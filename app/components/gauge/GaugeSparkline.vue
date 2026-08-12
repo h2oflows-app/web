@@ -66,7 +66,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import type { WatchedGauge } from '~/stores/watchlist'
-import type { FlowBands } from '~/utils/flowBand'
+import { isGaugeStale, STALE_HEX, type FlowBands } from '~/utils/flowBand'
 
 const props = defineProps<{
   gaugeId: string
@@ -203,8 +203,14 @@ function resolvedBandKey(band?: string | null, status?: string | null): string |
 // Use CSS custom property so color follows the active palette (set by useFlowBandPalette in app.vue).
 // Falls back to props.color override (neutral gauge-only mode) or gray when band unknown.
 const strokeColor = computed(() => {
+  // Staleness outranks the caller's override (#430). A gauge the poller can no
+  // longer read has no current flow, so neither a band hue nor a caller accent
+  // (GaugeRunGroup hands its gauge heads a flat blue) should imply one — the
+  // line is history, not a live level. GaugePollStatus alongside says so in
+  // words; this is the same fact in the ink.
+  if (isGaugeStale(props.pollHealth)) return STALE_HEX
   if (props.color) return props.color
   const key = resolvedBandKey(props.flowBandLabel, props.flowStatus)
-  return key ? `var(--flow-${key}, ${flowBandSolidColor(key)})` : '#9ca3af'
+  return key ? `var(--flow-${key}, ${flowBandSolidColor(key)})` : STALE_HEX
 })
 </script>

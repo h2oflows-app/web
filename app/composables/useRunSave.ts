@@ -14,6 +14,7 @@
  */
 import { ref } from 'vue'
 import { useRunWizardStore } from '~/stores/runWizard'
+import { DEFAULT_BASE_BAND } from '~/utils/flowBand'
 
 export function useRunSave() {
   const store = useRunWizardStore()
@@ -57,7 +58,7 @@ export function useRunSave() {
       if (store.classMin != null) body.class_min  = store.classMin
       if (store.classMax != null) body.class_max  = store.classMax
       // Always send flow_bands (matches UserRunAuthor: body.flow_bands = form.value.flowBands)
-      body.flow_bands = store.flowBands ?? { base_label: 'Too Low', base_color: 'neutral-3', thresholds: [] }
+      body.flow_bands = store.flowBands ?? { ...DEFAULT_BASE_BAND, thresholds: [] }
 
       const res = await fetch(`${apiBase}/api/v1/me/reaches${asQuery}`, {
         method: 'POST',
@@ -220,7 +221,7 @@ export function useRunSave() {
       const fbRes = await fetch(`${apiBase}/api/v1/me/runs/${returnedSlug}/flow-ranges`, {
         method: 'PUT',
         headers,
-        body: JSON.stringify(store.flowBands ?? { base_label: 'Too Low', base_color: 'neutral-3', thresholds: [] }),
+        body: JSON.stringify(store.flowBands ?? { ...DEFAULT_BASE_BAND, thresholds: [] }),
       })
       if (!fbRes.ok) throw new Error(`Flow ranges save failed: ${fbRes.status}`)
 

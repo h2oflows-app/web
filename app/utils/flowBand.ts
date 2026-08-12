@@ -136,6 +136,44 @@ export const DEFAULT_COLOR_NEUTRAL = 'p37' // formerly neutral-3
 export const DEFAULT_COLOR_GREEN   = 'p17' // formerly green-3
 export const DEFAULT_COLOR_BLUE    = 'p22' // formerly blue-3
 
+// ── Base band default ───────────────────────────────────────────────────────
+//
+// The band a run carries before anyone edits its flow ranges: everything below
+// the lowest threshold. Too Low is RED (#430) — grey read as "this gauge is
+// inactive" rather than "the water is too low", and grey is now reserved for
+// exactly that other meaning (see isGaugeStale below). Red also lines up the
+// default with the rest of the app, which has always drawn the `low` band red
+// (BADGE.low, CFS_TEXT.low) and mapped red → 'caution' in flowStatusForColorKey
+// — a neutral base resolved to 'runnable', so a run below its lowest threshold
+// reported as runnable.
+//
+// One object rather than three copies of the literal: this default previously
+// lived inline in the wizard and twice in useRunSave, which is how the wizard
+// and the save path could drift. NOTE api migration 000125 set the DB-side
+// `user_reaches.base_color` default the other way (red-3 → neutral-3); that
+// column default still needs its own migration to match, and only bites rows
+// created without a flow_bands payload.
+export const DEFAULT_BASE_BAND = { base_label: 'Too Low', base_color: 'red-3' } as const
+
+// ── Gauge staleness ─────────────────────────────────────────────────────────
+//
+// Mirrors WatchedGauge['pollHealth']. A gauge the poller can't read has no
+// current flow, so a band hue on it is a claim about data we don't have —
+// those render neutral instead (#430). 'degraded' is deliberately NOT stale:
+// it means slow/erratic polling, not absent data, and the reading it last
+// returned is still real.
+export type GaugePollHealth = 'healthy' | 'degraded' | 'stale' | 'unreachable' | null | undefined
+
+export function isGaugeStale(health: GaugePollHealth): boolean {
+  return health === 'stale' || health === 'unreachable'
+}
+
+/** Neutral for a gauge with no trustworthy current reading (gray-400). */
+export const STALE_HEX = '#9ca3af'
+
+/** Badge pill for the same — the band label stays, only the hue drops out. */
+export const STALE_BADGE_CLASS = BADGE_NEUTRAL
+
 // V9: highest threshold where cfs >= value; else base.
 // Returns null when no thresholds are defined — run has no configured flow bands.
 export function bandForCfs(cfs: number, bands: FlowBands): { label: string; color: string } | null {

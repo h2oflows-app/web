@@ -62,6 +62,7 @@ import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
 import { useDiurnalPattern, type DiurnalPattern } from '~/composables/useDiurnalPattern'
 import type { FlowBands } from '~/utils/flowBand'
+import { sheetYRange } from '~/utils/chartRange'
 
 // ---- Types ------------------------------------------------------------------
 
@@ -413,6 +414,16 @@ function buildChart() {
   const nowSec = Date.now() / 1000
   opts.scales = { x: { time: true, range: [nowSec - hours.value * 3600, nowSec] } }
 
+  // The sheet also owns its y range (#431). uPlot's default is the data extent,
+  // which put the peak flush against the top of the modal — under the header
+  // scrim — and left every threshold outside the window off the chart, so the
+  // sheet could show a dotted "Running" line and no "High" line at all.
+  if (isSheet) {
+    opts.scales.y = {
+      range: (_u, dMin, dMax) => sheetYRange(dMin, dMax, referenceLines.value.map(l => l.value)),
+    }
+  }
+
   chart = new uPlot(opts, [xs, ys], container.value!)
 
   // Re-measure once the browser has finished painting — catches mobile modals
@@ -761,7 +772,16 @@ watch(() => props.readings, async (val, prev) => {
 // These only feed the draw hooks / overlays, so a redraw is enough. Watching the
 // computed rather than the prop also catches a color-mode flip, which re-derives
 // the band line/caption hexes while the sheet is open.
-watch(referenceLines, () => chart?.redraw())
+// Line VALUES feed the sheet's y range (#431), and redraw() re-strokes against
+// the scales the chart already has — it never re-runs the range fn. So a changed
+// set of values needs a rebuild; changed colors alone (a color-mode flip
+// re-deriving the band hexes, same numbers) only need the redraw.
+watch(referenceLines, async (next, prev) => {
+  const sameValues = next.map(l => l.value).join(',') === (prev ?? []).map(l => l.value).join(',')
+  if (sameValues) { chart?.redraw(); return }
+  await nextTick()
+  buildChart()
+})
 watch(() => props.baseBandLabel, () => chart?.redraw())
 
 let resizeObserver: ResizeObserver | null = null
