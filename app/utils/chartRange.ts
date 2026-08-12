@@ -8,61 +8,56 @@
 // GaugeGraph's sheetInsets only reserve SPACE for the chrome; they don't change
 // what the scale covers. This does.
 //
+// THE RUN'S THRESHOLDS SIZE THE AXIS, not the data. Every reference line is
+// always inside the range — no exceptions, no conditions. An earlier cut of
+// this only pulled a line in while the data kept a minimum share of the plot
+// height, which meant the High line stayed off-chart on exactly the runs where
+// you most want to see it: the ones sitting well below it. "Sometimes you get a
+// High line" is worse than either alternative, because you can't tell by
+// looking whether the run has no High threshold or just isn't near it.
+//
+// The trade-off is real and accepted: a run at 150 cfs whose High is 10,000
+// draws its trace low and flat. That IS the shape of "you are nowhere near
+// high water", and the dotted lines and their captions carry the numbers.
+//
 // Pure and parameterised so it can be exercised directly — the component just
 // feeds it uPlot's data extent and the reference-line values.
 
-/** Fraction of the final span added above the highest thing shown. */
+/** Fraction of the final span added above the highest thing shown — the
+ *  headroom #431 asks for, so the trace never touches the header scrim and
+ *  there is air above the high-water mark. */
 export const SHEET_Y_PAD_TOP = 0.14
 /** …and below the lowest. Never taken past zero — cfs has a hard floor. */
 export const SHEET_Y_PAD_BOTTOM = 0.06
 
-// A threshold far outside the data range would flatten the trace onto the
-// baseline: a run whose High is 10,000 cfs sitting at 150 would render as a
-// straight line hugging the bottom. Lines are pulled into the range only while
-// the data keeps at least this share of the plot height; the rest stay off the
-// chart, exactly as they are today. GaugeGraph's drawReferenceLines already
-// skips any line outside the range and captionLayout drops its caption with it,
-// so an excluded line leaves nothing dangling on the plot.
-export const MIN_DATA_SHARE = 0.35
-
-function distanceTo(v: number, lo: number, hi: number): number {
-  return v < lo ? lo - v : v > hi ? v - hi : 0
-}
-
 /**
- * @param dataMin  uPlot's series minimum (null for an empty series)
- * @param dataMax  uPlot's series maximum
- * @param lineValues  threshold / percentile values that should be on screen
+ * @param dataMin     uPlot's series minimum (null for an empty series)
+ * @param dataMax     uPlot's series maximum
+ * @param lineValues  every threshold / percentile on the run. All are included.
  */
 export function sheetYRange(
   dataMin: number | null | undefined,
   dataMax: number | null | undefined,
   lineValues: number[] = [],
 ): [number, number] {
-  if (dataMin == null || dataMax == null || !Number.isFinite(dataMin) || !Number.isFinite(dataMax)) {
-    return [0, 1]
-  }
+  const lines = lineValues.filter(v => typeof v === 'number' && Number.isFinite(v))
 
-  let lo = dataMin
-  let hi = dataMax
-  const dataSpan = hi - lo
-  const maxSpan = dataSpan > 0 ? dataSpan / MIN_DATA_SHARE : Infinity
+  // An empty or non-finite series still ranges off the thresholds when it has
+  // them: the sheet renders "No readings in this window" over a plot whose
+  // lines are at least in the right places, rather than over a blank 0–1.
+  const hasData = dataMin != null && dataMax != null
+    && Number.isFinite(dataMin) && Number.isFinite(dataMax)
+  if (!hasData && lines.length === 0) return [0, 1]
 
-  // Nearest lines first, so a reachable threshold isn't skipped just because a
-  // distant one happened to be considered ahead of it.
-  const lines = lineValues
-    .filter(v => Number.isFinite(v))
-    .sort((a, b) => distanceTo(a, lo, hi) - distanceTo(b, lo, hi))
-
+  let lo = hasData ? dataMin! : Math.min(...lines)
+  let hi = hasData ? dataMax! : Math.max(...lines)
   for (const v of lines) {
-    const nextLo = Math.min(lo, v)
-    const nextHi = Math.max(hi, v)
-    if (nextHi - nextLo > maxSpan) continue
-    lo = nextLo
-    hi = nextHi
+    if (v < lo) lo = v
+    if (v > hi) hi = v
   }
 
-  // A flat series (or a single reading) has no span to take a percentage of.
+  // A flat series with no lines (or a single reading) has no span to take a
+  // percentage of.
   if (hi === lo) {
     const pad = Math.abs(hi) * 0.1 || 1
     return [Math.max(0, lo - pad), hi + pad]

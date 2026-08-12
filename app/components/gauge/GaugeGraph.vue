@@ -414,10 +414,11 @@ function buildChart() {
   const nowSec = Date.now() / 1000
   opts.scales = { x: { time: true, range: [nowSec - hours.value * 3600, nowSec] } }
 
-  // The sheet also owns its y range (#431). uPlot's default is the data extent,
-  // which put the peak flush against the top of the modal — under the header
-  // scrim — and left every threshold outside the window off the chart, so the
-  // sheet could show a dotted "Running" line and no "High" line at all.
+  // The sheet also owns its y range (#431): the RUN'S THRESHOLDS size the axis,
+  // and every one of them is always inside it. uPlot's default is the data
+  // extent, which put the peak flush against the top of the modal — under the
+  // header scrim — and left every threshold outside the window off the chart,
+  // so the sheet could show a dotted "Running" line and no "High" line at all.
   if (isSheet) {
     opts.scales.y = {
       range: (_u, dMin, dMax) => sheetYRange(dMin, dMax, referenceLines.value.map(l => l.value)),
