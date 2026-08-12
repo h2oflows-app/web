@@ -121,7 +121,6 @@
         :controlled-hours="hours"
         :reference-lines="referenceLines"
         :base-band-label="baseBandLabel"
-        hide-diurnal
         @latest-cfs="liveCfs = $event"
         @live-flow-band="liveBand = $event"
         @diurnal="diurnalData = $event"
