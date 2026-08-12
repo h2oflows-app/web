@@ -2,7 +2,7 @@ import { computed, watchEffect } from 'vue'
 import { useThemeStore } from '~/stores/theme'
 import { THEMES } from '../../app.config'
 import { PALETTE_FLOW_SOLID, PALETTE_BADGE_CLASS } from '~/utils/flowBand'
-import { flowColorHex, indexToValue, valueToIndex } from '~/utils/flowPalette'
+import { flowColorHex, indexToValue, valueToIndex, captionHexForLine } from '~/utils/flowPalette'
 
 /**
  * Level shift applied to a stored band color to get a readable line / caption
@@ -26,9 +26,18 @@ const LINE_SHIFT: Record<'dark' | 'light', LevelShift> = {
   dark:  { delta:  0, min: 0, max: 2 },
   light: { delta:  1, min: 2, max: 3 },
 }
-const LABEL_SHIFT: Record<'dark' | 'light', LevelShift> = {
-  dark:  { delta: -1, min: 0, max: 1 },
-  light: { delta:  2, min: 3, max: 4 },
+// No LABEL_SHIFT any more. A caption used to be a fixed level step off its
+// line, which gave 1.18-1.83 contrast against that line across the palette and
+// collapsed to the SAME hex at level 0 in dark mode. Captions are now derived
+// from the resolved line hex by captionHexForLine, which pushes until it
+// actually separates. See flowPalette.ts.
+//
+// The sheet paints bg-white / dark:bg-neutral-950. neutral-950 shifts slightly
+// per theme, so this is the reference point for the contrast decision rather
+// than the exact painted pixel — close enough to pick a direction and a depth.
+const SHEET_BG: Record<'dark' | 'light', string> = {
+  dark:  '#0a0a0a',
+  light: '#ffffff',
 }
 
 function shiftLevel(colorKey: string, shift: LevelShift): string {
@@ -110,9 +119,11 @@ export function useFlowBandPalette() {
     return shiftLevel(colorKey, LINE_SHIFT[mode.value])
   }
 
-  /** Threshold-caption hex for a stored band color — a step off its line. */
+  /** Threshold-caption hex for a stored band color — derived from its own line
+   *  so the two are guaranteed to separate, whatever level the band is stored
+   *  at and whichever color mode is active. */
   function bandLabelHex(colorKey: string): string {
-    return shiftLevel(colorKey, LABEL_SHIFT[mode.value])
+    return captionHexForLine(bandLineHex(colorKey), SHEET_BG[mode.value])
   }
 
   return { primary, flowSolid, bandSolid, bandBadgeClass, bandFill, bandLineHex, bandLabelHex }

@@ -133,3 +133,85 @@ export function familyOf(value: string): FamilyName {
   const idx = valueToIndex(value)
   return FAMILIES[Math.floor(idx / 5)] ?? 'neutral'
 }
+
+// ── Caption contrast ─────────────────────────────────────────────────────────
+//
+// The sheet's threshold captions sit ON the plot, and the series line is drawn
+// in the live band's color — so a caption and the line beneath it are routinely
+// the same hue at nearly the same lightness, and the text disappears into it.
+// Measured on the previous fixed level-shift, caption-vs-line contrast was
+// 1.18–1.83 across the whole palette, and at palette level 0 in dark mode the
+// two clamps collapsed onto the SAME hex.
+//
+// So the caption is derived FROM its line rather than shifted in parallel with
+// it: push the line color away in lightness until it clears CAPTION_VS_LINE_MIN,
+// while never letting it fall under CAPTION_VS_BG_MIN against the sheet behind
+// it. Direction preference is "lighter when the color is medium-to-dark, darker
+// when it's already light" — but the background rail wins when the two
+// disagree, which is what keeps a mid-dark green readable on a WHITE sheet
+// instead of being lightened into it.
+
+/** WCAG relative luminance. */
+function relLuminance(hex: string): number {
+  const [r, g, b] = hexToRgb(hex).map(v => {
+    const c = v / 255
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+  }) as [number, number, number]
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+/** WCAG contrast ratio, 1 (identical) → 21 (black on white). */
+export function contrastRatio(a: string, b: string): number {
+  const [hi, lo] = [relLuminance(a), relLuminance(b)].sort((x, y) => y - x) as [number, number]
+  return (hi + 0.05) / (lo + 0.05)
+}
+
+/** Enough separation to read the caption off the line it overlaps. */
+const CAPTION_VS_LINE_MIN = 2.2
+/** WCAG AA for normal text — captions are small, so this is the floor. */
+const CAPTION_VS_BG_MIN = 4.5
+/** Below this luminance a color counts as "medium to dark". */
+const MID_LUMINANCE = 0.38
+
+const STEP = 0.04
+const MAX_MIX = 0.96
+
+/**
+ * A caption hex for `lineHex` that reads against both the line and the sheet.
+ *
+ * Every mix level in both directions is evaluated rather than short-circuited.
+ * Background contrast is only monotonically decreasing when the mix target is
+ * on the same side as the background — darkening against a WHITE sheet raises
+ * it — so bailing at the first background failure skips the candidates that
+ * actually work and lands on "no change", which is the illegible case this
+ * exists to remove.
+ *
+ * Preference order: the first candidate clearing both floors, taking the
+ * preferred direction first and the smallest mix that works (least drift from
+ * the band's own color); then the most separated candidate that is still
+ * readable against the sheet; then, failing everything, whatever is most
+ * readable against the sheet — legibility outranks hue fidelity.
+ */
+export function captionHexForLine(lineHex: string, bgHex: string): string {
+  const preferLighter = relLuminance(lineHex) <= MID_LUMINANCE
+
+  let bestSeparated: { hex: string; sep: number } | null = null
+  let bestReadable:  { hex: string; bg: number }  | null = null
+
+  for (const lighter of [preferLighter, !preferLighter]) {
+    const target = lighter ? '#ffffff' : '#000000'
+    for (let t = STEP; t <= MAX_MIX + 1e-9; t += STEP) {
+      const hex = mixHex(lineHex, target, t)
+      const bg  = contrastRatio(hex, bgHex)
+      const sep = contrastRatio(hex, lineHex)
+
+      if (bg >= CAPTION_VS_BG_MIN) {
+        if (sep >= CAPTION_VS_LINE_MIN) return hex
+        if (!bestSeparated || sep > bestSeparated.sep) bestSeparated = { hex, sep }
+      }
+      if (!bestReadable || bg > bestReadable.bg) bestReadable = { hex, bg }
+    }
+  }
+
+  return bestSeparated?.hex ?? bestReadable?.hex ?? lineHex
+}
