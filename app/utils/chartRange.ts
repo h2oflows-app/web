@@ -22,6 +22,37 @@
 
 /** Where the highest reading sits in the plot. The remainder is headroom. */
 export const PEAK_HEIGHT = 0.78
+
+/**
+ * Peak height for a run sitting at the very bottom of its lowest band. Low
+ * water is framed lower in the modal, with more air above it, so the vertical
+ * position of the trace itself carries "this run is low" before any label is
+ * read.
+ *
+ * This deliberately trades some of the normalisation: two runs no longer look
+ * identical unless they sit at the same point in their bands. That IS the
+ * intent — level is being encoded in position — and it only applies where the
+ * run has bands to be measured against. The band rail says the same thing in a
+ * second channel, so neither is carrying it alone.
+ */
+export const PEAK_HEIGHT_LOW = 0.60
+
+/**
+ * Framing for a run `progress` of the way through its lowest band: 0 at no
+ * flow, 1 once the reading reaches the first threshold and beyond.
+ *
+ * Keyed off the run's OWN band, not an absolute cfs cutoff. On prod the two
+ * agree almost everywhere — 104 of 106 runs have their first threshold at or
+ * above 100 cfs — but an absolute rule would frame Clear Creek at Golden
+ * (75.4 cfs, Running from 65) as low water while it is running fine, and would
+ * quietly rot as smaller creeks are added.
+ */
+export function peakHeightFor(progress: number | null | undefined): number {
+  if (progress == null || !Number.isFinite(progress)) return PEAK_HEIGHT
+  const t = Math.min(1, Math.max(0, progress))
+  return PEAK_HEIGHT_LOW + (PEAK_HEIGHT - PEAK_HEIGHT_LOW) * t
+}
+
 /** Air below the lowest reading, as a fraction of the effective span. */
 export const FLOOR_PAD = 0.10
 /**
@@ -39,6 +70,7 @@ export const MIN_SPAN_FRACTION = 0.12
 export function sheetYRange(
   dataMin: number | null | undefined,
   dataMax: number | null | undefined,
+  peakHeight: number = PEAK_HEIGHT,
 ): [number, number] {
   const usable = dataMin != null && dataMax != null
     && Number.isFinite(dataMin) && Number.isFinite(dataMax)
@@ -51,8 +83,11 @@ export function sheetYRange(
   const effSpan = Math.max(span, dataMax! * MIN_SPAN_FRACTION)
 
   const lo = Math.max(0, dataMin! - effSpan * FLOOR_PAD)
-  // Solve for the ceiling that puts dataMax at PEAK_HEIGHT of the plot.
-  const hi = lo + (dataMax! - lo) / PEAK_HEIGHT
+  // Solve for the ceiling that puts dataMax at the requested plot height.
+  const peak = Number.isFinite(peakHeight) && peakHeight > 0 && peakHeight <= 1
+    ? peakHeight
+    : PEAK_HEIGHT
+  const hi = lo + (dataMax! - lo) / peak
 
   // dataMax === lo can only happen if both are zero, which the guard above
   // already caught — but never hand back a zero-height scale.

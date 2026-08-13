@@ -99,7 +99,7 @@ import uPlot from 'uplot'
 import 'uplot/dist/uPlot.min.css'
 import { useDiurnalPattern, type DiurnalPattern } from '~/composables/useDiurnalPattern'
 import type { FlowBands } from '~/utils/flowBand'
-import { sheetYRange } from '~/utils/chartRange'
+import { sheetYRange, peakHeightFor } from '~/utils/chartRange'
 import { railPosition, railSlices } from '~/utils/bandRail'
 
 // ---- Types ------------------------------------------------------------------
@@ -467,7 +467,7 @@ function buildChart() {
   // the trace never touches the header scrim and normalises to the same shape
   // whether the run is at 320 cfs or 3,200. uPlot's default is the bare data
   // extent, which left no air above the peak at all.
-  if (isSheet) opts.scales.y = { range: (_u, dMin, dMax) => sheetYRange(dMin, dMax) }
+  if (isSheet) opts.scales.y = { range: (_u, dMin, dMax) => sheetYRange(dMin, dMax, framingPeak.value) }
 
   chart = new uPlot(opts, [xs, ys], container.value!)
 
@@ -827,6 +827,20 @@ const latestCfs = computed<number | null>(() => {
 })
 
 const railPos = computed(() => railPosition(latestCfs.value, bandRegions.value))
+
+// Low water is framed lower in the modal, with more air above it — the position
+// of the trace itself says "this run is low" before any label is read. Keyed off
+// how far the reading has got through the run's OWN lowest band, so it adapts
+// per run instead of hard-coding a cfs number. Runs with no bands (gauge mode)
+// keep the standard framing.
+const framingPeak = computed(() => {
+  const n = bandRegions.value.length
+  if (railPos.value == null || n === 0) return peakHeightFor(null)
+  return peakHeightFor(railPos.value * n)   // slice 0 is the base band, so this is 0-1 across it
+})
+
+// The framing is part of the scale, and redraw() never re-runs the range fn.
+watch(framingPeak, async () => { await nextTick(); buildChart() })
 
 // Display-only clamp. Real positions bunch hard at the floor — 60 of 106 prod
 // runs currently sit in the bottom tenth of their rail, the lowest at 0.3%,
