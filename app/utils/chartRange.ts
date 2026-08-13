@@ -1,68 +1,60 @@
 // Sheet-variant y-scale range (#431).
 //
-// uPlot's default y range is the data extent, which put the peak flush against
-// the top of the gauge modal — underneath the header scrim — and left every
-// threshold outside the data's own min/max off the chart entirely, so a sheet
-// could show a dotted "Running" line and no "High" line at all.
+// uPlot's default y range is the bare data extent, so the peak sat flush against
+// the top of the gauge modal — underneath the header scrim — with no air above
+// it. GaugeGraph's sheetInsets only reserve SPACE for the chrome; they don't
+// change what the scale covers. This does.
 //
-// GaugeGraph's sheetInsets only reserve SPACE for the chrome; they don't change
-// what the scale covers. This does.
+// THE READING SIZES THE AXIS, and it is normalised: the highest value in the
+// window always lands at the same height on the plot, so every gauge reads the
+// same way regardless of level or volatility. A steady creek at 320 cfs and a
+// big volatile river at 3,200 produce the same picture — trace filling most of
+// the plot, a consistent band of headroom above it.
 //
-// THE RUN'S THRESHOLDS SIZE THE AXIS, not the data. Every reference line is
-// always inside the range — no exceptions, no conditions. An earlier cut of
-// this only pulled a line in while the data kept a minimum share of the plot
-// height, which meant the High line stayed off-chart on exactly the runs where
-// you most want to see it: the ones sitting well below it. "Sometimes you get a
-// High line" is worse than either alternative, because you can't tell by
-// looking whether the run has no High threshold or just isn't near it.
+// Thresholds deliberately do NOT stretch the range. A High threshold an order of
+// magnitude above current flow would squash the trace onto the baseline, which
+// is what made the "every threshold on screen" version unusable on most runs.
+// Lines inside the window still draw; ones outside are skipped by
+// drawReferenceLines, and captionLayout drops their captions with them, so
+// nothing is left dangling.
 //
-// The trade-off is real and accepted: a run at 150 cfs whose High is 10,000
-// draws its trace low and flat. That IS the shape of "you are nowhere near
-// high water", and the dotted lines and their captions carry the numbers.
-//
-// Pure and parameterised so it can be exercised directly — the component just
-// feeds it uPlot's data extent and the reference-line values.
+// Pure and parameterised so it can be exercised directly.
 
-/** Fraction of the final span added above the highest thing shown — the
- *  headroom #431 asks for, so the trace never touches the header scrim and
- *  there is air above the high-water mark. */
-export const SHEET_Y_PAD_TOP = 0.14
-/** …and below the lowest. Never taken past zero — cfs has a hard floor. */
-export const SHEET_Y_PAD_BOTTOM = 0.06
+/** Where the highest reading sits in the plot. The remainder is headroom. */
+export const PEAK_HEIGHT = 0.78
+/** Air below the lowest reading, as a fraction of the effective span. */
+export const FLOOR_PAD = 0.10
+/**
+ * Floor on the span, relative to the level. A river holding steady has a span
+ * near zero, and padding a fraction of nothing is nothing — without this a flat
+ * gauge gets a hairline window and renders its sensor noise as dramatic
+ * mountains. This is what stops a percentage-of-span rule from lying.
+ */
+export const MIN_SPAN_FRACTION = 0.12
 
 /**
- * @param dataMin     uPlot's series minimum (null for an empty series)
- * @param dataMax     uPlot's series maximum
- * @param lineValues  every threshold / percentile on the run. All are included.
+ * @param dataMin  uPlot's series minimum (null for an empty series)
+ * @param dataMax  uPlot's series maximum
  */
 export function sheetYRange(
   dataMin: number | null | undefined,
   dataMax: number | null | undefined,
-  lineValues: number[] = [],
 ): [number, number] {
-  const lines = lineValues.filter(v => typeof v === 'number' && Number.isFinite(v))
-
-  // An empty or non-finite series still ranges off the thresholds when it has
-  // them: the sheet renders "No readings in this window" over a plot whose
-  // lines are at least in the right places, rather than over a blank 0–1.
-  const hasData = dataMin != null && dataMax != null
+  const usable = dataMin != null && dataMax != null
     && Number.isFinite(dataMin) && Number.isFinite(dataMax)
-  if (!hasData && lines.length === 0) return [0, 1]
+  // Empty series, or a gauge reading zero across the whole window: there is no
+  // level to scale off, so hand uPlot something valid to draw against rather
+  // than a zero-height or NaN range.
+  if (!usable || dataMax! <= 0) return [0, 1]
 
-  let lo = hasData ? dataMin! : Math.min(...lines)
-  let hi = hasData ? dataMax! : Math.max(...lines)
-  for (const v of lines) {
-    if (v < lo) lo = v
-    if (v > hi) hi = v
-  }
+  const span    = Math.max(0, dataMax! - dataMin!)
+  const effSpan = Math.max(span, dataMax! * MIN_SPAN_FRACTION)
 
-  // A flat series with no lines (or a single reading) has no span to take a
-  // percentage of.
-  if (hi === lo) {
-    const pad = Math.abs(hi) * 0.1 || 1
-    return [Math.max(0, lo - pad), hi + pad]
-  }
+  const lo = Math.max(0, dataMin! - effSpan * FLOOR_PAD)
+  // Solve for the ceiling that puts dataMax at PEAK_HEIGHT of the plot.
+  const hi = lo + (dataMax! - lo) / PEAK_HEIGHT
 
-  const span = hi - lo
-  return [Math.max(0, lo - span * SHEET_Y_PAD_BOTTOM), hi + span * SHEET_Y_PAD_TOP]
+  // dataMax === lo can only happen if both are zero, which the guard above
+  // already caught — but never hand back a zero-height scale.
+  return hi > lo ? [lo, hi] : [lo, lo + 1]
 }

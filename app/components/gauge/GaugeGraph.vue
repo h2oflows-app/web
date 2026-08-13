@@ -414,16 +414,11 @@ function buildChart() {
   const nowSec = Date.now() / 1000
   opts.scales = { x: { time: true, range: [nowSec - hours.value * 3600, nowSec] } }
 
-  // The sheet also owns its y range (#431): the RUN'S THRESHOLDS size the axis,
-  // and every one of them is always inside it. uPlot's default is the data
-  // extent, which put the peak flush against the top of the modal — under the
-  // header scrim — and left every threshold outside the window off the chart,
-  // so the sheet could show a dotted "Running" line and no "High" line at all.
-  if (isSheet) {
-    opts.scales.y = {
-      range: (_u, dMin, dMax) => sheetYRange(dMin, dMax, referenceLines.value.map(l => l.value)),
-    }
-  }
+  // The sheet also owns its y range (#431): headroom scaled to the reading, so
+  // the trace never touches the header scrim and normalises to the same shape
+  // whether the run is at 320 cfs or 3,200. uPlot's default is the bare data
+  // extent, which left no air above the peak at all.
+  if (isSheet) opts.scales.y = { range: (_u, dMin, dMax) => sheetYRange(dMin, dMax) }
 
   chart = new uPlot(opts, [xs, ys], container.value!)
 
@@ -773,16 +768,10 @@ watch(() => props.readings, async (val, prev) => {
 // These only feed the draw hooks / overlays, so a redraw is enough. Watching the
 // computed rather than the prop also catches a color-mode flip, which re-derives
 // the band line/caption hexes while the sheet is open.
-// Line VALUES feed the sheet's y range (#431), and redraw() re-strokes against
-// the scales the chart already has — it never re-runs the range fn. So a changed
-// set of values needs a rebuild; changed colors alone (a color-mode flip
-// re-deriving the band hexes, same numbers) only need the redraw.
-watch(referenceLines, async (next, prev) => {
-  const sameValues = next.map(l => l.value).join(',') === (prev ?? []).map(l => l.value).join(',')
-  if (sameValues) { chart?.redraw(); return }
-  await nextTick()
-  buildChart()
-})
+// Reference lines only feed the draw hooks and the DOM overlays — the y range is
+// derived from the readings alone — so a redraw is enough for both a new set of
+// values and a color-mode flip that re-derives the band hexes.
+watch(referenceLines, () => chart?.redraw())
 watch(() => props.baseBandLabel, () => chart?.redraw())
 
 let resizeObserver: ResizeObserver | null = null
