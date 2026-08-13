@@ -334,6 +334,11 @@ const bandChipClass = computed(() =>
     : null
 )
 
+// Rolls over to days past 24h. Without that a reading a week old rendered as
+// "212h 22m ago", which is arithmetically true and useless — an hour count that
+// large reads as a glitch rather than as "this gauge stopped reporting". Every
+// sibling formatter (GaugePollStatus, DashboardGaugeRow, UserRunCustomGaugeModal)
+// already did this; the modal was the one that didn't.
 const lastReadingRelative = computed(() => {
   if (!props.gauge.lastReadingAt) return ''
   const ms = Date.now() - new Date(props.gauge.lastReadingAt).getTime()
@@ -341,7 +346,9 @@ const lastReadingRelative = computed(() => {
   if (m < 1)  return 'just now'
   if (m < 60) return `${m}m ago`
   const h = Math.floor(m / 60)
-  return `${h}h ${m % 60}m ago`
+  if (h < 24) return `${h}h ${m % 60}m ago`
+  const d = Math.floor(h / 24)
+  return `${d}d ${h % 24}h ago`
 })
 
 const metaText = computed(() =>

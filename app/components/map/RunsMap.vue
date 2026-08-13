@@ -677,7 +677,11 @@ function relativeTime(iso: string): string {
   const m = Math.floor(ms / 60_000)
   if (m < 1)  return 'just now'
   if (m < 60) return `${m}m ago`
-  return `${Math.floor(m / 60)}h ${m % 60}m ago`
+  const h = Math.floor(m / 60)
+  // Days past 24h — an unrolled hour count on a long-dead gauge ("212h 22m")
+  // reads as a bug rather than as staleness.
+  if (h < 24) return `${h}h ${m % 60}m ago`
+  return `${Math.floor(h / 24)}d ${h % 24}h ago`
 }
 
 // Reload features when the data source URL OR auth headers change (e.g. signing in mid-session).
