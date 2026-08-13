@@ -108,7 +108,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { RunRowVM } from '~/utils/runRow'
-import { colorKeyToHex, colorKeyToBadgeClass, flowBandLabel, flowStatusForColorKey } from '~/utils/flowBand'
+import { colorKeyToHex, colorKeyToBadgeClass, flowBandLabel, flowStatusForColorKey, isGaugeStale, STALE_HEX, STALE_BADGE_CLASS } from '~/utils/flowBand'
 
 const props = withDefaults(defineProps<{
   vm: RunRowVM
@@ -182,6 +182,13 @@ const band = computed(() => bandForCfs(props.vm.slug, effectiveCfs.value))
 
 const isPalette = computed(() => props.vm.fallbackFlavor === 'palette')
 
+// A gauge the poller can't read is showing history, not a level (#430) — the
+// colour goes neutral. The LABEL stays: "Running" from the last real reading is
+// still the last thing this run was known to be doing, and blanking it would
+// lose information the row has. Grey plus the retained label reads as "this was
+// running, we just can't see it now", which is the truth.
+const isStale = computed(() => isGaugeStale(props.vm.pollHealth))
+
 const badgeLabel = computed(() => {
   if (band.value) return band.value.label
   return isPalette.value
@@ -190,11 +197,13 @@ const badgeLabel = computed(() => {
 })
 
 const colorHex = computed(() => {
+  if (isStale.value) return STALE_HEX
   if (band.value) return colorKeyToHex(band.value.color)
-  return isPalette.value ? bandSolid(props.vm.rawBand, props.vm.rawStatus) : '#9ca3af'
+  return isPalette.value ? bandSolid(props.vm.rawBand, props.vm.rawStatus) : STALE_HEX
 })
 
 const badgeClass = computed(() => {
+  if (isStale.value) return STALE_BADGE_CLASS
   if (band.value) return colorKeyToBadgeClass(band.value.color)
   return isPalette.value ? bandBadgeClass(props.vm.rawBand, props.vm.rawStatus) : colorKeyToBadgeClass('')
 })

@@ -77,7 +77,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { WatchedGauge } from '~/stores/watchlist'
-import { colorKeyToHex } from '~/utils/flowBand'
+import { colorKeyToHex, isGaugeStale, STALE_HEX } from '~/utils/flowBand'
 
 // Minimal custom-gauge shape this row needs. The full CustomGaugeSummary from
 // dashboard.vue (which carries more fields) satisfies this structurally.
@@ -123,7 +123,15 @@ const band = computed(() => {
   return bandForCfs(props.entry.feedsRunSlugs[0], displayCfs.value)
 })
 
-const cfsColor = computed(() => (band.value ? colorKeyToHex(band.value.color) : '#9ca3af'))
+// Stale gauges go neutral (#430). pollHealth rides along on the entry's
+// representative WatchedGauge — custom gauges have no `gauge` and are never
+// band-coloured anyway.
+const isStale = computed(() => isGaugeStale(props.entry.gauge?.pollHealth))
+
+const cfsColor = computed(() => {
+  if (isStale.value) return STALE_HEX
+  return band.value ? colorKeyToHex(band.value.color) : STALE_HEX
+})
 const sparklineColor = computed(() => cfsColor.value)
 
 const subline = computed(() => {

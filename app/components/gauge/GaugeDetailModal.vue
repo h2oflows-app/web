@@ -194,7 +194,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import type { WatchedGauge } from '~/stores/watchlist'
-import { flowBandLabel } from '~/utils/flowBand'
+import { flowBandLabel, isGaugeStale, STALE_BADGE_CLASS } from '~/utils/flowBand'
 import { type DiurnalPattern } from '~/composables/useDiurnalPattern'
 import { useGaugeSeasonal } from '~/composables/useGaugeSeasonal'
 
@@ -322,10 +322,23 @@ const chipStatus = computed(() => liveBand.value?.flowStatus ?? props.gauge.flow
 const bandChipLabel = computed(() =>
   showBandChip.value ? flowBandLabel(chipBand.value, chipStatus.value) : null
 )
+
+// Stale gauges lose the band hue but keep the label (#430) — same rule RunRow
+// applies, so a run reads the same in the sheet as it does in the row that
+// opened it. The sheet's own header meta line carries the reading's age.
+const isStale = computed(() => isGaugeStale(props.gauge.pollHealth))
+
 const bandChipClass = computed(() =>
-  showBandChip.value ? bandBadgeClass(chipBand.value, chipStatus.value) : null
+  showBandChip.value
+    ? (isStale.value ? STALE_BADGE_CLASS : bandBadgeClass(chipBand.value, chipStatus.value))
+    : null
 )
 
+// Rolls over to days past 24h. Without that a reading a week old rendered as
+// "212h 22m ago", which is arithmetically true and useless — an hour count that
+// large reads as a glitch rather than as "this gauge stopped reporting". Every
+// sibling formatter (GaugePollStatus, DashboardGaugeRow, UserRunCustomGaugeModal)
+// already did this; the modal was the one that didn't.
 const lastReadingRelative = computed(() => {
   if (!props.gauge.lastReadingAt) return ''
   const ms = Date.now() - new Date(props.gauge.lastReadingAt).getTime()
@@ -333,7 +346,9 @@ const lastReadingRelative = computed(() => {
   if (m < 1)  return 'just now'
   if (m < 60) return `${m}m ago`
   const h = Math.floor(m / 60)
-  return `${h}h ${m % 60}m ago`
+  if (h < 24) return `${h}h ${m % 60}m ago`
+  const d = Math.floor(h / 24)
+  return `${d}d ${h % 24}h ago`
 })
 
 const metaText = computed(() =>

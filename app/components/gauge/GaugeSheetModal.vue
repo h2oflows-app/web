@@ -34,7 +34,12 @@
     <template #content>
       <div class="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-white dark:bg-neutral-950">
 
-        <!-- ── Chart — fills all remaining height, no gutters ─────────────── -->
+        <!-- ── Chart — fills all remaining height, no gutters ───────────────
+             Deliberately uncapped. The mobile rebalance is done entirely by the
+             foot's ceiling below: the foot is content-sized and the chart is
+             flex-1, so the chart already yields exactly what the foot takes and
+             no more. Capping the chart too would strand dead space between the
+             two whenever a run has only one or two inputs. -->
         <div class="relative min-h-0 flex-1 [&>*]:h-full">
           <slot name="chart" />
         </div>
@@ -44,8 +49,17 @@
              only the shell's root has a definite height, so a percentage cap
              inside a content-sized wrapper resolves to `none` and tall foot
              content crushes the chart and then gets clipped by overflow-hidden
-             with no way to scroll to it. pb clears the absolute x-axis strip. -->
-        <div v-if="slots.foot" class="relative max-h-[45%] min-h-0 overflow-y-auto overscroll-contain pb-11.5">
+             with no way to scroll to it. pb clears the absolute x-axis strip.
+
+             The ceiling is higher on a phone. At 45% a short viewport gave the
+             result graph 55%+ and left the input strips it is calculated from
+             scrolling inside a sliver. The strips stay under the plot rather
+             than moving to a drawer because they share its pinned x axis, and
+             that alignment is what makes an input visibly lead or lag the
+             result. Raising only this ceiling is enough: the chart is flex-1,
+             so it yields exactly what the foot takes and keeps the rest — no
+             dead space when a run has just one or two inputs. -->
+        <div v-if="slots.foot" class="relative max-h-[54%] min-h-0 overflow-y-auto overscroll-contain pb-11.5 sm:max-h-[45%]">
           <slot name="foot" />
         </div>
 

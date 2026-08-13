@@ -266,7 +266,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRunWizardStore } from '~/stores/runWizard'
 import { classColor, classRange } from '~/utils/classRating'
 import { featureListPin } from '~/utils/featureIcons'
-import type { FlowBands } from '~/utils/flowBand'
+import { DEFAULT_BASE_BAND, type FlowBands } from '~/utils/flowBand'
 
 const store = useRunWizardStore()
 const { getToken } = useAuth()
@@ -349,10 +349,11 @@ const featureSummary = computed(() => {
   return `${n} feature${n === 1 ? '' : 's'} on this run`
 })
 
-// Default flow bands seeded on enter (if null or no thresholds)
+// Default flow bands seeded on enter (if null or no thresholds). The base band
+// comes from DEFAULT_BASE_BAND so the wizard and useRunSave's fallback can't
+// disagree about what an unedited run's Too Low looks like.
 const DEFAULT_FLOW_BANDS: FlowBands = {
-  base_label: 'Too Low',
-  base_color: 'neutral-3',
+  ...DEFAULT_BASE_BAND,
   thresholds: [
     { value: 600,  label: 'Running', color: 'green-3' },
     { value: 1800, label: 'High',    color: 'blue-3'  },
