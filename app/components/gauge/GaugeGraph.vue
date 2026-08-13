@@ -35,6 +35,15 @@
         :class="baseOverlay.align === 'left' ? 'left-4 text-left' : 'right-4 text-right'"
         :style="{ top: `${baseOverlay.top}px`, color: baseOverlay.color }"
       >{{ baseOverlay.label }}</div>
+
+      <!-- Next band above the window. The scale is sized off the reading, so
+           this threshold has no line on the plot — the arrow is what says "it
+           is up there, off the top", and the value says how far. -->
+      <div
+        v-if="aboveOverlay"
+        class="absolute right-4 -translate-y-full px-1 text-right text-[10px] font-bold uppercase tracking-[0.09em] opacity-70 pointer-events-none"
+        :style="{ top: `${aboveOverlay.top}px`, color: aboveOverlay.color }"
+      >↑ {{ aboveOverlay.label }} · <span class="tabular-nums">{{ aboveOverlay.valueText }}</span></div>
     </template>
 
     <!-- Hover tooltip — present in both variants. Sits above the sheet shell's
@@ -151,11 +160,18 @@ let chart: uPlot | null = null
 const yTicks      = ref<{ value: number; label: string; top: number }[]>([])
 const lineOverlays = ref<CaptionLayout[]>([])
 const baseOverlay  = ref<{ label: string; color: string; top: number; align: CaptionAlign } | null>(null)
+// The next band ABOVE the visible window, when there is one. The y scale is
+// sized off the reading now, so a threshold is routinely off the top of the
+// plot — on prod every single run currently below a threshold has its next band
+// off-scale, a median of 5.4x current flow away. Without this the sheet gives no
+// hint the band exists at all.
+const aboveOverlay = ref<{ label: string; valueText: string; color: string; top: number } | null>(null)
 
 function clearSheetOverlays() {
   yTicks.value       = []
   lineOverlays.value = []
   baseOverlay.value  = null
+  aboveOverlay.value = null
 }
 
 const { apiBase } = useRuntimeConfig().public
@@ -634,6 +650,15 @@ const CAPTION_ROW_PX = 13
 // dropped — dropping one left its dotted line on the plot with nothing naming
 // it. Pure, so the drawClear hook can ask which lines still have a caption
 // before it strokes them and the draw hook can place the DOM overlays.
+/** The lowest reference line sitting above the visible window, if any. */
+function offScaleAbove(u: uPlot): ReferenceLine | null {
+  const yMax = u.scales.y?.max
+  if (yMax == null) return null
+  return referenceLines.value
+    .filter(l => Number.isFinite(l.value) && l.value > yMax)
+    .sort((a, b) => a.value - b.value)[0] ?? null
+}
+
 function captionLayout(u: uPlot): CaptionLayout[] {
   const lines = referenceLines.value
   if (lines.length === 0) return []
@@ -641,7 +666,9 @@ function captionLayout(u: uPlot): CaptionLayout[] {
   const dpr = devicePixelRatio
   const heightCss = u.bbox.height / dpr
   const { top: insetTop, bottom: insetBottom } = sheetInsets(heightCss)
-  const ceilPx  = insetTop + CAPTION_ROW_PX + 1
+  // The off-scale marker owns the first row when there is one, the same way the
+  // base-band caption owns the last.
+  const ceilPx  = insetTop + CAPTION_ROW_PX + 1 + (offScaleAbove(u) ? CAPTION_ROW_PX : 0)
   // The base-band caption owns the last row when there is one.
   const floorPx = heightCss - insetBottom - (props.baseBandLabel ? CAPTION_ROW_PX : 0)
   if (floorPx < ceilPx) return []
@@ -704,6 +731,16 @@ function syncSheetOverlays(u: uPlot, bands: FlowBands | null) {
         color: bands ? bandLabelHex(bands.base_color) : cssVar('--chart-axis', '#9ca3af'),
         top:   floorPx,
         align: align(floorPx),
+      }
+    : null
+
+  const above = offScaleAbove(u)
+  aboveOverlay.value = above
+    ? {
+        label:     above.label,
+        valueText: formatValue(above.value),
+        color:     above.labelColor || above.color || cssVar('--seasonal-line', '#6366f1'),
+        top:       insetTop + CAPTION_ROW_PX,
       }
     : null
 }
