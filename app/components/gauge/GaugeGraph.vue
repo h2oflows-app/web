@@ -44,6 +44,34 @@
         class="absolute right-4 -translate-y-full px-1 text-right text-[10px] font-bold uppercase tracking-[0.09em] opacity-70 pointer-events-none"
         :style="{ top: `${aboveOverlay.top}px`, color: aboveOverlay.color }"
       >↑ {{ aboveOverlay.label }} · <span class="tabular-nums">{{ aboveOverlay.valueText }}</span></div>
+
+      <!-- ── Band rail ──────────────────────────────────────────────────────
+           The run's whole band stack, equal height per band, with a marker for
+           the current flow. Sits at the very edge so the right-aligned
+           threshold captions (right-4) clear it. -->
+      <div
+        v-if="showRail && railGeom"
+        class="absolute right-1 w-1.5 pointer-events-none"
+        :style="{ top: `${railGeom.top}px`, height: `${railGeom.height}px` }"
+      >
+        <div class="relative h-full w-full overflow-hidden rounded-full">
+          <div
+            v-for="seg in railStack"
+            :key="seg.key"
+            class="absolute inset-x-0"
+            :style="{ bottom: `${seg.bottom}%`, height: `${seg.height}%`, background: seg.color, opacity: seg.active ? 1 : 0.3 }"
+          />
+        </div>
+
+        <!-- Current flow. White core with a dark ring so it reads on any band
+             color in either theme, and wider than the rail so it can't be
+             mistaken for a band boundary. -->
+        <div
+          v-if="railMarkerPos != null"
+          class="absolute -left-0.75 -right-0.75 h-0.5 translate-y-1/2 rounded-full bg-white ring-1 ring-neutral-900/60 dark:ring-black"
+          :style="{ bottom: `${railMarkerPos * 100}%` }"
+        />
+      </div>
     </template>
 
     <!-- Hover tooltip — present in both variants. Sits above the sheet shell's
@@ -72,6 +100,7 @@ import 'uplot/dist/uPlot.min.css'
 import { useDiurnalPattern, type DiurnalPattern } from '~/composables/useDiurnalPattern'
 import type { FlowBands } from '~/utils/flowBand'
 import { sheetYRange } from '~/utils/chartRange'
+import { railPosition, railSlices } from '~/utils/bandRail'
 
 // ---- Types ------------------------------------------------------------------
 
@@ -166,12 +195,16 @@ const baseOverlay  = ref<{ label: string; color: string; top: number; align: Cap
 // off-scale, a median of 5.4x current flow away. Without this the sheet gives no
 // hint the band exists at all.
 const aboveOverlay = ref<{ label: string; valueText: string; color: string; top: number } | null>(null)
+// Rail box in CSS px, tracked from the live plot so it stays clear of the header
+// scrim and the x-axis strip exactly like the captions do.
+const railGeom = ref<{ top: number; height: number } | null>(null)
 
 function clearSheetOverlays() {
   yTicks.value       = []
   lineOverlays.value = []
   baseOverlay.value  = null
   aboveOverlay.value = null
+  railGeom.value     = null
 }
 
 const { apiBase } = useRuntimeConfig().public
@@ -571,8 +604,11 @@ function drawEndDot(u: uPlot, color: string) {
   const y = u.valToPos(yv, 'y', true)
   let x = u.valToPos(xv, 'x', true)
   if (!Number.isFinite(x) || !Number.isFinite(y)) return
-  // Keep the dot body inside the canvas at the right edge.
-  x = Math.min(x, bbox.left + bbox.width - 4 * dpr)
+  // Keep the dot body inside the canvas at the right edge — and clear of the
+  // band rail when it's drawn, which occupies the last ~10px and would
+  // otherwise sit on top of the newest reading.
+  const rightPad = showRail.value ? 16 : 4
+  x = Math.min(x, bbox.left + bbox.width - rightPad * dpr)
 
   ctx.save()
   ctx.fillStyle = color
@@ -734,7 +770,12 @@ function syncSheetOverlays(u: uPlot, bands: FlowBands | null) {
       }
     : null
 
-  const above = offScaleAbove(u)
+  railGeom.value = { top: insetTop, height: Math.max(0, floorPx - insetTop) }
+
+  // The rail says the same thing spatially and says it for every band, so the
+  // arrow marker is only worth drawing when there is no rail — gauge mode, whose
+  // reference lines are seasonal percentiles rather than flow bands.
+  const above = showRail.value ? null : offScaleAbove(u)
   aboveOverlay.value = above
     ? {
         label:     above.label,
@@ -766,6 +807,55 @@ const bandRegions = computed<BandRegion[]>(() => {
 })
 
 watch(bandRegions, regions => emit('bandRegions', regions), { immediate: true })
+
+// ---- Band rail --------------------------------------------------------------
+//
+// The y axis is sized off the reading, so the flow bands are mostly off-scale —
+// on prod, every run currently below a threshold has its next band out of the
+// window (median 5.4x current flow). Rather than distort the hydrograph to reach
+// them, the rail carries the band context as its own object: the full stack
+// compressed down the edge of the plot, with a marker for where the flow sits.
+// Sheet only, and only when the run actually has bands (gauge mode has none).
+const showRail = computed(() => chartVariant.value === 'sheet' && bandRegions.value.length > 0)
+
+// Freshest reading we hold, falling back to the caller's value — same rule the
+// line color uses, so the marker and the trace can never disagree.
+const latestCfs = computed<number | null>(() => {
+  const asc = ascending(activeReadings.value)
+  const last = asc[asc.length - 1]
+  return last ? last.cfs : (props.currentCfs ?? null)
+})
+
+const railPos = computed(() => railPosition(latestCfs.value, bandRegions.value))
+
+// Display-only clamp. Real positions bunch hard at the floor — 60 of 106 prod
+// runs currently sit in the bottom tenth of their rail, the lowest at 0.3%,
+// which on a 200px rail is under a pixel of daylight and reads as part of the
+// rail's rounded end rather than as a marker. Nudging the drawn position keeps
+// the marker legible without moving the honest one: the flow really is at the
+// bottom of the stack, and the rail should say so rather than flatter it.
+const RAIL_MARKER_INSET = 0.025
+const railMarkerPos = computed(() =>
+  railPos.value == null
+    ? null
+    : Math.min(1 - RAIL_MARKER_INSET, Math.max(RAIL_MARKER_INSET, railPos.value)),
+)
+
+// Bottom-up slices. The band holding the current reading is drawn solid and the
+// rest are dimmed, so "which band am I in" reads before any of the detail does.
+const railStack = computed(() => {
+  const slices = railSlices(bandRegions.value)
+  const activeIdx = railPos.value == null
+    ? -1
+    : Math.min(slices.length - 1, Math.floor(railPos.value * slices.length))
+  return slices.map((s, i) => ({
+    key:    `${s.band.label}-${i}`,
+    color:  bandLineHex(s.band.color),
+    bottom: s.offset * 100,
+    height: s.size * 100,
+    active: i === activeIdx,
+  }))
+})
 
 // Explicit reference lines win; otherwise the sheet derives one per threshold.
 // The base band gets no line — that's what baseBandLabel is for.
