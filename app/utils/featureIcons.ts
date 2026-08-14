@@ -26,6 +26,10 @@ export const PIN_COLORS: Record<string, string> = {
   rapid:        '#3b82f6',
   surf:         '#3b82f6',
   hazard:       '#dc2626',
+  // web#413. Riffle is a lighter blue than a rapid on purpose — same kind of
+  // thing, lesser one. POI is teal, the only hue not already spoken for.
+  riffle:       '#60a5fa',
+  poi:          '#14b8a6',
 }
 
 /**
@@ -60,6 +64,17 @@ export function featureListPin(options: {
     // Two parallel wave lines
     inner = `<path d="M5 11C8 8 11 8 14 11C17 14 20 14 23 11" stroke="white" stroke-width="1.8" stroke-linecap="round" fill="none"/>
       <path d="M5 16C8 13 11 13 14 16C17 19 20 19 23 16" stroke="white" stroke-width="1.8" stroke-linecap="round" fill="none"/>`
+  } else if (type === 'riffle') {
+    // Three tight ripples on the same x span as the rapid's two waves (5-23,
+    // centred on the teardrop at x=14) but with half the amplitude. Reads as
+    // "moving water, just not much of it".
+    inner = `<path d="M7 9.5C9.5 8, 11.5 8, 14 9.5C16.5 11, 18.5 11, 21 9.5" stroke="white" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+      <path d="M7 13.5C9.5 12, 11.5 12, 14 13.5C16.5 15, 18.5 15, 21 13.5" stroke="white" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+      <path d="M7 17.5C9.5 16, 11.5 16, 14 17.5C16.5 19, 18.5 19, 21 17.5" stroke="white" stroke-width="1.5" stroke-linecap="round" fill="none"/>`
+  } else if (type === 'poi') {
+    // Eye — "look at me". Centred on x=14 like every other pin glyph.
+    inner = `<path d="M8 13C10.5 9.5, 17.5 9.5, 20 13C17.5 16.5, 10.5 16.5, 8 13Z" stroke="white" stroke-width="1.6" stroke-linejoin="round" fill="none"/>
+      <circle cx="14" cy="13" r="2" fill="white"/>`
   } else if (type === 'put_in') {
     inner = `<path d="M14 7L14 19M9 15L14 20L19 15" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`
   } else if (type === 'take_out') {
@@ -104,14 +119,25 @@ export function accessFeatureIcon(type: string): string {
     case 'boat_ramp':
       // Boat hull + mast
       return svg(`<path ${S} d="M2 10h12l-2 3H4L2 10z"/><path ${S} d="M8 10V5"/><path ${S} d="M8 5l3 2"/>`)
+    case 'poi':
+      // Eye — "look at me"
+      return svg(`<path ${S} d="M1.5 8C3.5 4.5 12.5 4.5 14.5 8C12.5 11.5 3.5 11.5 1.5 8Z"/><circle fill="white" stroke="none" cx="8" cy="8" r="2"/>`)
     default:
       // access / intermediate — solid diamond
       return svg(`<path fill="white" stroke="none" d="M8 3l3.5 5L8 13l-3.5-5z"/>`)
   }
 }
 
-/** Icon for rapids (regular or surf wave). */
-export function rapidFeatureIcon(isSurf = false): string {
+/** Icon for rapids (regular, surf wave, or riffle). */
+export function rapidFeatureIcon(isSurf = false, isRiffle = false): string {
+  if (isRiffle) {
+    // Three tight ripples — smaller amplitude than a rapid's two waves.
+    return svg(
+      `<path stroke="white" stroke-width="1.7" stroke-linecap="round" fill="none" d="M2 4.5C3.5 3 5 3 6.5 4.5C8 6 9.5 6 11 4.5"/>` +
+      `<path stroke="white" stroke-width="1.7" stroke-linecap="round" fill="none" d="M2 8.5C3.5 7 5 7 6.5 8.5C8 10 9.5 10 11 8.5"/>` +
+      `<path stroke="white" stroke-width="1.7" stroke-linecap="round" fill="none" d="M2 12.5C3.5 11 5 11 6.5 12.5C8 14 9.5 14 11 12.5"/>`
+    )
+  }
   if (isSurf) {
     // Cresting wave
     return svg(
@@ -157,10 +183,11 @@ export function gaugeFeatureIcon(relationship?: string | null): string {
  */
 export function featurePanelIcon(
   type: string,
-  options: { isHazard?: boolean; isSurf?: boolean } = {}
+  options: { isHazard?: boolean; isSurf?: boolean; isRiffle?: boolean } = {}
 ): string {
   if (options.isHazard) return hazardFeatureIcon()
   if (type === 'wave') return rapidFeatureIcon(true)
-  if (type === 'rapid' || type === 'hazard') return rapidFeatureIcon(options.isSurf)
+  if (type === 'riffle') return rapidFeatureIcon(false, true)
+  if (type === 'rapid' || type === 'hazard') return rapidFeatureIcon(options.isSurf, options.isRiffle)
   return accessFeatureIcon(type)
 }

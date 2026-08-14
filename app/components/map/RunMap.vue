@@ -147,6 +147,10 @@ interface RapidFeature {
   class_rating: number | null
   description: string | null
   is_surf_wave: boolean
+  // web#413 / api#205. Optional: a payload cached before that deploy has no
+  // such key, and an undefined here just means "a plain rapid", which is what
+  // every pre-#413 row is anyway.
+  is_riffle?: boolean
   is_permanent_hazard?: boolean
   hazard_type?: string | null
   lng: number | null
@@ -271,6 +275,7 @@ const rapidFeatures = computed(() =>
       label:      stripRapidClass(r.name),
       desc:       r.description ?? '',
       isSurf:     r.is_surf_wave,
+      isRiffle:   r.is_riffle === true,
       classLabel: r.class_rating != null ? `${formatClass(r.class_rating)}` : null,
       lng:        r.lng!,
       lat:        r.lat!,
@@ -319,10 +324,10 @@ const selectedFeature = computed(() => {
   if (rapid) return {
     title:       rapid.label,
     classLabel:  rapid.classLabel,
-    subtitle:    rapid.isSurf ? 'Surf wave' : null,
+    subtitle:    rapid.isSurf ? 'Surf wave' : rapid.isRiffle ? 'Riffle' : null,
     desc:        rapid.desc || null,
-    pinColor:    '#3b82f6',
-    circleIcon:  rapidFeatureIcon(rapid.isSurf),
+    pinColor:    rapid.isRiffle ? '#60a5fa' : '#3b82f6',
+    circleIcon:  rapidFeatureIcon(rapid.isSurf, rapid.isRiffle),
   }
   const access = accessFeatures.value.find(a => a.id === selectedId.value)
   if (access) return {
@@ -915,6 +920,10 @@ function exportKml() {
     <IconStyle><scale>0.9</scale><Icon><href>http://maps.google.com/mapfiles/kml/paddle/blu-circle.png</href></Icon></IconStyle>
     <LabelStyle><scale>0.8</scale></LabelStyle>
   </Style>
+  <Style id="riffle">
+    <IconStyle><scale>0.75</scale><Icon><href>http://maps.google.com/mapfiles/kml/paddle/ltblu-circle.png</href></Icon></IconStyle>
+    <LabelStyle><scale>0.7</scale></LabelStyle>
+  </Style>
   <Style id="river">
     <LineStyle><color>${lineColorKml}</color><width>4</width></LineStyle>
     <PolyStyle><fill>0</fill></PolyStyle>
@@ -956,7 +965,7 @@ function exportKml() {
     <Placemark>
       <name>${esc(r.label)}${r.classLabel ? ` (Class ${r.classLabel})` : ''}</name>
       ${r.desc ? `<description>${esc(r.desc)}</description>` : ''}
-      <styleUrl>#${r.isSurf ? 'surf_wave' : 'rapid'}</styleUrl>
+      <styleUrl>#${r.isSurf ? 'surf_wave' : r.isRiffle ? 'riffle' : 'rapid'}</styleUrl>
       <Point><coordinates>${r.lng},${r.lat},0</coordinates></Point>
     </Placemark>`).join('')
     rapidsFolder = `\n  <Folder><name>Rapids</name>${marks}\n  </Folder>`
@@ -1128,15 +1137,15 @@ function gaugeRelLabel(rel: string | null | undefined): string {
 }
 
 function accessTypeLabel(type: string): string {
-  return { put_in: 'Put-in', take_out: 'Take-out', shuttle_drop: 'Shuttle', intermediate: 'Access', parking: 'Parking', camp: 'Camp', boat_ramp: 'Boat Ramp' }[type] ?? type
+  return { put_in: 'Put-in', take_out: 'Take-out', shuttle_drop: 'Shuttle', intermediate: 'Access', parking: 'Parking', camp: 'Camp', boat_ramp: 'Boat Ramp', poi: 'Point of interest' }[type] ?? type
 }
 
 function accessColor(type: string): string {
-  return { put_in: '#22c55e', take_out: '#ef4444', shuttle_drop: '#a855f7', intermediate: '#16a34a', parking: '#dc2626', camp: '#f59e0b', boat_ramp: '#0ea5e9' }[type] ?? '#16a34a'
+  return { put_in: '#22c55e', take_out: '#ef4444', shuttle_drop: '#a855f7', intermediate: '#16a34a', parking: '#dc2626', camp: '#f59e0b', boat_ramp: '#0ea5e9', poi: '#14b8a6' }[type] ?? '#16a34a'
 }
 
 function accessIcon(type: string): string {
-  return { put_in: '↓', take_out: '↑', shuttle_drop: 'S', intermediate: '◆', parking: 'P', camp: '⛺', boat_ramp: '⛵' }[type] ?? '·'
+  return { put_in: '↓', take_out: '↑', shuttle_drop: 'S', intermediate: '◆', parking: 'P', camp: '⛺', boat_ramp: '⛵', poi: '👁' }[type] ?? '·'
 }
 
 function rebuildLayers() {

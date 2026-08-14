@@ -2,7 +2,7 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { classColor } from '~/utils/classRating'
 import type { FlowBands } from '~/utils/flowBand'
-import { type RunFeatureType, featureDefaultLabel } from '~/utils/runFeatureTypes'
+import { type RunFeatureType, featureDefaultLabel, featureTypeMeta } from '~/utils/runFeatureTypes'
 
 export interface WizardGauge {
   externalId: string
@@ -298,7 +298,11 @@ export const useRunWizardStore = defineStore('runWizard', () => {
       .filter(r => r?.lng != null && r?.lat != null)
       .map(r => ({
         id: String(r.id),
-        type: r.is_permanent_hazard ? 'hazard' : r.is_surf_wave ? 'surf' : 'rapid',
+        // Order is the precedence, not a preference: a row could carry more
+        // than one flag, and hazard/surf are the ones a boater must not miss.
+        // is_riffle (api#205) sits above plain rapid — an unflagged row is a
+        // rapid, which is what every pre-#413 row is.
+        type: r.is_permanent_hazard ? 'hazard' : r.is_surf_wave ? 'surf' : r.is_riffle ? 'riffle' : 'rapid',
         name: r.name ?? '',
         description: r.description ?? '',
         lng: r.lng,
@@ -310,7 +314,8 @@ export const useRunWizardStore = defineStore('runWizard', () => {
       .filter(a => a?.lng != null && a?.lat != null && a?.access_type !== 'put_in' && a?.access_type !== 'take_out')
       .map(a => ({
         id: String(a.id),
-        // DB 'intermediate' ⇄ palette 'access'; other access types pass through.
+        // DB 'intermediate' ⇄ palette 'access'; every other access type,
+        // 'poi' included, is stored under its own name and passes through.
         type: (a.access_type === 'intermediate' ? 'access' : a.access_type) as RunFeatureType,
         name: a.name ?? '',
         description: a.notes ?? '',
@@ -340,10 +345,19 @@ export const useRunWizardStore = defineStore('runWizard', () => {
   // number of unnamed access points of the same type coexist with no name
   // at all (no disambiguation needed). Palette 'access' → DB access_type
   // 'intermediate'.
+  // Which table a feature persists to. Single source of truth: the same list
+  // appeared three times in this function, and a new river type added to two of
+  // the three would be silently dropped from the payload rather than error.
+  function isRapidsFeature(type: RunFeatureType): boolean {
+    return featureTypeMeta(type).table === 'rapids'
+  }
+  // The two buckets are complements, so every feature type lands in exactly one
+  // and a new type cannot fall out of the payload by being forgotten from a list.
+
   function featuresToPayload() {
     const usedRapidNames = new Set(
       features.value
-        .filter(f => f.type === 'rapid' || f.type === 'surf' || f.type === 'hazard')
+        .filter(f => isRapidsFeature(f.type))
         .map(f => f.name.trim())
         .filter(Boolean),
     )
@@ -360,19 +374,20 @@ export const useRunWizardStore = defineStore('runWizard', () => {
     }
 
     const rapids = features.value
-      .filter(f => f.type === 'rapid' || f.type === 'surf' || f.type === 'hazard')
+      .filter(f => isRapidsFeature(f.type))
       .map(f => ({
         name: f.name.trim() || dedupedRapidName(f.type),
         description: f.description.trim() || null,
         class_rating: f.type === 'rapid' ? f.classRating : null,
         is_surf_wave: f.type === 'surf',
+        is_riffle: f.type === 'riffle',
         is_permanent_hazard: f.type === 'hazard',
         hazard_type: f.type === 'hazard' ? (f.hazardType || null) : null,
         lng: f.lng,
         lat: f.lat,
       }))
     const access = features.value
-      .filter(f => f.type === 'camp' || f.type === 'parking' || f.type === 'boat_ramp' || f.type === 'access' || f.type === 'shuttle_drop')
+      .filter(f => !isRapidsFeature(f.type))
       .map(f => ({
         access_type: f.type === 'access' ? 'intermediate' : f.type,
         name: f.name.trim(),
