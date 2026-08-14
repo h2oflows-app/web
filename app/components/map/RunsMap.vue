@@ -56,6 +56,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import type { ReachListItemBase, FlowStatus } from '~/types/reachList'
+import { formatRelativeAge } from '~/utils/relativeTime'
 import maplibregl from 'maplibre-gl'
 import type { LayerSpecification } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -673,15 +674,7 @@ function updateLayers(features: ReachFeature[]) {
 }
 
 function relativeTime(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime()
-  const m = Math.floor(ms / 60_000)
-  if (m < 1)  return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  // Days past 24h — an unrolled hour count on a long-dead gauge ("212h 22m")
-  // reads as a bug rather than as staleness.
-  if (h < 24) return `${h}h ${m % 60}m ago`
-  return `${Math.floor(h / 24)}d ${h % 24}h ago`
+  return formatRelativeAge(iso, { precision: 'fine' })
 }
 
 // Reload features when the data source URL OR auth headers change (e.g. signing in mid-session).

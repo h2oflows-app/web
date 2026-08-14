@@ -78,6 +78,7 @@
 import { computed, ref } from 'vue'
 import type { WatchedGauge } from '~/stores/watchlist'
 import { colorKeyToHex, isGaugeStale, STALE_HEX } from '~/utils/flowBand'
+import { formatRelativeAge } from '~/utils/relativeTime'
 
 // Minimal custom-gauge shape this row needs. The full CustomGaugeSummary from
 // dashboard.vue (which carries more fields) satisfies this structurally.
@@ -141,15 +142,9 @@ const subline = computed(() => {
 })
 
 function formatLastUpdated(iso: string | null): string | null {
-  if (!iso) return null
-  const ms = Date.now() - new Date(iso).getTime()
-  const minutes = Math.floor(ms / 60_000)
-  if (minutes < 1) return 'Updated just now'
-  if (minutes < 60) return `Updated ${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `Updated ${hours}h ago`
-  return `Updated ${Math.floor(hours / 24)}d ago`
+  return formatRelativeAge(iso, { prefix: 'Updated' }) || null
 }
+
 const lastUpdatedLabel = computed(() => (props.entry.isCustom ? null : formatLastUpdated(props.entry.lastReadingAt)))
 
 const rowClass = computed(() => [

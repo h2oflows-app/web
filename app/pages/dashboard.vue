@@ -833,6 +833,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { formatRelativeAge } from '~/utils/relativeTime'
 import { useWatchlistStore, type WatchedGauge } from '~/stores/watchlist'
 import { basinLabel, cleanBasinName, slugifyBasin } from '~/utils/basin'
 import { userReachToRunRowVM } from '~/utils/runRow'
@@ -972,15 +973,10 @@ interface UserReachSummary {
   is_reference?: boolean
 }
 
+// Feeds RunRow's lastReadingLabel — the row renders whatever string it is
+// handed, so this is the eighth copy the issue suspected existed.
 function reachLastUpdated(r: UserReachSummary): string {
-  if (!r.last_reading_at) return ''
-  const ms = Date.now() - new Date(r.last_reading_at).getTime()
-  const minutes = Math.floor(ms / 60_000)
-  if (minutes < 1)  return 'Updated just now'
-  if (minutes < 60) return `Updated ${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24)   return `Updated ${hours}h ago`
-  return `Updated ${Math.floor(hours / 24)}d ago`
+  return formatRelativeAge(r.last_reading_at, { prefix: 'Updated' })
 }
 
 // Custom gauge modal state (used for user reaches backed by custom gauges AND standalone cards)

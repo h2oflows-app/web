@@ -258,6 +258,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { formatRelativeAge } from '~/utils/relativeTime'
 import { useAdminUsersRoles, type AdminSelection, type SpecialUser, type Role } from '~/composables/useAdminUsersRoles'
 
 definePageMeta({ ssr: false })
@@ -281,13 +282,7 @@ watch(isDataAdmin, (val) => {
 })
 
 function relativeDate(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime()
-  const m = Math.floor(ms / 60_000)
-  if (m < 1) return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
+  return formatRelativeAge(iso)
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────

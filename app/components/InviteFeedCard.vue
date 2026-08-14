@@ -74,6 +74,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Invite } from '~/composables/useInvites'
+import { formatRelativeAge } from '~/utils/relativeTime'
 import { fmtDate, fmtTime } from '~/utils/calendarDate'
 import { flowBandLabel, colorKeyToBadgeClass } from '~/utils/flowBand'
 import { displayLabel } from '~/utils/displayLabel'
@@ -105,16 +106,10 @@ const subtitleText = computed(() => [reachNameText.value, riverLineText.value].f
 
 const resolved = computed(() => props.invite.status !== 'invited' || !!props.invite.dismissed_at)
 
+// This one was already the most complete of the six — "Yesterday", and an
+// absolute date once a day count stops being something you can picture. Its
+// behaviour is preserved exactly; those two traits became the shared options.
 function reltime(iso: string): string {
-  const diffMs = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diffMs / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days === 1) return 'Yesterday'
-  if (days < 7) return `${days}d ago`
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return formatRelativeAge(iso, { yesterday: true, absoluteAfterDays: 7 })
 }
 </script>

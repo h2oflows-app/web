@@ -27,6 +27,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { formatRelativeAge } from '~/utils/relativeTime'
 
 const props = defineProps<{
   gaugeId: string
@@ -51,11 +52,11 @@ function ageMinutes(isoStr: string): number {
   return Math.floor((Date.now() - new Date(isoStr).getTime()) / 60_000)
 }
 
+// Coarse: this is a compact status chip, and it composes into strings like
+// "Stale · 3h ago". It passes minutes rather than the timestamp because
+// badgeText below branches on the age before formatting it.
 function fmtAge(mins: number): string {
-  if (mins < 60) return `${mins}m ago`
-  const h = Math.floor(mins / 60)
-  if (h < 24) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
+  return formatRelativeAge(mins)
 }
 
 const badgeText = computed((): string | null => {

@@ -195,6 +195,7 @@
 import { ref, computed, watch } from 'vue'
 import type { WatchedGauge } from '~/stores/watchlist'
 import { flowBandLabel, isGaugeStale, STALE_BADGE_CLASS } from '~/utils/flowBand'
+import { formatRelativeAge } from '~/utils/relativeTime'
 import { type DiurnalPattern } from '~/composables/useDiurnalPattern'
 import { useGaugeSeasonal } from '~/composables/useGaugeSeasonal'
 
@@ -334,22 +335,11 @@ const bandChipClass = computed(() =>
     : null
 )
 
-// Rolls over to days past 24h. Without that a reading a week old rendered as
-// "212h 22m ago", which is arithmetically true and useless — an hour count that
-// large reads as a glitch rather than as "this gauge stopped reporting". Every
-// sibling formatter (GaugePollStatus, DashboardGaugeRow, UserRunCustomGaugeModal)
-// already did this; the modal was the one that didn't.
-const lastReadingRelative = computed(() => {
-  if (!props.gauge.lastReadingAt) return ''
-  const ms = Date.now() - new Date(props.gauge.lastReadingAt).getTime()
-  const m = Math.floor(ms / 60_000)
-  if (m < 1)  return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ${m % 60}m ago`
-  const d = Math.floor(h / 24)
-  return `${d}d ${h % 24}h ago`
-})
+// Fine precision: this modal is one gauge at a time, so the extra minutes are
+// worth the width.
+const lastReadingRelative = computed(() =>
+  formatRelativeAge(props.gauge.lastReadingAt, { precision: 'fine' }),
+)
 
 const metaText = computed(() =>
   props.gauge.lastReadingAt ? `Last reading ${lastReadingRelative.value}` : null
