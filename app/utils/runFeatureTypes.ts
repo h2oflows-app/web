@@ -11,8 +11,8 @@
 // the store, the feature-mode sheet, the feature form, and RunWizardMap.
 
 export type RunFeatureType =
-  | 'rapid' | 'surf' | 'hazard'                    // → rapids table
-  | 'camp' | 'parking' | 'boat_ramp' | 'access'    // → reach_access table
+  | 'rapid' | 'surf' | 'hazard' | 'riffle'         // → rapids table
+  | 'camp' | 'parking' | 'boat_ramp' | 'access' | 'poi'  // → reach_access table
   | 'shuttle_drop'                                 // legacy reach_access; loadable/editable, not in palette
 
 export interface RunFeatureTypeMeta {
@@ -25,16 +25,25 @@ export interface RunFeatureTypeMeta {
   namePlaceholder: string
 }
 
-// Palette order (7, no Shuttle). Colors are the semantic pin colors; access is
+// Palette order (9, no Shuttle). Colors are the semantic pin colors; access is
 // GREEN (#16a34a) per the handoff — keep featureIcons PIN_COLORS.intermediate in sync.
+//
+// riffle and poi are web#413. Riffle sits next to rapid/surf because it is a
+// river feature and persists to the same table (rapids.is_riffle, api#205); it
+// takes a LIGHTER blue than a rapid, because it is the same kind of thing and a
+// lesser one. POI is off-river — it is something you look AT rather than paddle
+// THROUGH — so it persists as reach_access.access_type 'poi' and, like every
+// other access type, does not snap to the flowline.
 export const RUN_FEATURE_TYPES: RunFeatureTypeMeta[] = [
   { key: 'rapid',     label: 'Rapid',     color: '#3b82f6', isRiver: true,  table: 'rapids', namePlaceholder: 'e.g. House Rock',       descPlaceholder: 'Line, moves, what to expect…' },
   { key: 'surf',      label: 'Surf wave', color: '#3b82f6', isRiver: true,  table: 'rapids', namePlaceholder: 'e.g. Glory Hole',       descPlaceholder: 'Best flows, eddy access…' },
   { key: 'hazard',    label: 'Hazard',    color: '#dc2626', isRiver: true,  table: 'rapids', namePlaceholder: 'e.g. Low-head dam',     descPlaceholder: 'What it is, how to avoid it, portage side…' },
+  { key: 'riffle',    label: 'Riffle',    color: '#60a5fa', isRiver: true,  table: 'rapids', namePlaceholder: 'e.g. Tributary riffle',  descPlaceholder: 'Shallow, bony, where the confluence comes in…' },
   { key: 'camp',      label: 'Campsite',  color: '#f59e0b', isRiver: false, table: 'access', namePlaceholder: 'e.g. River Right Camp', descPlaceholder: 'Capacity, permits, water…' },
   { key: 'parking',   label: 'Parking',   color: '#dc2626', isRiver: false, table: 'access', namePlaceholder: 'e.g. Take-out lot',     descPlaceholder: 'Fees, shuttle notes…' },
   { key: 'boat_ramp', label: 'Boat ramp', color: '#0ea5e9', isRiver: false, table: 'access', namePlaceholder: 'e.g. Kermitts ramp',    descPlaceholder: 'Surface, trailer access…' },
   { key: 'access',    label: 'Access',    color: '#16a34a', isRiver: false, table: 'access', namePlaceholder: 'e.g. Trail access',     descPlaceholder: 'Trail, ownership, etiquette…' },
+  { key: 'poi',       label: 'Point of interest', color: '#14b8a6', isRiver: false, table: 'access', namePlaceholder: 'e.g. Petroglyph panel', descPlaceholder: 'What to look for, where to scramble up…' },
 ]
 
 // Legacy shuttle_drop — editable if loaded from an existing run, but never offered in the palette.
