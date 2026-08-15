@@ -6,24 +6,17 @@
     <div v-if="!compact" class="flex justify-start mb-1.5 -mt-0.5 pointer-events-auto">
       <div class="flex text-xs rounded overflow-hidden border border-neutral-200 dark:border-neutral-700">
         <button
+          v-for="w in SPARKLINE_WINDOWS"
+          :key="w.hours"
           class="px-1.5 py-0.5 transition-colors"
-          :class="hours === 12 ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
-          @click.stop="hours = 12"
-        >12h</button>
-        <button
-          class="px-1.5 py-0.5 transition-colors"
-          :class="hours === 24 ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
-          @click.stop="hours = 24"
-        >24h</button>
-        <button
-          class="px-1.5 py-0.5 transition-colors"
-          :class="hours === 720 ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
-          @click.stop="hours = 720"
-        >30d</button>
+          :class="hours === w.hours ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
+          :title="`Show ${w.label} for this gauge`"
+          @click.stop="win.setForKey(windowKeyResolved, w.hours)"
+        >{{ w.short }}</button>
       </div>
     </div>
     <div class="relative w-full" :class="compact ? 'h-6' : 'h-10'">
-      <button v-if="compact" class="absolute top-0 right-0 text-[9px] leading-none text-neutral-400 dark:text-neutral-500 hover:text-primary-500 dark:hover:text-primary-400 font-mono z-10 transition-colors" @click.stop="toggleHours">{{ hours === 720 ? '30d' : `${hours}h` }}</button>
+      <button v-if="compact" class="absolute top-0 right-0 text-[9px] leading-none text-neutral-400 dark:text-neutral-500 hover:text-primary-500 dark:hover:text-primary-400 font-mono z-10 transition-colors" @click.stop="cycleHours">{{ sparklineWindowShort(hours) }}</button>
       <div v-if="loading" class="w-full h-full rounded animate-pulse bg-neutral-100 dark:bg-neutral-800" />
       <template v-else-if="points.length >= 2">
         <svg viewBox="0 0 100 40" preserveAspectRatio="none" class="w-full h-full overflow-visible">
@@ -47,6 +40,10 @@ const props = defineProps<{
   gaugeSlug: string
   compact?: boolean
   color?: string
+  /** Per-sparkline window override identity (#402) — the run slug on the
+   *  dashboard, so a custom gauge feeding two runs can be windowed per run.
+   *  Falls back to the gauge's own slug. */
+  windowKey?: string | null
 }>()
 
 const { apiBase } = useRuntimeConfig().public
@@ -54,10 +51,18 @@ const { getToken } = useAuth()
 
 const loading  = ref(true)
 const readings = ref<{ cfs: number; timestamp: string }[]>([])
-const hours    = ref<12 | 24 | 720>(24)
 
-function toggleHours() {
-  hours.value = hours.value === 12 ? 24 : hours.value === 24 ? 720 : 12
+// Shared with every other sparkline on the board — see useSparklineWindow.
+// This component used to default to 24h with no persistence at all and no 1w
+// option, so it drifted from GaugeSparkline on the same dashboard (#402).
+const win = useSparklineWindow()
+const windowKeyResolved = computed(() => props.windowKey ?? `custom:${props.gaugeSlug}`)
+const hours = computed(() => win.resolve(windowKeyResolved.value))
+
+function cycleHours() {
+  const i = SPARKLINE_WINDOWS.findIndex(w => w.hours === hours.value)
+  const next = SPARKLINE_WINDOWS[(i + 1) % SPARKLINE_WINDOWS.length]!
+  win.setForKey(windowKeyResolved.value, next.hours)
 }
 
 watch(hours, fetchReadings)
@@ -67,7 +72,7 @@ async function fetchReadings() {
   try {
     const token = await getToken()
     const since = new Date(Date.now() - hours.value * 3_600_000).toISOString()
-    const limit = hours.value === 720 ? 3000 : 500
+    const limit = hours.value === 720 ? 3000 : hours.value === 168 ? 1500 : 500
     const res = await fetch(
       `${apiBase}/api/v1/me/custom-gauges/${props.gaugeSlug}/readings?since=${since}&limit=${limit}`,
       { headers: token ? { Authorization: `Bearer ${token}` } : {} },

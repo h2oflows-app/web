@@ -20,7 +20,7 @@
       <span v-else class="text-[10px] text-neutral-400 dark:text-neutral-500 italic">No linked runs</span>
     </div>
     <div class="w-32 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
-      <GaugeSparkline v-if="!entry.isCustom" :gauge-id="entry.gaugeId" :flow-status="(entry.flowStatus as any)" :color="sparklineColor" compact @latest-cfs="onLatestCfs" />
+      <GaugeSparkline v-if="!entry.isCustom" :gauge-id="entry.gaugeId" :window-key="entry.gaugeId" :flow-status="(entry.flowStatus as any)" :color="sparklineColor" compact @latest-cfs="onLatestCfs" />
       <CustomGaugeSparkline v-else :gauge-slug="entry.customGauge!.slug" compact :color="sparklineColor" />
     </div>
     <TrendArrow v-if="!entry.isCustom" :gauge-id="entry.gaugeId" />
@@ -67,7 +67,7 @@
       </div>
     </div>
     <div class="relative mb-1 opacity-70 pointer-events-none">
-      <GaugeSparkline v-if="!entry.isCustom" :gauge-id="entry.gaugeId" :flow-status="(entry.flowStatus as any)" :color="sparklineColor" :compact="viewMode !== 'full'" @latest-cfs="onLatestCfs" />
+      <GaugeSparkline v-if="!entry.isCustom" :gauge-id="entry.gaugeId" :window-key="entry.gaugeId" :flow-status="(entry.flowStatus as any)" :color="sparklineColor" :compact="viewMode !== 'full'" @latest-cfs="onLatestCfs" />
       <CustomGaugeSparkline v-else :gauge-slug="entry.customGauge!.slug" :compact="viewMode !== 'full'" :color="sparklineColor" />
     </div>
     <p v-if="viewMode === 'full' && lastUpdatedLabel" class="text-xs text-neutral-400 mt-0.5">{{ lastUpdatedLabel }}</p>

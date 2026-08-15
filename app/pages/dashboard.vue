@@ -91,6 +91,34 @@
             </svg>
           </button>
         </div>
+
+        <!-- Density (compact / comfortable) — mobile only, sitting beside the
+             Runs/Gauges switch per #402 so the second line of this bar has room
+             for the Window and Group controls. Desktop keeps its own copy in the
+             scrolling group below, which also carries Full. -->
+        <div v-if="hasAnyContent" class="shrink-0 flex items-center gap-0.5">
+          <ToolbarButton
+            :active="viewMode === 'list'"
+            title="Compact"
+            @click="setViewMode('list')"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+              <line x1="2" y1="4" x2="14" y2="4"/>
+              <line x1="2" y1="8" x2="14" y2="8"/>
+              <line x1="2" y1="12" x2="14" y2="12"/>
+            </svg>
+          </ToolbarButton>
+          <ToolbarButton
+            :active="viewMode === 'comfortable'"
+            title="Comfortable"
+            @click="setViewMode('comfortable')"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="1.5" y="2" width="13" height="4.5" rx="1.5"/>
+              <rect x="1.5" y="9.5" width="13" height="4.5" rx="1.5"/>
+            </svg>
+          </ToolbarButton>
+        </div>
       </div>
       <!-- Left items wrap their own overflow so Add gauge stays pinned right -->
       <div class="flex items-center gap-1 min-w-0 overflow-x-auto flex-1 scrollbar-none [&::-webkit-scrollbar]:hidden">
@@ -115,53 +143,107 @@
 
           <div class="h-4 w-px bg-neutral-200 dark:bg-neutral-700 mx-0.5 hidden sm:block" />
 
-          <!-- View mode — tooltip-only, active = white pill + shadow -->
-          <UTooltip text="Compact">
-            <ToolbarButton
-              :active="viewMode === 'list'"
-              title="Compact"
-              @click="setViewMode('list')"
-            >
-              <!-- 3 evenly-spaced horizontal lines -->
-              <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-                <line x1="2" y1="4" x2="14" y2="4"/>
-                <line x1="2" y1="8" x2="14" y2="8"/>
-                <line x1="2" y1="12" x2="14" y2="12"/>
-              </svg>
-            </ToolbarButton>
-          </UTooltip>
-          <UTooltip text="Comfortable">
-            <ToolbarButton
-              :active="viewMode === 'comfortable'"
-              title="Comfortable"
-              @click="setViewMode('comfortable')"
-            >
-              <!-- 2 stacked rounded rects -->
-              <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="1.5" y="2" width="13" height="4.5" rx="1.5"/>
-                <rect x="1.5" y="9.5" width="13" height="4.5" rx="1.5"/>
-              </svg>
-            </ToolbarButton>
-          </UTooltip>
-          <UTooltip text="Full">
-            <ToolbarButton
-              class="hidden sm:flex"
-              :active="viewMode === 'full'"
-              title="Full"
-              @click="setViewMode('full')"
-            >
-              <!-- One card rect with inner chart tick -->
-              <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="1.5" y="2" width="13" height="12" rx="1.5"/>
-                <polyline points="3.5,11 6,8 9,9.5 12.5,5"/>
-              </svg>
-            </ToolbarButton>
-          </UTooltip>
+          <!-- View mode — tooltip-only, active = white pill + shadow. Desktop
+               only: the mobile bar carries compact/comfortable up beside the
+               Runs/Gauges switch (#402), and Full is desktop-only regardless. -->
+          <div class="hidden sm:flex items-center gap-1 shrink-0">
+            <UTooltip text="Compact">
+              <ToolbarButton
+                :active="viewMode === 'list'"
+                title="Compact"
+                @click="setViewMode('list')"
+              >
+                <!-- 3 evenly-spaced horizontal lines -->
+                <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                  <line x1="2" y1="4" x2="14" y2="4"/>
+                  <line x1="2" y1="8" x2="14" y2="8"/>
+                  <line x1="2" y1="12" x2="14" y2="12"/>
+                </svg>
+              </ToolbarButton>
+            </UTooltip>
+            <UTooltip text="Comfortable">
+              <ToolbarButton
+                :active="viewMode === 'comfortable'"
+                title="Comfortable"
+                @click="setViewMode('comfortable')"
+              >
+                <!-- 2 stacked rounded rects -->
+                <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="1.5" y="2" width="13" height="4.5" rx="1.5"/>
+                  <rect x="1.5" y="9.5" width="13" height="4.5" rx="1.5"/>
+                </svg>
+              </ToolbarButton>
+            </UTooltip>
+            <UTooltip text="Full">
+              <ToolbarButton
+                class="hidden sm:flex"
+                :active="viewMode === 'full'"
+                title="Full"
+                @click="setViewMode('full')"
+              >
+                <!-- One card rect with inner chart tick -->
+                <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="1.5" y="2" width="13" height="12" rx="1.5"/>
+                  <polyline points="3.5,11 6,8 9,9.5 12.5,5"/>
+                </svg>
+              </ToolbarButton>
+            </UTooltip>
+          </div>
 
-          <div class="h-4 w-px bg-neutral-200 dark:bg-neutral-700 mx-0.5" />
+          <div class="h-4 w-px bg-neutral-200 dark:bg-neutral-700 mx-0.5 hidden sm:block" />
 
         </template>
       </div>
+
+        <!-- Sparkline window popover — labeled "Window: …", pinned right beside
+             Group. Both live OUTSIDE the overflow-x-auto group above: a dropdown
+             inside a scroll container gets clipped by it. The dot means at least
+             one sparkline carries its own window, which is also what makes
+             picking an option here ask before it wipes them (#402). -->
+        <div v-if="hasAnyContent" class="relative shrink-0" ref="windowWrap">
+          <button
+            class="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors whitespace-nowrap"
+            :class="windowOpen ? 'bg-neutral-100 dark:bg-neutral-800' : ''"
+            @click="windowOpen = !windowOpen"
+          >
+            <span>Window: {{ sparklineWindowShort(sparklineHours) }}</span>
+            <span
+              v-if="sparklineDivergent.length"
+              class="w-1.5 h-1.5 rounded-full bg-primary-500"
+              :title="`${sparklineDivergent.length} gauge(s) set individually`"
+            />
+            <svg class="w-3 h-3 ml-0.5 transition-transform" :class="windowOpen ? 'rotate-180' : ''" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 6l4 4 4-4"/>
+            </svg>
+          </button>
+          <div
+            v-if="windowOpen"
+            class="absolute right-0 top-full mt-1 z-50 w-44 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg overflow-hidden"
+          >
+            <div class="py-1">
+              <button
+                v-for="w in SPARKLINE_WINDOWS"
+                :key="w.hours"
+                class="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                @click="pickWindow(w.hours)"
+              >
+                <span>{{ w.label }}</span>
+                <svg
+                  v-if="sparklineHours === w.hours"
+                  class="w-4 h-4 shrink-0 text-primary-500"
+                  viewBox="0 0 16 16" fill="currentColor"
+                >
+                  <path fill-rule="evenodd" d="M13.293 3.293a1 1 0 011.414 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5a1 1 0 011.414-1.414L6.5 10.086l6.793-6.793z" clip-rule="evenodd"/>
+                </svg>
+              </button>
+            </div>
+            <div v-if="sparklineDivergent.length" class="border-t border-neutral-100 dark:border-neutral-800 px-3 py-2">
+              <p class="text-xs text-neutral-400 dark:text-neutral-500">
+                {{ sparklineDivergent.length }} set individually — picking a window resets {{ sparklineDivergent.length === 1 ? 'it' : 'them' }}
+              </p>
+            </div>
+          </div>
+        </div>
 
         <!-- Grouping popover — labeled "Group: …" button, pinned right -->
         <div v-if="hasAnyContent" class="relative shrink-0" ref="groupingWrap">
@@ -833,6 +915,14 @@
       :river-basin-overrides="riverBasinOverrides"
       @close="shareOpen = false"
     />
+
+    <DashboardWindowResetModal
+      :open="pendingWindow != null"
+      :label="pendingWindowLabel"
+      :count="sparklineDivergent.length"
+      @submit="confirmWindowReset"
+      @cancel="pendingWindow = null"
+    />
   </div>
 </template>
 
@@ -1254,6 +1344,7 @@ if (import.meta.client) {
   document.addEventListener('click', (e) => {
     if (gaugeAddWrap.value && !gaugeAddWrap.value.contains(e.target as Node)) gaugeAddOpen.value = false
     if (groupingWrap.value && !groupingWrap.value.contains(e.target as Node)) groupingOpen.value = false
+    if (windowWrap.value && !windowWrap.value.contains(e.target as Node)) windowOpen.value = false
   })
 }
 
@@ -2118,6 +2209,36 @@ const VIEW_MODES = [
   { key: 'full',        label: 'Full'        },
 ] as const
 
+// ── Sparkline time window (#402) ─────────────────────────────────────────────
+// The dashboard owns persistence (see DashboardPrefs below); the composable
+// owns resolution, so every sparkline on the page reads the same window.
+const win = useSparklineWindow()
+const { globalHours: sparklineHours, divergentKeys: sparklineDivergent } = win
+
+const windowOpen = ref(false)
+const windowWrap = ref<HTMLElement | null>(null)
+const pendingWindow = ref<SparklineHours | null>(null)
+
+const pendingWindowLabel = computed(() =>
+  SPARKLINE_WINDOWS.find(w => w.hours === pendingWindow.value)?.label ?? '',
+)
+
+// Applying the dashboard window wipes per-sparkline windows, so when any are
+// live the pick becomes a confirmation instead of an action.
+function pickWindow(hours: SparklineHours) {
+  windowOpen.value = false
+  if (sparklineDivergent.value.length) {
+    pendingWindow.value = hours
+    return
+  }
+  win.setGlobal(hours)
+}
+
+function confirmWindowReset() {
+  if (pendingWindow.value != null) win.setGlobal(pendingWindow.value)
+  pendingWindow.value = null
+}
+
 type DashboardContent = 'runs' | 'gauges'
 
 interface DashboardPrefs {
@@ -2128,6 +2249,12 @@ interface DashboardPrefs {
   collapsedSections: string[]
   showRivers: boolean
   content: DashboardContent
+  // #402 — the dashboard-wide sparkline window, plus the per-sparkline
+  // overrides that survive it. Persisted per dashboard alongside everything
+  // else here, so a board built for snowmelt can sit on a month while another
+  // sits on a day.
+  sparklineHours: SparklineHours
+  sparklineOverrides: Record<string, SparklineHours>
 }
 
 const DEFAULT_PREFS: DashboardPrefs = {
@@ -2138,12 +2265,26 @@ const DEFAULT_PREFS: DashboardPrefs = {
   collapsedSections: [],
   showRivers: true,
   content: 'runs',
+  sparklineHours: DEFAULT_SPARKLINE_HOURS,
+  sparklineOverrides: {},
 }
 
 function prefsKey(dashboardId: string | null): string {
   return dashboardId
     ? `h2oflow_dashboard_prefs_${dashboardId}`
     : 'h2oflow_dashboard_prefs__default'
+}
+
+/** Overrides come off localStorage, so anything could be in there — a hand-edited
+ *  blob, or a window value from a build that offered a different set. Keep only
+ *  entries the sparklines can actually render. */
+function sanitizeOverrides(raw: unknown): Record<string, SparklineHours> {
+  if (!raw || typeof raw !== 'object') return {}
+  const out: Record<string, SparklineHours> = {}
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (isSparklineHours(v)) out[k] = v
+  }
+  return out
 }
 
 function loadPrefs(dashboardId: string | null): DashboardPrefs {
@@ -2167,6 +2308,8 @@ function savePrefs() {
     collapsedSections: [...collapsedSections.value],
     showRivers:        showRivers.value,
     content:           content.value,
+    sparklineHours:     sparklineHours.value,
+    sparklineOverrides: { ...win.overrides.value },
   }
   localStorage.setItem(prefsKey(db.activeDashboardId.value), JSON.stringify(prefs))
 }
@@ -2193,12 +2336,23 @@ function applyPrefs(prefs: DashboardPrefs) {
   collapsedSections.value = new Set(prefs.collapsedSections)
   showRivers.value        = prefs.showRivers
   content.value           = prefs.content ?? DEFAULT_PREFS.content
+  // A blob written before #402 has neither field; both fall back to the new
+  // 1-week default rather than the old 12h one, which is the point of the issue.
+  win.hydrate(
+    isSparklineHours(prefs.sparklineHours) ? prefs.sparklineHours : DEFAULT_SPARKLINE_HOURS,
+    sanitizeOverrides(prefs.sparklineOverrides),
+  )
   nextTick(() => { hydrating.value = false })
 }
 
-onMounted(() => {
-  applyPrefs(loadPrefs(db.activeDashboardId.value))
-})
+// Applied during setup, not onMounted: children mount before their parent's
+// onMounted hook, and the watchlist store rehydrates from localStorage, so a
+// board can paint sparklines on the very first render. Hydrating a tick later
+// meant every one of them fetched the default window and then immediately
+// re-fetched the saved one (#402). The page is `ssr: false`, so setup already
+// runs in the browser and localStorage is there. Dashboards load async — the
+// watcher below re-applies under the right key once activeDashboardId lands.
+if (import.meta.client) applyPrefs(loadPrefs(db.activeDashboardId.value))
 
 watch(() => db.activeDashboardId.value, (id) => {
   applyPrefs(loadPrefs(id))
@@ -2207,7 +2361,8 @@ watch(() => db.activeDashboardId.value, (id) => {
 // One unified save watcher — fires after any pref ref changes (except during hydration).
 watch(
   [viewMode, groupByGauge, groupByState, groupByBasin,
-   collapsedSections, () => showRivers.value, content],
+   collapsedSections, () => showRivers.value, content,
+   sparklineHours, win.overrides],
   () => { if (!hydrating.value) savePrefs() },
   { deep: true },
 )
@@ -2471,6 +2626,7 @@ const { isOpen: searchOpen, initialTab: searchInitialTab, open: openSearch } = u
 const groupingOpen      = ref(false)
 
 const groupingWrap = ref<HTMLElement | null>(null)
+
 
 // Run wizard — opened by @create-run emit from GaugeSearchModal
 const { open: openRunWizard } = useRunWizard()

@@ -25,6 +25,7 @@
       <div class="w-44 shrink-0 hidden sm:block h-6 opacity-60 pointer-events-none">
         <GaugeSparkline
           :gauge-id="leadGauge.id"
+          :window-key="leadGauge.id"
           flow-status="unknown"
           color="#3b82f6"
           compact
@@ -95,6 +96,7 @@
         <div class="opacity-70 pointer-events-none">
           <GaugeSparkline
             :gauge-id="leadGauge.id"
+            :window-key="leadGauge.id"
             flow-status="unknown"
             color="#3b82f6"
             :compact="false"
@@ -133,6 +135,7 @@
         <div class="opacity-70 pointer-events-none">
           <GaugeSparkline
             :gauge-id="leadGauge.id"
+            :window-key="leadGauge.id"
             flow-status="unknown"
             color="#3b82f6"
             :compact="false"
