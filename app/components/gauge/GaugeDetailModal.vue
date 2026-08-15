@@ -327,7 +327,7 @@ const bandChipLabel = computed(() =>
 // Stale gauges lose the band hue but keep the label (#430) — same rule RunRow
 // applies, so a run reads the same in the sheet as it does in the row that
 // opened it. The sheet's own header meta line carries the reading's age.
-const isStale = computed(() => isGaugeStale(props.gauge.pollHealth))
+const isStale = computed(() => isGaugeStale(props.gauge.pollHealth, props.gauge.readingStale))
 
 const bandChipClass = computed(() =>
   showBandChip.value

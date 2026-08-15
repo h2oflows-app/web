@@ -29,6 +29,7 @@
           color="#3b82f6"
           compact
           :poll-health="leadGauge.pollHealth"
+        :reading-stale="leadGauge.readingStale"
           :last-reading-at="leadGauge.lastReadingAt"
           @latest-cfs="liveCfs = $event"
         />
@@ -98,6 +99,7 @@
             color="#3b82f6"
             :compact="false"
             :poll-health="leadGauge.pollHealth"
+        :reading-stale="leadGauge.readingStale"
             :last-reading-at="leadGauge.lastReadingAt"
             @latest-cfs="liveCfs = $event"
           />
@@ -135,6 +137,7 @@
             color="#3b82f6"
             :compact="false"
             :poll-health="leadGauge.pollHealth"
+        :reading-stale="leadGauge.readingStale"
             :last-reading-at="leadGauge.lastReadingAt"
             @latest-cfs="liveCfs = $event"
           />

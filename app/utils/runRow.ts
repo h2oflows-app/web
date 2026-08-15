@@ -30,6 +30,9 @@ export interface RunRowVM {
   gaugeId: string | null
   customGaugeSlug: string | null
   pollHealth?: 'healthy' | 'degraded' | 'stale' | 'unreachable' | null
+  // api#208 — the source is reachable but has stopped publishing. Invisible to
+  // pollHealth, which only counts fetch failures.
+  readingStale?: boolean
   lastReadingAt?: string | null
   // Passed through to GaugeSparkline; irrelevant to appearance while a color
   // override is set, but kept faithful to each call site's original value.
@@ -89,6 +92,7 @@ export function userReachToRunRowVM(
     // leave them null to keep the (non-compact, full-view) poll indicator
     // exactly as it was. The card footer uses `lastReadingLabel` instead.
     pollHealth: null,
+    readingStale: false,
     lastReadingAt: null,
     sparklineFlowStatus: r.flow_status,
     gaugeSource: r.gauge_source,
@@ -120,6 +124,7 @@ export function watchedGaugeToRunRowVM(g: WatchedGauge): RunRowVM {
     gaugeId: g.id,
     customGaugeSlug: null,
     pollHealth: g.pollHealth,
+    readingStale: g.readingStale,
     lastReadingAt: g.lastReadingAt,
     // Original group sparklines pass a constant "unknown" (color always overrides).
     sparklineFlowStatus: 'unknown',

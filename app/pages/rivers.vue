@@ -273,6 +273,10 @@ function openGaugeModal(reach: ReachListItem) {
     flowBandLabel: reach.flow_label ?? null,
     lastReadingAt: null,
     pollHealth: null,
+    // Synthesised from run data — there is no gauge record behind this, so we
+    // have no freshness signal either way. Not stale, just unknown.
+    readingStale: false,
+    readingAgeSeconds: null,
     lastPollSuccessAt: null,
     watchState: 'saved',
     activeSince: null,

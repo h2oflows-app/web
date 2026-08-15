@@ -72,6 +72,11 @@ export interface WatchedGauge {
   flowBandLabel: string | null
   lastReadingAt: string | null
   pollHealth: 'healthy' | 'degraded' | 'stale' | 'unreachable' | null
+  // Derived server-side per request (api#208) rather than stored, so it cannot
+  // itself go stale when nothing is polling. null when the gauge has never
+  // produced a reading — nothing to be stale.
+  readingStale: boolean
+  readingAgeSeconds: number | null
   lastPollSuccessAt: string | null
   // Watch state — kept for trip recorder removal in Phase 8
   watchState: 'saved' | 'active'
