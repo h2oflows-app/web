@@ -11,25 +11,13 @@
     <div v-if="!compact" class="flex items-center justify-between mb-1.5 -mt-0.5 pointer-events-auto">
       <div class="flex text-xs rounded overflow-hidden border border-neutral-200 dark:border-neutral-700">
         <button
+          v-for="w in SPARKLINE_WINDOWS"
+          :key="w.hours"
           class="px-1.5 py-0.5 transition-colors"
-          :class="hours === 12 ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
-          @click="hours = 12"
-        >12h</button>
-        <button
-          class="px-1.5 py-0.5 transition-colors"
-          :class="hours === 24 ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
-          @click="hours = 24"
-        >1d</button>
-        <button
-          class="px-1.5 py-0.5 transition-colors"
-          :class="hours === 168 ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
-          @click="hours = 168"
-        >1w</button>
-        <button
-          class="px-1.5 py-0.5 transition-colors"
-          :class="hours === 720 ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
-          @click="hours = 720"
-        >1m</button>
+          :class="hours === w.hours ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'"
+          :title="`Show ${w.label} for this gauge`"
+          @click="win.setForKey(windowKeyResolved, w.hours)"
+        >{{ w.short }}</button>
       </div>
       <GaugePollStatus
         :gauge-id="gaugeId"
@@ -44,7 +32,7 @@
 
     <!-- Chart area -->
     <div class="relative w-full" :class="compact ? 'h-6' : 'h-10'">
-      <span v-if="compact" class="absolute top-0 right-0 text-[9px] leading-none text-neutral-400 dark:text-neutral-500 font-mono z-10 pointer-events-none">{{ hours === 12 ? '12h' : hours === 24 ? '1d' : hours === 168 ? '1w' : '1m' }}</span>
+      <span v-if="compact" class="absolute top-0 right-0 text-[9px] leading-none text-neutral-400 dark:text-neutral-500 font-mono z-10 pointer-events-none">{{ sparklineWindowShort(hours) }}</span>
       <div v-if="loading" class="w-full h-full rounded animate-pulse bg-neutral-100 dark:bg-neutral-800" />
 
       <template v-else-if="points.length >= 2">
@@ -81,6 +69,11 @@ const props = defineProps<{
   lastReadingAt?: string | null
   status?: string | null
   historyLoading?: boolean
+  /** Identity for the per-sparkline window override (#402). Callers on the
+   *  dashboard pass the run slug so two runs sharing one gauge keep separate
+   *  windows; standalone gauge rows pass the gauge id. Unset falls back to the
+   *  gauge id, which is right for the one-off sparklines outside the dashboard. */
+  windowKey?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -89,9 +82,17 @@ const emit = defineEmits<{
 }>()
 
 const { apiBase } = useRuntimeConfig().public
-const PREF_KEY = 'h2oflow_sparkline_hours'
 
-const hours   = ref<12 | 24 | 168 | 720>(12)
+// The window is owned by useSparklineWindow, not by this component: the
+// dashboard's Window control has to be able to move every sparkline at once,
+// and the value has to survive a reload (#402). What used to live here was a
+// local ref plus a single shared localStorage key, which meant clicking "1w"
+// on one row silently became the starting window for every row that mounted
+// afterwards.
+const win = useSparklineWindow()
+const windowKeyResolved = computed(() => props.windowKey ?? props.gaugeId)
+const hours = computed(() => win.resolve(windowKeyResolved.value))
+
 const loading = ref(true)
 const readings = ref<{ cfs: number; timestamp: string }[]>([])
 // Flow bands are fetched once per mount so we can compute the live band
@@ -141,25 +142,11 @@ async function fetchReadings() {
   }
 }
 
-// Watcher declared after fetchReadings — fires on every hours change
-watch(hours, (h) => {
-  localStorage.setItem(PREF_KEY, String(h))
-  fetchReadings()
-})
+// Watcher declared after fetchReadings — fires on every window change, whether
+// it came from this sparkline's own buttons or the dashboard-wide control.
+watch(hours, fetchReadings)
 
-onMounted(() => {
-  // Read localStorage after mount (guaranteed client-side, avoids SSR mismatch)
-  const saved = localStorage.getItem(PREF_KEY)
-  if (saved === '24') {
-    hours.value = 24
-  } else if (saved === '168') {
-    hours.value = 168
-  } else if (saved === '720') {
-    hours.value = 720
-  } else {
-    fetchReadings()    // default 12h, no watcher change needed
-  }
-})
+onMounted(fetchReadings)
 
 // ---- Computed ---------------------------------------------------------------
 

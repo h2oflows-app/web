@@ -13,6 +13,9 @@
       class="flex items-center gap-1 min-w-0 max-w-[45vw] px-2 py-1 rounded-md text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
       @click="open = !open"
     >
+      <!-- "Dash:" prefix (#402): the bare name alone read as a page title on
+           mobile, where this button is the only dashboard affordance on screen. -->
+      <span class="shrink-0 text-sm font-medium text-neutral-400 dark:text-neutral-500">Dash:</span>
       <span class="truncate text-sm font-medium">{{ db.activeDashboard.value?.name }}</span>
       <svg
         class="w-3 h-3 shrink-0 transition-transform"

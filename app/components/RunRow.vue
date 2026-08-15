@@ -33,6 +33,7 @@
       <GaugeSparkline
         v-if="vm.gaugeId"
         :gauge-id="vm.gaugeId"
+        :window-key="vm.slug"
         :flow-status="(vm.sparklineFlowStatus as any)"
         :color="colorHex"
         compact
@@ -41,7 +42,7 @@
         :last-reading-at="vm.lastReadingAt"
         @latest-cfs="onLatestCfs"
       />
-      <CustomGaugeSparkline v-else-if="vm.customGaugeSlug" :gauge-slug="vm.customGaugeSlug" compact :color="colorHex" />
+      <CustomGaugeSparkline v-else-if="vm.customGaugeSlug" :gauge-slug="vm.customGaugeSlug" :window-key="vm.slug" compact :color="colorHex" />
     </div>
 
     <!-- Trailing: run rows hug the badge to the cfs value; gauge sub-rows show a
@@ -92,6 +93,7 @@
       <GaugeSparkline
         v-if="vm.gaugeId"
         :gauge-id="vm.gaugeId"
+        :window-key="vm.slug"
         :flow-status="(vm.sparklineFlowStatus as any)"
         :color="colorHex"
         :compact="viewMode !== 'full'"
@@ -100,7 +102,7 @@
         :last-reading-at="vm.lastReadingAt"
         @latest-cfs="onLatestCfs"
       />
-      <CustomGaugeSparkline v-else-if="vm.customGaugeSlug" :gauge-slug="vm.customGaugeSlug" :compact="viewMode !== 'full'" :color="colorHex" />
+      <CustomGaugeSparkline v-else-if="vm.customGaugeSlug" :gauge-slug="vm.customGaugeSlug" :window-key="vm.slug" :compact="viewMode !== 'full'" :color="colorHex" />
     </div>
     <p v-if="viewMode === 'full' && vm.gaugeSource && vm.gaugeExternalId" class="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">{{ vm.gaugeSource.toUpperCase() }} {{ vm.gaugeExternalId }}</p>
     <p v-if="vm.lastReadingLabel" class="text-xs text-neutral-400 mt-0.5">{{ vm.lastReadingLabel }}</p>
