@@ -237,12 +237,7 @@ const latestReading = computed<Reading | null>(() => {
 const displayCfs = computed(() => latestReading.value?.cfs ?? props.currentCfs)
 
 function relativeAge(iso: string): string {
-  const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000)
-  if (m < 1)  return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ${m % 60}m ago`
-  return `${Math.floor(h / 24)}d ago`
+  return formatRelativeAge(iso, { precision: 'fine' })
 }
 
 // "Recomputed 4m ago · Little Kern + Fairview diversion"
