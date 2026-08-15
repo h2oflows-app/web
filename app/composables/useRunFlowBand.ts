@@ -84,9 +84,28 @@ export function useRunFlowBand() {
     return computeBandForCfs(cfs, bands)
   }
 
+  /** Re-read one run's bands after a write to them (#441).
+   *
+   *  Hits never expire — flow ranges only change when a human edits them — so
+   *  the cache is only correct if the edit path says so. The wizard's save
+   *  PUTs `/me/runs/{slug}/flow-ranges` and then routes back to the dashboard,
+   *  which is still the same client session: `useState` survives client-side
+   *  navigation, so without this the dashboard keeps colouring the row from
+   *  the pre-edit thresholds until a full page reload wipes the payload.
+   *
+   *  A failed re-read is cleared rather than left as a tombstone: this is a
+   *  one-shot call on a known-good write, so the 5-minute anti-thrash TTL that
+   *  protects render-loop prefetches would only suppress the dashboard's own
+   *  next attempt. Empty means "unknown", and unknown re-fetches. */
+  async function refresh(slug: string, handle?: string | null): Promise<void> {
+    delete cache.value[slug]
+    await lookup(slug, handle)
+    if (cache.value[slug]?.bands === null) delete cache.value[slug]
+  }
+
   function statusForColor(colorKey: string | null | undefined): string {
     return flowStatusForColorKey(colorKey)
   }
 
-  return { prefetch, bandForCfs, statusForColor }
+  return { prefetch, refresh, bandForCfs, statusForColor }
 }
