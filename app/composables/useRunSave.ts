@@ -21,6 +21,7 @@ export function useRunSave() {
   const { getToken } = useAuth()
   const { apiBase } = useRuntimeConfig().public
   const toast = useToast()
+  const bandCache = useRunFlowBand()
 
   const saving = ref(false)
   const error = ref<string | null>(null)
@@ -115,6 +116,11 @@ export function useRunSave() {
 
         store.featuresDirty = false
       }
+
+      // A brand-new slug has no cache entry — except when it reuses a deleted
+      // run's slug, in which case the never-expiring entry from that run's
+      // lifetime is still sitting there with the wrong thresholds (#441).
+      await bandCache.refresh(slug, authorAs)
 
       // Stash for SavedOverlay
       store.savedSlug = slug
@@ -224,6 +230,11 @@ export function useRunSave() {
         body: JSON.stringify(store.flowBands ?? { ...DEFAULT_BASE_BAND, thresholds: [] }),
       })
       if (!fbRes.ok) throw new Error(`Flow ranges save failed: ${fbRes.status}`)
+
+      // The dashboard colours every run row from the shared flow-band cache,
+      // whose hits never expire. This save is the only thing that can make one
+      // wrong, so it is also the only thing that can fix it (#441).
+      await bandCache.refresh(returnedSlug, store.authorHandle)
 
       // ── Step 3: gauge (only if changed) ──────────────────────────────────
       if (store.gaugeDirty) {
