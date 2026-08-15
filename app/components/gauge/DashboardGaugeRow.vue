@@ -29,7 +29,7 @@
         {{ displayCfs != null ? Math.round(displayCfs).toLocaleString() : '—' }}<span class="text-[10px] sm:text-xs font-normal text-neutral-400 dark:text-neutral-500"> cfs</span>
       </span>
     </div>
-    <TrashButton v-if="entry.isCustom" label="Remove from dashboard" @click="$emit('remove')" />
+    <TrashButton v-if="showRemove" label="Remove from dashboard" @click="$emit('remove')" />
   </div>
 
   <!-- CARD densities (comfortable / full) -->
@@ -63,7 +63,7 @@
           </div>
           <div class="text-xs text-neutral-400">cfs</div>
         </div>
-        <TrashButton v-if="entry.isCustom" label="Remove from dashboard" @click="$emit('remove')" />
+        <TrashButton v-if="showRemove" label="Remove from dashboard" @click="$emit('remove')" />
       </div>
     </div>
     <div class="relative mb-1 opacity-70 pointer-events-none">
@@ -107,9 +107,16 @@ const props = withDefaults(defineProps<{
   // bordered box (river group, list density). Ignored for card densities,
   // which are always self-bordered.
   bordered?: boolean
-}>(), { bordered: true })
+  // Force the trash affordance on for a real gauge. Custom gauges always get it.
+  // A real gauge in a river group does not: it is on the dashboard because a run
+  // points at it, so removal belongs to the run. A gauge added on its own IS its
+  // own watchlist row, so the standalone bucket passes this (web#440).
+  removable?: boolean
+}>(), { bordered: true, removable: false })
 
 defineEmits<{ open: []; remove: [] }>()
+
+const showRemove = computed(() => props.entry.isCustom || props.removable)
 
 const { bandForCfs } = useRunFlowBand()
 const liveCfs = ref<number | null>(null)

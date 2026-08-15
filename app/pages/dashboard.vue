@@ -523,7 +523,10 @@
                         {{ g.currentCfs != null ? Math.round(g.currentCfs).toLocaleString() : '—' }}
                       </span>
                       <span class="text-xs text-neutral-400">cfs</span>
-                      <TrashButton label="Remove from dashboard" @click="removeAndSync(g.id)" />
+                      <!-- null, not undefined: undefined is removeGauge's legacy
+                           "every row for this gauge" branch, which would also drop
+                           the reach-context rows the server keeps (and keeps here). -->
+                      <TrashButton label="Remove from dashboard" @click="removeAndSync(g.id, null)" />
                     </div>
                   </div>
                 </div>
@@ -760,7 +763,8 @@
                 </template><!-- end v-for river -->
               </div>
 
-              <!-- Standalone gauges (custom gauges feeding no run) -->
+              <!-- Standalone gauges — custom gauges feeding no run, plus real
+                   gauges added straight from search (web#440). -->
               <div v-if="sub.standaloneGauges.length > 0" class="mb-2 mt-1">
                 <div class="flex items-center gap-2 py-1">
                   <svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -776,8 +780,9 @@
                     :key="entry.gaugeId"
                     :entry="entry"
                     :view-mode="viewMode"
-                    @open="openStandaloneCustomGauge(entry.customGauge!)"
-                    @remove="entry.customGauge ? hideCustomGauge(entry.customGauge.id) : undefined"
+                    removable
+                    @open="entry.customGauge ? openStandaloneCustomGauge(entry.customGauge) : openGauge(entry.gauge!, 'gauge')"
+                    @remove="entry.customGauge ? hideCustomGauge(entry.customGauge.id) : removeAndSync(entry.gaugeId, null)"
                   />
                 </div>
               </div>
@@ -1842,6 +1847,40 @@ const gaugeEntries = computed<GaugeEntry[]>(() => {
     })
   }
 
+  // Fold in standalone watchlist gauges — a station added straight from search
+  // with no run behind it (web#440). The loop above can only reach gauges that
+  // some run points at, so these were absent from this view entirely: adding one
+  // while the Gauges toggle was on looked like the add had failed. Skipped when
+  // the gauge already feeds a run, since this view is one row per station.
+  for (const g of store.gauges) {
+    if (g.contextReachSlug || byGauge.has(g.id)) continue
+    const state = g.stateAbbr ?? '—'
+    const river = g.contextReachRiverName ?? g.riverName ?? 'Unknown River'
+    byGauge.set(g.id, {
+      gaugeId: g.id,
+      gauge: g,
+      customGauge: null,
+      isCustom: false,
+      name: g.name ?? `${g.source.toUpperCase()} ${g.externalId}`,
+      source: g.source,
+      externalId: g.externalId,
+      currentCfs: g.currentCfs,
+      flowStatus: g.flowStatus,
+      flowBandLabel: g.flowBandLabel,
+      feedsRuns: [],
+      feedsRunSlugs: [],
+      lastReadingAt: g.lastReadingAt,
+      state,
+      basin: resolveBasinForGauge(
+        g.contextReachBasinGroup ?? g.watershedName ?? g.basinName ?? g.contextReachRiverName ?? g.riverName,
+        state,
+        g.contextReachRiverName ?? g.riverName,
+      ),
+      river,
+      riverId: g.contextReachRiverId,
+    })
+  }
+
   const entries = [...byGauge.values()]
 
   // Fold in the dashboard's custom gauges — always included, tagged isCustom.
@@ -1907,7 +1946,8 @@ const gaugeStateTree = computed<GaugeStateGroup[]>(() => {
     const basinMap = stateMap.get(entry.state)!
     if (!basinMap.has(entry.basin)) basinMap.set(entry.basin, { rivers: new Map(), standalone: [], rawKey: entry.basin })
     const bEntry = basinMap.get(entry.basin)!
-    // No feeding run → standalone bucket (currently only orphan custom gauges land here).
+    // No feeding run → standalone bucket: orphan custom gauges, and gauges the
+    // user added on their own from search (web#440).
     if (entry.feedsRuns.length === 0) {
       bEntry.standalone.push(entry)
       continue
