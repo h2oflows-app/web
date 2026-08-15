@@ -176,8 +176,16 @@ export const useWatchlistStore = defineStore('watchlist', {
     addGauge(gauge: Omit<WatchedGauge, 'watchState' | 'activeSince'>) {
       const slug = gauge.contextReachSlug ?? null
       if (this.gauges.find(g => g.id === gauge.id && (g.contextReachSlug ?? null) === slug)) return
-      // If adding with a reach context, remove any standalone version of the same gauge
-      if (slug) this.gauges = this.gauges.filter(g => !(g.id === gauge.id && !g.contextReachSlug))
+      // A reach-context row does NOT displace a standalone one (web#440). It used
+      // to: back when adds were local-first, a gauge was added standalone and then
+      // re-added once the batch API supplied its reach context, so the standalone
+      // copy was a duplicate to clean up. Server rows are the source of truth now —
+      // (gauge, NULL) and (gauge, slug) are separate watchlist rows by design — and
+      // the dashboard's backfill pass synthesises reach-context rows for every run
+      // on the dashboard, including referenced runs that own no watchlist gauge row.
+      // So adding PLAGRACO standalone while any run on the dashboard uses PLAGRACO
+      // deleted the standalone card as soon as backfill ran: the add looked like a
+      // no-op. Order inside one /gauges/batch response could trigger it too.
       this.gauges.push({ ...gauge, contextReachSlug: slug, watchState: 'saved', activeSince: null })
     },
 
