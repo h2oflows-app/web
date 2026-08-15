@@ -1099,6 +1099,10 @@ function synthGaugeForReach(r: UserReachSummary): WatchedGauge {
     flowBandLabel: r.flow_band,
     lastReadingAt: r.last_reading_at,
     pollHealth: null,
+    // Synthesised from run data — there is no gauge record behind this, so we
+    // have no freshness signal either way. Not stale, just unknown.
+    readingStale: false,
+    readingAgeSeconds: null,
     lastPollSuccessAt: null,
     watchState: 'saved',
     activeSince: null,

@@ -32,6 +32,7 @@ import { formatRelativeAge } from '~/utils/relativeTime'
 const props = defineProps<{
   gaugeId: string
   pollHealth?: 'healthy' | 'degraded' | 'stale' | 'unreachable' | null
+  readingStale?: boolean
   lastReadingAt?: string | null
   status?: string | null
   historyLoading?: boolean
@@ -68,6 +69,12 @@ const badgeText = computed((): string | null => {
   if (props.pollHealth === 'unreachable') return at ? `Offline · ${fmtAge(ageMinutes(at))}` : 'Offline'
   if (!at) return null
   const mins = ageMinutes(at)
+  // Reachable, but the source has stopped publishing (api#208). Worded apart
+  // from "Offline" on purpose: every poll is succeeding, so a reader who sees
+  // "Offline" and checks the source themselves would find it up and be more
+  // confused, not less. This is the case poll_health cannot see at all — it
+  // counts fetch failures, and there aren't any.
+  if (props.readingStale)              return `Not updating · ${fmtAge(mins)}`
   if (props.pollHealth === 'stale')    return `Stale · ${fmtAge(mins)}`
   if (props.pollHealth === 'degraded') return `Updated ${fmtAge(mins)}`
   if (mins > 60) return `Updated ${fmtAge(mins)}`
@@ -78,6 +85,7 @@ const badgeClass = computed((): string => {
   if (props.status === 'retired')              return 'text-neutral-400 dark:text-neutral-500'
   if (props.pollHealth === 'unreachable')      return 'text-red-500 dark:text-red-400'
   if (props.pollHealth === 'stale')            return 'text-amber-500 dark:text-amber-400'
+  if (props.readingStale)                      return 'text-amber-500 dark:text-amber-400'
   if (justRefreshed.value)                     return 'text-green-500 dark:text-green-400'
   return 'text-neutral-400 dark:text-neutral-500'
 })

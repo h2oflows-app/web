@@ -34,6 +34,7 @@
       <GaugePollStatus
         :gauge-id="gaugeId"
         :poll-health="pollHealth"
+        :reading-stale="readingStale"
         :last-reading-at="lastReadingAt"
         :status="status"
         :history-loading="historyLoading"
@@ -76,6 +77,7 @@ const props = defineProps<{
   compact?: boolean
   color?: string  // override stroke color (e.g. '#3b82f6' for neutral blue)
   pollHealth?: 'healthy' | 'degraded' | 'stale' | 'unreachable' | null
+  readingStale?: boolean
   lastReadingAt?: string | null
   status?: string | null
   historyLoading?: boolean
@@ -208,7 +210,7 @@ const strokeColor = computed(() => {
   // (GaugeRunGroup hands its gauge heads a flat blue) should imply one — the
   // line is history, not a live level. GaugePollStatus alongside says so in
   // words; this is the same fact in the ink.
-  if (isGaugeStale(props.pollHealth)) return STALE_HEX
+  if (isGaugeStale(props.pollHealth, props.readingStale)) return STALE_HEX
   if (props.color) return props.color
   const key = resolvedBandKey(props.flowBandLabel, props.flowStatus)
   return key ? `var(--flow-${key}, ${flowBandSolidColor(key)})` : STALE_HEX

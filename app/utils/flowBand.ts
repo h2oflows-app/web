@@ -157,15 +157,22 @@ export const DEFAULT_BASE_BAND = { base_label: 'Too Low', base_color: 'red-3' } 
 
 // ── Gauge staleness ─────────────────────────────────────────────────────────
 //
-// Mirrors WatchedGauge['pollHealth']. A gauge the poller can't read has no
-// current flow, so a band hue on it is a claim about data we don't have —
-// those render neutral instead (#430). 'degraded' is deliberately NOT stale:
-// it means slow/erratic polling, not absent data, and the reading it last
-// returned is still real.
+// Two independent ways a gauge can stop being trustworthy, and the colour
+// treats them the same because the consequence is the same — the band shown is
+// a claim about data we don't have (#430).
+//
+//   pollHealth    we cannot REACH the source (api-side, consecutive failures)
+//   readingStale  the source is reachable but has stopped PUBLISHING — derived
+//                 per request from the reading's age against that gauge's own
+//                 cadence (api#208). A source returning 200 with a frozen value
+//                 is invisible to pollHealth, which is why this exists.
+//
+// 'degraded' is deliberately NOT stale: it means slow or erratic polling, not
+// absent data, and the reading it last returned is still real.
 export type GaugePollHealth = 'healthy' | 'degraded' | 'stale' | 'unreachable' | null | undefined
 
-export function isGaugeStale(health: GaugePollHealth): boolean {
-  return health === 'stale' || health === 'unreachable'
+export function isGaugeStale(health: GaugePollHealth, readingStale?: boolean | null): boolean {
+  return readingStale === true || health === 'stale' || health === 'unreachable'
 }
 
 /** Neutral for a gauge with no trustworthy current reading (gray-400). */

@@ -127,7 +127,7 @@ const band = computed(() => {
 // Stale gauges go neutral (#430). pollHealth rides along on the entry's
 // representative WatchedGauge — custom gauges have no `gauge` and are never
 // band-coloured anyway.
-const isStale = computed(() => isGaugeStale(props.entry.gauge?.pollHealth))
+const isStale = computed(() => isGaugeStale(props.entry.gauge?.pollHealth, props.entry.gauge?.readingStale))
 
 const cfsColor = computed(() => {
   if (isStale.value) return STALE_HEX

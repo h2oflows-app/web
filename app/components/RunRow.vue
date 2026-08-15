@@ -37,6 +37,7 @@
         :color="colorHex"
         compact
         :poll-health="vm.pollHealth"
+        :reading-stale="vm.readingStale"
         :last-reading-at="vm.lastReadingAt"
         @latest-cfs="onLatestCfs"
       />
@@ -95,6 +96,7 @@
         :color="colorHex"
         :compact="viewMode !== 'full'"
         :poll-health="vm.pollHealth"
+        :reading-stale="vm.readingStale"
         :last-reading-at="vm.lastReadingAt"
         @latest-cfs="onLatestCfs"
       />
@@ -187,7 +189,7 @@ const isPalette = computed(() => props.vm.fallbackFlavor === 'palette')
 // still the last thing this run was known to be doing, and blanking it would
 // lose information the row has. Grey plus the retained label reads as "this was
 // running, we just can't see it now", which is the truth.
-const isStale = computed(() => isGaugeStale(props.vm.pollHealth))
+const isStale = computed(() => isGaugeStale(props.vm.pollHealth, props.vm.readingStale))
 
 const badgeLabel = computed(() => {
   if (band.value) return band.value.label
