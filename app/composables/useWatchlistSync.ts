@@ -35,17 +35,38 @@ export function useWatchlistSync() {
     }).catch(() => {})
   }
 
-  async function removeAndSync(gaugeId: string, contextReachSlug?: string | null) {
+  // dashboardId defaults to the active dashboard, mirroring addAndSync. Sending
+  // no dashboard_id at all is NOT the same on this endpoint as it is on the add:
+  // Add treats a null dashboard as "the caller's first dashboard", while Remove
+  // reads it as EVERY dashboard (`$4::uuid IS NULL OR dashboard_id = $4::uuid`).
+  // So removing a gauge from one dashboard deleted it from all of them (#443).
+  //
+  // The local store drop stays unscoped, and correctly so: the store only ever
+  // holds the active dashboard's rows, since loadForDashboard clears and refills
+  // it on every dashboard switch.
+  async function removeAndSync(gaugeId: string, contextReachSlug?: string | null, dashboardId?: string | null) {
     store.removeGauge(gaugeId, contextReachSlug)
     const token = await getToken()
-    if (token) {
-      const slug = contextReachSlug ?? null
-      const qs = slug ? `?reach_slug=${encodeURIComponent(slug)}` : ''
-      fetch(`${apiBase}/api/v1/watchlist/${gaugeId}${qs}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {})
+    if (!token) return
+    let resolvedId = dashboardId ?? null
+    if (!resolvedId) {
+      const db = useDashboards()
+      if (!db.loaded.value) await db.load()
+      resolvedId = db.activeDashboard.value?.id ?? null
     }
+    // No resolvable dashboard: skip the DELETE rather than fall back to the
+    // unscoped form, which is the bug above. Effectively unreachable — the store
+    // is only populated by loadForDashboard(activeId) — and the row reappears on
+    // the next dashboard load, which beats deleting it everywhere.
+    if (!resolvedId) return
+    const params = new URLSearchParams()
+    const slug = contextReachSlug ?? null
+    if (slug) params.set('reach_slug', slug)
+    params.set('dashboard_id', resolvedId)
+    fetch(`${apiBase}/api/v1/watchlist/${gaugeId}?${params.toString()}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {})
   }
 
   /**
