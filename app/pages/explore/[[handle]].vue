@@ -88,10 +88,11 @@
         <!-- Search + mobile map toggle (all modes) -->
         <div class="px-3 py-2 shrink-0 flex items-center gap-2">
           <input
-            v-model="query"
+            v-model="searchText"
             type="search"
-            :placeholder="handle ? 'Search runs, rivers…' : 'Filter your runs…'"
+            :placeholder="searchPlaceholder"
             class="flex-1 text-sm bg-neutral-100 dark:bg-neutral-900 rounded-md px-3 py-1.5 text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            @input="onSearchInput"
           />
           <button
             class="sm:hidden shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-950/50 transition-colors"
@@ -105,8 +106,13 @@
           </button>
         </div>
 
-        <!-- Zoom & Filter toggle -->
-        <div class="px-3 pb-1.5 shrink-0 flex items-center justify-between">
+        <!-- Community filters (community scope only) -->
+        <div v-if="!handle && scope === 'community'" class="px-3 pb-2 shrink-0">
+          <ExploreCommunityFilters :search="communitySearch" />
+        </div>
+
+        <!-- Zoom & Filter toggle (map-fed scopes only) -->
+        <div v-if="handle || scope === 'mine'" class="px-3 pb-1.5 shrink-0 flex items-center justify-between">
           <label class="flex items-center gap-1.5 cursor-pointer select-none text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200">
             <input
               v-model="zoomFilter"
@@ -116,6 +122,10 @@
             Filter to view
           </label>
           <span class="text-xs text-neutral-400 tabular-nums">{{ sidebarCount }} runs</span>
+        </div>
+        <div v-else-if="scope === 'community'" class="px-3 pb-1.5 shrink-0 flex items-center justify-between">
+          <span class="text-[10px] font-semibold uppercase tracking-wide text-neutral-400">Community runs</span>
+          <span class="text-xs text-neutral-400 tabular-nums">{{ communitySearch.runs.value.length }} shown</span>
         </div>
 
         <!-- N.6 Sort toggle (browse mode) -->
@@ -133,31 +143,46 @@
           >Most upvoted</button>
         </div>
 
-        <!-- Loading / error / empty states -->
-        <div v-if="!isAuthenticated && !handle" class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-neutral-400">
-          <span>Sign in to see your runs.</span>
-          <NuxtLink to="/login" class="text-primary-500 hover:underline">Sign in →</NuxtLink>
-        </div>
-        <div v-else-if="sidebarReaches.length === 0 && (isAuthenticated || handle)" class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-neutral-400">
-          <span v-if="handle">No public runs for @{{ handle }}.</span>
-          <span v-else>No runs yet.</span>
-          <NuxtLink v-if="!handle" to="/my/runs/new" class="text-primary-500 hover:underline">Create your first run →</NuxtLink>
-        </div>
-        <div v-else-if="query.length >= 2 && filteredSidebarGroups.length === 0" class="flex-1 flex items-center justify-center text-sm text-neutral-400 px-4 text-center">
-          No results for "{{ query }}"
-        </div>
-
-        <!-- Reach list -->
-        <ExploreMyRunsList
-          v-if="showReachList"
-          :groups="filteredSidebarGroups"
-          :handle="handle"
-          :my-handle="myHandle"
+        <!-- ── Community scope ─────────────────────────────────────────────── -->
+        <ExploreCommunityList
+          v-if="!handle && scope === 'community'"
+          :search="communitySearch"
+          :adder="exploreAdd"
+          :dashboard-id="selectedDashboardId"
           :hovered-slug="hoveredSlug"
+          :selected-slug="selectedRunSlug"
           @hover="hoveredSlug = $event"
-          @select="onRowSelect"
-          @patch-upvote="patchReachUpvote($event.slug, $event.count, $event.upvoted)"
+          @select="onCommunitySelect"
         />
+
+        <!-- ── My Runs / browse scope ──────────────────────────────────────── -->
+        <template v-else>
+          <!-- Loading / error / empty states -->
+          <div v-if="!isAuthenticated && !handle" class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-neutral-400">
+            <span>Sign in to see your runs.</span>
+            <NuxtLink to="/login" class="text-primary-500 hover:underline">Sign in →</NuxtLink>
+          </div>
+          <div v-else-if="sidebarReaches.length === 0 && (isAuthenticated || handle)" class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-neutral-400">
+            <span v-if="handle">No public runs for @{{ handle }}.</span>
+            <span v-else>No runs yet.</span>
+            <NuxtLink v-if="!handle" to="/my/runs/new" class="text-primary-500 hover:underline">Create your first run →</NuxtLink>
+          </div>
+          <div v-else-if="query.length >= 2 && filteredSidebarGroups.length === 0" class="flex-1 flex items-center justify-center text-sm text-neutral-400 px-4 text-center">
+            No results for "{{ query }}"
+          </div>
+
+          <!-- Reach list -->
+          <ExploreMyRunsList
+            v-if="showReachList"
+            :groups="filteredSidebarGroups"
+            :handle="handle"
+            :my-handle="myHandle"
+            :hovered-slug="hoveredSlug"
+            @hover="hoveredSlug = $event"
+            @select="onRowSelect"
+            @patch-upvote="patchReachUpvote($event.slug, $event.count, $event.upvoted)"
+          />
+        </template>
       </aside>
 
       <!-- ── Right panel: map ──────────────────────────────────────────────── -->
@@ -176,6 +201,13 @@
               @reach-click="onReachClick"
             />
           </ClientOnly>
+
+          <!-- Mode pill — what the pins currently show (desktop; mobile gets
+               its own shell in the mobile slice) -->
+          <div class="hidden sm:flex absolute top-2 left-2 z-20 items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium shadow-md bg-white/95 dark:bg-neutral-900/95 border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200">
+            <span class="w-2 h-2 rounded-full shrink-0" :class="modePill.dotClass" />
+            {{ modePill.label }}
+          </div>
 
           <!-- Mobile: open list (only shown when map is visible) -->
           <button
@@ -242,20 +274,79 @@ async function loadMyHandle() {
 }
 
 // ── Scopes (web#335) ─────────────────────────────────────────────────────────
-// 'mine' is the only in-rail scope so far; Community and Gauges open the
-// legacy search modal until PRs 3–4 move them into the rail. The switcher
-// therefore never leaves 'mine' in this increment.
+// 'mine' and 'community' live in the rail; Gauges still opens the legacy
+// search modal until its slice moves it in.
 const scope = ref<ExploreScope>('mine')
 
-// Add-target for the rail's future add paths; the chip self-inits from the
+// Add-target shared by every scope's add path; the chip self-inits from the
 // active dashboard and self-repairs (same contract as the modal chip).
 const selectedDashboardId = ref<string | null>(null)
 
-function onScopeSelect(s: ExploreScope) {
-  if (s === 'mine') return
-  searchModalInitialTab.value = s
-  searchModalOpen.value = true
+const communitySearch = useCommunitySearch()
+const exploreAdd = useExploreAdd({ dashboardId: selectedDashboardId, myHandle })
+
+// Community selection (map fly-to now; detail card arrives in a later slice)
+const selectedRunSlug = ref<string | null>(null)
+
+function setScope(s: ExploreScope) {
+  if (scope.value === s) return
+  scope.value = s
+  hoveredSlug.value = null
+  selectedRunSlug.value = null
+  // Keep the scope in the URL for refresh/back/deep links; drop consumed
+  // legacy keys so ?discover=true can't re-fire on the next mount.
+  const q: Record<string, any> = { ...route.query }
+  delete q.discover
+  delete q.scope
+  router.replace({ query: s === 'mine' ? q : { ...q, scope: s } })
+  if (s === 'community' && !communitySearch.loadedOnce.value) {
+    communitySearch.reload()
+  }
 }
+
+function onScopeSelect(s: ExploreScope) {
+  if (s === 'gauges') {
+    // Interim: the Gauges scope still lives in the legacy modal.
+    searchModalInitialTab.value = 'gauges'
+    searchModalOpen.value = true
+    return
+  }
+  setScope(s)
+}
+
+function onCommunitySelect(run: { slug: string }) {
+  selectedRunSlug.value = run.slug
+  mapRef.value?.flyToSlug(run.slug)
+  listVisible.value = false
+}
+
+// ── Search box: one input, scope-owned state ─────────────────────────────────
+const searchPlaceholder = computed(() => {
+  if (handle.value) return 'Search runs, rivers…'
+  if (scope.value === 'community') return 'Search all runs by name, river, paddler…'
+  return 'Filter your runs…'
+})
+const searchText = computed({
+  get: () => (!handle.value && scope.value === 'community') ? communitySearch.query.value : query.value,
+  set: (v: string) => {
+    if (!handle.value && scope.value === 'community') communitySearch.query.value = v
+    else query.value = v
+  },
+})
+function onSearchInput() {
+  if (!handle.value && scope.value === 'community') communitySearch.onQueryInput()
+}
+
+// ── Map mode pill ─────────────────────────────────────────────────────────────
+const modePill = computed(() => {
+  if (handle.value) {
+    return { dotClass: 'bg-primary-500', label: `@${handle.value} · ${allReaches.value.length} runs` }
+  }
+  if (scope.value === 'community') {
+    return { dotClass: 'bg-green-500', label: `Community · ${allReaches.value.length} on map` }
+  }
+  return { dotClass: 'bg-primary-500', label: `My runs · ${allReaches.value.length} on map` }
+})
 
 // ── New reach / import / search modals ───────────────────────────────────────
 const importModalOpen       = ref(false)
@@ -306,23 +397,27 @@ onMounted(async () => {
     }
   }
 
-  // wizard paths (only relevant on bare /explore, i.e. my-runs mode)
+  // wizard + scope deep links (only relevant on bare /explore, i.e. my-runs mode)
   if (!handle.value) {
     if (route.query.import === 'true') {
       importModalOpen.value = true
       router.replace({ query: {} })
     } else if (route.query.discover === 'true') {
-      // Legacy deep link — same interim behavior as ?scope=community.
-      searchModalInitialTab.value = 'community'
-      searchModalOpen.value = true
-      router.replace({ query: {} })
+      // Legacy deep link for the old modal's community tab → the real scope
+      // (setScope strips the consumed ?discover key).
+      setScope('community')
     } else if (route.query.scope) {
       const s = normalizeExploreScope(route.query.scope)
-      if (s && s !== 'mine') {
-        searchModalInitialTab.value = s
+      if (s === 'gauges') {
+        // Interim: Gauges still lives in the legacy modal.
+        searchModalInitialTab.value = 'gauges'
         searchModalOpen.value = true
+        router.replace({ query: {} })
+      } else if (s) {
+        setScope(s)
+      } else {
+        router.replace({ query: {} })
       }
-      router.replace({ query: {} })
     }
   }
 })
@@ -340,18 +435,24 @@ async function initMapToken() {
   mapToken.value = token
 }
 
-// Include auth header only for my-runs (no handle); public user runs need no auth
+// Auth header for my-runs and community (authed callers see past the anon
+// special-only narrowing); browse-handle needs none. RunsMap re-fetches only
+// when the Authorization header string changes — once, at token resolution.
 const mapSourceHeaders = computed((): Record<string, string> => {
   if (handle.value) return {}
   return mapToken.value ? { Authorization: `Bearer ${mapToken.value}` } : {}
 })
 
 // ── Map source URL ────────────────────────────────────────────────────────────
+// Community swaps the pin feed to MapCommunity, whose URL is debounced inside
+// useCommunitySearch (one settled search = one map fetch — typing never
+// storms RunsMap's sourceUrl watch).
 const mapSourceUrl = computed((): string | null => {
   if (handle.value) {
     return `${apiBase}/api/v1/users/${encodeURIComponent(handle.value)}/runs/map/all`
   }
   if (!mapToken.value) return null
+  if (scope.value === 'community') return communitySearch.mapUrl.value
   return `${apiBase}/api/v1/me/runs/map/all`
 })
 
