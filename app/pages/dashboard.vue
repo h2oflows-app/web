@@ -316,14 +316,15 @@
           class="shrink-0 hidden sm:inline text-xs text-neutral-400 dark:text-neutral-500 whitespace-nowrap px-1"
         >{{ gaugeEntries.length }} gauge{{ gaugeEntries.length === 1 ? '' : 's' }}</span>
 
-        <!-- Primary Add run button — pinned right; hidden on mobile (FAB replaces it) -->
+        <!-- Primary Add run — one place to find water: links to the explore
+             Community search (web#335); hidden on mobile (FAB replaces it) -->
         <template v-if="isAuthenticated">
           <div class="h-4 w-px bg-neutral-200 dark:bg-neutral-700 mx-0.5 shrink-0 hidden sm:block" />
           <UButton
             color="primary"
             size="xs"
             class="shrink-0 hidden sm:inline-flex"
-            @click="openSearch()"
+            to="/explore?scope=community"
           >
             <template #leading>
               <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -346,7 +347,7 @@
         <p class="text-neutral-500 max-w-sm text-sm">
           Search for a run or gauge and add it to your dashboard.
         </p>
-        <UButton color="primary" @click="openSearch('mine')">Find a gauge</UButton>
+        <UButton color="primary" to="/explore?scope=community">Find a run or gauge</UButton>
       </div>
 
       <!-- Reaches grouped by basin → river -->
@@ -879,7 +880,6 @@
       </template><!-- end v-if hasAnyContent -->
     </main>
 
-    <GaugeSearchModal v-model:open="searchOpen" :initial-tab="searchInitialTab" @add="handleAdd" @added-external="onAddedExternal" @create-run="openRunWizard()" />
     <GaugeDetailModal v-if="detailGauge" v-model:open="detailOpen" :gauge="detailGauge" :mode="detailMode" />
     <UserRunCustomGaugeModal
       v-if="customGaugeModalProps"
@@ -2622,53 +2622,13 @@ const reachContainerClass = computed(() =>
 )
 
 // ── UI state ─────────────────────────────────────────────────────────────────
-const { isOpen: searchOpen, initialTab: searchInitialTab, open: openSearch } = useGaugeSearch()
+// Add-run search lives on /explore now (web#335) — the GaugeSearchModal mount,
+// its useGaugeSearch wiring and the @add/@added-external handlers left with
+// it. Adds made on explore surface here through the normal page (re)load
+// path; explore clears the trash-hidden flag itself on a successful re-add.
 const groupingOpen      = ref(false)
 
 const groupingWrap = ref<HTMLElement | null>(null)
-
-
-// Run wizard — opened by @create-run emit from GaugeSearchModal
-const { open: openRunWizard } = useRunWizard()
-
-async function handleAdd(gauge: Omit<WatchedGauge, 'watchState' | 'activeSince'>, dashboardId: string | null) {
-  const targetId = dashboardId ?? db.activeDashboard.value?.id ?? null
-  await addAndSync(gauge, targetId)
-  // Re-hydrate from server so we know the gauge persisted under the right dashboard.
-  // Without this round-trip, a stale unique constraint or wrong dashboard_id silently
-  // drops the gauge on the next refresh, surfacing as "appears, then disappears."
-  if (targetId) {
-    await activateDashboard(targetId)
-    await refresh()
-  }
-}
-
-interface AddedExternalPayload {
-  kind: 'reach' | 'custom_gauge'
-  reachId?: string
-  reachSlug?: string
-  customGaugeId?: string
-}
-
-async function onAddedExternal(payload?: AddedExternalPayload) {
-  // Re-adding via the modal should clear the local trash-hidden flag — otherwise
-  // the section gate (visibleUserReaches/visibleCustomGauges) keeps the row hidden
-  // and the click looks like a no-op.
-  if (payload?.kind === 'reach' && payload.reachId && hiddenReaches.value.has(payload.reachId)) {
-    showReach(payload.reachId)
-  }
-  if (payload?.kind === 'custom_gauge' && payload.customGaugeId && hiddenCustomGauges.value.has(payload.customGaugeId)) {
-    showCustomGauge(payload.customGaugeId)
-  }
-
-  await loadUserReaches()
-  await loadCustomGauges()
-  const id = db.activeDashboard.value?.id
-  if (id) {
-    await activateDashboard(id)
-    await refresh()
-  }
-}
 
 const detailOpen  = ref(false)
 const detailGauge = ref<WatchedGauge | null>(null)

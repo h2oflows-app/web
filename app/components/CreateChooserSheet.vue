@@ -122,6 +122,8 @@ function chooseCreateRun() {
 
 function chooseFindRun() {
   close()
-  navigateTo('/explore')
+  // Straight to the explore Community search — the "browse and fork" surface
+  // (web#335).
+  navigateTo('/explore?scope=community')
 }
 </script>
