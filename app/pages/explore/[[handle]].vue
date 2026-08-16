@@ -85,15 +85,18 @@
           </div>
         </div>
 
-        <!-- Search + mobile map toggle (all modes) -->
+        <!-- Search + mobile map toggle (all modes; the Gauges panel brings its
+             own two inputs, so the shared box hides there) -->
         <div class="px-3 py-2 shrink-0 flex items-center gap-2">
           <input
+            v-if="handle || scope !== 'gauges'"
             v-model="searchText"
             type="search"
             :placeholder="searchPlaceholder"
             class="flex-1 text-sm bg-neutral-100 dark:bg-neutral-900 rounded-md px-3 py-1.5 text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
             @input="onSearchInput"
           />
+          <div v-else class="flex-1"/>
           <button
             class="sm:hidden shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-950/50 transition-colors"
             aria-label="Show map"
@@ -143,9 +146,15 @@
           >Most upvoted</button>
         </div>
 
+        <!-- ── Gauges scope (list-only; map cleared while active) ──────────── -->
+        <ExploreGaugesPanel
+          v-if="!handle && scope === 'gauges'"
+          :dashboard-id="selectedDashboardId"
+        />
+
         <!-- ── Community scope ─────────────────────────────────────────────── -->
         <ExploreCommunityList
-          v-if="!handle && scope === 'community'"
+          v-else-if="!handle && scope === 'community'"
           :search="communitySearch"
           :adder="exploreAdd"
           :dashboard-id="selectedDashboardId"
@@ -228,15 +237,6 @@
   <!-- Import run modal -->
   <RunImportModal v-model:open="importModalOpen" @imported="reloadMap" />
 
-  <!-- Search / Discover modal — interim home of the Community + Gauges scopes
-       until they move into the rail (web#335 PRs 3–4). Opened by the scope
-       switcher and by ?discover=true / ?scope= deep links. -->
-  <GaugeSearchModal
-    v-model:open="searchModalOpen"
-    :initial-tab="searchModalInitialTab"
-    @added-external="reloadMap"
-  />
-
 </template>
 
 <script setup lang="ts">
@@ -305,12 +305,6 @@ function setScope(s: ExploreScope) {
 }
 
 function onScopeSelect(s: ExploreScope) {
-  if (s === 'gauges') {
-    // Interim: the Gauges scope still lives in the legacy modal.
-    searchModalInitialTab.value = 'gauges'
-    searchModalOpen.value = true
-    return
-  }
   setScope(s)
 }
 
@@ -345,13 +339,15 @@ const modePill = computed(() => {
   if (scope.value === 'community') {
     return { dotClass: 'bg-green-500', label: `Community · ${allReaches.value.length} on map` }
   }
+  if (scope.value === 'gauges') {
+    return { dotClass: 'bg-indigo-500', label: 'Gauges · results in list' }
+  }
   return { dotClass: 'bg-primary-500', label: `My runs · ${allReaches.value.length} on map` }
 })
 
-// ── New reach / import / search modals ───────────────────────────────────────
-const importModalOpen       = ref(false)
-const searchModalOpen       = ref(false)
-const searchModalInitialTab = ref<'mine' | 'discover' | 'community' | 'gauges'>('mine')
+// ── Import modal (the legacy GaugeSearchModal no longer mounts here — both
+//    of its explore-relevant tabs are real scopes now) ─────────────────────────
+const importModalOpen = ref(false)
 
 // ── Demo banner ───────────────────────────────────────────────────────────────
 const showDemoBanner = ref(false)
@@ -408,16 +404,8 @@ onMounted(async () => {
       setScope('community')
     } else if (route.query.scope) {
       const s = normalizeExploreScope(route.query.scope)
-      if (s === 'gauges') {
-        // Interim: Gauges still lives in the legacy modal.
-        searchModalInitialTab.value = 'gauges'
-        searchModalOpen.value = true
-        router.replace({ query: {} })
-      } else if (s) {
-        setScope(s)
-      } else {
-        router.replace({ query: {} })
-      }
+      if (s) setScope(s)
+      else router.replace({ query: {} })
     }
   }
 })
@@ -453,6 +441,9 @@ const mapSourceUrl = computed((): string | null => {
   }
   if (!mapToken.value) return null
   if (scope.value === 'community') return communitySearch.mapUrl.value
+  // Gauges is list-only for now (RunsMap renders LineStrings; gauge point
+  // pins are a follow-up) — null is RunsMap's explicit clear signal.
+  if (scope.value === 'gauges') return null
   return `${apiBase}/api/v1/me/runs/map/all`
 })
 
