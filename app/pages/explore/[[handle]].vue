@@ -24,12 +24,10 @@
     <!-- Split-pane body -->
     <div class="flex-1 overflow-hidden flex relative">
 
-      <!-- ── Left panel ───────────────────────────────────────────────────────── -->
+      <!-- ── Left panel (desktop rail; mobile rides the bottom sheet) ─────────── -->
       <aside
-        class="shrink-0 border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 flex flex-col overflow-hidden transition-all"
-        :class="listVisible
-          ? 'absolute sm:relative inset-0 sm:inset-auto z-30 sm:z-auto w-full sm:w-80'
-          : 'hidden sm:flex sm:w-80'"
+        v-if="!isMobile"
+        class="shrink-0 border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 hidden sm:flex flex-col overflow-hidden w-80"
       >
         <!-- Sidebar header: "← My runs" when browsing a handle, else picker -->
         <div class="shrink-0 px-3 pt-2.5 pb-2 flex items-center justify-between gap-2 border-b border-neutral-100 dark:border-neutral-800">
@@ -85,28 +83,16 @@
           </div>
         </div>
 
-        <!-- Search + mobile map toggle (all modes; the Gauges panel brings its
-             own two inputs, so the shared box hides there) -->
-        <div class="px-3 py-2 shrink-0 flex items-center gap-2">
+        <!-- Search (the Gauges panel brings its own two inputs, so the shared
+             box hides there) -->
+        <div v-if="handle || scope !== 'gauges'" class="px-3 py-2 shrink-0 flex items-center gap-2">
           <input
-            v-if="handle || scope !== 'gauges'"
             v-model="searchText"
             type="search"
             :placeholder="searchPlaceholder"
             class="flex-1 text-sm bg-neutral-100 dark:bg-neutral-900 rounded-md px-3 py-1.5 text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
             @input="onSearchInput"
           />
-          <div v-else class="flex-1"/>
-          <button
-            class="sm:hidden shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-950/50 transition-colors"
-            aria-label="Show map"
-            @click="listVisible = false"
-          >
-            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 5l-5 5 5 5"/>
-            </svg>
-            Map
-          </button>
         </div>
 
         <!-- Community filters (community scope only) -->
@@ -218,8 +204,9 @@
             {{ modePill.label }}
           </div>
 
-          <!-- Community run detail card (pin/row click) -->
-          <div v-if="detailOpen && !handle && scope === 'community'" class="absolute bottom-3 left-3 z-20">
+          <!-- Community run detail card (pin/row click; desktop — mobile jumps
+               the sheet to the row instead) -->
+          <div v-if="detailOpen && !handle && scope === 'community'" class="hidden sm:block absolute bottom-3 left-3 z-20">
             <ExploreRunDetailCard
               :run="selectedRun"
               :feature="selectedFeature"
@@ -239,20 +226,100 @@
             New run — drop a pin
           </NuxtLink>
 
-          <!-- Mobile: open list (only shown when map is visible) -->
-          <button
-            v-if="!listVisible"
-            class="sm:hidden absolute top-2 left-2 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium shadow-md bg-white/95 dark:bg-neutral-900/95 border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200"
-            @click="listVisible = true"
+          <!-- Mobile: floating search + scope pills over the map -->
+          <ExploreMobileSearchBar
+            v-if="isMobile"
+            v-model="searchText"
+            :placeholder="searchPlaceholder"
+            :scope="scope"
+            :hide-input="!handle && scope === 'gauges'"
+            @input="onSearchInput"
+            @scope-select="onScopeSelect"
+          />
+
+          <!-- Mobile: drop-a-pin FAB rides above the sheet -->
+          <NuxtLink
+            v-if="isMobile && !handle && isAuthenticated && sheetDetent !== 'expanded'"
+            to="/my/runs/new"
+            class="sm:hidden fixed right-4 z-20 flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-primary-600 text-white shadow-lg"
+            :style="{ bottom: mobileFabBottom }"
           >
-            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/>
-            </svg>
-            {{ mapReaches.length }} reaches
-          </button>
+            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
+            Drop a pin
+          </NuxtLink>
         </div>
       </div>
     </div>
+
+    <!-- ── Mobile results sheet (3 detents: hidden / peek / expanded) ────────── -->
+    <ExploreMobileSheet
+      v-if="isMobile"
+      ref="mobileSheet"
+      v-model:detent="sheetDetent"
+      :title="sheetTitle"
+    >
+      <template #header-right>
+        <ExploreAddingToChip v-if="!handle && isAuthenticated" v-model:dashboard-id="selectedDashboardId" />
+      </template>
+
+      <!-- Community: horizontal filter chips + list -->
+      <template v-if="!handle && scope === 'community'">
+        <div class="px-3 pb-2 shrink-0 overflow-x-auto">
+          <ExploreCommunityFilters :search="communitySearch" />
+        </div>
+        <ExploreCommunityList
+          :search="communitySearch"
+          :adder="exploreAdd"
+          :dashboard-id="selectedDashboardId"
+          :hovered-slug="hoveredSlug"
+          :selected-slug="selectedRunSlug"
+          @hover="hoveredSlug = $event"
+          @select="onCommunitySelect"
+        />
+      </template>
+
+      <!-- Gauges -->
+      <ExploreGaugesPanel
+        v-else-if="!handle && scope === 'gauges'"
+        :dashboard-id="selectedDashboardId"
+      />
+
+      <!-- My runs / browse -->
+      <template v-else>
+        <div v-if="handle" class="px-3 pb-1.5 shrink-0 flex items-center gap-1">
+          <span class="text-xs text-neutral-400 mr-1">Sort:</span>
+          <button
+            class="px-2 py-0.5 rounded text-xs transition-colors"
+            :class="sortMode === 'river' ? 'bg-primary-100 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400 font-medium' : 'text-neutral-500 dark:text-neutral-400'"
+            @click="sortMode = 'river'"
+          >By river</button>
+          <button
+            class="px-2 py-0.5 rounded text-xs transition-colors"
+            :class="sortMode === 'upvotes' ? 'bg-primary-100 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400 font-medium' : 'text-neutral-500 dark:text-neutral-400'"
+            @click="sortMode = 'upvotes'"
+          >Most upvoted</button>
+        </div>
+        <div v-if="!isAuthenticated && !handle" class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-neutral-400">
+          <span>Sign in to see your runs.</span>
+          <NuxtLink to="/login" class="text-primary-500 hover:underline">Sign in →</NuxtLink>
+        </div>
+        <div v-else-if="sidebarReaches.length === 0" class="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-neutral-400">
+          <span v-if="handle">No public runs for @{{ handle }}.</span>
+          <span v-else>No runs yet.</span>
+          <NuxtLink v-if="!handle" to="/my/runs/new" class="text-primary-500 hover:underline">Create your first run →</NuxtLink>
+        </div>
+        <ExploreMyRunsList
+          v-else
+          :groups="filteredSidebarGroups"
+          :handle="handle"
+          :my-handle="myHandle"
+          :hovered-slug="hoveredSlug"
+          @hover="hoveredSlug = $event"
+          @select="onRowSelect"
+          @patch-upvote="patchReachUpvote($event.slug, $event.count, $event.upvoted)"
+        />
+      </template>
+    </ExploreMobileSheet>
   </div>
 
   <!-- Import run modal -->
@@ -261,7 +328,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import type { ReachListItem, ReachClickPayload } from '~/components/map/RunsMap.vue'
 import type { ExploreReachGroup, ExploreScope } from '~/types/explore'
 import { normalizeExploreScope } from '~/types/explore'
@@ -352,9 +419,9 @@ function onScopeSelect(s: ExploreScope) {
 
 function onCommunitySelect(run: { slug: string }) {
   selectedRunSlug.value = run.slug
-  detailOpen.value = true
+  detailOpen.value = true // desktop card; mobile keeps the sheet as the surface
   mapRef.value?.flyToSlug(run.slug)
-  listVisible.value = false
+  if (isMobile.value) sheetDetent.value = 'peek'
 }
 
 // ── Search box: one input, scope-owned state ─────────────────────────────────
@@ -570,7 +637,8 @@ const sidebarReaches = computed((): ReachListItem[] =>
 
 function onRowSelect(slug: string) {
   mapRef.value?.flyToSlug(slug)
-  listVisible.value = false
+  // Mobile: drop the sheet to peek so the map (and the flown-to run) shows.
+  if (isMobile.value) sheetDetent.value = 'peek'
 }
 
 function onReachesUpdated(r: ReachListItem[]) {
@@ -618,8 +686,11 @@ function onMapHover(slug: string | null) {
 function onReachClick(payload: ReachClickPayload) {
   if (!handle.value && scope.value === 'community') {
     selectedRunSlug.value = payload.slug
-    detailOpen.value = true
+    detailOpen.value = true // desktop card
     hoveredSlug.value = payload.slug
+    // Mobile: tapping a pin surfaces the sheet at peek and the list scrolls
+    // the selected row into view (spec: "tap a pin → sheet jumps to run").
+    if (isMobile.value && sheetDetent.value === 'hidden') sheetDetent.value = 'peek'
     return
   }
   // When browsing a handle, use that handle for the run URL.
@@ -639,8 +710,31 @@ async function reloadMap() {
   await mapRef.value?.reloadSource()
 }
 
-// ── Mobile list/map toggle ────────────────────────────────────────────────────
-const listVisible = ref(false)
+// ── Mobile shell (web#335): breakpoint + bottom sheet ─────────────────────────
+// One breakpoint source so the rail's components mount exactly once — either
+// in the desktop aside or in the sheet (ExploreGaugesPanel owns fetch state;
+// double-mounting it would double-fetch and split its inputs).
+const mq = import.meta.client ? window.matchMedia('(max-width: 639px)') : null
+const isMobile = ref(mq?.matches ?? false)
+function onMqChange(e: MediaQueryListEvent) { isMobile.value = e.matches }
+onMounted(() => mq?.addEventListener('change', onMqChange))
+onUnmounted(() => mq?.removeEventListener('change', onMqChange))
+
+const mobileSheet = ref<{ snapTo: (d: 'expanded' | 'peek' | 'hidden') => void } | null>(null)
+const sheetDetent = ref<'expanded' | 'peek' | 'hidden'>('peek')
+
+const sheetTitle = computed(() => {
+  if (handle.value) return `@${handle.value} · ${sidebarCount.value} runs`
+  if (scope.value === 'community') return `Community · ${communitySearch.runs.value.length} runs`
+  if (scope.value === 'gauges') return 'Gauges'
+  return `Your runs · ${sidebarCount.value}`
+})
+
+// FAB rides just above the sheet's resting detent (tab bar + sheet sliver).
+const mobileFabBottom = computed(() => {
+  const sliver = sheetDetent.value === 'peek' ? 224 : 48
+  return `calc(3.5rem + env(safe-area-inset-bottom) + ${sliver + 12}px)`
+})
 </script>
 
 <style scoped>

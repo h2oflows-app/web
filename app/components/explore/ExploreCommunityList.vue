@@ -19,6 +19,7 @@
         <ExploreCommunityRow
           v-for="run in search.runs.value"
           :key="run.id"
+          :ref="(el) => setRowRef(run.slug, el)"
           :run="run"
           :adder="adder"
           :dashboard-id="dashboardId"
@@ -43,14 +44,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import type { CommunitySearch, DiscoverRun } from '~/composables/useCommunitySearch'
 import type { ExploreAdd } from '~/composables/useExploreAdd'
 
 // Community results list (web#335): rows + Load more + the modal's two empty
 // states. Split-picker open state lives here (one open at a time) and closes
 // on any outside click, same discipline as the modal's closeRowMenus.
-defineProps<{
+const props = defineProps<{
   search: CommunitySearch
   adder: ExploreAdd
   dashboardId: string | null
@@ -62,6 +63,18 @@ const emit = defineEmits<{
   (e: 'hover', slug: string | null): void
   (e: 'select', run: DiscoverRun): void
 }>()
+
+// Tap-a-pin jump (mobile sheet) + selection sync: scroll the selected row
+// into view when it changes from outside the list (pin click).
+const rowRefs = new Map<string, HTMLElement>()
+function setRowRef(slug: string, el: any) {
+  const dom: HTMLElement | null = el?.$el ?? el
+  if (dom) rowRefs.set(slug, dom)
+  else rowRefs.delete(slug)
+}
+watch(() => props.selectedSlug, (slug) => {
+  if (slug) nextTick(() => rowRefs.get(slug)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
+})
 
 const splitOpenForId = ref<string | null>(null)
 
