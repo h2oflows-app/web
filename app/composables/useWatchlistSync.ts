@@ -185,15 +185,21 @@ export function useWatchlistSync() {
     }
   }
 
+  // The four add functions below return whether the server actually accepted
+  // the write (web#335). They still never throw — but a success toast shown
+  // for a request that silently failed is worse than none (#422), so callers
+  // gate their feedback on the returned boolean. Existing callers that ignore
+  // the return value are unchanged.
+
   /**
    * Adds a custom gauge to the watchlist. Used when a user picks a custom
    * gauge from the My Reaches & Gauges tab in the search modal. The store is
    * not updated optimistically — caller should re-call loadForDashboard after.
    */
-  async function addCustomGaugeToWatchlist(customGaugeId: string, dashboardId: string | null, reachSlug?: string | null) {
+  async function addCustomGaugeToWatchlist(customGaugeId: string, dashboardId: string | null, reachSlug?: string | null): Promise<boolean> {
     const token = await getToken()
-    if (!token) return
-    await fetch(`${apiBase}/api/v1/watchlist`, {
+    if (!token) return false
+    const res = await fetch(`${apiBase}/api/v1/watchlist`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -201,7 +207,8 @@ export function useWatchlistSync() {
         reach_slug: reachSlug ?? null,
         dashboard_id: dashboardId ?? null,
       }),
-    }).catch(() => {})
+    }).catch(() => null)
+    return !!res?.ok
   }
 
   /**
@@ -209,10 +216,10 @@ export function useWatchlistSync() {
    * dashboard. The store is not updated optimistically — caller should re-call
    * loadForDashboard after to hydrate the gauge metadata from the batch API.
    */
-  async function addUserReachToWatchlist(gaugeId: string, reachSlug: string, dashboardId: string | null) {
+  async function addUserReachToWatchlist(gaugeId: string, reachSlug: string, dashboardId: string | null): Promise<boolean> {
     const token = await getToken()
-    if (!token) return
-    await fetch(`${apiBase}/api/v1/watchlist`, {
+    if (!token) return false
+    const res = await fetch(`${apiBase}/api/v1/watchlist`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -220,21 +227,23 @@ export function useWatchlistSync() {
         reach_slug: reachSlug,
         dashboard_id: dashboardId ?? null,
       }),
-    }).catch(() => {})
+    }).catch(() => null)
+    return !!res?.ok
   }
 
   /**
    * Reference-add a public community run to a dashboard. No copy made. (V6)
    * Calls POST /user-runs/{runId}/add-to-dashboard.
    */
-  async function addReferenceToWatchlist(runId: string, dashboardId: string | null) {
+  async function addReferenceToWatchlist(runId: string, dashboardId: string | null): Promise<boolean> {
     const token = await getToken()
-    if (!token) return
-    await fetch(`${apiBase}/api/v1/user-runs/${runId}/add-to-dashboard`, {
+    if (!token) return false
+    const res = await fetch(`${apiBase}/api/v1/user-runs/${runId}/add-to-dashboard`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ dashboard_id: dashboardId ?? null }),
-    }).catch(() => {})
+    }).catch(() => null)
+    return !!res?.ok
   }
 
   /**
@@ -242,17 +251,18 @@ export function useWatchlistSync() {
    * a user reach has no gauge or custom gauge linked but should still appear on
    * a dashboard for planning/reference.
    */
-  async function addReachToWatchlist(reachSlug: string, dashboardId: string | null) {
+  async function addReachToWatchlist(reachSlug: string, dashboardId: string | null): Promise<boolean> {
     const token = await getToken()
-    if (!token) return
-    await fetch(`${apiBase}/api/v1/watchlist`, {
+    if (!token) return false
+    const res = await fetch(`${apiBase}/api/v1/watchlist`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         reach_slug: reachSlug,
         dashboard_id: dashboardId ?? null,
       }),
-    }).catch(() => {})
+    }).catch(() => null)
+    return !!res?.ok
   }
 
   return {
