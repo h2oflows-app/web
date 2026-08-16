@@ -218,6 +218,27 @@
             {{ modePill.label }}
           </div>
 
+          <!-- Community run detail card (pin/row click) -->
+          <div v-if="detailOpen && !handle && scope === 'community'" class="absolute bottom-3 left-3 z-20">
+            <ExploreRunDetailCard
+              :run="selectedRun"
+              :feature="selectedFeature"
+              :adder="exploreAdd"
+              @close="detailOpen = false"
+            />
+          </div>
+
+          <!-- New run — drop a pin (desktop; mobile FAB rides the mobile shell
+               slice). Offset left of RunsMap's own bottom-right controls. -->
+          <NuxtLink
+            v-if="!handle && isAuthenticated"
+            to="/my/runs/new"
+            class="hidden sm:flex absolute bottom-3 right-14 z-20 items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-primary-600 hover:bg-primary-700 text-white shadow-lg transition-colors"
+          >
+            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="10" y1="4" x2="10" y2="16"/><line x1="4" y1="10" x2="16" y2="10"/></svg>
+            New run — drop a pin
+          </NuxtLink>
+
           <!-- Mobile: open list (only shown when map is visible) -->
           <button
             v-if="!listVisible"
@@ -285,14 +306,35 @@ const selectedDashboardId = ref<string | null>(null)
 const communitySearch = useCommunitySearch()
 const exploreAdd = useExploreAdd({ dashboardId: selectedDashboardId, myHandle })
 
-// Community selection (map fly-to now; detail card arrives in a later slice)
+// Community selection + detail card
 const selectedRunSlug = ref<string | null>(null)
+const detailOpen = ref(false)
+
+// Card data: full DiscoverRun when the slug is in the loaded list, else the
+// map feature (reduced field set — RunsMap strips MapCommunity's extra props).
+const selectedRun = computed(() =>
+  communitySearch.runs.value.find(r => r.slug === selectedRunSlug.value) ?? null)
+const selectedFeature = computed(() =>
+  allReaches.value.find(r => r.slug === selectedRunSlug.value) ?? null)
+
+// Modal parity: first result of a fresh (non-append) load is pre-selected —
+// as the rail highlight only; the card opens on an explicit row/pin click.
+watch(() => communitySearch.runs.value, (runs) => {
+  if (selectedRunSlug.value && !runs.some(r => r.slug === selectedRunSlug.value)) {
+    selectedRunSlug.value = null
+    detailOpen.value = false
+  }
+  if (!selectedRunSlug.value && runs.length > 0) {
+    selectedRunSlug.value = runs[0]?.slug ?? null
+  }
+})
 
 function setScope(s: ExploreScope) {
   if (scope.value === s) return
   scope.value = s
   hoveredSlug.value = null
   selectedRunSlug.value = null
+  detailOpen.value = false
   // Keep the scope in the URL for refresh/back/deep links; drop consumed
   // legacy keys so ?discover=true can't re-fire on the next mount.
   const q: Record<string, any> = { ...route.query }
@@ -310,6 +352,7 @@ function onScopeSelect(s: ExploreScope) {
 
 function onCommunitySelect(run: { slug: string }) {
   selectedRunSlug.value = run.slug
+  detailOpen.value = true
   mapRef.value?.flyToSlug(run.slug)
   listVisible.value = false
 }
@@ -568,8 +611,17 @@ function onMapHover(slug: string | null) {
   hoveredSlug.value = slug
 }
 
-// ── Map click → navigate straight to run detail ───────────────────────────────
+// ── Map click ─────────────────────────────────────────────────────────────────
+// Community scope: a pin click selects the run and opens the detail card (the
+// old modal had no map at all; navigation stays one click away via View →).
+// My-runs and browse modes keep today's navigate behavior exactly.
 function onReachClick(payload: ReachClickPayload) {
+  if (!handle.value && scope.value === 'community') {
+    selectedRunSlug.value = payload.slug
+    detailOpen.value = true
+    hoveredSlug.value = payload.slug
+    return
+  }
   // When browsing a handle, use that handle for the run URL.
   // Otherwise use the run's own authorHandle if available, else the current
   // user's own handle (falling back to 'h2oflows' if it hasn't resolved yet).
