@@ -1,9 +1,6 @@
 <template>
   <div class="h-dvh flex flex-col overflow-hidden bg-white dark:bg-neutral-950">
 
-    <!-- Backdrop: consumes the click that closes the dashboard dropdown so it doesn't hit reach rows -->
-    <div v-if="dropdownSlug !== null" class="fixed inset-0 z-30" @click.stop="dropdownSlug = null" />
-
     <!-- Sharing banner — one-time, auth only, localStorage dismissed flag -->
     <div v-if="showSharingBanner" class="shrink-0 bg-blue-50 dark:bg-blue-950 border-b border-blue-200 dark:border-blue-800 px-4 py-2 flex items-center justify-between gap-4 text-sm">
       <p class="text-blue-800 dark:text-blue-200 text-center flex-1">
@@ -57,6 +54,17 @@
           </template>
         </div>
 
+        <!-- web#335: adding-target chip + scope switcher (my-runs mode only;
+             browse mode keeps its channel identity untouched) -->
+        <template v-if="!handle && isAuthenticated">
+          <div class="px-3 pt-2 shrink-0">
+            <ExploreAddingToChip v-model:dashboard-id="selectedDashboardId" />
+          </div>
+          <div class="px-3 pt-2 pb-0.5 shrink-0">
+            <ExploreScopeSwitcher :model-value="scope" @select="onScopeSelect" />
+          </div>
+        </template>
+
         <!-- N.3 Channel profile header (browse mode only) -->
         <div v-if="handle" class="shrink-0 px-4 pt-3 pb-3 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40">
           <div class="flex items-center gap-3">
@@ -82,7 +90,7 @@
           <input
             v-model="query"
             type="search"
-            placeholder="Search runs, rivers…"
+            :placeholder="handle ? 'Search runs, rivers…' : 'Filter your runs…'"
             class="flex-1 text-sm bg-neutral-100 dark:bg-neutral-900 rounded-md px-3 py-1.5 text-neutral-800 dark:text-neutral-200 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
           <button
@@ -140,159 +148,16 @@
         </div>
 
         <!-- Reach list -->
-        <div
+        <ExploreMyRunsList
           v-if="showReachList"
-          class="flex-1 overflow-y-auto"
-        >
-          <div v-for="group in filteredSidebarGroups" :key="group.name">
-            <!-- River header (collapsible) -->
-            <button
-              v-if="group.name !== '__flat__'"
-              class="w-full flex items-center gap-2 px-3 py-1.5 border-b border-neutral-100 dark:border-neutral-800/50 bg-neutral-50 dark:bg-neutral-900/50 text-left hover:bg-neutral-100 dark:hover:bg-neutral-800/60 transition-colors"
-              @click="toggleRiverCollapse(group.name)"
-            >
-              <svg
-                class="w-3 h-3 shrink-0 text-neutral-400 transition-transform"
-                :class="collapsedRivers.has(group.name) ? '-rotate-90' : ''"
-                viewBox="0 0 20 20" fill="currentColor"
-              >
-                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
-              </svg>
-              <span class="text-xs font-semibold text-neutral-600 dark:text-neutral-300 flex-1 truncate">{{ group.name }}</span>
-              <span class="text-xs text-neutral-400 shrink-0">{{ group.reaches.length }}</span>
-            </button>
-            <!-- Reach rows (collapsed by river group) -->
-            <div v-show="!collapsedRivers.has(group.name)">
-            <div
-              v-for="reach in group.reaches"
-              :key="reach.slug"
-              :ref="(el) => setReachRef(reach.slug, el as HTMLElement | null)"
-              class="flex items-center gap-2 pl-6 pr-2 py-1.5 cursor-pointer transition-colors group"
-              :class="hoveredSlug === reach.slug
-                ? 'bg-primary-50 dark:bg-primary-950/40'
-                : 'hover:bg-neutral-50 dark:hover:bg-neutral-900/60'"
-              @mouseenter="hoveredSlug = reach.slug"
-              @mouseleave="hoveredSlug = null"
-              @click="mapRef?.flyToSlug(reach.slug); listVisible = false"
-            >
-              <span
-                class="w-2 h-2 rounded-full shrink-0"
-                :style="{ background: bandSolid(null, reach.flow_status) }"
-              />
-              <span class="flex-1 min-w-0 text-sm text-neutral-800 dark:text-neutral-200 truncate">{{ reach.name }}</span>
-              <span
-                v-if="reach.current_cfs != null"
-                class="text-xs font-medium tabular-nums shrink-0"
-                :style="{ color: bandSolid(null, reach.flow_status) }"
-              >{{ Math.round(reach.current_cfs).toLocaleString() }}</span>
-              <span v-else class="text-xs text-neutral-300 dark:text-neutral-600 shrink-0">—</span>
-              <!-- Add to dashboard: use isOtherUsersRun to decide reference vs own-add -->
-              <div
-                v-if="isAuthenticated && reach.id && reachIsOthers(reach.author_handle)"
-                class="browse-ref-anchor shrink-0 relative"
-                @click.stop
-              >
-                <!-- Reference-add (another user's run) -->
-                <button
-                  class="p-1 rounded transition-colors"
-                  :class="addedRefIds.has(reach.slug) ? 'text-primary-500' : 'text-neutral-400 dark:text-neutral-500 hover:text-primary-500 dark:hover:text-primary-400'"
-                  :disabled="addingRefId === reach.slug"
-                  aria-label="Add to dashboard"
-                  @click="db.dashboards.value.length <= 1 ? addBrowseReference(reach, db.dashboards.value[0]?.id ?? null) : (browseRefDropdownId = browseRefDropdownId === reach.slug ? null : reach.slug)"
-                >
-                  <span v-if="addingRefId === reach.slug" class="w-4 h-4 border-2 border-primary-300 border-t-primary-600 rounded-full animate-spin inline-block"/>
-                  <svg v-else-if="addedRefIds.has(reach.slug)" class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-                  <svg v-else class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="14"/><line x1="6" y1="10" x2="14" y2="10"/></svg>
-                </button>
-                <div
-                  v-if="browseRefDropdownId === reach.slug"
-                  class="absolute right-0 top-full mt-1 z-40 min-w-40 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden"
-                >
-                  <p class="px-3 pt-2 pb-1 text-[10px] text-neutral-400 uppercase tracking-wide">Add to dashboard</p>
-                  <button
-                    v-for="dashboard in db.dashboards.value"
-                    :key="dashboard.id"
-                    class="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-neutral-700 dark:text-neutral-300"
-                    @click="addBrowseReference(reach, dashboard.id)"
-                  >{{ dashboard.name }}</button>
-                </div>
-              </div>
-              <!-- Own runs: membership picker -->
-              <div
-                v-else-if="isAuthenticated && !reachIsOthers(reach.author_handle)"
-                class="dashboard-dropdown-anchor shrink-0 relative"
-                @click.stop
-              >
-                <button
-                  class="p-1 rounded transition-colors text-neutral-400 dark:text-neutral-500 hover:text-primary-500 dark:hover:text-primary-400"
-                  aria-label="Add to dashboard"
-                  @click="openUserReachDropdown(reach)"
-                >
-                  <svg class="w-4 h-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                    <circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="14"/><line x1="6" y1="10" x2="14" y2="10"/>
-                  </svg>
-                </button>
-                <div
-                  v-if="dropdownSlug === reach.slug"
-                  class="absolute right-0 top-full mt-1 z-40 min-w-40 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg overflow-hidden"
-                >
-                  <div v-if="membershipLoading" class="px-3 py-2 text-xs text-neutral-400">Loading…</div>
-                  <button
-                    v-else
-                    v-for="dashboard in db.dashboards.value"
-                    :key="dashboard.id"
-                    class="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
-                    @click="toggleDashboardForUserReach(reach, dashboard.id)"
-                  >
-                    <svg
-                      class="w-3.5 h-3.5 shrink-0"
-                      :class="membershipDashboardIds.has(dashboard.id) ? 'text-primary-500' : 'text-neutral-300 dark:text-neutral-600'"
-                      viewBox="0 0 20 20" fill="currentColor"
-                    >
-                      <path v-if="membershipDashboardIds.has(dashboard.id)" fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                      <circle v-else cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/>
-                    </svg>
-                    <span class="truncate text-neutral-700 dark:text-neutral-300">{{ dashboard.name }}</span>
-                  </button>
-                </div>
-              </div>
-              <!-- N.6 Upvote button (browse mode: interactive; MY mode: count only) -->
-              <template v-if="reach.id">
-                <RunUpvoteButton
-                  v-if="handle"
-                  :run-id="reach.id"
-                  :count="reach.upvote_count ?? 0"
-                  :upvoted="reach.user_upvoted ?? false"
-                  size="sm"
-                  @click.stop
-                  @update:count="(c) => patchReachUpvote(reach.slug, c, null)"
-                  @update:upvoted="(u) => patchReachUpvote(reach.slug, null, u)"
-                />
-                <span
-                  v-else-if="(reach.upvote_count ?? 0) > 0"
-                  class="text-xs text-neutral-300 dark:text-neutral-600 shrink-0 tabular-nums"
-                  title="Upvotes"
-                >▲{{ reach.upvote_count }}</span>
-              </template>
-              <!-- Edit (mine) / View (browsing) link -->
-              <NuxtLink
-                :to="handle ? `/runs/${handle}/${reach.slug}` : `/my/runs/${reach.slug}`"
-                class="shrink-0 p-0.5 rounded text-neutral-300 dark:text-neutral-600 hover:text-primary-500 dark:hover:text-primary-400 transition-opacity opacity-60 sm:opacity-0 sm:group-hover:opacity-100 hover:opacity-100"
-                :aria-label="handle ? 'View run' : 'Edit run'"
-                @click.stop
-              >
-                <!-- Pencil for edit (mine), external-link for browse -->
-                <svg v-if="!handle" class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M13 4l3 3-9 9-4 1 1-4 9-9z"/>
-                </svg>
-                <svg v-else class="w-3 h-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M11 3H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5M13 3h4m0 0v4m0-4L9 11" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </NuxtLink>
-            </div>
-            </div><!-- end collapsible rows wrapper -->
-          </div>
-        </div>
+          :groups="filteredSidebarGroups"
+          :handle="handle"
+          :my-handle="myHandle"
+          :hovered-slug="hoveredSlug"
+          @hover="hoveredSlug = $event"
+          @select="onRowSelect"
+          @patch-upvote="patchReachUpvote($event.slug, $event.count, $event.upvoted)"
+        />
       </aside>
 
       <!-- ── Right panel: map ──────────────────────────────────────────────── -->
@@ -307,7 +172,6 @@
               :source-headers="mapSourceHeaders"
               @reaches-updated="onReachesUpdated"
               @all-reaches-updated="onAllReachesUpdated"
-              @zoom-updated="(z) => mapZoom = z"
               @hover-changed="onMapHover"
               @reach-click="onReachClick"
             />
@@ -329,18 +193,12 @@
     </div>
   </div>
 
-  <!-- Gauge detail modal -->
-  <GaugeDetailModal
-    v-if="detailGauge"
-    v-model:open="detailOpen"
-    :gauge="detailGauge"
-    mode="reach"
-  />
-
   <!-- Import run modal -->
   <RunImportModal v-model:open="importModalOpen" @imported="reloadMap" />
 
-  <!-- Search / Discover modal — opened via ?discover=true or ?import=true query -->
+  <!-- Search / Discover modal — interim home of the Community + Gauges scopes
+       until they move into the rail (web#335 PRs 3–4). Opened by the scope
+       switcher and by ?discover=true / ?scope= deep links. -->
   <GaugeSearchModal
     v-model:open="searchModalOpen"
     :initial-tab="searchModalInitialTab"
@@ -350,28 +208,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import type { ReachListItem, ReachClickPayload } from '~/components/map/RunsMap.vue'
-import type { WatchedGauge } from '~/stores/watchlist'
+import type { ExploreReachGroup, ExploreScope } from '~/types/explore'
+import { normalizeExploreScope } from '~/types/explore'
 
 definePageMeta({ ssr: false })
 
-const { bandSolid } = useFlowBandPalette()
 const { apiBase } = useRuntimeConfig().public
 const router = useRouter()
 const route = useRoute()
 let pendingFocusSlug: string | null = (route.query.focus as string) || null
 const { isAuthenticated, getToken } = useAuth()
 const db = useDashboards()
-const { addReachToWatchlist, addUserReachToWatchlist, addReferenceToWatchlist } = useWatchlistSync()
 
 // ── Route-driven handle ───────────────────────────────────────────────────────
 // handle is truthy when browsing /explore/{handle}; falsy = my runs (/explore)
 const handle = computed(() => (route.params.handle as string | undefined) || undefined)
 
-// Current user's handle — used to decide reference (other user's run) vs slug-add
-// (own run), and as the map-click view-URL fallback when a run has no
-// author_handle (e.g. /me/runs/map/all features). Fetched once when authenticated.
+// Current user's handle — used by the list for reference-vs-own add dispatch,
+// and as the map-click view-URL fallback when a run has no author_handle
+// (e.g. /me/runs/map/all features). Fetched once when authenticated.
 const myHandle = ref<string | null>(null)
 async function loadMyHandle() {
   const token = await getToken()
@@ -383,25 +240,27 @@ async function loadMyHandle() {
   const data = await res.json().catch(() => null)
   myHandle.value = data?.handle ?? null
 }
-// A run owned by someone other than the current user → add by reference, not fork.
-function isOtherUsersRun(ownerHandle: string | null | undefined): boolean {
-  if (!ownerHandle) return false
-  if (!myHandle.value) return true   // unknown self → never fork another's run
-  return ownerHandle.toLowerCase() !== myHandle.value.toLowerCase()
-}
-// On bare /explore (my runs) every listed run is the current user's, so it's never
-// "someone else's". Only when browsing /explore/{handle} can a run belong to another
-// user. Gating on handle.value also avoids a wrong add-button flash before myHandle
-// resolves on the my-runs view.
-function reachIsOthers(ownerHandle: string | null | undefined): boolean {
-  if (!handle.value) return false
-  return isOtherUsersRun(ownerHandle ?? handle.value)
+
+// ── Scopes (web#335) ─────────────────────────────────────────────────────────
+// 'mine' is the only in-rail scope so far; Community and Gauges open the
+// legacy search modal until PRs 3–4 move them into the rail. The switcher
+// therefore never leaves 'mine' in this increment.
+const scope = ref<ExploreScope>('mine')
+
+// Add-target for the rail's future add paths; the chip self-inits from the
+// active dashboard and self-repairs (same contract as the modal chip).
+const selectedDashboardId = ref<string | null>(null)
+
+function onScopeSelect(s: ExploreScope) {
+  if (s === 'mine') return
+  searchModalInitialTab.value = s
+  searchModalOpen.value = true
 }
 
 // ── New reach / import / search modals ───────────────────────────────────────
 const importModalOpen       = ref(false)
 const searchModalOpen       = ref(false)
-const searchModalInitialTab = ref<'mine' | 'discover'>('mine')
+const searchModalInitialTab = ref<'mine' | 'discover' | 'community' | 'gauges'>('mine')
 
 // ── Demo banner ───────────────────────────────────────────────────────────────
 const showDemoBanner = ref(false)
@@ -414,45 +273,8 @@ function dismissSharingBanner() {
   localStorage.setItem('sharing-banner-dismissed', 'true')
 }
 
-// ── Dashboard dropdown per reach ──────────────────────────────────────────────
-const dropdownSlug           = ref<string | null>(null)
-const membershipDashboardIds = ref<Set<string>>(new Set())
-const membershipLoading      = ref(false)
-
-// ── Browse mode: reference-add per run ────────────────────────────────────────
-const browseRefDropdownId = ref<string | null>(null)
-const addingRefId         = ref<string | null>(null)
-const addedRefIds         = ref<Set<string>>(new Set())
-
-async function addBrowseReference(reach: ReachListItem, dashId: string | null) {
-  addingRefId.value = reach.slug
-  browseRefDropdownId.value = null
-  try {
-    // Browse lists one user's runs (handle). Another user's run → reference
-    // (keeps their ownership, read-only). Own run → slug add (editable).
-    if (reach.id && reachIsOthers(reach.author_handle)) {
-      await addReferenceToWatchlist(reach.id, dashId)
-    } else {
-      await addReachToWatchlist(reach.slug, dashId)
-    }
-    addedRefIds.value = new Set([...addedRefIds.value, reach.slug])
-    setTimeout(() => {
-      addedRefIds.value = new Set([...addedRefIds.value].filter(x => x !== reach.slug))
-    }, 3000)
-  } finally {
-    addingRefId.value = null
-  }
-}
-
-function onDocClick(e: MouseEvent) {
-  const target = e.target as HTMLElement
-  if (dropdownSlug.value && !target.closest('.dashboard-dropdown-anchor')) dropdownSlug.value = null
-  if (browseRefDropdownId.value && !target.closest('.browse-ref-anchor')) browseRefDropdownId.value = null
-}
-
 onMounted(async () => {
   showDemoBanner.value = localStorage.getItem('demo-banner-dismissed') !== 'true'
-  document.addEventListener('click', onDocClick)
 
   // Back-compat: ?browse=handle (old links) → canonical /explore/{handle}.
   // Run before the logged-out redirect so old links resolve to the intended user.
@@ -490,13 +312,20 @@ onMounted(async () => {
       importModalOpen.value = true
       router.replace({ query: {} })
     } else if (route.query.discover === 'true') {
-      searchModalInitialTab.value = 'discover'
+      // Legacy deep link — same interim behavior as ?scope=community.
+      searchModalInitialTab.value = 'community'
       searchModalOpen.value = true
+      router.replace({ query: {} })
+    } else if (route.query.scope) {
+      const s = normalizeExploreScope(route.query.scope)
+      if (s && s !== 'mine') {
+        searchModalInitialTab.value = s
+        searchModalOpen.value = true
+      }
       router.replace({ query: {} })
     }
   }
 })
-onUnmounted(() => document.removeEventListener('click', onDocClick))
 
 function dismissBanner() {
   showDemoBanner.value = false
@@ -529,8 +358,6 @@ const mapSourceUrl = computed((): string | null => {
 // ── Reach list ────────────────────────────────────────────────────────────────
 const query = ref('')
 
-interface ReachGroup { name: string; reaches: ReachListItem[] }
-
 // ── Sort mode (N.6) ───────────────────────────────────────────────────────
 const sortMode = ref<'river' | 'upvotes'>('river')
 
@@ -548,7 +375,7 @@ function sortReachesByRiverPosition(reaches: ReachListItem[]): ReachListItem[] {
   }))
 }
 
-const filteredSidebarGroups = computed((): ReachGroup[] => {
+const filteredSidebarGroups = computed((): ExploreReachGroup[] => {
   const q = query.value.trim().toLowerCase()
   const items = q.length >= 2
     ? sidebarReaches.value.filter(r =>
@@ -593,7 +420,6 @@ const mapRef      = ref<{ flyToSlug: (slug: string) => void; reloadSource: () =>
 const hoveredSlug = ref<string | null>(null)
 const mapReaches  = ref<ReachListItem[]>([])   // viewport-filtered (from map moveend)
 const allReaches  = ref<ReachListItem[]>([])   // all loaded from source (not viewport-filtered)
-const mapZoom     = ref(4)
 
 // ── Zoom & Filter toggle ──────────────────────────────────────────────────────
 const zoomFilter = ref(false)
@@ -607,20 +433,9 @@ const sidebarReaches = computed((): ReachListItem[] =>
   zoomFilter.value ? mapReaches.value : allReaches.value
 )
 
-// ── Collapsible river groups ──────────────────────────────────────────────────
-const collapsedRivers = ref(new Set<string>())
-
-function toggleRiverCollapse(name: string) {
-  const next = new Set(collapsedRivers.value)
-  if (next.has(name)) next.delete(name)
-  else                next.add(name)
-  collapsedRivers.value = next
-}
-
-const reachRefs = new Map<string, HTMLElement>()
-function setReachRef(slug: string, el: HTMLElement | null) {
-  if (el) reachRefs.set(slug, el)
-  else    reachRefs.delete(slug)
+function onRowSelect(slug: string) {
+  mapRef.value?.flyToSlug(slug)
+  listVisible.value = false
 }
 
 function onReachesUpdated(r: ReachListItem[]) {
@@ -659,11 +474,6 @@ function patchReachUpvote(slug: string, count: number | null, upvoted: boolean |
 
 function onMapHover(slug: string | null) {
   hoveredSlug.value = slug
-  if (slug) {
-    nextTick(() => {
-      reachRefs.get(slug)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-    })
-  }
 }
 
 // ── Map click → navigate straight to run detail ───────────────────────────────
@@ -687,65 +497,6 @@ async function reloadMap() {
 
 // ── Mobile list/map toggle ────────────────────────────────────────────────────
 const listVisible = ref(false)
-
-// ── Dashboard watchlist integration ──────────────────────────────────────────
-async function openUserReachDropdown(r: ReachListItem) {
-  if (dropdownSlug.value === r.slug) { dropdownSlug.value = null; return }
-  dropdownSlug.value = r.slug
-  membershipLoading.value = true
-  membershipDashboardIds.value = new Set()
-  const token = await getToken()
-  if (!token) { membershipLoading.value = false; return }
-  try {
-    const res = await fetch(`${apiBase}/api/v1/watchlist`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (!res.ok) return
-    const data = await res.json()
-    const ids = new Set<string>()
-    for (const item of (data.items ?? [])) {
-      if (item.reach_slug === r.slug && item.dashboard_id) {
-        ids.add(item.dashboard_id)
-      }
-    }
-    membershipDashboardIds.value = ids
-  } finally {
-    membershipLoading.value = false
-  }
-}
-
-async function toggleDashboardForUserReach(r: ReachListItem, dashboardId: string) {
-  if (membershipDashboardIds.value.has(dashboardId)) {
-    membershipDashboardIds.value = new Set([...membershipDashboardIds.value].filter(id => id !== dashboardId))
-    const token = await getToken()
-    if (token) {
-      const qs = `?kind=reach&dashboard_id=${encodeURIComponent(dashboardId)}`
-      fetch(`${apiBase}/api/v1/watchlist/${encodeURIComponent(r.slug)}${qs}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {})
-    }
-  } else {
-    membershipDashboardIds.value = new Set([...membershipDashboardIds.value, dashboardId])
-    // Use gauge-linked path when run has a gauge so it appears in river.reaches
-    if (r.gauge_id) {
-      await addUserReachToWatchlist(r.gauge_id, r.slug, dashboardId)
-    } else {
-      await addReachToWatchlist(r.slug, dashboardId)
-    }
-    if (import.meta.client) {
-      const key = `h2oflow_hidden_reaches_${dashboardId}`
-      try {
-        const set = new Set<string>(JSON.parse(localStorage.getItem(key) ?? '[]'))
-        if (set.delete(r.slug)) localStorage.setItem(key, JSON.stringify([...set]))
-      } catch {}
-    }
-  }
-}
-
-// ── Gauge detail modal ────────────────────────────────────────────────────────
-const detailOpen  = ref(false)
-const detailGauge = ref<WatchedGauge | null>(null)
 </script>
 
 <style scoped>

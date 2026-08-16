@@ -541,8 +541,10 @@ import { classRange } from '~/utils/classRating'
 
 const open = defineModel<boolean>('open', { default: false })
 
+// 'gauges' added for the explore scope switcher's interim wiring (web#335);
+// 'discover' is the legacy alias for 'community' (see normalizeTab).
 const props = withDefaults(defineProps<{
-  initialTab?: 'mine' | 'discover' | 'community'
+  initialTab?: 'mine' | 'discover' | 'community' | 'gauges'
 }>(), { initialTab: 'mine' })
 
 interface AddedExternalPayload {
